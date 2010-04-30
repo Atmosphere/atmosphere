@@ -1,0 +1,48 @@
+body, textarea, input {
+  font-size: 24px;
+  font-family: Verdana, Helvetica, Arial, sans-serif;
+  color: #2d2b3d;
+}
+
+a {
+  color : #FFFFFF;
+}
+
+#header {
+  border: 1px solid #000000;
+  height:85px;
+}
+
+#main {
+  position: relative;
+  margin-top: 5px;
+}
+
+#content {
+  border: 1px solid #000000;
+}
+
+#banner {
+  font-size:35px;
+ }
+ 
+
+#login-name {
+  width: 200px;
+}
+#message {
+  width: 740px;
+  height: 40px;
+  font-size: 12px;  
+} 
+#display {
+  width: 200px;
+  height: 70px;
+  color : #FFFFFF;
+} 
+
+#follower{
+  font-size: 12px;
+}
+
+ 

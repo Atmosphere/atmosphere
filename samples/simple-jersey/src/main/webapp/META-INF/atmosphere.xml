@@ -1,0 +1,4 @@
+<atmosphere-handlers>
+    <atmosphere-handler context-root="/resources" class-name="org.atmosphere.core.JerseyServletProcessor">
+    </atmosphere-handler>
+</atmosphere-handlers>

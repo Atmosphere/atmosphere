@@ -1,0 +1,23 @@
+.dj_ie .dijitRtl .dojoxGridHeader table {
+	float:none;
+}
+.dijitRtl .dojoxGridCell {
+	text-align:right;
+}
+.dijitRtl .dojoxGridNestedSort, 
+.dijitRtl .dojoxGridUnarySort {
+	text-align: right;
+}
+.dijitRtl .dojoxGridSortWrapper {
+	left: 0;
+	right: auto;
+}
+.dijitRtl .dojoxGridCell .dojoxGridHeaderCellSelectRegion {
+	float: right;
+	text-align: right;
+}
+.dijitRtl .dojoxGridSortSeparatorOn,
+.dijitRtl .dojoxGridNestedSortWrapper,
+.dijitRtl .dojoxGridUnarySortWrapper {
+	float: right;
+}

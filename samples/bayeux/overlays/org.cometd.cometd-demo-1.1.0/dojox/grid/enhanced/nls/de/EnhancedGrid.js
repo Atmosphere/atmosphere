@@ -1,0 +1,1 @@
+({"descending":"Absteigend","ascending":"Aufsteigend","nestedSort":"Verschachtelte Sortierung","unsorted":"Spalte nicht sortieren","singleSort":"Einfache Sortierung","sortingState":"${0} - ${1}"})

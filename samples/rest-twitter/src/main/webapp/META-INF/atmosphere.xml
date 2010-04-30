@@ -1,0 +1,8 @@
+<atmosphere-handlers>
+    <atmosphere-handler support-session="true" context-root="/dispatch" class-name="org.atmosphere.handler.ReflectorServletProcessor"
+        broadcaster="org.atmosphere.samples.twitter.TwitterBroadcaster">
+        <property name="servletClassName" value="com.sun.jersey.spi.container.servlet.ServletContainer"/>
+    </atmosphere-handler>
+</atmosphere-handlers>
+
+        

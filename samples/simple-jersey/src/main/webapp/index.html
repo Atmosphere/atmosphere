@@ -1,0 +1,249 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+  <head>
+    <title></title>
+<script language="Javascript">
+
+var baseURL = "/atmosphere-simple-jersey/resources"
+
+function xmlhttpGet(strURL, mimeType) {
+    log('xmlhttpGet');
+//    alert("url: " +strURL+" mime: "+mimeType);
+    var xmlHttpReq;// = getXmlHttpRequest();
+    if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+        xmlHttpReq = new XMLHttpRequest();
+    } else if (window.ActiveXObject) { // IE
+        xmlHttpReq = new ActiveXObject("Microsoft.XMLHTTP");
+    }    
+//    req.onprogress = onProgress;    
+    log(xmlHttpReq);
+    updatepage('request', strURL);
+    xmlHttpReq.open('GET', strURL, true);
+    log("open");
+    if (mimeType != null)
+      xmlHttpReq.setRequestHeader('Accept', mimeType);
+//    self.xmlHttpReq.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xmlHttpReq.onreadystatechange = function() { updateState(xmlHttpReq); };
+    xmlHttpReq.send(null);
+}
+
+function updateState(xmlHttpReq) {
+    try {
+        if (xmlHttpReq.readyState == 4) {
+            updatepage('result', "<html><body>"+xmlHttpReq.responseText+"</body></html>");        
+            updatepage('resultheaders', xmlHttpReq.getAllResponseHeaders());
+        } else
+            log("state: "+xmlHttpReq.readyState);
+    } catch( e ) {
+        alert('Caught Exception1: ' + e.description);
+    }           
+}
+
+function getRep() {
+  var resource = document.getElementById('mimeType');
+  log("selector "+resource.name);
+  return resource.selectedIndex;
+}
+
+function getSelMethod() {
+    for (counter = 0; counter < form1.selMethod.length; counter++) {
+        // If a radio button has been selected it will return true
+        // (If not it will return false)
+        if (form1.selMethod[counter].checked)
+            return form1.selMethod[counter].value;
+    }
+    return null;
+}
+
+
+function getParam1() {
+    var value = form1.param1.value;
+    if (value == undefined || value == "")
+        value = null;
+    return value
+}
+
+function getParam2() {
+    var value = form1.param2.value;
+    if (value == undefined || value == "")
+        value = null;
+    return value
+}
+
+
+function getquerystring() {
+    log('getquerystring');
+    var wordvalue = getRep();
+    if (wordvalue == undefined || wordvalue == "")
+        qstr = null;
+    else
+        qstr = 'rep=' + escape(wordvalue);  // NOTE: no '?' before querystring
+    return qstr;
+}
+
+function updatepage(id, str){
+    log('updatepage: '+id+" str: "+str);
+    document.getElementById(id).innerHTML = str;
+}
+function hideall() {
+   setvisibility('test3', 'hidden');
+}
+
+function setvisibility(id,state) {
+    try {
+        document.getElementById(id).style.visibility = state;
+     } catch(e) {}
+}
+
+function clearAll() {
+  updatepage('request', '');
+  updatepage('result', '');
+  updatepage('resource', '');
+}
+
+function getSelectorValue(selectorId) {
+  var resource = document.getElementById(selectorId);
+  log("selector "+resource.name);
+  var myIndex = resource.selectedIndex;
+  log("index: " +myIndex);
+  log(resource.options);
+  log(resource.options[myIndex].value);
+  return resource.options[myIndex].value 
+}
+
+
+function testResource() {
+  clearAll();
+  log('testResource');
+  var selectedValue = getSelectorValue('resourceId');
+  setvisibility('result',  'inherit');
+  updatepage('resource', "Resource "+selectedValue);
+  var req = '';
+  if (selectedValue == 1) {
+     setvisibility('test3', 'hidden');
+     req = baseURL+"/resource1";
+      updatepage('request', req);
+    xmlhttpGet(req, null);
+  } else if (selectedValue == 2) {
+     setvisibility('test3', 'hidden');
+     req = baseURL+"/resource2";
+     updatepage('request', req);
+     xmlhttpGet(req, null);
+  } else if (selectedValue == 3) {
+     setvisibility('test3', 'inherit');
+  }
+}
+
+
+function testResource3() {
+    var selMethod = getSelMethod();
+    var rep = getRep();
+    var mimetype = getSelectorValue('mimeType');
+    var req = baseURL+"/resource3/"+getParam1()+"/"+getParam2();
+    if (selMethod == 'QueryParam') {
+       req = req+"?rep="+rep;
+       mimetype = null;
+    }
+    updatepage('request', req);
+    updatepage('amimetype', mimetype);
+    if (rep == 3) {
+        if (mimetype == null)
+            updatepage('result', "<html><body><img src='"+req+"'/></body></html>");        
+        else {
+            alert('The image/jpg MimeType currently does not work with the MimeType selection method.\nInstead of seeing the image, you will see the image data');
+            xmlhttpGet(req, mimetype);
+        }
+    } else 
+        xmlhttpGet(req, mimetype);
+}
+
+function onProgress(e) {
+  var percentComplete = (e.position / e.totalSize)*100;
+  status("percentComplete: "+percentComplete);
+}
+
+function initResource3() {
+    form1.word.value = 1;
+}
+
+function onError(e) {
+  status("Error " + e.target.status + " occurred while receiving the document.");
+}
+
+function onLoad(e) {
+  // ...
+}
+
+function log(msg) {
+//alert(msg);
+   document.getElementById('log').innerHTML = msg;
+}
+
+function status(msg) {
+//   document.getElementById('status').innerHTML = msg;
+}
+
+function changeMime() {
+  var mimeType = docuemt.getElementById('mimeType');
+  mimeType.selectedIndex = 0;
+}
+
+</script>
+
+
+  </head>
+  <body  onload="hideall()">
+  <form action="" name="base">
+      <b>Select Resource to test:</b> <br><br>
+      <select name="ressel" id="resourceId">
+          <option value=1 selected>Resource 1</option>
+          <option value=2>Resource 2</option>
+          <option value=3>Resource 3</option>
+      </select><br><br>
+      <input value="Test Resource" type="button" onclick='testResource()'></p>
+  </form>
+   <div id="test3">
+           <hr>
+           <b>Resource 3 Inputs:</b><br><br>
+          <form action="" method=GET name="form1">
+              <b>Param1:</b> 
+                <input name="param1" type="text" value="fred"><br><br>
+              <b>Param2:</b> 
+                <input name="param2" type="text" value="barney"><br><br>
+<!--              <b>Representation:</b> 
+                <input name="word" type="text" onchange="changeMime()"><br><br>-->
+              <b>Selection method:</b> 
+                <input name="selMethod" type="radio" value="QueryParam" checked="true">Query Parameter
+                <input name="selMethod" type="radio" value="MimeType">MimeType
+                <br><br>
+              <b>MimeType:</b>
+                <select name=rep id="mimeType">
+                   <option selected value="">none specified</option>
+                   <option value="text/plain">text/plain</option>
+                   <option value="application/x-www-form-urlencoded">application/x-www-form-urlencoded</option>
+                   <option value="image/jpg">image/jpg</option>
+                </select><BR>
+                  <!--        <input type=button value="Submit" onclick="submitNow()">-->
+              <input value="Test Resource 3" type="button" onclick='testResource3()')'>
+<!--              Request: <div id="request"></div><br>
+              Query: <div id="query3"></div><br>
+              Result: <div id="result3"></div>-->
+          </form>       
+   </div>
+   <hr>
+   <!-------------------------------------------------->
+   <div id="details">
+            <b>Test Details:</b><br><br>
+            <b>Resource:</b><div id="resource"></div><br>
+            <b>Request:</b> <div id="request"></div><br>
+            <b>Query:</b> <div id="query"></div><br>
+            <b>Accept MimeType:</b> <div id="amimetype"></div><br>
+            <b>Result Headers:</b> <div id="resultheaders"></div>                 
+            <b>Result:</b> <div id="result"></div>       
+   </div>
+   <hr>
+   <b>Debug Log:</b><div id="log"></div>
+</body>
+</html>
+

@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <title>Cometd reload demo</title>
+        <script type="text/javascript" src="../../dojo/dojo.js"></script>
+        <script type="text/javascript">
+            dojo.require("dojox.cometd");
+            dojo.require("dojox.cometd.reload");
+
+            var cometURL = new String(document.location).replace(/http:\/\/[^\/]*/,'').replace(/\/dojo-examples\/.*$/,'')+"/cometd";
+            dojox.cometd.init({ url: cometURL, logLevel: "info" });
+	    
+            dojox.cometd.subscribe("/some/channel", function(){});
+            dojox.cometd.subscribe("/some/other/channel", function(){});
+	    
+            dojo.addOnUnload(dojox.cometd, "reload");
+	    
+        </script>
+    </head>
+    <body>
+        
+        <h1>Reload test</h1>
+<a href="../..">Main Demo index</a><br/>
+        <p>
+            This test shows how a page can be reloaded and resume a cometd connection.
+	    If you reload this page and watch with firebug, you will see that the existing 
+	    cometd connection and clientId is reused, and that additional subscription messages are hidden.
+        </p>
+	
+    </body>
+</html>

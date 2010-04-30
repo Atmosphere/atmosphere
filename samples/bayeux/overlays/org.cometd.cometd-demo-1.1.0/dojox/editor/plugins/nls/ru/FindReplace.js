@@ -1,0 +1,1 @@
+({"backwards":"Назад","findReplace":"Переключатель Поиск/Замена","replaceAll":"Все вхождения","replaceDialogText":"Заменено ${0} вхождений.","replaceButton":"Заменить","findButton":"Найти","findLabel":"Найти:","matchCase":"С учетом регистра","replaceLabel":"Заменить на:"})

@@ -1,0 +1,1 @@
+({"backwards":"뒤로","findReplace":"토글 찾기/바꾸기","replaceAll":"모두 바꾸기","replaceDialogText":"${0}개를 바꿨습니다.","replaceButton":"바꾸기","findButton":"찾기","findLabel":"찾을 문자열:","matchCase":"대소문자 일치","replaceLabel":"바꿀 대상:"})

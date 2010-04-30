@@ -1,0 +1,365 @@
+html {
+	font-family: sans-serif;
+	color: #666666;
+}
+
+body {
+	/*background: #eeeeee;*/
+}
+
+th {
+	font-size: 10pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	color: #666666;
+	text-align: left;
+}
+
+td {
+	font-size: 10pt;
+	font-weight: normal;
+	text-align: left;
+	vertical-align: top;
+}
+
+button {
+	font-family: sans-serif;
+	font-size: 8pt;
+	font-weight: bold;
+	text-transform: uppercase;
+	border: 2px outset;
+}
+
+.button {
+	font-family: sans-serif;
+	font-weight: bold;
+	font-size: 8pt;
+	text-transform: uppercase;
+	border: 2px outset;
+}
+
+button:hover {
+	cursor: hand;
+}
+
+input {
+	font-size: 8pt;
+	display: inline;
+	font-variant: normal;
+	font-weight: normal;
+	border: 2px inset;
+}
+
+td.chatcell {
+	min-width: 60px;
+	width: 60px;
+	max-width: 60px;
+}
+
+td.bidcell {
+	min-width: 200px;
+	width: 200px;
+	max-width: 200px;
+}
+
+input.editor_ok_button,input.editor_cancel_button {
+	font-family: sans-serif;
+	font-size: 8pt;
+	font-weight: bold;
+	text-transform: uppercase;
+	border: 2px outset;
+}
+
+h1 {
+	font-size: 22pt;
+	font-weight: normal;
+	font-family: sans-serif;
+	letter-spacing: 6pt;
+	color: #666666;
+	text-align: left;
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+h2 {
+	font-size: 16pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	letter-spacing: 2pt;
+	color: #666666;
+}
+
+h3 {
+	font-size: 12pt;
+	font-weight: normal;
+	font-family: sans-serif;
+	letter-spacing: 1pt;
+	color: #666666;
+}
+
+table#demotbl {
+	width: 760px;
+	align: center;
+	background: #ffffff;
+	border: 0;
+}
+
+table#demotbl td { 
+	/*	border: 1px solid black; */	
+}
+
+input#searchbox {
+	visibility: hidden;
+	display: none;
+	margin-bottom: 6px;
+}
+
+button#searchbtn {
+	visibility: hidden;
+	display: none;
+	margin-bottom: 6px;
+}
+
+td#banner {
+	height: 40px;
+	background: #3300CC;
+}
+
+td#banner table {
+	width: 780px;
+}
+
+td#header {
+	text-align: left;
+	vertical-align: bottom;
+	font-size: 20pt;
+	font-weight: bold;
+	color: #ffffff;
+	font-family: sans-serif;
+	letter-spacing: 4pt;
+	padding: 8px;
+}
+
+td#login {
+	text-align: right;
+	vertical-align: bottom;
+	padding: 8px;
+}
+
+td#login span {
+	font-size: 14pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	letter-spacing: 2pt;
+	color: #ffffff;
+}
+
+td#login span b {
+	color: #ffffff;
+	font-weight: bold;
+}
+
+td#catalogstuff {
+	display: none;
+	visibility: hidden;
+}
+
+td#catalogstuff table {
+	width: 100%;
+}
+
+td#categoryList {
+	width: 30%;
+	height: 260px;
+	border: 0px;
+	background: #eeeeee;
+	margin: 6px;
+	padding: 6px;
+}
+
+td#categoryList table td {
+	margin: 6px;
+	padding-left: 6px;
+	padding-top: 6px;
+	padding-bottom: 6px;
+	color: #666666;
+	font-weight: bold;
+	font-size: 10pt;
+}
+
+td#categoryList table td.catselect {
+	background: #996699;
+	background: #ffff99;
+	color: #666666;
+}
+
+td#categoryList table td.noselect {
+	background: #eeeeee;
+	color: #666666;
+}
+
+/*td#categoryList table td:hover {	*/
+/*	background: #ffcc99;			*/
+/*	color: #666666;					*/
+/*	cursor: hand;					*/
+/*}									*/
+
+td#categoryList table td.hovered {
+	background: #ffcc99;
+	color: #666666;
+	cursor: hand;
+}
+
+td#items { 
+	margin: 6px;
+	padding: 6px;
+}
+
+td#items table {
+	border-collapse: collapse;
+}
+
+td#items table td {
+	align: center;
+	valign: middle;
+}
+
+td#items tr {	
+}
+
+td#items td {
+}
+
+td#items th {
+}
+
+td#auction {
+	padding: 6px;
+	background: #3399cc;
+	display: none;
+	visibility: hidden;
+}
+
+td#auction div {
+	overflow: auto;
+	height: 180px;
+}
+
+td#auction table {
+	border-collapse: collapse;
+	border: 0px;
+	width: 100%;
+	margin: 4px;
+	background: #ffffff;
+}
+
+td#auction tr {	
+}
+
+td#auction td {
+	border: 1px solid #ffffff;
+	padding: 2px;
+	background: #ffffff;
+}
+
+td#auction th {
+	border: 1px solid #ffffff;
+	background: #eeeeee;
+}
+
+td#auction h2 {
+	font-size: 16pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	letter-spacing: 2pt;
+	color: #ffffff;
+}
+
+td#chatcontainer {
+	background: #eeeeee;
+	visibility: hidden;
+	display: none;
+}
+
+td#chatcontainer table {
+	width: 100%;
+}
+
+td#chathead {
+	text-align: left;
+	vertical-align: middle;
+	padding: 4px;
+}
+
+td#chatcntrl {
+	text-align: right;
+	vertical-align: middle;
+	padding: 4px;
+}
+
+td#chathead span {
+	font-size: 16pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	letter-spacing: 2pt;
+	color: #666666;
+}
+
+td.mbrs {
+	width: 10%;
+	/*border: 1px solid #cab;*/
+	/*border-collapse: collapse;*/
+	background-color: #ffffff;
+}
+
+td.msgs {
+	width: 70%;
+	/*border: 1px solid #cab;*/
+	/*border-collapse: collapse;*/
+	background-color: #ffffff;
+}
+
+td.chatimg {
+	/*border: 1px solid #cab;*/
+	/*border-collapse: collapse;*/
+	background: #ffffff;
+}
+
+div#room {
+	border: 1px solid #cab;
+	margin: 4px;
+	background: #ffffff;
+}
+
+div#chat {
+	height: 120px;
+	overflow: auto;
+	background-color: #ffffff;
+	padding: 4px;
+}
+
+div#members {
+	height: 120px;
+	overflow: auto;
+}
+
+div#input {
+	clear: both;
+	padding: 4px;
+	border-top: 2px groove #cab;
+}
+
+input#phrase {
+	width: 28em;
+	background-color: #ffffff;
+}
+
+table#toptext {
+	width: 780px;
+	background: #ffffff;
+}
+
+p {
+	margin-top: 0px;
+	margin-bottom: 0px;
+}

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <META http-equiv="Pragma" content="no-cache">
+    <META http-equiv="Cache-Control" content="no-cache,no-store">
+    <META HTTP-EQUIV="Content-Script-Type" CONTENT="text/javascript">
+    <title>CometD Oort Auction</title>
+    <link rel="stylesheet" type="text/css" href="css/styles.css"/>
+
+    <script type="text/javascript" src="../dojo/dojo.js"></script>
+
+    <!-- These scripts should all be ported to dojo -->
+    <script type='text/javascript' src='js/prototype.js'></script>
+    <script type="text/javascript" src='js/scriptaculous.js'></script>
+    <script type="text/javascript" src='js/behaviour.js'></script>
+    <script type="text/javascript" src='js/builder.js'></script>
+    <script type="text/javascript" src='js/effects.js'></script>
+    <script type="text/javascript" src='js/controls.js'></script>
+    <script type="text/javascript" src='js/dragdrop.js'></script>
+    <script type='text/javascript' src='js/editinplace.js'></script>
+    <script type='text/javascript' src='js/dwr-util.js'></script>
+
+
+    <script type='text/javascript' src='js/demo.js'></script>
+    <script type="text/javascript">
+        dojo.require('dojox.cometd');
+        dojo.require("dojox.cometd.timesync");
+
+        dojo.addOnLoad(function()
+        {
+            var cometURL = (new String(document.location).replace(/http:\/\/[^\/]*/, '').replace(/\/auction\/.*$/, '')) + "/cometd";
+            dojox.cometd.init({ url: cometURL, logLevel: "info" });
+
+            var tick = function()
+            {
+                var now = dojox.cometd.timesync.getServerDate();
+                dojo.byId("time").innerHTML = now.toUTCString();
+                now = now.getTime();
+                var next = "" + (1 + now / 1000);
+                next = parseInt(next.split('.')[0]) * 1000 + 10;
+                dojox.cometd.timesync.setTimeout(tick, next);
+            };
+            setTimeout(tick, 1000);
+        });
+        dojo.addOnUnload(dojox.cometd, "disconnect");
+
+
+    </script>
+</head>
+
+<body>
+<center>
+
+    <img src="images/webtide_logo.jpg" alt="logo" />
+
+    <table id="toptext" align="center">
+        <tr>
+            <td>
+                <h1>auction demonstration</h1>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <p align="justify">This auction application is a demonstration of an
+                    some of the features of <a href="http://www.cometd.org/">Cometd Oort</a>. The site uses
+                    cometd to dynamically distribute auction bids and chat about items. The Oort cloud mechanism
+                    is used to distribute these events in a cluster (you must set the oort.cloud init parameter of
+                    the Oort servlet in web.xml so that other nodes are discovered).
+                </p>
+
+                <p>
+                    To use the demo:
+                </p>
+                <ul>
+                    <li>Logon using any username</li>
+                    <li>When bids are made against items, these are published on
+                        a CometD channels.
+                    </li>
+                    <li>Chat about items is also distributed with CometD channels.</li>
+                    <li>If a Chat message is preceeded with 'name::' then the message is sent
+                        privately to that user using the Oort Seti service to find the user in
+                        the cluster
+                    </li>
+                    <li>If you connect to the auction from multiple windows/tabs from the same
+                        browser, then one of them will work in polling mode and have greater latency.
+                        For best effect, user two browers to test.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+    </table>
+
+    <table id="demotbl">
+        <tr>
+            <td id="banner">
+                <table>
+                    <tr>
+                        <td id="header"><span>Acme Auctions</span></td>
+                        <td id="login"><input id="username" type="text"/>
+                            <button id="joinbtn" type="submit" name="join">login</button>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td id="catalogstuff">
+                <table>
+                    <tr>
+                        <td id="categoryList">
+                            <h2>Catalog</h2>
+                            <input type="text" id="searchbox"/>
+                            <button type="submit" id="searchbtn">search</button>
+                            <table>
+                                <tbody id="categories">
+                                </tbody>
+                            </table>
+                        </td>
+
+                        <td id="items">
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th colspan="2">
+                                        <h2 id="itemhdr">Items</h2>
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody id="auctionitems">
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td id="auction">
+
+                <h2>My Auctions&nbsp;
+                    <small>-&nbsp;<span id='time'></span></small>
+                </h2>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Current Bid</th>
+                        <th>Bidder</th>
+                        <th width="250px">Bid</th>
+                        <th>Chat</th>
+                    </tr>
+                    </thead>
+                    <tbody id="contents"></tbody>
+                </table>
+
+            </td>
+        </tr>
+        <tr>
+            <td id="chatcontainer">
+                <table>
+                    <tr>
+                        <td id="chathead"><span id="chattitle">Chat</span></td>
+                        <td id="chatcntrl">
+                            <button type="submit" id="chatclose">end</button>
+                        </td>
+                    </tr>
+                </table>
+                <table id="room">
+                    <tr>
+                        <td class="msgs">
+                            <div id="chat"></div>
+                        </td>
+                        <td class="chatimg" valign="middle">
+                            <div id="chatitem"></div>
+                        </td>
+                        <td class="mbrs">
+                            <b>Members<br /></b>
+                            <div id="members"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td id="input">Chat:&nbsp;<input id="phrase" type="text" />
+                            <input id="sendChat" class="button" type="submit" value="send"/></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</center>
+<script type="text/javascript">document.getElementById('username').focus();</script>
+</body>
+
+</html>
+

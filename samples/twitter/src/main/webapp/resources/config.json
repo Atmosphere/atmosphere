@@ -1,0 +1,8 @@
+{'config': {
+    'version': '.9',
+    'theme' : '/resources/css/themes/blue/theme.css',
+    'glue' : {
+       'includes': ['/javascripts/glue.js']
+        }
+   }
+}

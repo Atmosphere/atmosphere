@@ -1,0 +1,1 @@
+({"backwards":"Retroceder","findReplace":"Comutar Localizar/Substituir","replaceAll":"Todas as Ocorrências","replaceDialogText":"${0} ocorrências substituídas.","replaceButton":"Substituir","findButton":"Localizar","findLabel":"Localizar:","matchCase":"Caso de Correspondência","replaceLabel":"Substituir por:"})

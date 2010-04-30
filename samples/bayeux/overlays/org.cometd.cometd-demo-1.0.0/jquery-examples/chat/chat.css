@@ -1,0 +1,62 @@
+body {
+    margin-left: auto;
+    margin-right: auto;
+    width: 50em;
+}
+
+input {
+    margin: 0;
+}
+
+table td {
+    padding: 0.2em;
+}
+
+#chatroom {
+    border: 1px solid black;
+    background-color: #ffffff;
+}
+
+#chat {
+    float: left;
+    width: 38em;
+    height: 16em;
+    overflow: auto;
+    background-color: #f0f0f0;
+    padding: 0.2em;
+    border-right: 1px solid black;
+}
+
+#members {
+    float: left;
+    clear: right;
+    overflow: auto;
+    padding: 0.2em;
+}
+
+#input {
+    clear: both;
+    padding: 0.2em;
+    border-top: 1px solid black;
+    background-color: #efebe7;
+}
+
+#phrase {
+    width: 28em;
+}
+
+#altServer {
+    width: 20em;
+}
+
+#username {
+    width: 20em;
+}
+
+span.from {
+    font-weight: bold;
+}
+
+span.membership {
+    font-style: italic;
+}

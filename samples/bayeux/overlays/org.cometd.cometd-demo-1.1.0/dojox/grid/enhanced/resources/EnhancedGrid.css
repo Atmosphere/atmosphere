@@ -1,0 +1,156 @@
+.dojoxGridCellContent{
+	padding:3px;
+}
+.dojoxGridHeader .dojoxGridCell .dojoxGridSortNode{
+	padding:3px;
+}
+.dojoxGridCell .dojoxGridSortRoot{
+	position: relative; 
+	width: 100%;
+	text-align:left; 
+}
+.dojoxGridCell .dojoxGridHeaderCellSelectRegion{
+	text-align: left;
+	padding:3px;
+	
+	overflow: hidden;
+	white-space:nowrap;
+}
+.dj_ie .dojoxGridCell .dojoxGridHeaderCellSelectRegion{
+	padding-left:4px;
+}
+.dojoxGridSortWrapper{
+	
+	position:absolute;
+	right:0px;
+	
+	z-index: 1;
+}
+.dojoxGridNestedSortWrapper{
+	float:left;
+}
+.dojoxGridSortPos{
+	float:left;
+	margin-left:3px;
+}
+.dj_ff2 .dojoxGridSortPos{
+	padding: 3px 0;
+	line-height: normal;
+}
+.dojoxGridSortPosOff{
+	display:none;
+}
+.dojoxGridNestedSort{
+	text-indent: -5000em;
+}
+.dojoxGridUnarySortWrapper{
+	float:left;
+}
+.dojoxGridSort{
+	display: block;
+	float: left;
+	background:url("images/nestedSortArrows.png") no-repeat left center;
+	width: 8px;
+	margin-right:3px;
+	margin-left:3px;
+	text-align:center;
+}
+.dojoxGridUnarySort{
+	text-indent: -5000em;
+	margin-left:4px;
+}
+.dojoxGridAscending{
+	background-position: -9px;
+}
+.dojoxGridUnsorted{
+	display:none;
+}
+.dojoxGridAscendingTip{
+	background:url("images/nestedSortArrows.png") no-repeat left center;
+	background-position: -30px;
+	display:block;
+	cursor:pointer;
+}
+.dojoxGridDescendingTip{
+	background:url("images/nestedSortArrows.png") no-repeat left center;
+	background-position: -20px;
+	display:block;
+	cursor:pointer;
+}
+.dojoxGridUnsortedTip{
+	background:url("images/nestedSortArrows.png") no-repeat left center;
+	background-position: -39.5px;
+	display:block;
+	cursor:pointer;
+}
+.dojoxGridSortHiddenTip{
+	display:none;
+}
+.dojoxGridSortSeparatorOff{
+	width: 0px;
+	border-right-color: #999999;
+	border-right-style:solid;
+	border-right-width:1px;
+	display: none;
+}
+.dojoxGridSortSeparatorOn{
+	display: block;
+	float: left;
+}
+.dojoxGridSortInProgress{
+	cursor:progress;
+}
+.dojoxGridWidgetHidden{
+	visibility:hidden;
+}
+.dijit_a11y .dojoxGridNestedSort, .dijit_a11y .dojoxGridUnarySort {
+	text-indent: 0;
+	font-size: 14px;
+	
+}
+.dojoxGridFocusBorderBox {
+	position: relative;
+	top: 0;
+	left: 0;
+	width: 0;
+	height: 0;
+}
+.dojoxGridFocusBorder {
+	width: 0px;
+	height: 0px;
+	overflow: hidden;
+	position: absolute;
+	z-index: 999;
+	top: 0;
+	left: 0;
+}
+.dojoxGridSelectedDIV{
+	background-color: #3366CC;
+	position:absolute;
+	opacity:0.2;
+	cursor:move;
+	z-index:999;
+}
+.dj_ie .dojoxGridSelectedDIV{
+	filter: alpha(opacity = 30);
+}
+.dojoxGridBorderDIV{
+	width:3px;
+	background-color: gray;
+	font-size:0em;
+	position:absolute;
+	z-index:9999;
+}
+.dojoxGrid{
+	border:1px solid #DBDBDB;
+}
+.dijit_a11y .dojoxGridRowSelected{
+	opacity:0.4 !important;
+}
+.dijit_a11y .dojoxGridSelectedDIV{
+	opacity:0.4 !important;
+	border:3px solid #000 !important;
+}
+.dijit_a11y .dojoxGridBorderDIV{
+	border:2px solid #000 !important;
+}

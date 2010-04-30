@@ -1,0 +1,49 @@
+<html>
+  <head>
+    <title>Atmosphere Spade Server  + Jruby Chat demo</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
+    <style>
+      #messages {
+        height:35em;
+        width:40em;
+        border:2px inset;
+        background:#ff8;
+        padding:0.2em;
+        overflow:auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Atmosphere Spade Server + Jruby Chat demo</h1>
+
+    <div id="messages">
+    </div>
+
+    <form action="/chat-stream" target="send_message" method="POST" onsubmit="setTimeout('document.getElementById(\'message-input\').value = \'\'',10);">
+      <input name="message" id="message-input"/>
+    </form>
+
+    <script>
+      function say(what) {
+        var chat_log = document.getElementById('messages');
+        message = document.createElement('div');
+        message.innerHTML = what;
+        chat_log.appendChild(message);
+        message.scrollIntoView();
+      }
+      say("the chat may begin");
+      document.getElementById('message-input').focus();
+
+      function send_message(field, form) {
+        form.submit();
+        field.value = '';
+      }
+    </script>
+
+    <!-- this iframe gets the stream of chat events -->
+    <iframe src="/chat-stream" style="display:none"></iframe>
+
+    <!-- this iframe just sends messages with no ajax needed -->
+    <iframe name="send_message" style="display:none"></iframe>
+  </body>
+</html>

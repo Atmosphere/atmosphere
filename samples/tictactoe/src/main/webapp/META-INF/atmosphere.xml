@@ -1,0 +1,4 @@
+<atmosphere-handlers>
+    <atmosphere-handler context-root="/long_polling" class-name="org.atmosphere.samples.tictactoe.TTTHandler">
+    </atmosphere-handler>
+</atmosphere-handlers>

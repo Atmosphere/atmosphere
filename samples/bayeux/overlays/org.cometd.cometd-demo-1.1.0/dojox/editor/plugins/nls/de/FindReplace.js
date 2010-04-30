@@ -1,0 +1,1 @@
+({"backwards":"Zurück","findReplace":"Suchen/Ersetzen","replaceAll":"Alle Vorkommen","replaceDialogText":"Es wurden ${0} Vorkommen ersetzt.","replaceButton":"Ersetzen","findButton":"Suchen","findLabel":"Suchbegriff:","matchCase":"Groß- und Kleinschreibung abgleichen","replaceLabel":"Ersetzen durch:"})

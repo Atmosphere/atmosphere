@@ -1,0 +1,1 @@
+({"backwards":"向後","findReplace":"切換尋找/取代","replaceAll":"所有出現位置","replaceDialogText":"取代了 ${0} 項。","replaceButton":"取代","findButton":"尋找","findLabel":"尋找目標：","matchCase":"大小寫相符","replaceLabel":"取代為："})

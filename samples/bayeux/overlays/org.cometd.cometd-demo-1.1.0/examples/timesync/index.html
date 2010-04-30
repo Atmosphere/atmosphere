@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <title>Comet echo RPC</title>
+        <link rel="stylesheet" type="text/css" href="chat/chat.css"></link>
+        <script type="text/javascript" src="../../dojo/dojo.js"></script>
+        <script type="text/javascript" src="../../dojox/cometd/timesync.js"></script>
+        <script type="text/javascript">
+            dojo.require("dojox.cometd");
+            dojo.require("dojox.cometd.timesync");
+
+            dojox.cometd.init(new String(document.location).replace(/http:\/\/[^\/]*/,'').replace(/\/examples\/.*$/,'')+"/cometd");
+            dojox.cometd.subscribe("/chat/demo", function(){});
+
+            var tick=function(){
+	    	var now=dojox.cometd.timesync.getServerDate();
+	    	dojo.byId("time").innerHTML=now.toUTCString();
+                dojo.byId("offset").innerHTML=dojox.cometd.timesync.offset+"  from samples "+dojox.cometd.timesync._offsets.join();
+		now=now.getTime();
+		var next=""+(1+now/1000);
+		next=parseInt(next.split('.')[0])*1000+10;
+		dojox.cometd.timesync.setTimeout(tick,next);
+	    }
+
+            setTimeout(tick,1000);
+        </script>
+    </head>
+    <body>
+        
+        <h1>TimeSync test DEV!</h1>
+        <p>
+            This test uses the timesync extension to calculate a timeoffset with the server.
+	    The time displayed below is the server time and should be the same for all clients no matter what their local clocks are set to. 
+	    The accuracy should improve as each connect response is received.
+        </p>
+        <div id="time">
+        </div>
+	<br/>
+        offset=<span id="offset">
+        </span>
+    </body>
+</html>

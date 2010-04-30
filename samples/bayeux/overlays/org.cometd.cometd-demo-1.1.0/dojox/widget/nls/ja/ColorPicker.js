@@ -1,0 +1,1 @@
+({"hexLabel":"16 進","redLabel":"r","valueLabel":"v","hueLabel":"h","saturationLabel":"s","degLabel":"°","greenLabel":"g","blueLabel":"b"})

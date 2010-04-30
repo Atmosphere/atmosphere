@@ -1,0 +1,1 @@
+({"backwards":"向后","findReplace":"切换“查找/替换”","replaceAll":"所有出现位置","replaceDialogText":"已替换 ${0} 个出现位置。","replaceButton":"替换","findButton":"查找","findLabel":"查找对象：","matchCase":"大小写匹配","replaceLabel":"替换为："})

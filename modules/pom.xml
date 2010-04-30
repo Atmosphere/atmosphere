@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>0.6-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-modules</artifactId>
+    <version>0.6-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>atmosphere-modules</name>
+    <url>https://atmosphere.dev.java.net</url>
+    <modules>
+        <module>compat-tomcat</module>
+        <module>compat-jbossweb</module>
+        <module>compat-weblogic</module>
+        <module>cpr</module>
+        <module>annotations</module>
+        <module>jersey</module>
+    </modules>
+</project>

@@ -1,0 +1,4 @@
+<atmosphere-handlers>
+    <atmosphere-handler context-root="/twitter" class-name="org.atmosphere.samples.twitter.TwitterAtmosphereHandler">
+    </atmosphere-handler>
+</atmosphere-handlers>

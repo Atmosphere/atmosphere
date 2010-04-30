@@ -1,0 +1,6 @@
+.dj_ie .dijitRtl .dojoxGridHeader table {
+	float:none;
+}
+.dijitRtl .dojoxGridCell {
+	text-align:right;
+}

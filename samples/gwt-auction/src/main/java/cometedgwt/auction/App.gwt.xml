@@ -1,0 +1,19 @@
+<module>
+
+	<!-- Inherit the core Web Toolkit stuff.                  -->
+	<inherits name='com.google.gwt.user.User'/>
+	<inherits name='com.google.gwt.json.JSON'/>
+	
+
+	<!-- Specify the app entry point class.                   -->
+	<entry-point class='cometedgwt.auction.client.App'/>
+	
+	<servlet path="/auction" class="cometedgwt.auction.server.AuctionServiceImpl"/>
+  	<servlet path="/streamingService" class="org.gwtcomet.server.StreamingServiceImpl"/>  
+  	<servlet path="/streamingServlet" class="org.gwtcomet.server.StreamingServlet"/>   
+
+	<source path="client"/>
+	<source path="entity"/>
+	
+
+</module>

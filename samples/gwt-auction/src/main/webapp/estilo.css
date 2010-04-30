@@ -1,0 +1,280 @@
+@charset "UTF-8";
+
+/** tags html **/
+
+body {
+	background-repeat: no-repeat;
+	background-position: center top;
+	background-color: #779AD1;
+	margin: 0;
+	padding: 0;
+}
+
+a {
+	color: #006A42;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #00A355;
+	text-decoration: underline;
+}
+
+label {
+	font-weight: bold;
+}
+
+legend {
+	font-weight: bold;
+}
+
+fieldset {
+	border: 1px solid #799CD2;
+	*padding: 5px;/*IE*/
+
+}
+
+input, select, textarea {
+	font-size: 12px;
+	color: #2C394D;
+	border: 1px solid #799CD2;
+}
+
+* input:focus,
+* textarea:focus,
+* select:focus {
+	font-size: 12px;
+	color: #2C394D;
+	border: 1px solid #D27E00;
+	background-color: #FFFBE7;
+}
+.capo_tamanho{
+	*height: 21px;/*IE*/
+}
+/** classes do conteiner e do conteudo**/
+.content
+{
+	background-image: url(img/fundo_topo.png);
+	background-repeat: no-repeat;
+	background-position: top;
+	padding: 0px;
+	min-width: 750px;
+	width: 100%;
+	height: 298px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	padding: 0;
+	position: relative;
+}
+.conteiner {
+	background-image: url(img/fundo_corpo.jpg);
+	background-repeat: repeat-x;
+	background-position: top;
+	padding: 0px;
+	min-width: 750px;
+	width: 90%;
+	height: 298px;
+	margin-top: 0px;
+	margin-right: auto;
+	margin-bottom: 0px;
+	margin-left: auto;
+	position: relative;
+	top: 30px;
+}
+
+.nome_sistema{
+	position: relative;
+	top: 27px;
+	margin-top: 0px;
+	margin-right: auto;
+	margin-bottom: 0px;
+	margin-left: auto;
+	width: 90%;
+	min-width: 750px; 
+	background-image: url(img/marca.gif);
+	background-repeat: no-repeat;
+	padding: 0px;
+	height: 47px;
+}
+
+/** menu superior **/
+
+.menu {
+	margin: 5px;
+	padding: 0px;
+}
+
+.principal {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	margin: 0px;
+	padding: 0px;
+	list-style-type: none;
+	line-height: 20px;
+}
+.chat{
+	position:relative;
+	margin: 10px 0px 10px 0;
+	padding: 0px 0 10px 0;
+	width: 100%;
+}
+.principal1 {
+	position:relative;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	margin: 10px 0 0 auto;
+	padding: 0px;
+	list-style-type: none;
+	line-height: 20px;
+	width: 414px;
+	right: 0px;
+}
+.principal1 li {
+	float: left;
+	margin-top: 0px;
+	margin-right: 5px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	border: 0px solid #799CD2;
+	padding: 0px;
+}
+
+.principal1 li a {
+	color: #2C394D;
+	background-color: #C0DAFC;
+	margin: 0px;
+	padding: 2px 5px 2px 5px;
+	height: 100%;
+	width: 100%;
+	text-decoration: none;
+	border: 1px solid #799CD2;
+}
+
+.principal1 li a:hover {
+	color: #2C394D;
+	background-color: #F7FCD4;
+	margin: 0px;
+	padding: 2px 5px 2px 5px;
+	height: 100%;
+	width: 100%;
+	text-decoration: none;
+}
+
+.principal li {
+	float: left;
+	margin-top: 0px;
+	margin-right: 5px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	border: 1px solid #799CD2;
+	padding: 0px;
+}
+
+.principal li a {
+	color: #2C394D;
+	background-color: #C0DAFC;
+	margin: 0px;
+	padding: 2px 5px 2px 5px;
+	height: 100%;
+	width: 100%;
+	text-decoration: none;
+}
+
+.principal li a:hover {
+	color: #2C394D;
+	background-color: #F7FCD4;
+	margin: 0px;
+	padding: 2px 5px 2px 5px;
+	height: 100%;
+	width: 100%;
+	text-decoration: none;
+}
+.principal li .ativo {
+	color: #2C394D;
+	background-color: #F7FCD4;
+	margin: 0px;
+	padding: 2px 5px 2px 5px;
+	height: 100%;
+	width: 100%;
+	text-decoration: none;
+}
+
+/**corpo do istema**/
+
+.corpo {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	color: #2C394D;
+	background-color: #F4F9FF;
+	height: 100%;
+	width: 100%;
+	*width: 720px;/*IE*/
+	margin-top: 0px;
+	margin-right: 5px;
+	margin-bottom: auto;
+	margin-left: 5px;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: #6D8EC1;
+	padding-top: 2px;
+	padding-right: 7px;
+	padding-bottom: 5px;
+	padding-left: 5px;
+}
+
+.migalha {
+	font-size: 11px;
+	color: #003399;
+	line-height: 20px;
+	margin: 0 0 0 10px;
+}
+
+.titulo {
+	font-size: 19px;
+	width: 250px;
+	line-height: 20px;
+	font-weight: bold;
+	padding: 0px;
+	margin-top: 10px;
+	margin-right: 0px;
+	margin-bottom: 10px;
+	margin-left: 10px;
+}
+
+.linha_colorida{
+	background-color:#C9D7E3;
+}
+
+/**formularios**/
+
+.formulario {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	margin: 0px;
+	padding: 0px;
+	list-style-type: none;
+	line-height: 20px;
+}
+
+.formulario li{
+	margin-top: 0px;
+	margin-right: 10px;
+	margin-bottom: 5px;
+	margin-left: 0px;
+	padding: 0px;
+}
+
+.formulario .lidir{
+	float:left;
+	margin-top: 0px;
+	margin-right: 10px;
+	margin-bottom: 5px;
+	margin-left: 0px;
+	padding: 0px;
+}
+
+.ajuda{
+	cursor: help;
+}

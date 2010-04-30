@@ -1,0 +1,1 @@
+({"set":"ตั้งค่า","text":"รายละเอียด","insertImageTitle":"คุณสมบัติอิมเมจ","url":"URL:","createLinkTitle":"คุณสมบัติลิงก์","newWindow":"New Window","topWindow":"Topmost Window","target":"Target:","parentWindow":"Parent Window","currentWindow":"Current Window"})

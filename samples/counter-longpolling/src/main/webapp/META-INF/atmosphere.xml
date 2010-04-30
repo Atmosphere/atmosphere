@@ -1,0 +1,4 @@
+<atmosphere-handlers>
+    <atmosphere-handler context-root="/counter" class-name="org.atmosphere.samples.counter.CounterLongPollingAtmosphereHandler">
+    </atmosphere-handler>
+</atmosphere-handlers>
