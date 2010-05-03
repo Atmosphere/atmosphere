@@ -47,6 +47,8 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.CometSupport;
+import org.mortbay.util.ajax.Continuation;
+import org.mortbay.util.ajax.ContinuationSupport;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -111,13 +113,6 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
             }
 
             resume(req, ctx);
-            Action nextAction = resumed(req, res);
-            if (nextAction.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending after Resuming" + res);
-                }
-                suspend(ctx, action, req, res);
-            }
         }
         return action;
     }
@@ -152,6 +147,11 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
      * @param ctx a {@link CometContext}
      */
     private void resume(HttpServletRequest req, CometContext ctx) {
+
+        if (req.getAttribute(ATMOSPHERE) == null) {
+            return;
+        }
+
         CometHandler handler = ctx
                 .getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
@@ -178,6 +178,17 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
             resume(actionEvent.getRequest(), ctx);
         }
+    }
+
+    @Override
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+
+        Action action =  super.cancelled(req,res);
+        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+            resume(req,CometEngine.getEngine().getCometContext(atmosphereCtx));
+        }
+        return action;
     }
 
     /**

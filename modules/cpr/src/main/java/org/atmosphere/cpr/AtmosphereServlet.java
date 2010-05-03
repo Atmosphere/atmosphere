@@ -166,14 +166,6 @@ import java.util.logging.Logger;
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet {
 
-    // If we detect Servlet 3.0, should we still use the default
-    // native Comet API.
-    protected boolean useNativeImplementation = false;
-
-    protected boolean useBlockingImplementation = false;
-
-    protected boolean useStreamForFlushingComments = false;
-
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     public final static String GAE_BROADCASTER = org.atmosphere.util.gae.GAEDefaultBroadcaster.class.getName();
@@ -202,6 +194,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
 
+    // If we detect Servlet 3.0, should we still use the default
+    // native Comet API.
+    protected boolean useNativeImplementation = false;
+
+    protected boolean useBlockingImplementation = false;
+
+    protected boolean useStreamForFlushingComments = false;
+
     /**
      * The list of {@link AtmosphereHandler} and their associated mapping.
      */
@@ -215,7 +215,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected final boolean isFilter;
 
-    protected String broadcasterClassName = DefaultBroadcaster.class.getName();
+    protected static String broadcasterClassName = DefaultBroadcaster.class.getName();
 
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
 
@@ -749,7 +749,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
             h.getValue().broadcaster.destroy();
         }
-
+        BroadcasterFactory.factory = null;
         BroadcasterFactory.getDefault().destroy();
         broadcasterConfig = new BroadcasterConfig();
     }
@@ -1177,7 +1177,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @return the broadcasterClassName
      */
-    public String getDefaultBroadcasterClassName() {
+    public static String getDefaultBroadcasterClassName() {
         return broadcasterClassName;
     }
 
@@ -1186,8 +1186,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @param broadcasterClassName the broadcasterClassName to set
      */
-    public void setDefaultBroadcasterClassName(String broadcasterClassName) {
-        this.broadcasterClassName = broadcasterClassName;
+    public static void setDefaultBroadcasterClassName(String broadcasterClassName) {
+        broadcasterClassName = broadcasterClassName;
     }
 
     /**

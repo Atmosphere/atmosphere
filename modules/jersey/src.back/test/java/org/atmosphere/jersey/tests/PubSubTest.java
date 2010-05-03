@@ -34,7 +34,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Resume;
@@ -55,7 +55,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Simple PubSubTest resource that demonstrate many functionality supported by
@@ -70,33 +69,33 @@ public class PubSubTest {
     /**
      * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
      */
-    private @PathParam("topic") Broadcaster topic;
+    private @PathParam("topic") Broadcaster broadcaster;
 
     @GET
     @Suspend (period = 5000, outputComments = false)
     public Broadcastable subscribe() {
-        return new Broadcastable("resume",topic);
+        return new Broadcastable("resume", broadcaster);
     }
 
     @GET
     @Path("withComments")    
     @Suspend (period = 5000, outputComments = true)
     public Broadcastable subscribeWithComments() {
-        return new Broadcastable(topic);
+        return new Broadcastable(broadcaster);
     }
 
     @GET
     @Path("forever")    
     @Suspend (outputComments = true)
     public Broadcastable suspendForever() {
-        return new Broadcastable(topic);
+        return new Broadcastable(broadcaster);
     }
 
     @GET
     @Path("foreverWithoutComments")
     @Suspend (outputComments = false)
     public Broadcastable suspendForeverWithoutComments() {
-        return new Broadcastable(topic);
+        return new Broadcastable(broadcaster);
     }
     
     /**
@@ -124,7 +123,7 @@ public class PubSubTest {
     @GET
     @Path("suspendAndResume")
     @Suspend(outputComments = false)
-    public String suspend(final @PathParam("topic") String topic) {
+    public String suspend() {
         return "suspend";
     }
 
@@ -132,7 +131,7 @@ public class PubSubTest {
     @Resume
     @Path("suspendAndResume/{uuid}")
     public String resume() throws ExecutionException, InterruptedException {
-        topic.broadcast("resume").get();
+        broadcaster.broadcast("resume").get();
         return "resumed";
     }
 
@@ -145,7 +144,7 @@ public class PubSubTest {
     @Suspend(resumeOnBroadcast=true, outputComments = false)
     @Path("subscribeAndResume")
     public Broadcastable subscribeAndResume() {
-        return new Broadcastable(topic);
+        return new Broadcastable(broadcaster);
     }
 
     /**
@@ -256,7 +255,7 @@ public class PubSubTest {
     @POST
     @Path("programmaticDelayBroadcast")
     public String manualDelayBroadcast(@FormParam("message") String message){
-        topic.delayBroadcast(message);
+        broadcaster.delayBroadcast(message);
         return message;
     }
 
@@ -266,17 +265,16 @@ public class PubSubTest {
      * @return
      */
     Broadcastable broadcast(String m){
-       return new Broadcastable(m + "\n", topic);
+       return new Broadcastable(m + "\n", broadcaster);
     }
 
     private static int count = 0;
 
     @GET
     @Path("scope")
-    @Suspend (outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
-    public Broadcastable suspendScopeRequest(@PathParam("topic") Broadcaster b) {
-
-        b.delayBroadcast(String.valueOf(++count),5,TimeUnit.SECONDS);
-        return new Broadcastable(b);
+    @Suspend (period = 5000, outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
+    public Broadcastable suspendScopeRequest(@PathParam("topic") Broadcaster b) throws ExecutionException, InterruptedException {
+        b.broadcast("foo").get();
+        return new Broadcastable("bar",b);
     }
 }

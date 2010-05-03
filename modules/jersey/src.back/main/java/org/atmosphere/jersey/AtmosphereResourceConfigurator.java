@@ -34,62 +34,24 @@
 * only if the new code is made subject to such option by the copyright
 * holder.
 */
+
 package org.atmosphere.jersey;
 
-import com.sun.jersey.core.spi.component.ComponentContext;
-import com.sun.jersey.core.spi.component.ComponentScope;
-import com.sun.jersey.spi.inject.Injectable;
-import com.sun.jersey.spi.inject.InjectableProvider;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.BroadcasterFactory;
+import com.sun.jersey.api.core.ResourceConfig;
+import com.sun.jersey.api.core.ResourceConfigurator;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.ext.Provider;
-import java.lang.reflect.Type;
+import java.util.List;
 
 /**
- * Allow {@link org.atmosphere.cpr.BroadcasterFactory} injection via the {@link Context} annotation supported
- * by Jersey.
+ * Automatically add the {@link AtmosphereFilter} to the list of {@link ResourceConfig}.
  *
  * @author Jeanfrancois Arcand
  */
 @Provider
-public class BroadcasterFactoryInjector implements InjectableProvider<Context, Type> {
+public class AtmosphereResourceConfigurator implements ResourceConfigurator {
 
-    // The current {@link HttpServletRequest{
-    @Context HttpServletRequest req;
-
-    public ComponentScope getScope() {
-        return ComponentScope.Singleton;
-    }
-
-    public Injectable getInjectable(ComponentContext ic, Context a, Type c) {
-        if (BroadcasterFactory.class.isAssignableFrom(c.getClass())) {
-            return new Injectable<BroadcasterFactory>() {
-
-                public BroadcasterFactory getValue() {
-                    AtmosphereResource r = null;
-
-                    if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
-                        r = (AtmosphereResource) req.getSession().
-                                getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
-                    }
-
-                    if (r == null) {
-                        r = (AtmosphereResource)
-                                req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                    }
-
-                    if (r != null) {
-                        return r.getAtmosphereConfig().getBroadcasterFactory();
-                    } else {
-                        return null;
-                    }
-                }
-            };
-        }
-        return null;
+    public void configure(ResourceConfig config) {
+        ((List<String>) config.getResourceFilterFactories()).add(AtmosphereFilter.class.getName());
     }
 }

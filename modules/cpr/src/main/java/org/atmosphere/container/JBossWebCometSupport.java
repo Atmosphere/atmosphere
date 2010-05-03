@@ -37,6 +37,7 @@
  */
 package org.atmosphere.container;
 
+import org.apache.catalina.CometEvent;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -142,6 +143,20 @@ public class JBossWebCometSupport extends AsynchronousProcessor
             }
             action = timedout(req, res);
             event.close();
+        }
+        return action;
+    }
+
+    @Override
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+
+        Action action =  super.cancelled(req,res);
+        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+           HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
+           if (event == null) return action;
+           resumed.offer(event);
+           event.close();
         }
         return action;
     }

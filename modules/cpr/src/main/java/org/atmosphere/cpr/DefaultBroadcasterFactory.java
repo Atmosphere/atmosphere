@@ -67,8 +67,10 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, BroadcasterConfig config) {
         this.clazz = clazz;
         this.config = config;
-        if (factory == null)
+        
+        if (factory == null) {
             this.factory = this;
+        }
     }
                        
     /**
@@ -170,6 +172,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             e.nextElement().destroy();
         }
         store.clear();
+        factory = null;
     }
 
     /**
@@ -197,9 +200,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, BroadcasterConfig config)
             throws InstantiationException, IllegalAccessException {
-        if (factory == null) {
-            factory = new DefaultBroadcasterFactory(clazz, config);
-        }
+
+        factory = new DefaultBroadcasterFactory(clazz, config);
         return factory;
     }
 

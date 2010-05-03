@@ -34,51 +34,36 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
-import org.apache.log4j.BasicConfigurator;
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.CometSupport;
+import org.atmosphere.container.JettyCometSupport;
+import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 
 
-public class BlockingIOCometSupportTest extends BaseTest {
-    protected Server server;
-    protected Context root;
+public class Jetty6JerseyTest extends BlockingIOJerseyTest {
 
-    @BeforeMethod(alwaysRun = true)
-    public void setUpGlobal() throws Exception {
-
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
-        urlTarget = "http://127.0.0.1:" + port + "/invoke";
-
+    @Override
+    public void startServer() throws Exception {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
-        atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-        setCometSupport();
-        setConnector();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
+
+        Connector listener = new SelectChannelConnector();
+
+        listener.setHost("127.0.0.1");
+        listener.setPort(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999));
+        server.addConnector(listener);
+
         server.start();
     }
 
-    public void setConnector() {
+    @Override
+    public void configureCometSupport() {
+        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
-    public void setCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
-        server.stop();
-        server = null;
-    }
 }

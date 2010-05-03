@@ -96,6 +96,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
                         if (l != 0 && System.currentTimeMillis() - l > maxInactiveTime){
                             try {
+                                req.setAttribute(MAX_INACTIVE, (long)-1);
                                 cancelled(req,aliveRequests.get(req).getResponse());
                             } catch (IOException e) {
                             } catch (ServletException e) {
@@ -302,15 +303,18 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
             String disableOnEvent = re.getAtmosphereConfig().getInitParameter(AtmosphereServlet.DISABLE_ONSTATE_EVENT);
 
-            if (!re.getResponse().equals(res)) {
-                logger.warning("Invalid response: " + res);
-            } else if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                aw.atmosphereHandler.onStateChange(re.getAtmosphereResourceEvent());
-            } else {
-                re.getResponse().flushBuffer();
+            try {
+                if (!re.getResponse().equals(res)) {
+                    logger.warning("Invalid response: " + res);
+                } else if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
+                    aw.atmosphereHandler.onStateChange(re.getAtmosphereResourceEvent());
+                } else {
+                    re.getResponse().flushBuffer();
+                }
+            } finally {
+                re.notifyListeners();
+                re.getBroadcaster().removeAtmosphereResource(re);
             }
-            re.notifyListeners();
-            re.getBroadcaster().removeAtmosphereResource(re);
         }
 
         return timedoutAction;
@@ -338,16 +342,19 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             if (re != null) {
                 re.getAtmosphereResourceEvent().setCancelled(true);
 
-                if (!re.getResponse().equals(res)) {
-                    logger.warning("Invalid response: " + res);
-                } else if (!re.getAtmosphereConfig().getInitParameter(AtmosphereServlet.DISABLE_ONSTATE_EVENT)
-                        .equals(String.valueOf(true))) {
-                    aw.atmosphereHandler.onStateChange(re.getAtmosphereResourceEvent());
-                } else {
-                    re.getResponse().flushBuffer();
+                try{
+                    if (!re.getResponse().equals(res)) {
+                        logger.warning("Invalid response: " + res);
+                    } else if (!re.getAtmosphereConfig().getInitParameter(AtmosphereServlet.DISABLE_ONSTATE_EVENT)
+                            .equals(String.valueOf(true))) {
+                        aw.atmosphereHandler.onStateChange(re.getAtmosphereResourceEvent());
+                    } else {
+                        re.getResponse().flushBuffer();
+                    }
+                } finally {
+                    re.notifyListeners();
+                    re.getBroadcaster().removeAtmosphereResource(re);
                 }
-                re.notifyListeners();
-                re.getBroadcaster().removeAtmosphereResource(re);
             }
         } catch (Throwable ex) {
             // Something wrong happenned, ignore the exception

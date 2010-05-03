@@ -34,7 +34,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHandler;
@@ -45,6 +45,10 @@ import com.ning.http.client.HttpResponseStatus;
 import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.CometSupport;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -56,8 +60,55 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+public abstract class BaseTest {
 
-public class AtmosphereJerseyTest extends BaseTest {
+    protected AtmosphereServlet atmoServlet;
+    protected final static String ROOT = "/*";
+    public String urlTarget;
+    public int port;
+
+    abstract public void configureCometSupport();
+
+    abstract public void startServer() throws Exception ;
+
+    abstract public void stopServer() throws Exception ;
+
+    public static class TestHelper {
+
+        public static int getEnvVariable(final String varName, int defaultValue) {
+            if (null == varName) {
+                return defaultValue;
+            }
+            String varValue = System.getenv(varName);
+            if (null != varValue) {
+                try {
+                    return Integer.parseInt(varValue);
+                }catch (NumberFormatException e) {
+                    // will return default value bellow
+                }
+            }
+            return defaultValue;
+        }
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    public void setUpGlobal() throws Exception {
+        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        urlTarget = "http://127.0.0.1:" + port + "/invoke";
+        atmoServlet = new AtmosphereServlet();
+        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+        atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
+        atmoServlet.addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
+
+        configureCometSupport();
+        startServer();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void unsetAtmosphereHandler() throws Exception {
+        atmoServlet.destroy();
+        stopServer();
+    }
 
     @Test(timeOut = 20000)
     public void testSuspendTimeout() {
@@ -90,7 +141,9 @@ public class AtmosphereJerseyTest extends BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             String resume = r.getResponseBody();
-            assertEquals(r.getContentType().toLowerCase(), "text/plain; charset=iso-8859-1");
+            String[] ct = r.getContentType().toLowerCase().split(";");
+            assertEquals(ct[0].trim(), "text/plain");
+            assertEquals(ct[1].trim(), "charset=iso-8859-1");
             assertEquals(resume, AtmosphereResourceImpl.createCompatibleStringJunk());
         } catch (Exception e) {
             e.printStackTrace();
@@ -123,15 +176,13 @@ public class AtmosphereJerseyTest extends BaseTest {
         AsyncHttpClient c = new AsyncHttpClient();
         final AtomicReference<String> location = new AtomicReference<String>();
         final AtomicReference<String> response = new AtomicReference<String>("");
-
-
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch locationLatch = new CountDownLatch(1);
         try {
             c.prepareGet(urlTarget + "/suspendAndResume").execute(new AsyncHandler<String>() {
 
                 public void onThrowable(Throwable throwable) {
-
+                    fail("onThrowable",throwable);
                 }
 
                 public STATE onBodyPartReceived(HttpResponseBodyPart<String> bp) throws Exception {
@@ -157,9 +208,9 @@ public class AtmosphereJerseyTest extends BaseTest {
                 }
             });
 
-            locationLatch.await(10, TimeUnit.SECONDS);
+            locationLatch.await(5, TimeUnit.SECONDS);
 
-            Response r = c.prepareGet(location.get()).execute().get(5, TimeUnit.SECONDS);
+            Response r = c.prepareGet(location.get()).execute().get(10, TimeUnit.SECONDS);
             latch.await(20, TimeUnit.SECONDS);
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
@@ -513,9 +564,64 @@ public class AtmosphereJerseyTest extends BaseTest {
             e.printStackTrace();
             fail(e.getMessage());
         }
+        c.close();
+    }
 
+    @Test(timeOut = 60000)
+    public void testBroasdcasterScope() {
+        System.out.println("Running testBroasdcasterScope");
+        final CountDownLatch latch = new CountDownLatch(2);
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<Response> response = new AtomicReference<Response>();
+            c.prepareGet(urlTarget + "/scope").execute(new AsyncCompletionHandler<Response>() {
 
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        response.set(r);
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+            final AtomicReference<Response> response2 = new AtomicReference<Response>();
+            c.prepareGet("http://localhost:9999/suspend2/scope").execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        response2.set(r);
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            Response r = response.get();
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(), "bar");
+
+            Response r2 = response.get();
+            assertNotNull(r2);
+            assertEquals(r2.getStatusCode(), 200);
+            assertEquals(r2.getResponseBody(), "bar");
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
         c.close();
 
     }
+
 }

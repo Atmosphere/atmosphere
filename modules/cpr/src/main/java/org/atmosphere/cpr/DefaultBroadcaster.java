@@ -271,8 +271,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 ((AtmosphereEventLifecycle) r).notifyListeners();
             }
 
-            if (r.getRequest() instanceof HttpServletRequest) {
-                ((HttpServletRequest)r.getRequest()).setAttribute(CometSupport.MAX_INACTIVE, (Long)System.currentTimeMillis());
+            if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
+                    && HttpServletRequest.class.isAssignableFrom(r.getRequest().getClass())) {
+                HttpServletRequest.class.cast(r.getRequest()).setAttribute(CometSupport.MAX_INACTIVE, (Long)System.currentTimeMillis());
             }
             
             broadcast(r, e);
@@ -489,5 +490,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 push(e);
             }
         }, waitFor, period, t);
+    }
+
+    public String toString(){
+        return new StringBuilder(this.getClass().getName()).append("@").append(this.hashCode()).append("\n")
+                .append("\tName: ").append(name).append("\n")
+                .append("\tScope: ").append(scope).append("\n")
+                .append("\tBroasdcasterCache ").append(broadcasterCache).append("\n")
+                .append("\tAtmosphereResource: ").append(events.size()).append("\n")
+                .toString();
     }
 }

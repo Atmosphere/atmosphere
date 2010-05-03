@@ -2,18 +2,18 @@
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
+ * Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
  * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
+ * a copy of the License at https://jersey.dev.java.net/CDDL+GPL.html
+ * or jersey/legal/LICENSE.txt.  See the License for the specific
  * language governing permissions and limitations under the License.
  *
  * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
+ * file and include the License file at jersey/legal/LICENSE.txt.
  * Sun designates this particular file as subject to the "Classpath" exception
  * as provided by Sun in the GPL Version 2 section of the License file that
  * accompanied this code.  If applicable, add the following below the License
@@ -33,29 +33,38 @@
  * and therefore, elected the GPL Version 2 license, then the option applies
  * only if the new code is made subject to such option by the copyright
  * holder.
- *
  */
-package org.atmosphere.annotation;
+package org.atmosphere.jersey.tests;
 
-import org.atmosphere.cpr.Broadcaster;
+import com.sun.grizzly.comet.CometAsyncFilter;
+import com.sun.grizzly.http.embed.GrizzlyWebServer;
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import org.atmosphere.container.GrizzlyCometSupport;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 
-/**
- * Invoked when a {@link Broadcaster#broadcast} is invoked or when the {@link Broadcast} annotation is processed.
- *
- * @author Jeanfrancois Arcand
- */
-@Target({ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface OnBroadcast {
+public class GrizzlyJerseyTest extends BaseTest {
 
-    /**
-     * Resume all suspended response on the first broadcast operation.
-     */
-    public boolean resumeOnBroadcast() default false;
+    protected GrizzlyWebServer ws;
+    protected ServletAdapter sa;
+
+    @Override
+    public void configureCometSupport() {
+        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+    }
+
+    @Override
+    public void startServer() throws Exception {
+        ws = new GrizzlyWebServer(port);
+        sa = new ServletAdapter();
+        ws.addAsyncFilter(new CometAsyncFilter());
+        sa.setServletInstance(atmoServlet);
+        ws.addGrizzlyAdapter(sa, new String[]{ROOT});
+        ws.start();
+    }
+
+    @Override
+    public void stopServer() throws Exception {
+        ws.stop();
+    }
 
 }

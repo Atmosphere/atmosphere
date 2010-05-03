@@ -39,74 +39,70 @@ package org.atmosphere.tests;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import com.sun.grizzly.comet.CometAsyncFilter;
+import com.sun.grizzly.http.embed.GrizzlyWebServer;
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import org.apache.log4j.BasicConfigurator;
+import org.atmosphere.cache.HeaderBroadcasterCache;
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.GrizzlyCometSupport;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.CometSupport;
+import org.mortbay.jetty.Server;
+import org.mortbay.jetty.servlet.Context;
+import org.mortbay.jetty.servlet.ServletHolder;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-public class BroadcasterTest extends BaseTest {
 
-    @Test(timeOut = 20000)
-    public void testBroasdcasterScope() {
-        System.out.println("Running testBroasdcasterScope");
-        final CountDownLatch latch = new CountDownLatch(2);
-        AsyncHttpClient c = new AsyncHttpClient();
-        try {
-            final AtomicReference<Response> response = new AtomicReference<Response>();
-            c.prepareGet(urlTarget + "/scope").execute(new AsyncCompletionHandler<Response>() {
+public class GrizzlyCometSupportTest extends BaseTest {
 
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    try {
-                        response.set(r);
-                        return r;
-                    } finally {
-                        latch.countDown();
-                    }
-                }
-            });
+    protected GrizzlyWebServer ws;
 
-            final AtomicReference<Response> response2 = new AtomicReference<Response>();
-            c.prepareGet("http://localhost:9999/suspend2/scope").execute(new AsyncCompletionHandler<Response>() {
+    @BeforeMethod(alwaysRun = true)
+    public void setUpGlobal() throws Exception {
 
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    try {
-                        response2.set(r);
-                        return r;
-                    } finally {
-                        latch.countDown();
-                    }
-                }
-            });
+        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
-            try {
-                latch.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                fail(e.getMessage());
-            }
+        ws = new GrizzlyWebServer(port);
+        ServletAdapter sa = new ServletAdapter();
+        ws.addAsyncFilter(new CometAsyncFilter());
+        
+        atmoServlet = new AtmosphereServlet();
+        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+        sa.setServletInstance(atmoServlet);
+        setCometSupport();
 
-            Response r = response.get();
-            assertNotNull(r);
-            assertEquals(r.getStatusCode(), 200);
-            assertEquals(r.getResponseBody(), "1");
-
-            Response r2 = response.get();
-            assertNotNull(r2);
-            assertEquals(r2.getStatusCode(), 200);
-            assertEquals(r2.getResponseBody(), "1");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-        c.close();
-
+        ws.addGrizzlyAdapter(sa,new String[] {ROOT});
+        ws.start();
     }
 
+    public void setCometSupport() {
+        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void unsetAtmosphereHandler() throws Exception {
+        atmoServlet.destroy();
+        ws.stop();
+    }
 }

@@ -42,7 +42,7 @@ import com.sun.jersey.spi.inject.Injectable;
 import com.sun.jersey.spi.inject.InjectableProvider;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.Broadcaster;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
@@ -50,45 +50,51 @@ import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Type;
 
 /**
- * Allow {@link org.atmosphere.cpr.BroadcasterFactory} injection via the {@link Context} annotation supported
+ * Allow {@link Broadcaster} injection via the {@link Context} annotation supported
  * by Jersey.
  *
  * @author Jeanfrancois Arcand
  */
 @Provider
-public class BroadcasterFactoryInjector implements InjectableProvider<Context, Type> {
+public class BroadcasterInjector implements InjectableProvider<Context, Type> {
 
     // The current {@link HttpServletRequest{
-    @Context HttpServletRequest req;
+    @Context
+    HttpServletRequest req;
 
     public ComponentScope getScope() {
         return ComponentScope.Singleton;
     }
 
     public Injectable getInjectable(ComponentContext ic, Context a, Type c) {
-        if (BroadcasterFactory.class.isAssignableFrom(c.getClass())) {
-            return new Injectable<BroadcasterFactory>() {
+        if (c instanceof Class) {
+            Class _c = (Class) c;
+            if (Broadcaster.class.isAssignableFrom(_c)) {
+                return new Injectable<Broadcaster>() {
 
-                public BroadcasterFactory getValue() {
-                    AtmosphereResource r = null;
+                    /**
+                     * Return the current {@link Broadcaster}
+                     */
+                    public Broadcaster getValue() {
+                        AtmosphereResource r = null;
 
-                    if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
-                        r = (AtmosphereResource) req.getSession().
-                                getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
+                        if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
+                            r = (AtmosphereResource) req.getSession().
+                                    getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
+                        }
+
+                        if (r == null) {
+                            r = (AtmosphereResource) req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                        }
+                        
+                        if (r != null) {
+                            return r.getBroadcaster();
+                        } else {
+                            return null;
+                        }
                     }
-
-                    if (r == null) {
-                        r = (AtmosphereResource)
-                                req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                    }
-
-                    if (r != null) {
-                        return r.getAtmosphereConfig().getBroadcasterFactory();
-                    } else {
-                        return null;
-                    }
-                }
-            };
+                };
+            }
         }
         return null;
     }

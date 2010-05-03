@@ -1,0 +1,5 @@
+org.atmosphere.jersey.BroadcasterInjector
+org.atmosphere.jersey.AtmosphereProviders$BroadcasterProvider
+org.atmosphere.jersey.BroadcasterFactoryInjector
+org.atmosphere.jersey.AtmosphereResourceInjector
+org.atmosphere.jersey.AtmosphereResourceConfigurator

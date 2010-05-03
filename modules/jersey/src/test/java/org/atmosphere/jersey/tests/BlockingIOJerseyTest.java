@@ -34,44 +34,38 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
 import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.CometSupport;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 
 
-public class BlockingIOCometSupportTest extends BaseTest {
+public class BlockingIOJerseyTest extends BaseTest {
+
     protected Server server;
     protected Context root;
+    protected final static String ROOT = "/*";
 
-    @BeforeMethod(alwaysRun = true)
-    public void setUpGlobal() throws Exception {
+    @Override
+    public void configureCometSupport() {
+        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
+    }
 
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
-        urlTarget = "http://127.0.0.1:" + port + "/invoke";
-
+    @Override
+    public void startServer() throws Exception {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
-        atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-        setCometSupport();
-        setConnector();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
-    public void setConnector() {
-    }
-
-    public void setCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
+    @Override
+    public void stopServer() throws Exception {
+        server.stop();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -81,4 +75,5 @@ public class BlockingIOCometSupportTest extends BaseTest {
         server.stop();
         server = null;
     }
+
 }

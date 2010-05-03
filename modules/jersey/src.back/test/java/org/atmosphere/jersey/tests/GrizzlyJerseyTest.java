@@ -34,29 +34,37 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
-import org.atmosphere.cpr.BroadcasterConfig;
-import org.atmosphere.jersey.JerseyBroadcaster;
+import com.sun.grizzly.comet.CometAsyncFilter;
+import com.sun.grizzly.http.embed.GrizzlyWebServer;
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import org.atmosphere.container.GrizzlyCometSupport;
 
-/**
- * Simple {@link org.atmosphere.cpr.BroadcasterConfig}
- */
-public class RecyclableBroadcaster extends JerseyBroadcaster {
 
-    public RecyclableBroadcaster() {
-        super();
+public class GrizzlyJerseyTest extends BaseTest {
+
+    protected GrizzlyWebServer ws;
+    protected ServletAdapter sa;
+
+    @Override
+    public void configureCometSupport() {
+        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
-    public RecyclableBroadcaster(String name) {
-        super(name);
+    @Override
+    public void startServer() throws Exception {
+        ws = new GrizzlyWebServer(port);
+        sa = new ServletAdapter();
+        ws.addAsyncFilter(new CometAsyncFilter());
+        sa.setServletInstance(atmoServlet);
+        ws.addGrizzlyAdapter(sa, new String[]{ROOT});
+        ws.start();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public void destroy() {
-        broadcasterCache = new BroadcasterConfig.DefaultBroadcasterCache();
-        setScope(SCOPE.APPLICATION);
+    @Override
+    public void stopServer() throws Exception {
+        ws.stop();
     }
+
 }

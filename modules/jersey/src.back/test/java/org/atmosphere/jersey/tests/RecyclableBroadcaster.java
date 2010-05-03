@@ -34,51 +34,29 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
-import org.apache.log4j.BasicConfigurator;
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.CometSupport;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.atmosphere.cpr.BroadcasterConfig;
+import org.atmosphere.jersey.JerseyBroadcaster;
 
+/**
+ * Simple {@link org.atmosphere.cpr.BroadcasterConfig}
+ */
+public class RecyclableBroadcaster extends JerseyBroadcaster {
 
-public class BlockingIOCometSupportTest extends BaseTest {
-    protected Server server;
-    protected Context root;
-
-    @BeforeMethod(alwaysRun = true)
-    public void setUpGlobal() throws Exception {
-
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
-        urlTarget = "http://127.0.0.1:" + port + "/invoke";
-
-        server = new Server(port);
-        root = new Context(server, "/", Context.SESSIONS);
-        atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-        setCometSupport();
-        setConnector();
-        root.addServlet(new ServletHolder(atmoServlet), ROOT);
-        server.start();
+    public RecyclableBroadcaster() {
+        super();
     }
 
-    public void setConnector() {
+    public RecyclableBroadcaster(String name) {
+        super(name);
     }
 
-    public void setCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
-        server.stop();
-        server = null;
+    /**
+     * {@inheritDoc}
+     */
+    public void destroy() {
+        broadcasterCache = new BroadcasterConfig.DefaultBroadcasterCache();
+        setScope(SCOPE.APPLICATION);
     }
 }

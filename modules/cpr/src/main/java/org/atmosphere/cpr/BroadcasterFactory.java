@@ -36,6 +36,10 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.LoggerUtils;
+
+import java.util.logging.Level;
+
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
  *
@@ -43,7 +47,7 @@ package org.atmosphere.cpr;
  */
 public abstract class BroadcasterFactory {
 
-    private static BroadcasterFactory factory;
+    protected static BroadcasterFactory factory;
 
     /**
      * Return an instance of the default {@link Broadcaster}
@@ -113,7 +117,14 @@ public abstract class BroadcasterFactory {
      */
     public synchronized static BroadcasterFactory getDefault() {
         if (factory == null) {
-            factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, AtmosphereServlet.getBroadcasterConfig());
+            Class<? extends Broadcaster> b = null;
+            try {
+                b = (Class<? extends Broadcaster>) Class.forName(AtmosphereServlet.getDefaultBroadcasterClassName());
+            } catch (ClassNotFoundException e) {
+                LoggerUtils.getLogger().log(Level.SEVERE,"",e);
+            }
+            factory = new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b , AtmosphereServlet.getBroadcasterConfig());
+
         }
         return factory;
     }
