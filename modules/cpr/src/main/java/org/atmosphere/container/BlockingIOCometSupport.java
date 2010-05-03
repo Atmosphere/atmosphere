@@ -46,8 +46,6 @@ import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
-import org.mortbay.util.ajax.Continuation;
-import org.mortbay.util.ajax.ContinuationSupport;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -134,7 +132,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor implements Com
     /**
      * Suspend the connection by blocking the current {@link Thread}
      *
-     * @param action The {@link AtmosphereServlet.Action}
+     * @param action The {@link org.atmosphere.cpr.AtmosphereServlet.Action}
      * @param req    the {@link HttpServletRequest}
      * @param res    the {@link HttpServletResponse}
      * @throws java.io.IOException
