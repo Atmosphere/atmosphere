@@ -38,16 +38,15 @@
 
 package org.atmosphere.samples.counter;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple application that demonstrate how a Comet long poll request can be implemented.
@@ -57,32 +56,47 @@ import org.atmosphere.cpr.AtmosphereResource;
  * @author Jeanfrancois Arcand
  */
 public class CounterLongPollingAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
-      
-    private final AtomicInteger counter = new AtomicInteger();
+
+    private AtomicInteger currentCount = new AtomicInteger(0);
 
     /**
-     * On GET, suspend the conneciton. On POST, resume the connection.
-     * @param event
+     * On GET, suspend the connection. On POST, resume the connection.
+     *
+     * @param resource
      * @return
      * @throws IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
 
-        if (event.getRequest().getMethod().equals("GET")){
-            event.suspend();
+        HttpServletRequest req = resource.getRequest();
+
+        if (req.getMethod().equals("GET")) {
+            resource.suspend(-1, false);
         } else {
-            counter.incrementAndGet();
-            // Nothing to broadcast, but fire an event.
-            event.getBroadcaster().broadcast("");
+            // 'POST' request
+            if (req.getParameter("stop").equalsIgnoreCase("true")) {
+                // this parameter is set true when a browser 'unload' event is triggered in the client
+                resource.getBroadcaster().broadcast("");
+            } else if (req.getParameter("current_count") != null) {
+                Integer i = Integer.valueOf(req.getParameter("current_count"));
 
-            PrintWriter writer = event.getResponse().getWriter();
+                if (i > currentCount.get()) {
+                    currentCount.set(i);
+                }
+
+                // Always Broadcast the highest value
+                resource.getBroadcaster().broadcast(i > currentCount.get() ? i : currentCount.get());
+            }
+
+            PrintWriter writer = resource.getResponse().getWriter();
             writer.write("success");
             writer.flush();
         }
     }
 
     /**
-     * Resume the underlying response on the first {@link Broadcast}
+     * Resume the underlying response on the first {@link org.atmosphere.cpr.Broadcaster}
+     *
      * @param event
      * @return
      * @throws IOException
@@ -90,20 +104,26 @@ public class CounterLongPollingAtmosphereHandler implements AtmosphereHandler<Ht
     public void onStateChange(AtmosphereResourceEvent<HttpServletRequest,
             HttpServletResponse> event) throws IOException {
 
-        int count = counter.get();
-
         // Client closed the connection.
-        if (event.isCancelled()){
+        if (event.isCancelled()) {
             return;
         }
 
-        event.getResource().getResponse().addHeader("X-JSON", "{\"counter\":" + count + " }");
-        PrintWriter writer = event.getResource().getResponse().getWriter();
-        writer.write("success");
-        writer.flush();
+        int count = 0;
+        if (event.getMessage() instanceof Integer) {
+            count = ((Integer)event.getMessage()).intValue();
+        }
 
-        if (!event.isResumedOnTimeout()){
-            event.getResource().resume();
-        } 
+        try{
+            event.getResource().getResponse().addHeader("X-JSON", "{\"counter\":" + count + " }");
+            PrintWriter writer = event.getResource().getResponse().getWriter();
+            writer.write("success");
+            writer.flush();
+        } finally {
+            if (!event.isResumedOnTimeout()) {
+                event.getResource().resume();
+            }
+        }
+
     }
 }
