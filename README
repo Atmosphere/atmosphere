@@ -31,8 +31,10 @@ If you are using Maven, just add the following dependency:
          <version>0.5.7</version>
      </dependency>
 
-Where atmosphere-module can be: jersey, runtime, guice, bayeux, cluster or spade-server. 
+Where atmosphere-module can be: jersey, runtime, guice, bayeux, cluster or spade-server. Now, you'll have to add the Sonatype snapshot repo to your settings in order to be able to access the snapshot builds:
 
-Atmosphere 0.5.7 is our official release, and our work in progress version is 0.6, targeted for End April 2010.
+    http://oss.sonatype.org/service/local/repositories/snapshots/content
+
+Atmosphere 0.5.7 is our official release, and our work in progress version is 0.6, targeted for End May 2010.
 
 If you are interested, subscribe to our mailing lists (user@atmosphere.dev.java.net or dev@atmosphere.dev.java.net) for more info!  We are on irc.freenode.net under #atmosphere-comet
