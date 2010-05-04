@@ -101,6 +101,11 @@ public class DefaultBroadcaster implements Broadcaster {
         if (broadcasterCache != null){
             broadcasterCache.stop();
         }
+        events.clear();
+        messages.clear();
+        delayedBroadcast.clear();
+        broadcasterCache = null;
+        started.set(false);
     }
 
     /**
