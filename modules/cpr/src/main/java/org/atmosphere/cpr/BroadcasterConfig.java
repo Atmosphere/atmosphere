@@ -144,6 +144,7 @@ public class BroadcasterConfig {
                 ((BroadcastFilterLifecycle) f).destroy();
             }
         }
+        removeAllFilters();
     }
 
     /**
