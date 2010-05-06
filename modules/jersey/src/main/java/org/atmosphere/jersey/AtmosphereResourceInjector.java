@@ -48,6 +48,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.ext.Provider;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /**
@@ -68,7 +69,7 @@ public class AtmosphereResourceInjector implements InjectableProvider<Context, T
     }
 
     public Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>> getInjectable(ComponentContext ic, Context a, Type c) {
-        if (c == AtmosphereResource.class) {
+        if (isValidType(c)) {
 
             return new Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>>() {
                 /**
@@ -81,5 +82,22 @@ public class AtmosphereResourceInjector implements InjectableProvider<Context, T
             };
         }
         return null;
+    }
+
+    public boolean isValidType(Type c) {
+        if (c == AtmosphereResource.class) return true;
+
+        if (c  instanceof ParameterizedType){
+            ParameterizedType pt = (ParameterizedType) c;
+            if (pt.getRawType() != AtmosphereResource.class) return false;
+
+            if (pt.getActualTypeArguments().length != 2) return false;
+
+            if (pt.getActualTypeArguments()[0] != HttpServletRequest.class) return false;
+            if (pt.getActualTypeArguments()[1] != HttpServletResponse.class) return false;
+
+            return true;
+        }
+        return false;
     }
 }
