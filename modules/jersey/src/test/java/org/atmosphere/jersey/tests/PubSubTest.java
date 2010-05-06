@@ -47,6 +47,7 @@ import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.util.StringFilterAggregator;
 import org.atmosphere.util.XSSHtmlFilter;
 
+import javax.annotation.PreDestroy;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -65,6 +66,7 @@ import java.util.concurrent.Executors;
 @Path("/{topic}")
 @Produces("text/plain;charset=ISO-8859-1")
 public class PubSubTest {
+
 
     /**
      * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path

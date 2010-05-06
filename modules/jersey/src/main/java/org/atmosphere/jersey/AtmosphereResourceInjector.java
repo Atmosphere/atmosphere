@@ -59,7 +59,7 @@ import java.lang.reflect.Type;
 @Provider
 public class AtmosphereResourceInjector implements InjectableProvider<Context, Type> {
 
-    // The current {@link HttpServletrequest{
+    // The current {@link HttpServletRequest}
     @Context
     HttpServletRequest req;
 
@@ -67,10 +67,10 @@ public class AtmosphereResourceInjector implements InjectableProvider<Context, T
         return ComponentScope.Singleton;
     }
 
-    public Injectable getInjectable(ComponentContext ic, Context a, Type c) {
+    public Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>> getInjectable(ComponentContext ic, Context a, Type c) {
         if (c == AtmosphereResource.class) {
 
-            return new Injectable<AtmosphereResource>() {
+            return new Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>>() {
                 /**
                  * Return the current {@link AtmosphereResourceEvent}
                  */

@@ -711,6 +711,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     boolean detectGoogleAppEngine(ServletConfig sc) {
         if (sc.getServletContext().getServerInfo().startsWith("Google")) {
             broadcasterClassName = GAE_BROADCASTER;
+            isBroadcasterSpecified = true;
             cometSupport = new GoogleAppEngineCometSupport(config);
             broadcasterConfig = new GAEBroadcasterConfig();
             return true;

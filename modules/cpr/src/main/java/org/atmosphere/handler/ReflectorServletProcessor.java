@@ -76,8 +76,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     private String servletClassName;
     private final ArrayList<String> filtersClass = new ArrayList<String>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
-    private final AtmosphereFilterChain filterChain =
-            new AtmosphereFilterChain();
+    private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
 
     public ReflectorServletProcessor() {

@@ -50,6 +50,7 @@ import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.util.LoggerUtils;
+import org.atmosphere.container.GrizzlyWebSocketSupport;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -138,6 +139,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
                 if (testClassExists(JETTY_8))
                     add(Jetty8WebSocketSupport.class);
 
+                if (testClassExists(GRIZZLY_WEBSOCKET))
+                    add(GrizzlyWebSocketSupport.class);
+
             }
         };
     }
@@ -202,7 +206,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     public CometSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
         if (!useWebsocketIfPossible) {
-            return resolve(useNativeIfPossible,defaultToBlocking);
+            return resolve(useNativeIfPossible, defaultToBlocking);
         } else {
             return resolveWebSocket(detectWebSocketPresent());
         }
@@ -210,7 +214,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     public CometSupport resolveWebSocket(final java.util.List<Class<? extends CometSupport>> available) {
         if (available == null || available.isEmpty()) return null;
-        else return newCometSupport(available.get(0));       
+        else return newCometSupport(available.get(0));
     }
 
     /**

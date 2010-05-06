@@ -49,6 +49,7 @@ import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.plugin.cluster.jgroups.JGroupsFilter;
 import org.atmosphere.util.StringFilterAggregator;
 
+import javax.annotation.PreDestroy;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -68,6 +69,12 @@ import java.util.concurrent.TimeUnit;
 @Produces("text/plain;charset=ISO-8859-1")
 public class PubSub {
 
+
+    @PreDestroy
+    public void destroy(){
+        Thread.dumpStack();
+    }
+    
     /**
      * Inject a {@link Broadcaster} based on @Path
      */
