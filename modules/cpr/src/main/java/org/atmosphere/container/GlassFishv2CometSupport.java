@@ -212,25 +212,25 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
         /**
          * {@inheritDoc}
          */
-        public void onEvent(com.sun.grizzly.comet.CometEvent ce) throws IOException {
+        public void onEvent(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public void onInitialize(com.sun.grizzly.comet.CometEvent ce) throws IOException {
+        public void onInitialize(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public void onTerminate(com.sun.grizzly.comet.CometEvent ce) throws IOException {
+        public void onTerminate(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public synchronized void onInterrupt(com.sun.grizzly.comet.CometEvent ce) throws IOException {
+        public synchronized void onInterrupt(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {
                 if ((System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
