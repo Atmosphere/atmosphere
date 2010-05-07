@@ -35,19 +35,15 @@
  */
 package org.atmosphere.grizzly;
 
-import com.sun.grizzly.http.deployer.DeployException;
-import com.sun.grizzly.http.servlet.deployer.GrizzlyWebServerDeployer;
-import com.sun.grizzly.http.servlet.deployer.WarDeployer;
-import com.sun.grizzly.http.servlet.deployer.WarDeploymentConfiguration;
-import com.sun.grizzly.http.servlet.deployer.conf.DeployerConfiguration;
-import com.sun.grizzly.http.webxml.schema.WebApp;
-import org.atmosphere.grizzly.conf.AtmosphereConfigurationParser;
-import org.atmosphere.grizzly.conf.AtmosphereDeployerConfiguration;
-
-import java.io.File;
-import java.net.URLClassLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.atmosphere.grizzly.conf.AtmosphereDeployerConfiguration;
+
+import com.sun.grizzly.http.servlet.deployer.GrizzlyWebServerDeployer;
+import com.sun.grizzly.http.servlet.deployer.WarDeployer;
+import com.sun.grizzly.http.servlet.deployer.conf.ConfigurationParser;
+import com.sun.grizzly.http.servlet.deployer.conf.DeployerServerConfiguration;
 
 /**
  * @author Sebastien Dionne
@@ -66,36 +62,22 @@ public class AtmosphereDeployer extends GrizzlyWebServerDeployer {
     }
 
     public static AtmosphereDeployerConfiguration init(String args[]) {
-        AtmosphereDeployerConfiguration cfg = AtmosphereConfigurationParser.parseOptions(args, AtmosphereDeployer.class.getCanonicalName());
+    	AtmosphereDeployerConfiguration cfg = new AtmosphereDeployerConfiguration();
+    	
+        cfg = (AtmosphereDeployerConfiguration) ConfigurationParser.parseOptions(args, AtmosphereDeployer.class.getCanonicalName(), (DeployerServerConfiguration)cfg);
         if (logger.isLoggable(Level.INFO)) {
             logger.log(Level.INFO, cfg.toString());
         }
         return cfg;
     }
-
+    
     /**
-     * Deploy WAR file.
-     *
-     * @param location        Location of WAR file.
-     * @param context         Context to deploy to.
-     * @param serverLibLoader Server wide {@link ClassLoader}. Optional.
-     * @param defaultWebApp   webdefault application, get's merged with application to deploy. Optional.
-     * @throws DeployException Deployment failed.
+     * 
+     * @return the WarDeployer instance used to deploy/undeploy applications
      */
-    public void deployWar(
-            String location, String context, URLClassLoader serverLibLoader, WebApp defaultWebApp, final DeployerConfiguration conf) throws DeployException {
-        String ctx = context;
-        if (ctx == null) {
-            ctx = getContext(location);
-            int i = ctx.lastIndexOf('.');
-            if (i > 0) {
-                ctx = ctx.substring(0, i);
-            }
-        }
-        WarDeploymentConfiguration config = new WarDeploymentConfiguration(ctx, serverLibLoader, defaultWebApp, conf);
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, String.format("Configuration for deployment: %s.", config));
-        }
-        deployer.deploy(ws, new File(location).toURI(), config);
+    @Override
+    protected WarDeployer getWarDeployer(){
+    	return deployer;
     }
+    
 }

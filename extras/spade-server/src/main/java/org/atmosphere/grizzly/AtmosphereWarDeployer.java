@@ -35,13 +35,6 @@
  */
 package org.atmosphere.grizzly;
 
-import com.sun.grizzly.http.servlet.ServletAdapter;
-import com.sun.grizzly.http.servlet.deployer.WarDeployer;
-import com.sun.grizzly.http.servlet.deployer.WarDeploymentConfiguration;
-import com.sun.grizzly.http.servlet.deployer.WebAppAdapter;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.grizzly.conf.AtmosphereDeployerConfiguration;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.net.JarURLConnection;
@@ -56,6 +49,13 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.atmosphere.cpr.AtmosphereHandler;
+
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import com.sun.grizzly.http.servlet.deployer.WarDeployer;
+import com.sun.grizzly.http.servlet.deployer.WarDeploymentConfiguration;
+import com.sun.grizzly.http.servlet.deployer.WebAppAdapter;
 
 public class AtmosphereWarDeployer extends WarDeployer {
     private static Logger logger = Logger.getLogger(AtmosphereWarDeployer.class.getName());
@@ -81,7 +81,6 @@ public class AtmosphereWarDeployer extends WarDeployer {
     protected void setExtraConfig(ServletAdapter sa, final WarDeploymentConfiguration configuration) {
 
         AtmosphereAdapter adapter = (AtmosphereAdapter) sa;
-        AtmosphereDeployerConfiguration config = (AtmosphereDeployerConfiguration) configuration.conf;
 
         // set the AtmosphereHandler presents
         if (atmosphereHandlerList != null && !atmosphereHandlerList.isEmpty()) {

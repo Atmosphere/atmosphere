@@ -35,14 +35,14 @@
  */
 package org.atmosphere.grizzly.conf;
 
-import com.sun.grizzly.http.servlet.deployer.conf.DeployerConfiguration;
+import com.sun.grizzly.http.servlet.deployer.conf.DeployerServerConfiguration;
 
 /**
  * Configuration of {@link org.atmosphere.grizzly.AtmosphereDeployer}.
  *
  * @author Sebastien Dionne
  */
-public class AtmosphereDeployerConfiguration extends DeployerConfiguration {
+public class AtmosphereDeployerConfiguration extends DeployerServerConfiguration {
 
     public AtmosphereDeployerConfiguration() {
         super();
