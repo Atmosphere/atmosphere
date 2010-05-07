@@ -193,7 +193,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
      * Void {@link CometHandler}, which delegate the processing of the
      * {@link HttpServletResponse} to an {@link AtmosphereResource}.
      */
-    private class VoidCometHandler implements com.sun.grizzly.comet.CometHandler {
+    private class VoidCometHandler implements com.sun.enterprise.web.connector.grizzly.comet.CometEvent {
 
         HttpServletRequest req;
         HttpServletResponse res;
