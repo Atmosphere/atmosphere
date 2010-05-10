@@ -47,7 +47,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Suspend the underlying response. Once suspended, a response migth be allowed
+ * Suspend the underlying response. Once suspended, a response might be allowed
  * to consume {@link Broadcast} events, depending on the scope ([@link Suspend#SCOPE}).
  * By default, a suspended response is suspended able to consume
  * any broadcasted events executed inside the same application (SCOPE.APPLICATION).
@@ -73,7 +73,7 @@ public @interface Suspend {
     }
 
     /**
-     * The Scope of the {@link Broadcaster} that will be created once the
+     * The Scope of the {@link org.atmosphere.cpr.Broadcaster} that will be created once the
      * response gets suspended. One final word on Broadcaster: by default,
      * a Broadcaster will broadcast using
      * all resources/classes on which the response has been suspended.
@@ -83,7 +83,7 @@ public @interface Suspend {
      * <li>VM: broadcast events to all suspended responses created inside the current virtual machine.</li>
      * </ul>
      *
-     * @return The Scope of the {@link Broadcaster} that will be created once the
+     * @return The Scope of the {@link org.atmosphere.cpr.Broadcaster} that will be created once the
      *         response gets suspended.
      */
     SCOPE scope() default SCOPE.APPLICATION;
