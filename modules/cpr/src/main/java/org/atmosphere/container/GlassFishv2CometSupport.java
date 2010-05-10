@@ -172,7 +172,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME) {
+        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
             resume(actionEvent.getRequest(), ctx);
         }
@@ -233,7 +233,8 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
         public synchronized void onInterrupt(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {
-                if ((System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
+                if (ce.getCometContext().getExpirationDelay() > 0
+                        && (System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
                     timedout(req, res);
                 } else {
                     cancelled(req, res);

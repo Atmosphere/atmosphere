@@ -152,8 +152,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
             return;
         }
 
-        CometHandler handler = ctx
-                .getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
+        CometHandler handler = ctx.getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
 
         if (handler == null && supportSession()) {
@@ -172,11 +171,11 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
      * {@inheritDoc}
      */
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME) {
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type == Action.TYPE.RESUME && r.isInScope()) {
             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
-            resume(actionEvent.getRequest(), ctx);
+            resume(r.getRequest(), ctx);
         }
     }
 
@@ -235,7 +234,8 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
         public synchronized void onInterrupt(CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {
-                if ((System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
+                if (ce.getCometContext().getExpirationDelay() > 0
+                        && (System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
                     timedout(req, res);
                 } else {
                     cancelled(req, res);
