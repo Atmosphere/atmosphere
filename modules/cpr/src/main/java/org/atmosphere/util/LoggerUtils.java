@@ -38,6 +38,7 @@
 
 package org.atmosphere.util;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -48,6 +49,12 @@ import java.util.logging.Logger;
 public class LoggerUtils {
 
     private static Logger logger = Logger.getLogger("Atmosphere");
+
+    static {        
+        if (System.getProperty("org.atmosphere.trace") != null) {
+            logger.setLevel(Level.ALL);
+        }
+    }
 
 
     /**
