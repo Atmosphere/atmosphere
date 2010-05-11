@@ -156,8 +156,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
         req.removeAttribute(ATMOSPHERE);
 
         if (handler == null && supportSession()) {
-            handler = ctx
-                    .getCometHandler((Integer) req.getSession().getAttribute(ATMOSPHERE));
+            handler = ctx.getCometHandler((Integer) req.getSession().getAttribute(ATMOSPHERE));
             req.getSession().removeAttribute(ATMOSPHERE);
         }
 

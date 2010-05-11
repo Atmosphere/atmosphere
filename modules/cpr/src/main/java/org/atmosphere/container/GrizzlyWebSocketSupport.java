@@ -37,16 +37,18 @@
  */
 package org.atmosphere.container;
 
+import com.sun.grizzly.comet.CometContext;
+import com.sun.grizzly.comet.CometEngine;
+import com.sun.grizzly.comet.CometEvent;
+import com.sun.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.CometSupport;
-import org.atmosphere.websocket.WebSocketSupport;
-import org.eclipse.jetty.continuation.Continuation;
-import org.eclipse.jetty.continuation.ContinuationSupport;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -54,13 +56,17 @@ import java.io.IOException;
 import java.util.logging.Level;
 
 /**
- * Comet Portable Runtime implementation on top of Jetty's Continuation.
+ * Websocket Portable Runtime implementation on top of Grizzly 1.5 and up.
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty7CometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class GrizzlyWebSocketSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
 
-    public Jetty7CometSupport(AtmosphereConfig config) {
+    private final static String ATMOSPHERE = "/atmosphere";
+
+    private String atmosphereCtx = "";
+
+    public GrizzlyWebSocketSupport(AtmosphereConfig config) {
         super(config);
     }
 
@@ -69,53 +75,33 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
      */
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        Action action = null;
 
-        Continuation c = ContinuationSupport.getContinuation(req);
-
-        if (c.isInitial()) {
-            action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
-                // Do nothing except setting the times out
-                if (action.timeout != -1) {
-                    c.setTimeout(action.timeout);
-                } else {
-                    // Jetty 7 does something really weird if you set it to
-                    // Long.MAX_VALUE, which is to resume automatically.
-                    c.setTimeout(Integer.MAX_VALUE);
-                }
-                c.suspend();
-            } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resume " + res);
-                }
-                c.complete();
+        Action action = suspended(req, res);
+        if (action.type == Action.TYPE.SUSPEND) {
+            if (logger.isLoggable(Level.FINE)) {
+                logger.fine("Suspending" + res);
             }
-        } else if (!c.isInitial() && c.isExpired()) {
-            timedout(req, res);
+        } else if (action.type == Action.TYPE.RESUME) {
+            if (logger.isLoggable(Level.FINE)) {
+                logger.fine("Resuming" + res);
+            }
         }
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME
-                && (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-            Continuation c = ContinuationSupport.getContinuation(actionEvent.getRequest());
-            c.complete();
-        } else {
-            try {
-                actionEvent.getResponse().flushBuffer();
-            } catch (IOException e) {
-            }
-        }
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+
+        Action action =  super.cancelled(req,res);
+        return action;
+    }
+
+    /**
+     * Return the container's name.
+     */
+    public String getContainerName() {
+        return config.getServletConfig().getServletContext().getServerInfo() + " with WebSocket enabled.";
     }
 }

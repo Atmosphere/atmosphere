@@ -167,7 +167,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME) {
+        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
             try {
                 HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
                 resumed.offer(event);

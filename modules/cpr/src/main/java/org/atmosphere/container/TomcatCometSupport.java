@@ -93,7 +93,7 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
         }
 
         Action action = null;
-        // For now, we are just interested in CometEvent.REA 
+        // For now, we are just interested in CometEvent.READ
         if (event.getEventType() == EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
@@ -127,7 +127,17 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
             if (logger.isLoggable(Level.FINE)) {
                 logger.fine("Client closed connection " + res);
             }
-            action = cancelled(req, res);
+            if (!resumed.remove(event)) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Client closed connection " + res);
+                }
+                action = cancelled(req, res);
+            } else {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Cancelling " + res);
+                }
+            }
+
             event.close();
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
             if (logger.isLoggable(Level.FINE)) {
@@ -148,6 +158,7 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
                     logger.fine("Cancelling " + res);
                 }
             }
+
             event.close();
         }
         return action;
@@ -159,7 +170,7 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
     @Override
     public void action(AtmosphereResourceImpl resource) {
         super.action(resource);
-        if (resource.action().type == Action.TYPE.RESUME) {
+        if (resource.action().type == Action.TYPE.RESUME && resource.isInScope()) {
             try {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;

@@ -186,7 +186,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor implements Com
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         try {
-            if (actionEvent.action().type == Action.TYPE.RESUME) {
+            if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
                 int latchId = -1;
                 HttpServletRequest req = actionEvent.getRequest();
 

@@ -96,7 +96,7 @@ public class WebLogicCometSupport extends AsynchronousProcessor implements Comet
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME &&
+        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
                 (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             try {

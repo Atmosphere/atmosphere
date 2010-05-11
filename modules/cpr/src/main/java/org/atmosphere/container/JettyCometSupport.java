@@ -113,7 +113,7 @@ public class JettyCometSupport extends AsynchronousProcessor implements CometSup
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.action().type == Action.TYPE.RESUME) {
+        if (r.action().type == Action.TYPE.RESUME && r.isInScope()) {
             Continuation c = ContinuationSupport.getContinuation(r.getRequest(), null);
             resumed.offer(c);
             if (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null

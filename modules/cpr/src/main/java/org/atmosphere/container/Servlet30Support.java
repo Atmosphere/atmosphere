@@ -167,7 +167,7 @@ public class Servlet30Support extends AsynchronousProcessor implements CometSupp
      */
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
-        if (actionEvent.action().type == Action.TYPE.RESUME) {
+        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
             AsyncContext asyncContext = (AsyncContext)
                     actionEvent.getRequest()
                             .getAttribute("org.atmosphere.container.asyncContext");
@@ -182,6 +182,10 @@ public class Servlet30Support extends AsynchronousProcessor implements CometSupp
             if (asyncContext != null && (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
                     || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
                 asyncContext.complete();
+            }
+        } else {
+            if (!actionEvent.isInScope() && logger.isLoggable(Level.FINE)) {
+                logger.fine("Already resumed or cancelled " + actionEvent);
             }
         }
     }
