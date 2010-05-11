@@ -72,6 +72,15 @@ public class PubSubTest {
      * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
      */
     private @PathParam("topic") Broadcaster broadcaster;
+    private final static int count = 0;
+
+    @GET
+    @Path("scope")
+    @Suspend (period = 5000, outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
+    public Broadcastable suspendScopeRequest(@PathParam("topic") Broadcaster b) throws ExecutionException, InterruptedException {
+        b.broadcast("foo").get();
+        return new Broadcastable("bar",b);
+    }
 
     @GET
     @Suspend (period = 5000, outputComments = false)
@@ -129,14 +138,6 @@ public class PubSubTest {
         return "suspend";
     }
 
-    @GET
-    @Resume
-    @Path("suspendAndResume/{uuid}")
-    public String resume() throws ExecutionException, InterruptedException {
-        broadcaster.broadcast("resume").get();
-        return "resumed";
-    }
-
     /**
      * Suspend the response, and tell teh framework to resume the response
      * when the first @Broadcast operation occurs.
@@ -147,6 +148,14 @@ public class PubSubTest {
     @Path("subscribeAndResume")
     public Broadcastable subscribeAndResume() {
         return new Broadcastable(broadcaster);
+    }
+
+    @GET
+    @Resume
+    @Path("suspendAndResume/{uuid}")
+    public String resume() throws ExecutionException, InterruptedException {
+        broadcaster.broadcast("resume").get();
+        return "resumed";
     }
 
     /**
@@ -270,13 +279,4 @@ public class PubSubTest {
        return new Broadcastable(m + "\n", broadcaster);
     }
 
-    private static int count = 0;
-
-    @GET
-    @Path("scope")
-    @Suspend (period = 5000, outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
-    public Broadcastable suspendScopeRequest(@PathParam("topic") Broadcaster b) throws ExecutionException, InterruptedException {
-        b.broadcast("foo").get();
-        return new Broadcastable("bar",b);
-    }
 }

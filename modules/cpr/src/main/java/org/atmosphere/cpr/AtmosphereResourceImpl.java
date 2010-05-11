@@ -267,7 +267,7 @@ public class AtmosphereResourceImpl implements
 
     /**
      * Is the {@link HttpServletRequest} still valid.
-     * @return
+     * @return true if the {@link HttpServletRequest} still vali
      */
     public boolean isInScope(){
         return isInScope;
@@ -289,7 +289,7 @@ public class AtmosphereResourceImpl implements
      * Object.toString.getBytes()
      *
      * @param os an {@link OutputStream}
-     * @param o  an instance of {@link
+     * @param o an Object
      * @throws IOException
      */
     public void write(OutputStream os, Object o) throws IOException {

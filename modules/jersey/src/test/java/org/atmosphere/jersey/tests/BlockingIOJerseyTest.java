@@ -79,6 +79,7 @@ public class BlockingIOJerseyTest extends BaseTest {
         server.stop();
     }
 
+    @Override
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         atmoServlet.destroy();

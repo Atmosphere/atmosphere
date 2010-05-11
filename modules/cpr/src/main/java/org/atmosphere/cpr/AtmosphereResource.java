@@ -144,7 +144,7 @@ public interface AtmosphereResource<E, F> {
     /**
      * Return the current {@link Broadcaster}
      *
-     * @return
+     * @return the current {@link Broadcaster}
      */
     public Broadcaster getBroadcaster();
 
