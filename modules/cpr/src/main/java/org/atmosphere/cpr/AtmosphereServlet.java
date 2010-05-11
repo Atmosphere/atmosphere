@@ -121,21 +121,21 @@ import java.util.logging.Logger;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </code></pre></p>
- * You can also define {@link Broadcaster</code></pre></p> by adding:
+ * You can also define {@link Broadcaster}by adding:
  * <p><pre><code>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
  *      &lt;param-value&gt;class-name&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </code></pre></p>
- * You can also for Atmosphere to use {@link java.io.OutputStream</code></pre></p> for all write operations.
+ * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
  * <p><pre><code>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </code></pre></p>
- * You can also configure {@link org.atmosphere.cpr.BroadcasterCache</code></pre></p> that persist message when Browser is disconnected.
+ * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
  * <p><pre><code>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
