@@ -45,14 +45,19 @@ import org.atmosphere.cpr.Broadcaster;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
  * This class can be used to suspend response programmatically, similar to {@link org.atmosphere.annotation.Suspend}
  * annotation.
- * {@code}
+ * <p><pre><code>
+ *         SuspendResponse&lt;String&gt; r = new SuspendResponse.SuspendResponseBuilder&lt;String&gt;()
+ *              .broadcaster(broadcaster)
+ *              .outputComments(true)
+ *              .period(5, TimeUnit.SECONDS)
+ *              .entity("foo")
+ *              .build();
+ * </code></pre></p>
  *
  * @param <E> the {@link org.atmosphere.jersey.SuspendResponse#entity type}
  * 

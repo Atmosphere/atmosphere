@@ -106,13 +106,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         SCHEDULE_RESUME, RESUME_ON_BROADCAST, NONE, SCHEDULE, SUSPEND_RESPONSE
     }
 
-    private
-    @Context
-    HttpServletRequest servletReq;
+    private @Context HttpServletRequest servletReq;
 
-    private
-    @Context
-    UriInfo uriInfo;
+    private @Context UriInfo uriInfo;
 
     private final ConcurrentHashMap<String, AtmosphereResource> resumeCandidates =
             new ConcurrentHashMap<String, AtmosphereResource>();
