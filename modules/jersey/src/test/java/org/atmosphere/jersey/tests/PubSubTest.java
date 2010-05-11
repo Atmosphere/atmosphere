@@ -80,7 +80,7 @@ public class PubSubTest {
     }
 
     @GET
-    @Path("withComments")    
+    @Path("withComments")
     @Suspend (period = 5000, outputComments = true)
     public Broadcastable subscribeWithComments() {
         return new Broadcastable(broadcaster);
@@ -99,7 +99,7 @@ public class PubSubTest {
     public Broadcastable suspendForeverWithoutComments() {
         return new Broadcastable(broadcaster);
     }
-    
+
     /**
      * Suspend the response, and register a {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
      * that get notified when events occurs like client disconnection, broadcast
@@ -228,7 +228,7 @@ public class PubSubTest {
     }
 
     /**
-     * Delay until the next broadcast 
+     * Delay until the next broadcast
      *
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.

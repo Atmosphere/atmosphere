@@ -122,13 +122,23 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public void resume() {
-        if (event.isSuspended()) {
+        if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
             action.type = AtmosphereServlet.Action.TYPE.RESUME;
             notifyListeners();
             listeners.clear();
             broadcaster.removeAtmosphereResource(this);
-            req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+            try {
+                req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+            } catch (Exception ex) {
+                if (LoggerUtils.getLogger().isLoggable(Level.FINE)){
+                    LoggerUtils.getLogger().fine("Cannot resume an already resumed/cancelled request ");
+                }
+            }
             cometSupport.action(this);
+        } else {
+            if (LoggerUtils.getLogger().isLoggable(Level.FINE)){
+                LoggerUtils.getLogger().fine("Cannot resume an already resumed/cancelled request ");
+            }
         }
     }
 
@@ -251,8 +261,16 @@ public class AtmosphereResourceImpl implements
      *
      * @param isInScope
      */
-    protected void isInScope(boolean isInScope) {
+    protected void setIsInScope(boolean isInScope) {
         this.isInScope = isInScope;
+    }
+
+    /**
+     * Is the {@link HttpServletRequest} still valid.
+     * @return
+     */
+    public boolean isInScope(){
+        return isInScope;
     }
 
     /**

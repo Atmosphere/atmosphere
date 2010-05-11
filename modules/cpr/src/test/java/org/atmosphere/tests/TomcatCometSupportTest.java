@@ -96,9 +96,6 @@ public class TomcatCometSupportTest extends BaseTest {
 
         int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
-        atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-
         embedded = new Embedded();
         String path = new File(".").getAbsolutePath();
         embedded.setCatalinaHome(path);
@@ -115,7 +112,7 @@ public class TomcatCometSupportTest extends BaseTest {
         w.addMapping("/*");
         w.setServletClass(TomcatAtmosphereServlet.class.getName());
         w.setLoadOnStartup(0);
-        w.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+        //w.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
 
         c.addChild(w);
         host.addChild(c);        

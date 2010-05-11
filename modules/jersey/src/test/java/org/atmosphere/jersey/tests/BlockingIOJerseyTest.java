@@ -36,12 +36,23 @@
  */
 package org.atmosphere.jersey.tests;
 
+import com.ning.http.client.AsyncCompletionHandler;
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.Response;
 import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.testng.Assert.*;
 
 
 public class BlockingIOJerseyTest extends BaseTest {
@@ -75,5 +86,53 @@ public class BlockingIOJerseyTest extends BaseTest {
         server.stop();
         server = null;
     }
+    @Test(timeOut = 60000)
+    public void testDelayNextBroadcast() {
+        System.out.println("Running testDelayNextBroadcast");
+        final CountDownLatch latch = new CountDownLatch(1);
+        long t1 = System.currentTimeMillis();
 
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<Response> response = new AtomicReference<Response>();
+            c.prepareGet(urlTarget + "/forever").execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        response.set(r);
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+            // Let Atmosphere suspend the connections.
+            Thread.sleep(2500);
+            c.preparePost(urlTarget + "/delay").addParameter("message", "foo").execute().get();
+            c.preparePost(urlTarget + "/delayAndResume").addParameter("message", "bar").execute().get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            Response r = response.get();
+
+            assertNotNull(r);
+            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foo\nbar\n");
+            assertEquals(r.getStatusCode(), 200);
+            long current = System.currentTimeMillis() - t1;
+            assertTrue(current > 5000 && current < 10000);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+
+
+        c.close();
+
+    }
 }

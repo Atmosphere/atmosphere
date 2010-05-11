@@ -56,11 +56,6 @@
             <param-name>org.atmosphere.disableOnStateEvent</param-name>
             <param-value>true</param-value>
         </init-param>
-        <init-param>
-            <param-name>org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive</param-name>
-            <param-value>true</param-value>
-        </init-param>
-
         <load-on-startup>1</load-on-startup>
     </servlet>
 

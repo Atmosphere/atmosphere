@@ -60,7 +60,7 @@ public class BlockingIOCometSupportTest extends BaseTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+   //     atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
         setCometSupport();
         setConnector();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);

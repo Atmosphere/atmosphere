@@ -131,7 +131,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         r.getRequest().setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, this);
         try {
             wrapper.service(r.getRequest(), r.getResponse());
-        } catch (ServletException ex) {
+        } catch (Throwable ex) {
             throw new RuntimeException(ex);
         }
     }

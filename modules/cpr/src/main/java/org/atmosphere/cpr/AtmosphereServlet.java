@@ -351,7 +351,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public static class Action {
 
         public enum TYPE {
-            SUSPEND, RESUME, NONE
+            SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED
         }
 
         public long timeout = -1L;
@@ -359,7 +359,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public TYPE type;
 
         public Action() {
-            type = TYPE.NONE;
+            type = TYPE.CANCELLED;
         }
 
         public Action(TYPE type) {
@@ -738,7 +738,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     @Override
     public void destroy() {
-        if (cometSupport instanceof AsynchronousProcessor) {
+        if (AsynchronousProcessor.class.isAssignableFrom(cometSupport.getClass())) {
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
 

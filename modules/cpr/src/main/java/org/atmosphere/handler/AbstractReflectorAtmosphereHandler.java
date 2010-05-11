@@ -40,11 +40,13 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
 
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
@@ -75,7 +77,11 @@ public abstract class AbstractReflectorAtmosphereHandler
         if (o == null || event.isCancelled()) return;
 
         if (event.getResource().getSerializer() != null) {
-            event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), o);
+            try{
+                event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), o);
+            } catch (Throwable ex){
+                LoggerUtils.getLogger().log(Level.WARNING,"Serializer exception",ex);
+            }
         } else {
             boolean isUsingStream = false;
             try {

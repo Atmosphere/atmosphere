@@ -118,6 +118,7 @@ public class TomcatJerseyTest extends BaseTest {
 
     @Override    
     public void stopServer() throws Exception {
+        if (atmoServlet != null) atmoServlet.destroy();
         embedded.stop();
     }
 }

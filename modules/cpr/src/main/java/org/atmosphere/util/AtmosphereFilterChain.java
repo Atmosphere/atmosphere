@@ -222,9 +222,9 @@ public final class AtmosphereFilterChain implements FilterChain {
 
     public void destroy() {
         if (n > 0) {
-            for (FilterConfigImpl filter : filters) {
-                if (filter != null) {
-                    filter.recycle();
+            for (int i = 0; i < filters.length; i++) {
+                if (filters[i] != null) {
+                    filters[i].recycle();
                 }
             }
             filters = null;

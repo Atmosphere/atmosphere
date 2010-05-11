@@ -204,7 +204,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test
+    @Test (enabled = false)
     public void testProgrammaticDisconnection() {
         System.out.println("Running testProgrammaticDisconnection");
         final CountDownLatch latch = new CountDownLatch(1);
