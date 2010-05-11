@@ -321,10 +321,13 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 r.getResponse().flushBuffer();
             }
         } finally {
-            aliveRequests.remove(req);
-            r.notifyListeners();
-            r.removeEventListeners();
-            r.getBroadcaster().removeAtmosphereResource(r);
+            try {
+                aliveRequests.remove(req);
+                r.notifyListeners();
+            } finally {
+                r.removeEventListeners();
+                r.getBroadcaster().removeAtmosphereResource(r);
+            }
         }
     }
 
