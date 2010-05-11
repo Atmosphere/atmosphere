@@ -93,69 +93,69 @@ import java.util.logging.Logger;
  * the class's name.
  *
  * This {@link Servlet} can be defined inside an application's web.xml using the following:
- * {@code
- *  <servlet>
- *      <description>AtmosphereServlet</description>
- *      <servlet-name>AtmosphereServlet</servlet-name>
- *      <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
- *      <load-on-startup>0 </load-on-startup>
- *  </servlet>
- *  <servlet-mapping>
- *      <servlet-name>AtmosphereServlet</servlet-name>
- *      <url-pattern>/Atmosphere </url-pattern>
- *  </servlet-mapping>
- * }
+ * <p><pre><code>
+ *  &lt;servlet&gt;
+ *      &lt;description&gt;AtmosphereServlet&lt;/description&gt;
+ *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
+ *      &lt;servlet-class&gt;org.atmosphere.cpr.AtmosphereServlet&lt;/servlet-class&gt;
+ *      &lt;load-on-startup&gt;0 &lt;/load-on-startup&gt;
+ *  &lt;/servlet&gt;
+ *  &lt;servlet-mapping&gt;
+ *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
+ *      &lt;url-pattern&gt;/Atmosphere &lt;/url-pattern&gt;
+ *  &lt;/servlet-mapping&gt;
+ * </code></pre></p>
  * You can force this Servlet to use native API of the Web Server instead of
  * the Servlet 3.0 Async API you are deploying on by adding
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.useNative</param-name>
- *      <param-value>true</param-value>
- *  </init-param>
- * }
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.useNative&lt;/param-name&gt;
+ *      &lt;param-value&gt;true&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
  * You can force this Servlet to use one Thread per connection instead of
  * native API of the Web Server you are deploying on by adding
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.useBlocking</param-name>
- *      <param-value>true</param-value>
- *  </init-param>
- * }
- * You can also define {@link Broadcaster} by adding:
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.cpr.broadcasterClass</param-name>
- *      <param-value>class-name</param-value>
- *  </init-param>
- * }
- * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.useStream</param-name>
- *      <param-value>true</param-value>
- *  </init-param>
- * }
- * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
- *      <param-value>class-name</param-value>
- *  </init-param>
- * }
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.useBlocking&lt;/param-name&gt;
+ *      &lt;param-value&gt;true&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
+ * You can also define {@link Broadcaster</code></pre></p> by adding:
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
+ *      &lt;param-value&gt;class-name&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
+ * You can also for Atmosphere to use {@link java.io.OutputStream</code></pre></p> for all write operations.
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
+ *      &lt;param-value&gt;true&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
+ * You can also configure {@link org.atmosphere.cpr.BroadcasterCache</code></pre></p> that persist message when Browser is disconnected.
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
+ *      &lt;param-value&gt;class-name&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
  * You can also configure Atmosphere to use http session or not
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.cpr.sessionSupport/param-name>
- *      <param-value>false</param-value>
- *  </init-param>
- * }
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport/param-name&gt;
+ *      &lt;param-value&gt;false&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p>
  * You can also configure Atmosphere to use http session or not
- * {@code
- *  <init-param>
- *      <param-name>org.atmosphere.cpr.sessionSupport/param-name>
- *      <param-value>false</param-value>
- *  </init-param>
- * }
+ * <p><pre><code>
+ *  &lt;init-param&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport/param-name&gt;
+ *      &lt;param-value&gt;false&lt;/param-value&gt;
+ *  &lt;/init-param&gt;
+ * </code></pre></p> 
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
  * <p/>
  * If you are planning to use JSP, Servlet or JSF, you can instead use the
@@ -738,7 +738,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     @Override
     public void destroy() {
-        if (AsynchronousProcessor.class.isAssignableFrom(cometSupport.getClass())) {
+        if (cometSupport != null && AsynchronousProcessor.class.isAssignableFrom(cometSupport.getClass())) {
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
 
@@ -1046,7 +1046,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @param req
      * @param res
-     * @return
+     * @return an {@link Action}
      * @throws IOException
      * @throws ServletException
      */
@@ -1126,7 +1126,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * Weblogic specific comet based implementation.
      *
      * @param rrk
-     * @return
+     * @return  true if suspended
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -1152,7 +1152,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * Weblogic specific comet based implementation.
      *
      * @param rrk
-     * @return
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -1165,7 +1164,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * Weblogic specific comet based implementation.
      *
      * @param rrk
-     * @return
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -1264,7 +1262,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @param request
      * @param protocol
-     * @return
+     * @return a {@link WebSocket}}
      */
     @Override
     protected WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
