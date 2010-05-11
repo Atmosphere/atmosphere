@@ -45,6 +45,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Suspend the underlying response. Once suspended, a response might be allowed
@@ -62,11 +63,17 @@ import java.lang.annotation.Target;
 public @interface Suspend {
 
     /**
-     * How long a response stay suspended, default is -1
+     * How long a response stay suspended in {@link #timeUnit}, default is -1
      *
      * @return
      */
     int period() default -1;
+
+    /**
+     *
+     * @return
+     */
+    TimeUnit timeUnit() default TimeUnit.MILLISECONDS;
 
     enum SCOPE {
         REQUEST, APPLICATION, VM
@@ -88,7 +95,6 @@ public @interface Suspend {
      */
     SCOPE scope() default SCOPE.APPLICATION;
 
-
     /**
      * By default, output some comments when suspending the connection.
      */
@@ -103,5 +109,6 @@ public @interface Suspend {
      * Add {@link AtmosphereResourceEventListener} to the broadcast operation.
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+
 
 }
