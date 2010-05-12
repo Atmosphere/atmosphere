@@ -69,10 +69,9 @@ import java.util.concurrent.TimeUnit;
 @Produces("text/plain;charset=ISO-8859-1")
 public class PubSub {
 
-
     @PreDestroy
     public void destroy(){
-        Thread.dumpStack();
+        System.out.println("Testing the @PreDestroy");
     }
     
     /**
