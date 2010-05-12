@@ -60,13 +60,13 @@ import java.util.logging.Level;
  *
  * @author Jeanfrancois Arcand
  */
-public class GrizzlyWebSocketSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class GlassFishWebSocketSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
 
     private final static String ATMOSPHERE = "/atmosphere";
 
     private String atmosphereCtx = "";
 
-    public GrizzlyWebSocketSupport(AtmosphereConfig config) {
+    public GlassFishWebSocketSupport(AtmosphereConfig config) {
         super(config);
     }
 

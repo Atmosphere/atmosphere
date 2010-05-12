@@ -107,13 +107,11 @@ public class PubSub {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                 }
-                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class,topic).broadcast("Echo: " + topic);
+                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class,topic).broadcast("\nEcho: " + topic);
             }
         });
         return "foo";
     }
-
-
 
     /**
      * Suspend the response, and tell teh framework to resume the response
