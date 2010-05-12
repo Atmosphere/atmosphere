@@ -183,6 +183,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String WEB_INF = "/WEB-INF/classes/";
     public final static String SUSPEND_WITHOUT_COMMENT = "org.atmosphere.suspendWithoutComments";
     public final static String RESUME_ON_BROADCAST = "org.atmosphere.resumeOnBroadcast";
+    public final static String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
     public final static String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
     public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
     public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
@@ -265,7 +266,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public class AtmosphereConfig {
 
         private boolean supportSession = true;
-
         private BroadcasterFactory broadcasterFactory;
 
         protected Map<String, AtmosphereHandlerWrapper> handlers() {
@@ -342,6 +342,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         public void setSupportSession(boolean supportSession) {
             this.supportSession = supportSession;
+        }
+
+        public AtmosphereServlet getServlet(){
+            return AtmosphereServlet.this;
         }
     }
 
@@ -618,6 +622,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
             webSocketEnbled = true;
+            sessionSupport(false);
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
         if (s != null) {

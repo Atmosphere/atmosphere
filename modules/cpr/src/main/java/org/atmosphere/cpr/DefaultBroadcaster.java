@@ -310,7 +310,7 @@ public class DefaultBroadcaster implements Broadcaster {
             r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
         } catch (IOException ex) {
             onException(ex, r);
-        } catch (IllegalStateException ex) {
+        } catch (RuntimeException ex) {
             onException(ex, r);
         }                                                                               
     }

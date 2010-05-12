@@ -39,6 +39,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
@@ -137,6 +138,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
             {
                 if (testClassExists(JETTY_8))
                     add(Jetty8WebSocketSupport.class);
+
+                if (testClassExists(GRIZZLY_WEBSOCKET))
+                    add(GlassFishWebSocketSupport.class);
             }
         };
     }
