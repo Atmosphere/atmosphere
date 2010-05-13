@@ -119,7 +119,8 @@ public abstract class BroadcasterFactory {
         if (factory == null) {
             Class<? extends Broadcaster> b = null;
             try {
-                b = (Class<? extends Broadcaster>) Class.forName(AtmosphereServlet.getDefaultBroadcasterClassName());
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                b = (Class<? extends Broadcaster>) cl.loadClass(AtmosphereServlet.getDefaultBroadcasterClassName());
             } catch (ClassNotFoundException e) {
                 LoggerUtils.getLogger().log(Level.SEVERE,"",e);
             }
