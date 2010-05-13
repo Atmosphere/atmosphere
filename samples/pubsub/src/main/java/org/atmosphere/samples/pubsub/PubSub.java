@@ -40,7 +40,6 @@ import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Cluster;
 import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Suspend;
-import org.atmosphere.commons.util.EventsLogger;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
