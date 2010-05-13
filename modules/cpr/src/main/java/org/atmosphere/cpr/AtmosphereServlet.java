@@ -668,14 +668,15 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         // If Primefaces is detected, never starts Jersey.
         // TODO: Remove this hack once properly implemented in PrimeFaces
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
         try {
-            Class.forName(PRIMEFACES_SERVLET);
+            cl.loadClass(PRIMEFACES_SERVLET);
             return false;
         } catch (Throwable ignored) {
         }
 
         try {
-            Class.forName(JERSEY_CONTAINER);
+           cl.loadClass(JERSEY_CONTAINER);
             useStreamForFlushingComments = true;
         } catch (Throwable t) {
             return false;

@@ -178,7 +178,8 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     public CometSupport newCometSupport(final String targetClassFQN) {
         try {
-            return (CometSupport) Class.forName(targetClassFQN).getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            return (CometSupport) cl.loadClass(targetClassFQN).getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
         } catch (final Exception e) {
             logger.warning(e.getMessage());
             throw new IllegalArgumentException("Comet support class " + targetClassFQN + " has bad signature.", e);
