@@ -693,7 +693,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (mapping == null) {
             mapping = "/*";
         }
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
         Broadcaster b = bc.getDeclaredConstructor(new Class[]{String.class}).newInstance(mapping);
