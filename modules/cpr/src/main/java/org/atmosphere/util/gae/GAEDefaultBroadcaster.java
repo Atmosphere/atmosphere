@@ -58,6 +58,11 @@ import java.util.concurrent.TimeUnit;
 public class GAEDefaultBroadcaster extends DefaultBroadcaster {
 
     public GAEDefaultBroadcaster() {
+        super();
+    }
+
+    public GAEDefaultBroadcaster(String name) {
+        super(name);
     }
 
     /**
