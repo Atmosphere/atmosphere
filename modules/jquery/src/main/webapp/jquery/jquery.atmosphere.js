@@ -19,7 +19,6 @@ jQuery.atmosphere = {
         jQuery.atmosphere.configuration = jQuery.extend({
             connected: false,
             timeout: 60000,
-            onError: null,
             method: 'GET',
             headers: {},
             cache: true,
@@ -42,7 +41,8 @@ jQuery.atmosphere = {
         var response = {
             status: 200,
             responseBody : '',
-            headers : []
+            headers : [],
+            error: null
         }
 
         if (!jQuery.atmosphere.configuration.connected) {
@@ -68,6 +68,7 @@ jQuery.atmosphere = {
 
                 complete: function (XMLHttpRequest)
                 {
+                    alert(XMLHttpRequest.status)
                     response.status = XMLHttpRequest.status
                     response.headers = XMLHttpRequest.getAllResponseHeaders();
                     jQuery.atmosphere.trigger(response);
@@ -89,9 +90,9 @@ jQuery.atmosphere = {
                         jQuery.atmosphere.executeRequest()
                     }
                     else {
-                        if (jQuery.atmosphere.configuration.onError != null) {
-                            jQuery.atmosphere.configuration.onError(XMLHttpRequest, textStatus, errorThrown);
-                        }
+                        response.status = XMLHttpRequest.status
+                        response.error = errorThrown
+                        jQuery.atmosphere.trigger(response);
                         setTimeout(jQuery.atmosphere.executeRequest, jQuery.atmosphere.configuration.timeout);
                     }
                 }
