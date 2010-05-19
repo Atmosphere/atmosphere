@@ -68,7 +68,6 @@ jQuery.atmosphere = {
 
                 complete: function (XMLHttpRequest)
                 {
-                    alert(XMLHttpRequest.status)
                     response.status = XMLHttpRequest.status
                     response.headers = XMLHttpRequest.getAllResponseHeaders();
                     jQuery.atmosphere.trigger(response);
