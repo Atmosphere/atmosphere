@@ -1,0 +1,41 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+    <script type="text/javascript" src="jquery-1.3.2.js"></script>
+    <script type="text/javascript" src="jquery.atmosphere.js"></script>
+    <script type="text/javascript" src="jquery.form.js"></script>
+
+    <script type="text/javascript">
+        function subscribe() {
+            function callback(response)
+            {
+                if (response.status == 200) {
+                    var data = response.responseBody
+                    if (data.length > 0) {
+                        $('ul').prepend($('<li></li>').text(data));                      
+                    }
+                }
+            }
+
+            $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel', callback,
+                    $.atmosphere.configuration = {timeout : 120000});
+        }
+    </script>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            subscribe();
+            $('#publishForm').ajaxForm();
+        });
+    </script>
+</head>
+<body>
+<p>
+
+<form id="publishForm" action="/atmosphere-jquery-pubsub/pubsub/channel" method="post">
+    Message: <input type="text" name="message"/>
+    <input type="submit" value="Submit Comment"/>
+</form>
+</p>
+<p>Waiting for messages...</p>
+<ul></ul>
+</body>
+</html>
