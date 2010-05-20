@@ -38,8 +38,15 @@ package org.atmosphere.tests.guice;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.TypeLiteral;
+import com.google.inject.name.Names;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
+import org.atmosphere.guice.AtmosphereGuiceServlet;
+
+import java.util.Map;
+
+import static com.google.common.collect.ImmutableMap.of;
 
 public class GuiceConfig extends GuiceServletContextListener {
 
@@ -49,6 +56,9 @@ public class GuiceConfig extends GuiceServletContextListener {
             @Override
             protected void configureServlets() {
                 bind(PubSubTest.class);
+                bind(new TypeLiteral<Map<String, String>>() {
+                }).annotatedWith(Names.named(AtmosphereGuiceServlet.JERSEY_PROPERTIES)).toInstance(
+                        of("", ""));
             }
         });
     }
