@@ -67,7 +67,7 @@ public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
         server.addConnector(listener);
     }
 
-    public void setCometSupport() {
+    public void configureCometSupport() {
         atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 

@@ -39,7 +39,6 @@ package org.atmosphere.tests;
 import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.CometSupport;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
@@ -52,7 +51,7 @@ public class BlockingIOCometSupportTest extends BaseTest {
     protected Context root;
 
     @BeforeMethod(alwaysRun = true)
-    public void setUpGlobal() throws Exception {
+    public void startServer() throws Exception {
 
         int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
@@ -61,7 +60,7 @@ public class BlockingIOCometSupportTest extends BaseTest {
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
    //     atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-        setCometSupport();
+        configureCometSupport();
         setConnector();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
@@ -70,7 +69,7 @@ public class BlockingIOCometSupportTest extends BaseTest {
     public void setConnector() {
     }
 
-    public void setCometSupport() {
+    public void configureCometSupport() {
         atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 

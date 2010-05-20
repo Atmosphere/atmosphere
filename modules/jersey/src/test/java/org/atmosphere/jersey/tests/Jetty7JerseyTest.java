@@ -34,53 +34,33 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.jersey.tests;
 
-import com.sun.grizzly.comet.CometAsyncFilter;
-import com.sun.grizzly.http.embed.GrizzlyWebServer;
-import com.sun.grizzly.http.servlet.ServletAdapter;
-import org.atmosphere.container.GrizzlyCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.atmosphere.container.Jetty7CometSupport;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+public class Jetty7JerseyTest extends BaseTest {
+    protected Server server;
 
-
-public class GrizzlyCometSupportTest extends BaseTest {
-
-    protected GrizzlyWebServer ws;
-
-    @BeforeMethod(alwaysRun = true)
+    @Override
     public void startServer() throws Exception {
-
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
-        urlTarget = "http://127.0.0.1:" + port + "/invoke";
-
-        ws = new GrizzlyWebServer(port);
-        ServletAdapter sa = new ServletAdapter();
-        ws.addAsyncFilter(new CometAsyncFilter());
-        
-        atmoServlet = new AtmosphereServlet();
-        //atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
-        sa.setServletInstance(atmoServlet);
-        configureCometSupport();
-
-        ws.addGrizzlyAdapter(sa,new String[] {ROOT});
-        ws.start();
+        server = new Server(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999));
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        server.setHandler(context);
+        context.addServlet(new ServletHolder(atmoServlet), "/*");
+        server.start();
     }
 
+    @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.setCometSupport(new Jetty7CometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
-        ws.stop();
+    @Override
+    public void stopServer() throws Exception {
+        server.stop();
     }
 }

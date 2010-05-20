@@ -96,9 +96,9 @@ public abstract class BaseTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    abstract public void setUpGlobal() throws Exception;
+    abstract public void startServer() throws Exception;
 
-    abstract public void setCometSupport();
+    abstract public void configureCometSupport();
 
     @AfterMethod(alwaysRun = true)
     abstract public void unsetAtmosphereHandler() throws Exception;

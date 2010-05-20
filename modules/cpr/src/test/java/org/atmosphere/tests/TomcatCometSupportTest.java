@@ -90,7 +90,7 @@ public class TomcatCometSupportTest extends BaseTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void setUpGlobal() throws Exception {
+    public void startServer() throws Exception {
 
         System.setProperty("org.atmosphere.useNative", "true");
 
@@ -126,7 +126,7 @@ public class TomcatCometSupportTest extends BaseTest {
 
     }
 
-    public void setCometSupport() {
+    public void configureCometSupport() {
     }
 
     @AfterMethod(alwaysRun = true)
