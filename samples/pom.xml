@@ -30,6 +30,7 @@
         <module>spade-chat</module>
         <module>meteor-chat</module>
         <module>pubsub</module>
+        <module>jquery-pubsub</module>
         <module>appengine-chat</module>
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
