@@ -188,11 +188,11 @@ jQuery.atmosphere = {
 
     isFunction : function (value)
     {
-        if (value === undefined || value === null)
+        if (value == undefined || value == null)
         {
             return false;
         }
-        return typeof value === 'function';
+        return typeof value == 'function';
     },
 
     log: function (level, args)
