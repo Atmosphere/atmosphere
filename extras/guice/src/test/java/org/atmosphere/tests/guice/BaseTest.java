@@ -34,7 +34,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.jersey.tests;
+package org.atmosphere.tests.guice;
 
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHandler;
@@ -46,6 +46,7 @@ import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.jersey.tests.RecyclableBroadcaster;
 import org.atmosphere.util.LoggerUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -102,7 +103,6 @@ public abstract class BaseTest {
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         atmoServlet = new AtmosphereServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
-        atmoServlet.addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
 
         configureCometSupport();
         startServer();
