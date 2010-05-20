@@ -44,9 +44,11 @@ import com.google.inject.name.Names;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.ServletConfig;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * Google Guice Integration
@@ -54,7 +56,7 @@ import java.util.Map;
  * @author Jeanfrancois Arcand
  * @author Richard Wallace
  */
-public class AtmosphereGuiceServlet extends AtmosphereServlet{
+public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
     public static final String JERSEY_PROPERTIES = AtmosphereGuiceServlet.class.getName() + ".properties";
 
@@ -67,7 +69,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet{
      * @return true if Jersey classes are detected
      */
     @Override
-    protected boolean detectSupportedFramework(ServletConfig sc){
+    protected boolean detectSupportedFramework(ServletConfig sc) {
         Injector injector = (Injector) config.getServletContext().getAttribute(Injector.class.getName());
         GuiceContainer guiceServlet = injector.getInstance(GuiceContainer.class);
 
@@ -81,19 +83,27 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet{
         getAtmosphereConfig().setSupportSession(false);
 
         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
-        if (mapping == null){
+        if (mapping == null) {
             mapping = "/*";
         }
 
-        Map<String, String>  props = injector.getInstance(Key.get(new TypeLiteral<Map<String, String>>() {},
-            Names.named(JERSEY_PROPERTIES)));
+        try {
+            Map<String, String> props = injector.getInstance(
+                    Key.get(new TypeLiteral<Map<String, String>>() {},Names.named(JERSEY_PROPERTIES)));
 
-        if (props != null){
-            for (String p: props.keySet()){
-                addInitParameter(p,props.get(p));
+
+            if (props != null) {
+                for (String p : props.keySet()) {
+                    addInitParameter(p, props.get(p));
+                }
+            }
+        } catch (Exception ex) {
+            // Do not fail
+            if (LoggerUtils.getLogger().isLoggable(Level.FINEST)) {
+                LoggerUtils.getLogger().log(Level.FINEST, "", ex);
             }
         }
-        addAtmosphereHandler(mapping,rsp);
+        addAtmosphereHandler(mapping, rsp);
         return true;
     }
 }
