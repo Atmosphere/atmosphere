@@ -1,231 +1,205 @@
-jQuery.atmosphere = {
-    version : 0.6,
-    configuration : {},
-    logLevel : 'info',
+jQuery.atmosphere = function() {
+	var activeRequest;
+	$(window).unload(function() {
+		if (activeRequest)
+			activeRequest.abort();
+	});
 
-    subscribe: function(url)
-    {
-        jQuery.atmosphere.subscribe(url, null)
-    },
+	return {
+	    version : 0.6,
+	    configuration : {},
+	    logLevel : 'info',
+	    subscribe: function(url, callback, configuration)
+	    {
+	        jQuery.atmosphere.configuration = jQuery.extend({
+	            connected: false,
+	            timeout: 60000,
+	            method: 'GET',
+	            headers: {},
+	            cache: true,
+	            async: true,
+	            ifModified: false,
+	            callback: [],
+	            dataType: '',
+	            url : url,
+	            data : '',
+	            suspend : true,
+	            maxRequest : 60,
+	            logLevel :  'info',
+	            requestCount : 0
 
-    subscribe: function(url, callback)
-    {
-        jQuery.atmosphere.subscribe(url, callback, null)
-    },
+	        }, configuration);
 
-    subscribe: function(url, callback, configuration)
-    {
-        jQuery.atmosphere.subscribe(url, callback, configuration)
-    },
+	        logLevel = configuration.logLevel || 'info';
+	        jQuery.atmosphere.addCallback(callback);
+	        jQuery.atmosphere.executeRequest();
+	    },
 
-    subscribe: function(url, callback, configuration)
-    {
-        jQuery.atmosphere.configuration = jQuery.extend({
-            connected: false,
-            timeout: 60000,
-            method: 'GET',
-            headers: {},
-            cache: true,
-            async: true,
-            ifModified: false,
-            callback: [],
-            dataType: '',
-            url : url,
-            data : '',
-            suspend : true,
-            maxRequest : 60,
-            logLevel :  'info',
-            requestCount : 0
+	    executeRequest: function()
+	    {
+	        var response = {
+	            status: 200,
+	            responseBody : '',
+	            headers : [],
+	            error: null
+	        };
 
-        }, configuration);
+	        if (!jQuery.atmosphere.configuration.connected
+	                && jQuery.atmosphere.configuration.requestCount++ < jQuery.atmosphere.configuration.maxRequest) {
 
-        logLevel = configuration.logLevel || 'info';
-        jQuery.atmosphere.addCallback(callback);
-        jQuery.atmosphere.executeRequest();
-    },
+	            jQuery.atmosphere.configuration.connected = true;
 
-    executeRequest: function()
-    {
-        var response = {
-            status: 200,
-            responseBody : '',
-            headers : [],
-            error: null
-        }
+	            activeRequest = $.ajax({
 
-        if (!jQuery.atmosphere.configuration.connected
-                && jQuery.atmosphere.configuration.requestCount++ < jQuery.atmosphere.configuration.maxRequest) {
+	                type: jQuery.atmosphere.configuration.method,
+	                url: jQuery.atmosphere.configuration.url,
+	                dataType: jQuery.atmosphere.configuration.dataType,
+	                async: jQuery.atmosphere.configuration.async,
+	                cache: jQuery.atmosphere.configuration.cache,
+	                timeout: jQuery.atmosphere.configuration.timeout,
+	                ifModified: jQuery.atmosphere.configuration.ifModified,
 
-            jQuery.atmosphere.configuration.connected = true;
+	                beforeSend: function(XMLHttpRequest)
+	                {
+	                    $.each(jQuery.atmosphere.configuration.headers, function(key, value)
+	                    {
+	                        XMLHttpRequest.setRequestHeader(key, value);
+	                    });
+	                    XMLHttpRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
+	                },
 
-            $.ajax({
+	                complete: function (XMLHttpRequest, textStatus)
+	                {
+	                	activeRequest = null;
+	                    jQuery.atmosphere.log(logLevel, ["textStatus: " + textStatus]);
+	                    if (textStatus != 'error') {
+	                        response.status = XMLHttpRequest.status;
+	                        response.headers = XMLHttpRequest.getAllResponseHeaders();
+	                        setTimeout(function() {
+	                        	jQuery.atmosphere.invokeCallback(response);
+		                        if (jQuery.atmosphere.configuration.suspend) {
+		                            jQuery.atmosphere.executeRequest();
+		                        }
+	                        }, $.browser.msie ? 1000 : 1);
+	                    }
+	                },
 
-                type: jQuery.atmosphere.configuration.method,
-                url: jQuery.atmosphere.configuration.url,
-                dataType: jQuery.atmosphere.configuration.dataType,
-                async: jQuery.atmosphere.configuration.async,
-                cache: jQuery.atmosphere.configuration.cache,
-                timeout: jQuery.atmosphere.configuration.timeout,
-                ifModified: jQuery.atmosphere.configuration.ifModified,
+	                success: function(data)
+	                {
+	                    jQuery.atmosphere.configuration.connected = false;
+	                    response.responseBody = data;
+	                },
 
-                beforeSend: function(XMLHttpRequest)
-                {
-                    $.each(jQuery.atmosphere.configuration.headers, function(key, value)
-                    {
-                        XMLHttpRequest.setRequestHeader(key, value);
-                    });
-                    XMLHttpRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
-                },
+	                error: function(XMLHttpRequest, textStatus, errorThrown)
+	                {
+	                    jQuery.atmosphere.log(logLevel, ["textStatus: " + textStatus]);
+	                    jQuery.atmosphere.log(logLevel, ["error: " + errorThrown]);
+	                    jQuery.atmosphere.configuration.connected = false;
 
-                complete: function (XMLHttpRequest, textStatus)
-                {
-                    jQuery.atmosphere.log(logLevel, ["textStatus: " + textStatus]);
-                    if (textStatus != 'error') {
-                        response.status = XMLHttpRequest.status
-                        response.headers = XMLHttpRequest.getAllResponseHeaders();
-                        jQuery.atmosphere.invokeCallback(response);
-                        if (jQuery.atmosphere.configuration.suspend) {
-                            jQuery.atmosphere.executeRequest();
-                        }
-                    }
-                },
+	                    response.status = XMLHttpRequest.status;
+	                    response.error = errorThrown;
 
-                success: function(data)
-                {
-                    jQuery.atmosphere.configuration.connected = false;
-                    response.responseBody = data;
-                },
+	                    if (textStatus == 'error') {
 
-                error: function(XMLHttpRequest, textStatus, errorThrown)
-                {
-                    jQuery.atmosphere.log(logLevel, ["textStatus: " + textStatus]);
-                    jQuery.atmosphere.log(logLevel, ["error: " + errorThrown]);
-                    jQuery.atmosphere.configuration.connected = false;
+	                    } else if (textStatus == 'timeout') {
+	                        jQuery.atmosphere.invokeCallback(response);
+	                    } else if (textStatus == 'notmodified') {
 
-                    response.status = XMLHttpRequest.status
-                    response.error = errorThrown
+	                    }
+	                    else {
+	                        jQuery.atmosphere.invokeCallback(response);
+	                        setTimeout(jQuery.atmosphere.executeRequest, jQuery.atmosphere.configuration.timeout);
+	                    }
+	                }
 
-                    if (textStatus == 'error') {
+	            });
+	        }
+	        else {
+	            jQuery.atmosphere.log(logLevel, ["Max re-connection reached."]);
+	        }
+	    },
 
-                    } else if (textStatus == 'timeout') {
-                        jQuery.atmosphere.invokeCallback(response);
-                    } else if (textStatus == 'notmodified') {
+	    addCallback: function(func)
+	    {
+	        if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) == -1) {
+	            jQuery.atmosphere.configuration.callback.push(func);
+	        }
+	    },
 
-                    }
-                    else {
-                        jQuery.atmosphere.invokeCallback(response);
-                        setTimeout(jQuery.atmosphere.executeRequest, jQuery.atmosphere.configuration.timeout);
-                    }
-                }
+	    removeCallback: function(func)
+	    {
+	        if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) != -1) {
+	            jQuery.atmosphere.configuration.callback.splice(index);
+	        }
+	    },
 
-            });
-        }
-        else {
-            jQuery.atmosphere.log(logLevel, ["Max re-connection reached."]);
-        }
-    },
+	    invokeCallback: function(response)
+	    {
+	        var call = function (index, func)
+	        {
+	            func(response);
+	        };
+	        jQuery.atmosphere.log(logLevel, ["Invoking callback"]);
 
-    addCallback: function(func)
-    {
-        if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) == -1) {
-            jQuery.atmosphere.configuration.callback.push(func);
-        }
-    },
+	        if (jQuery.atmosphere.configuration.callback.length > 0) {
+	            jQuery.each(jQuery.atmosphere.configuration.callback, call);
+	        }
+	    },
+	    publish: function(url, callback, configuration)
+	    {
+	        jQuery.atmosphere.configuration = jQuery.extend({
+	            connected: false,
+	            timeout: 60000,
+	            method: 'GET',
+	            headers: {},
+	            cache: true,
+	            async: true,
+	            ifModified: false,
+	            callback: [],
+	            dataType: '',
+	            url : url,
+	            data : '',
+	            suspend : true,
+	            maxRequest : 60,
+	            logLevel :  'info',
+	            requestCount : 0
+	        }, configuration);
 
-    removeCallback: function(func)
-    {
-        if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) != -1) {
-            jQuery.atmosphere.configuration.callback.splice(index);
-        }
-    },
+	        jQuery.atmosphere.addCallback(callback);
+	        jQuery.atmosphere.executeRequest();
+	    },
+	    log: function (level, args)
+	    {
+	        if (window.console)
+	        {
+	            var logger = window.console[level];
+	            if (typeof logger == 'function')
+	            {
+	                logger.apply(window.console, args);
+	            }
+	        }
+	    },
 
-    invokeCallback: function(response)
-    {
-        call = function (index, func)
-        {
-            func(response);
-        }
-        jQuery.atmosphere.log(logLevel, ["Invoking callback"]);
-
-        if (jQuery.atmosphere.configuration.callback.length > 0) {
-            jQuery.each(jQuery.atmosphere.configuration.callback, call);
-        }
-    },
-
-    publish: function(url)
-    {
-        jQuery.atmosphere.subscribe(url, null)
-    },
-
-    publish: function(url, callback)
-    {
-        jQuery.atmosphere.subscribe(url, callback, null)
-    },
-
-    publish: function(url, callback, configuration)
-    {
-        jQuery.atmosphere.configuration = jQuery.extend({
-            connected: false,
-            timeout: 60000,
-            method: 'GET',
-            headers: {},
-            cache: true,
-            async: true,
-            ifModified: false,
-            callback: [],
-            dataType: '',
-            url : url,
-            data : '',
-            suspend : true,
-            maxRequest : 60,
-            logLevel :  'info',
-            requestCount : 0
-        }, configuration);
-
-        jQuery.atmosphere.addCallback(callback);
-        jQuery.atmosphere.executeRequest();
-    },
-
-    isFunction : function (value)
-    {
-        if (value == undefined || value == null)
-        {
-            return false;
-        }
-        return typeof value == 'function';
-    },
-
-    log: function (level, args)
-    {
-        if (window.console)
-        {
-            var logger = window.console[level];
-            if (jQuery.atmosphere.isFunction(logger))
-            {
-                logger.apply(window.console, args);
-            }
-        }
-    },
-
-    warn: function()
-    {
-        log('warn', arguments);
-    },
+	    warn: function()
+	    {
+	        log('warn', arguments);
+	    },
 
 
-    info :function()
-    {
-        if (logLevel != 'warn')
-        {
-            log('info', arguments);
-        }
-    },
+	    info :function()
+	    {
+	        if (logLevel != 'warn')
+	        {
+	            log('info', arguments);
+	        }
+	    },
 
-    debug: function()
-    {
-        if (logLevel == 'debug')
-        {
-            log('debug', arguments);
-        }
-    }
-}
+	    debug: function()
+	    {
+	        if (logLevel == 'debug')
+	        {
+	            log('debug', arguments);
+	        }
+	    }
+	};
+}();
