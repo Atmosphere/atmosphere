@@ -98,7 +98,11 @@ public class AtmosphereAdapter extends ServletAdapter {
                     ctxPath = ctxPath.replace("/","\\");
                 }
 
-                String trailer = s.substring(0,s.indexOf(ctxPath));
+                int index = s.indexOf(ctxPath);
+                if (index < 1) {
+                    index = s.length();
+                }
+                String trailer = s.substring(0,index);
                 f = new File(trailer + sc.getContextPath() + WEB_INF);
             }
 
