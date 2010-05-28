@@ -22,8 +22,9 @@
                 }
             }
 
+            /* set transport to 'streaming' if you want to use http streaming */
             $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel/', callback,
-                    $.atmosphere.configuration = {transport: 'streaming'});
+                    $.atmosphere.configuration = {transport: 'long-polling'});
         }
     </script>
 </head>
