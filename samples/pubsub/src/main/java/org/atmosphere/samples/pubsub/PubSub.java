@@ -113,7 +113,7 @@ public class PubSub {
     }
 
     /**
-     * Suspend the response, and tell teh framework to resume the response
+     * Suspend the response, and tell teh framework to resume the response                                                                                                                     \
      * when the first @Broadcast operation occurs.
      * @return A {@link Broadcastable} used to broadcast events.
      */

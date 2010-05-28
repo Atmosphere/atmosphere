@@ -37,15 +37,14 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Cluster;
-import org.atmosphere.annotation.Schedule;
-import org.atmosphere.annotation.Suspend;
+import org.atmosphere.client.JavascriptClientFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.Broadcastable;
-import org.atmosphere.jersey.JerseyBroadcaster;
+import org.atmosphere.jersey.SuspendResponse;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -53,52 +52,43 @@ import javax.ws.rs.Produces;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
- * Atmosphere.
+ * Atmosphere JQuery Plugin and Atmosphere Jersey extension.
  *
  * @author Jeanfrancois Arcand
  */
 @Path("/pubsub/{topic}")
-@Produces("text/plain;charset=ISO-8859-1")
-public class PubSub {
-    /**
-     * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
-     */
+@Produces("text/html;charset=ISO-8859-1")
+public class JQueryPubSub {
+
     private
     @PathParam("topic")
     Broadcaster topic;
 
-    /**
-     * Suspend the response, and register a {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
-     * that get notified when events occurs like client disconnection, broadcast
-     * or when the response get resumed.
-     *
-     * @return A {@link Broadcastable} used to broadcast events.
-     */
+    private static final JavascriptClientFilter filter = new JavascriptClientFilter();
+
     @GET
-    @Suspend(resumeOnBroadcast = true, listeners = {EventsLogger.class})
-    public Broadcastable subscribe() {
-        return new Broadcastable(topic);
+    public SuspendResponse<String> subscribe(@HeaderParam("X-Atmosphere-Transport") String transport) {
+
+        if (!topic.getBroadcasterConfig().hasFilters()) {
+            topic.getBroadcasterConfig().addFilter(filter);
+        }
+
+        boolean resumeOnBroadcast = false;
+        if (transport != null && transport.equals("long-polling")) {
+            resumeOnBroadcast = true;
+        }
+
+        return new SuspendResponse.SuspendResponseBuilder<String>()
+                .broadcaster(topic)
+                .outputComments(resumeOnBroadcast ? false : true)
+                .resumeOnBroadcast(resumeOnBroadcast)
+                .addListener(new EventsLogger())
+                .build();
     }
 
-    /**
-     * Broadcast message
-     *
-     * @param message A String from an HTML form
-     * @return A {@link Broadcastable} used to broadcast events.
-     */
     @POST
     @Broadcast
     public Broadcastable publish(@FormParam("message") String message) {
-        return broadcast(message);
+        return new Broadcastable(message, topic);
     }
-
-    /**
-     * Create a new {@link Broadcastable}.
-     *
-     * @param m
-     * @return
-     */
-    Broadcastable broadcast(String m) {
-        return new Broadcastable(m + "\n", topic);
-    }
-} 
+}

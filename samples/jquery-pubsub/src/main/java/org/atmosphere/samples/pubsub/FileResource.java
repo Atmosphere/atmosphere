@@ -1,7 +1,5 @@
 package org.atmosphere.samples.pubsub;
 
-import com.sun.jersey.spi.resource.Singleton;
-
 import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -12,23 +10,21 @@ import javax.ws.rs.core.PathSegment;
 import java.io.InputStream;
 
 @Path("/")
-@Singleton
-public class FileResource
-{
+@Produces("text/html")
+public class FileResource {
 
-    @Context ServletContext sc;
+    private
+    @Context
+    ServletContext sc;
 
-    @Path("jquery{id}.js")
+    @Path("/jquery/jquery{id}.js")
     @GET
-    public InputStream getJQuery(@PathParam("id") PathSegment ps)
-    {
-        return sc.getResourceAsStream("/" + ps.getPath());
+    public InputStream getJQuery(@PathParam("id") PathSegment ps) {
+        return sc.getResourceAsStream("/jquery/" + ps.getPath());
     }
 
     @GET
-    @Produces("text/html")
-    public InputStream getIndex()
-    {
+    public InputStream getIndex() {
         return sc.getResourceAsStream("/index.html");
     }
 }

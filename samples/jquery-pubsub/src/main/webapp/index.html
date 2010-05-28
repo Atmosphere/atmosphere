@@ -1,11 +1,17 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-    <script type="text/javascript" src="jquery-1.3.2.js"></script>
-    <script type="text/javascript" src="jquery.atmosphere.js"></script>
-    <script type="text/javascript" src="jquery.form.js"></script>
-
+    <script type="text/javascript" src="jquery/jquery-1.3.2.js"></script>
+    <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
+    <script type="text/javascript" src="jquery/jquery.form.js"></script>
+     <script type="text/javascript">
+        $(document).ready(function() {
+            subscribe();
+            $('#publishForm').ajaxForm();
+        });
+    </script>
     <script type="text/javascript">
         function subscribe() {
+            // jquery.atmosphere.response
             function callback(response)
             {
                 if (response.status == 200) {
@@ -16,19 +22,13 @@
                 }
             }
 
-            $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel', callback,
-                    $.atmosphere.configuration = {timeout : 120000});
+            $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel/', callback,
+                    $.atmosphere.configuration = {transport: 'streaming'});
         }
-    </script>
-    <script type="text/javascript">
-        $(document).ready(function() {
-            subscribe();
-            $('#publishForm').ajaxForm();
-        });
     </script>
 </head>
 <body>
-<p>
+<p>                                                                                                 
 
 <form id="publishForm" action="/atmosphere-jquery-pubsub/pubsub/channel" method="post">
     Message: <input type="text" name="message"/>
