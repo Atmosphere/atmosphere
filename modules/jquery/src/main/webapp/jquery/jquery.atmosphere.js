@@ -10,10 +10,10 @@ jQuery.atmosphere = function()
     return {
         version : 0.6,
         response : {
-                status: 200,
-                responseBody : '',
-                headers : [],
-                error: null
+            status: 200,
+            responseBody : '',
+            headers : [],
+            error: null
         },
         configuration : {},
         logLevel : 'info',
@@ -44,7 +44,7 @@ jQuery.atmosphere = function()
 
             if (jQuery.atmosphere.configuration.transport == 'long-polling') {
                 jQuery.atmosphere.executeRequest();
-            } else {
+            } else if (jQuery.atmosphere.configuration.transport == 'streaming') {
                 jQuery.atmosphere.executeStreamingRequest();
             }
         },
@@ -84,13 +84,18 @@ jQuery.atmosphere = function()
                         if (textStatus != 'error') {
 
                             if (jQuery.atmosphere.response.responseBody.indexOf("atmosphere.streamingCallback") != -1) {
-                               var start = jQuery.atmosphere.response.responseBody.indexOf("('") + 2;
-                               var end = jQuery.atmosphere.response.responseBody.indexOf("')");
-                               jQuery.atmosphere.response.responseBody = jQuery.atmosphere.response.responseBody.substring(start,end);
+                                var start = jQuery.atmosphere.response.responseBody.indexOf("('") + 2;
+                                var end = jQuery.atmosphere.response.responseBody.indexOf("')");
+                                jQuery.atmosphere.response.responseBody = jQuery.atmosphere.response.responseBody.substring(start, end);
                             }
 
-                            jQuery.atmosphere.response.status = XMLHttpRequest.status;
-                            jQuery.atmosphere.response.headers = XMLHttpRequest.getAllResponseHeaders();
+                            try {
+                                jQuery.atmosphere.response.status = XMLHttpRequest.status;
+                                jQuery.atmosphere.response.headers = XMLHttpRequest.getAllResponseHeaders();
+                            } catch(e) {
+                                jQuery.atmosphere.response.status = 404;
+                            }
+
                             setTimeout(function()
                             {
                                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
@@ -113,18 +118,16 @@ jQuery.atmosphere = function()
                         jQuery.atmosphere.log(logLevel, ["error: " + errorThrown]);
                         jQuery.atmosphere.configuration.connected = false;
 
-                        jQuery.atmosphere.response.status = XMLHttpRequest.status;
-                        jQuery.atmosphere.response.error = errorThrown;
-
-                        if (textStatus == 'error') {
-
-                        } else if (textStatus == 'timeout') {
-                            jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
-                        } else if (textStatus == 'notmodified') {
-
+                        try {
+                            jQuery.atmosphere.response.status = XMLHttpRequest.status;
+                        } catch(e) {
+                            jQuery.atmosphere.response.status = 404;
                         }
-                        else {
-                            jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
+                        jQuery.atmosphere.response.error = errorThrown;
+                        jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
+                        if (textStatus != 'error') {
                             setTimeout(jQuery.atmosphere.executeRequest, jQuery.atmosphere.configuration.timeout);
                         }
                     }
@@ -190,16 +193,14 @@ jQuery.atmosphere = function()
             if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) == -1) {
                 jQuery.atmosphere.configuration.callback.push(func);
             }
-        }
-        ,
+        },
 
         removeCallback: function(func)
         {
             if (jQuery.inArray(func, jQuery.atmosphere.configuration.callback) != -1) {
                 jQuery.atmosphere.configuration.callback.splice(index);
             }
-        }
-        ,
+        },
 
         invokeCallback: function(response)
         {
@@ -215,8 +216,7 @@ jQuery.atmosphere = function()
             if (jQuery.atmosphere.configuration.callback.length > 0) {
                 jQuery.each(jQuery.atmosphere.configuration.callback, call);
             }
-        }
-        ,
+        },
 
         publish: function(url, callback, configuration)
         {
@@ -241,8 +241,7 @@ jQuery.atmosphere = function()
 
             jQuery.atmosphere.addCallback(callback);
             jQuery.atmosphere.executeRequest();
-        }
-        ,
+        },
 
         log: function (level, args)
         {
@@ -254,14 +253,12 @@ jQuery.atmosphere = function()
                     logger.apply(window.console, args);
                 }
             }
-        }
-        ,
+        },
 
         warn: function()
         {
             log('warn', arguments);
-        }
-        ,
+        },
 
 
         info :function()
@@ -270,8 +267,7 @@ jQuery.atmosphere = function()
             {
                 log('info', arguments);
             }
-        }
-        ,
+        },
 
         debug: function()
         {
