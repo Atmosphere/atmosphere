@@ -3,39 +3,88 @@
     <script type="text/javascript" src="jquery/jquery-1.3.2.js"></script>
     <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
-     <script type="text/javascript">
-        $(document).ready(function() {
-            subscribe();
-            $('#publishForm').ajaxForm();
-        });
-    </script>
     <script type="text/javascript">
-        function subscribe() {
-            // jquery.atmosphere.response
-            function callback(response)
+        $(document).ready(function()
+        {
+            var connection;
+
+            function getKeyCode(ev)
             {
-                if (response.status == 200) {
-                    var data = response.responseBody
-                    if (data.length > 0) {
-                        $('ul').prepend($('<li></li>').text(data));                      
-                    }
-                }
+                if (window.event) return window.event.keyCode;
+                return ev.keyCode;
             }
 
-            /* set transport to 'streaming' if you want to use http streaming */
-            $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel/', callback,
-                    $.atmosphere.configuration = {transport: 'long-polling'});
-        }
+
+
+            function getElementById()
+            {
+                return document.getElementById(arguments[0]);
+            }
+
+
+
+            function getElementByIdValue()
+            {
+                return document.getElementById(arguments[0]).value;
+            }
+
+
+
+            function subscribe()
+            {
+                // jquery.atmosphere.response
+                function callback(response)
+                {
+                    // Websocket events. 
+                    if (response.state != 'connected' && response.state != 'closed') {
+                        if (response.status == 200) {
+                            var data = response.responseBody
+                            if (data.length > 0) {
+                                $('ul').prepend($('<li></li>').text(data));
+                            }
+                        }
+                    }
+                }
+
+                /* set transport to 'streaming or websocket' if you want to use http streaming */
+                $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel/',
+                        callback,
+                        $.atmosphere.configuration = {transport: 'websocket'});
+
+                connection = $.atmosphere.response;
+            }
+
+            getElementById('phrase').setAttribute('autocomplete', 'OFF');
+            getElementById('phrase').onkeyup = function(ev)
+            {
+                var keyc = getKeyCode(ev);
+                if (keyc == 13 || keyc == 10) {
+                    connection.send(getElementByIdValue('phrase'));
+                    $('phrase').value = '';
+                    return false;
+                }
+                return true;
+            };
+
+            getElementById('send_message').onclick = function(event)
+            {
+                connection.send(document.location.toString() + 'pubsub/channel/',
+                        null,
+                        $.atmosphere.configuration = {data: 'message=' + getElementByIdValue('phrase') });
+                getElementById('phrase').value = '';
+                return false;
+            };
+
+            subscribe();
+        });
     </script>
 </head>
 <body>
-<p>                                                                                                 
 
-<form id="publishForm" action="/atmosphere-jquery-pubsub/pubsub/channel" method="post">
-    Message: <input type="text" name="message"/>
-    <input type="submit" value="Submit Comment"/>
-</form>
-</p>
+<div id='sendMessage'>
+    <input id='phrase' type='text'/><input id='send_message' class='button' type='submit' name='Submit Comment'
+                                           value='send'/>
+</div>
 <p>Waiting for messages...</p>
 <ul></ul>
 </body>

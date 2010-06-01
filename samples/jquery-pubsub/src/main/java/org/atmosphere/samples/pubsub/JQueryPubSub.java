@@ -37,6 +37,7 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.client.FormParamFilter;
 import org.atmosphere.client.JavascriptClientFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.Broadcastable;
@@ -60,16 +61,16 @@ import javax.ws.rs.Produces;
 @Produces("text/html;charset=ISO-8859-1")
 public class JQueryPubSub {
 
-    private
-    @PathParam("topic")
-    Broadcaster topic;
+    private @PathParam("topic") Broadcaster topic;
 
-    private static final JavascriptClientFilter filter = new JavascriptClientFilter();
+    private final JavascriptClientFilter filter = new JavascriptClientFilter();
+    private final FormParamFilter formParamFilter = new FormParamFilter();
 
     @GET
     public SuspendResponse<String> subscribe(@HeaderParam("X-Atmosphere-Transport") String transport) {
 
         if (!topic.getBroadcasterConfig().hasFilters()) {
+            topic.getBroadcasterConfig().addFilter(formParamFilter);
             topic.getBroadcasterConfig().addFilter(filter);
         }
 
@@ -80,7 +81,6 @@ public class JQueryPubSub {
 
         return new SuspendResponse.SuspendResponseBuilder<String>()
                 .broadcaster(topic)
-                .outputComments(resumeOnBroadcast ? false : true)
                 .resumeOnBroadcast(resumeOnBroadcast)
                 .addListener(new EventsLogger())
                 .build();
@@ -89,6 +89,6 @@ public class JQueryPubSub {
     @POST
     @Broadcast
     public Broadcastable publish(@FormParam("message") String message) {
-        return new Broadcastable(message, topic);
+        return new Broadcastable(message, "", topic);
     }
 }
