@@ -39,6 +39,7 @@ jQuery.atmosphere = function()
                 maxRequest : 60,
                 logLevel :  'info',
                 requestCount : 0,
+                fallbackTransport : 'streaming',
                 transport : 'long-polling'
 
             }, configuration);
@@ -52,8 +53,8 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.executeStreamingRequest();
             } else if (jQuery.atmosphere.configuration.transport == 'websocket') {
                 if (!window.WebSocket) {
-                    jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using streaming"]);
-                    jQuery.atmosphere.configuration.transport = 'streaming'
+                    jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using configuration.fallbackTransport"]);
+                    jQuery.atmosphere.configuration.transport = jQuery.atmosphere.configuration.fallbackTransport;
                     jQuery.atmosphere.executeStreamingRequest();
                 }
                 else {
