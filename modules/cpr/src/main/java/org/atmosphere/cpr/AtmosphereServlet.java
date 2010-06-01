@@ -188,6 +188,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
     public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
     public final static String WEBSOCKET_ATMOSPHEREHANDLER = WebSocketAtmosphereHandler.class.getName();
+    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.webSocketSupport";
     public final static Logger logger = LoggerUtils.getLogger();
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
@@ -621,6 +622,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
         if (s != null) {
             addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
+            webSocketEnbled = true;
+            sessionSupport(false);
+        }
+        s = sc.getInitParameter(WEBSOCKET_SUPPORT);
+        if (s != null) {
             webSocketEnbled = true;
             sessionSupport(false);
         }

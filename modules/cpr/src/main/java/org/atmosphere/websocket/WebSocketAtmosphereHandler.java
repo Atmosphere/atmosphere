@@ -95,6 +95,6 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().fine("Suspending request: " + r.getRequest());
         }
-        r.suspend();
+        r.suspend(-1, false);
     }
 }

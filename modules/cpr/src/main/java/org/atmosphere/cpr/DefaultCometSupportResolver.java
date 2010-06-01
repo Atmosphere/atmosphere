@@ -134,15 +134,21 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     public List<Class<? extends CometSupport>> detectWebSocketPresent() {
-        return new LinkedList<Class<? extends CometSupport>>() {
+        List l =  new LinkedList<Class<? extends CometSupport>>() {
             {
                 if (testClassExists(JETTY_8))
                     add(Jetty8WebSocketSupport.class);
 
                 if (testClassExists(GRIZZLY_WEBSOCKET))
                     add(GlassFishWebSocketSupport.class);
+
             }
         };
+
+        if (l.isEmpty()) {
+            return detectContainersPresent();
+        }
+        return l;
     }
 
     /**
