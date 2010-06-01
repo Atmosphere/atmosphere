@@ -172,6 +172,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
     public final static String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     public final static String PROPERTY_NATIVE_COMETSUPPORT = "org.atmosphere.useNative";
+    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.useWebSocket";   
     public final static String PROPERTY_USE_STREAM = "org.atmosphere.useStream";
     public final static String BROADCASTER_FACTORY = "org.atmosphere.cpr.broadcasterFactory";
     public final static String BROADCASTER_CLASS = "org.atmosphere.cpr.broadcasterClass";
@@ -188,7 +189,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
     public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
     public final static String WEBSOCKET_ATMOSPHEREHANDLER = WebSocketAtmosphereHandler.class.getName();
-    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.webSocketSupport";
     public final static Logger logger = LoggerUtils.getLogger();
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
@@ -233,7 +233,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     private String broadcasterCacheClassName;
 
-    private boolean webSocketEnbled = false;
+    private boolean webSocketEnabled = false;
 
     public final static class AtmosphereHandlerWrapper {
 
@@ -622,12 +622,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
         if (s != null) {
             addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
-            webSocketEnbled = true;
+            webSocketEnabled = true;
             sessionSupport(false);
         }
         s = sc.getInitParameter(WEBSOCKET_SUPPORT);
         if (s != null) {
-            webSocketEnbled = true;
+            webSocketEnabled = true;
             sessionSupport(false);
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
@@ -883,7 +883,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void autoDetectContainer() {
         // Was defined in atmosphere.xml
         if (getCometSupport() == null) {
-            setCometSupport(createCometSupportResolver().resolve(useNativeImplementation, useBlockingImplementation, webSocketEnbled));
+            setCometSupport(createCometSupportResolver().resolve(useNativeImplementation, useBlockingImplementation, webSocketEnabled));
         }
         logger.info("Atmosphere is using for CometSupport: "
                 + getCometSupport().getClass().getName() + " running under container "
