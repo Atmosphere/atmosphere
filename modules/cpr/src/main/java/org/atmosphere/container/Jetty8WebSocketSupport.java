@@ -37,15 +37,9 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
 import org.atmosphere.websocket.WebSocketSupport;
-import org.eclipse.jetty.continuation.Continuation;
-import org.eclipse.jetty.continuation.ContinuationSupport;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
