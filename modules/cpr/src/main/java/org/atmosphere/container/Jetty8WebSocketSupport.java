@@ -48,7 +48,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 
 /**
- * Comet Portable Runtime implementation on top of Jetty's Continuation.
+ * WebSocket Portable Runtime implementation on top of Jetty's Continuation.
  *
  * @author Jeanfrancois Arcand
  */
@@ -63,22 +63,25 @@ public class Jetty8WebSocketSupport extends Jetty7CometSupport{
      */
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        Action action = null;
 
-        action = suspended(req, res);
+        String connection = req.getHeader("Connection");
+        if (connection == null || !connection.equalsIgnoreCase("Upgrade")){
+           return super.service(req,res);
+        } else {
+            Action action = suspended(req, res);
+            if (action.type == Action.TYPE.SUSPEND) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Suspending " + res);
+                }
+            } else if (action.type == Action.TYPE.RESUME) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Resume " + res);
+                }
+                req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
+            }
 
-        if (action.type == Action.TYPE.SUSPEND) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Suspending " + res);
-            }
-        } else if (action.type == Action.TYPE.RESUME) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resume " + res);
-            }
-            req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
+            return action;
         }
-        
-        return action;
     }
 
     /**

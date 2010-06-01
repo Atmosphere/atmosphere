@@ -38,29 +38,18 @@ package org.atmosphere.client;
 
 import org.atmosphere.cpr.BroadcastFilter;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
- * Filter that inject Javascript code to a broadcast so it can be used with the Atmosphere JQuery Plugin.
+ * Simple Form param filter that remove the first part of the request body.
  * 
  * @author Jeanfrancois Arcand
  */
-public class JavascriptClientFilter implements BroadcastFilter {
-
-    private final AtomicInteger uniqueScriptToken = new AtomicInteger();
+public class FormParamFilter implements BroadcastFilter{
 
     @Override
     public BroadcastAction filter(Object message) {
 
-        if (message instanceof String) {
-            StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
-                    .append(uniqueScriptToken.getAndIncrement())
-                    .append("\">")
-                    .append("window.parent.$.atmosphere.streamingCallback")
-                    .append("('")
-                    .append(message.toString())
-                    .append("');</script>");
-            message = sb.toString();
+        if ( (message instanceof String) && ((String) message).indexOf("=") != -1) {
+            message =  message.toString().split("=")[1];
         }
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
