@@ -200,6 +200,7 @@ public class Meteor {
      */
     public Meteor resume() {
         r.resume();
+        cache.remove(r.getRequest());
         return this;
     }
 
