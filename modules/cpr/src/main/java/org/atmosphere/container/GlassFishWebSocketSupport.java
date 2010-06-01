@@ -48,11 +48,8 @@ import com.sun.grizzly.websockets.WebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import com.sun.grizzly.websockets.WebSocketListener;
-import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
 import org.atmosphere.cpr.WebSocketProcessor;
 import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.websocket.WebSocketSupport;
@@ -68,7 +65,7 @@ import java.util.logging.Level;
  *
  * @author Jeanfrancois Arcand
  */
-public class GlassFishWebSocketSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     private String atmosphereCtx = "";
 
@@ -81,21 +78,27 @@ public class GlassFishWebSocketSupport extends AsynchronousProcessor implements 
     /**
      * {@inheritDoc}
      */
+    @Override
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        Action action = suspended(req, res);
-        WebSocketEngine.getEngine().register(req.getRequestURI(), grizzlyApplication);        
-        if (action.type == Action.TYPE.SUSPEND) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Suspending" + res);
+        String connection = req.getHeader("Connection");
+        if (connection == null || !connection.equalsIgnoreCase("Upgrade")) {
+            return super.service(req, res);
+        } else {
+            Action action = suspended(req, res);
+            WebSocketEngine.getEngine().register(req.getRequestURI(), grizzlyApplication);
+            if (action.type == Action.TYPE.SUSPEND) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Suspending" + res);
+                }
+            } else if (action.type == Action.TYPE.RESUME) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Resuming" + res);
+                }
             }
-        } else if (action.type == Action.TYPE.RESUME) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resuming" + res);
-            }
+            return action;
         }
-        return action;
     }
 
     /**
