@@ -186,7 +186,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
 
-                    suspend(sessionSupported, s.resumeOnBroadcast(), s.outputComments(),
+                    boolean outputJunk = s.outputComments();
+                    String transport = servletReq.getHeader("Connection");
+                    if (transport != null && transport.equalsIgnoreCase("Upgrade")) {
+                       outputJunk = false;
+                    }
+
+                    suspend(sessionSupported, s.resumeOnBroadcast(), outputJunk,
                             translateTimeUnit(s.period().value(),s.period().timeUnit()), request, response, r);
                     
                     for (AtmosphereResourceEventListener el: s.listeners()) {
