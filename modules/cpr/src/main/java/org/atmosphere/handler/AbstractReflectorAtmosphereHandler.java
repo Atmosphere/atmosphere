@@ -39,6 +39,7 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.util.LoggerUtils;
 
@@ -108,6 +109,11 @@ public abstract class AbstractReflectorAtmosphereHandler
                     event.getResource().getResponse().getWriter().write(o.toString());
                     event.getResource().getResponse().getWriter().flush();
                 }
+            }
+
+            Boolean resumeOnBroadcast = (Boolean) event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            if (resumeOnBroadcast != null && resumeOnBroadcast) {
+                event.getResource().resume();
             }
         }
     }
