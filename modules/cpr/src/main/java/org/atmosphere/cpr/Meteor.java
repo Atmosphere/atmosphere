@@ -153,13 +153,16 @@ public class Meteor {
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
         Broadcaster b = null;
-        try {
-            b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName());
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+
+        if (scope == Broadcaster.SCOPE.REQUEST) {
+            try {
+                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName());
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
+            b.setScope(scope);
+            r.setBroadcaster(b);
         }
-        b.setScope(scope);
-        r.setBroadcaster(b);
 
         Meteor m = new Meteor(r, l, s);
         return m;
@@ -174,6 +177,19 @@ public class Meteor {
      */
     public Meteor suspend(long l) {
         r.suspend(l);
+        return this;
+    }
+
+    /**
+     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
+     * suspend the response forever.
+     *
+     * @param l the maximum time a response stay suspended.
+     * @param outputComments the maximum time a response stay suspended.
+     * @return {@link Meteor}
+     */
+    public Meteor suspend(long l, boolean outputComments) {
+        r.suspend(l, outputComments);
         return this;
     }
 
@@ -282,5 +298,9 @@ public class Meteor {
         if (r instanceof AtmosphereEventLifecycle) {
             ((AtmosphereEventLifecycle) r).removeEventListener(e);
         }
+    }
+    
+    static void destroy() {
+        cache.clear();
     }
 }

@@ -75,4 +75,9 @@ public class MeteorServlet extends AtmosphereServlet {
         }
         addAtmosphereHandler(mapping, r);
     }
+
+    @Override
+    public void destroy(){
+        Meteor.destroy();        
+    }
 }
