@@ -7,28 +7,31 @@
         $(document).ready(function()
         {
             var connection;
-
+            var callbackAdded = false;
             function getKeyCode(ev)
             {
                 if (window.event) return window.event.keyCode;
                 return ev.keyCode;
             }
 
-
-
             function getElementById()
             {
                 return document.getElementById(arguments[0]);
             }
 
-
-
+            function getTransport(t)
+            {
+                transport = t.options[t.selectedIndex].value;
+                if (transport == 'autodetect') {
+                    transport = 'websocket';
+                }
+                return false;
+            }
+            
             function getElementByIdValue()
             {
                 return document.getElementById(arguments[0]).value;
             }
-
-
 
             function subscribe()
             {
@@ -46,12 +49,34 @@
                     }
                 }
 
-                /* set transport to 'streaming or websocket' if you want to use http streaming */
-                $.atmosphere.subscribe(document.location.toString() + 'pubsub/channel/',
-                        callback,
-                        $.atmosphere.configuration = {transport: 'websocket'});
+                if (!callbackAdded) {
+                    callbackAdded = true;
+                } else {
+                    callback = null;
+                }
 
+                /* transport can be : long-polling, streaming or websocket */
+                $.atmosphere.subscribe(document.location.toString() + 'pubsub/' + getElementById('topic').value,
+                        callback,
+                        $.atmosphere.configuration = {transport: getElementById('transport').value});
                 connection = $.atmosphere.response;
+             
+            }
+
+            getElementById('connect').onclick = function(event)
+            {
+                if (getElementById('topic').value == '') {
+                    alert("Please enter a PubSub topic to subscribe");
+                    return;
+                }
+                getElementById('sendMessage').className = '';
+                getElementById('phrase').focus();
+                subscribe();
+            }
+
+            getElementById('topic').onkeyup = function(event)
+            {
+                getElementById('sendMessage').className = 'hidden';
             }
 
             getElementById('phrase').setAttribute('autocomplete', 'OFF');
@@ -68,24 +93,72 @@
 
             getElementById('send_message').onclick = function(event)
             {
-                connection.send(document.location.toString() + 'pubsub/channel/',
+                if (getElementById('topic').value == '') {
+                    alert("Please enter a message to publish");
+                    return;
+                }
+                connection.send(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
                         $.atmosphere.configuration = {data: 'message=' + getElementByIdValue('phrase') });
                 getElementById('phrase').value = '';
                 return false;
             };
 
-            subscribe();
         });
     </script>
+        <style type='text/css'>
+        div {
+            border: 0px solid black;
+        }
+
+        input#phrase {
+            width: 30em;
+            background-color: #e0f0f0;
+        }
+
+        input#topic {
+            width: 14em;
+            background-color: #e0f0f0;
+        }
+
+        div.hidden {
+            display: none;
+        }
+
+        span.from {
+            font-weight: bold;
+        }
+
+        span.alert {
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
-
-<div id='sendMessage'>
-    <input id='phrase' type='text'/><input id='send_message' class='button' type='submit' name='Submit Comment'
-                                           value='send'/>
+<h1>PubSub Sample using Atmosphere's </h1>
+<h2>Select PubSub topic to subscribe</h2>
+<div id='pubsub'>
+    <input id='topic' type='text'/>
 </div>
-<p>Waiting for messages...</p>
+<h2>Select transport to use for subscribing</h2>
+<div id='select_transport'>
+    <select id="transport">
+        <option value="websocket">autodetect</option>
+        <option value="long-polling">long-polling</option>
+        <option value="streaming">http streaming</option>
+        <option value="websocket">websocket</option>
+    </select>
+    <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
+</div>
+<br/>
+<br/>
+<h2 id="s_h" class='hidden'>Publish Topic</h2>
+<div id='sendMessage' class='hidden'>
+    <input id='phrase' type='text'/>
+    <input id='send_message' class='button' type='submit' name='Publish' value='Publish Message'/>
+</div>
+<br/>
+<h2>Real Time PubSub Update</h2>
 <ul></ul>
 </body>
 </html>
