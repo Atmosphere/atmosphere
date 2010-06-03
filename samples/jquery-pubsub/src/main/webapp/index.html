@@ -84,7 +84,7 @@
             {
                 var keyc = getKeyCode(ev);
                 if (keyc == 13 || keyc == 10) {
-                    connection.send(getElementByIdValue('phrase'));
+                    connection.publish(getElementByIdValue('phrase'));
                     $('phrase').value = '';
                     return false;
                 }
@@ -97,7 +97,7 @@
                     alert("Please enter a message to publish");
                     return;
                 }
-                connection.send(document.location.toString() + 'pubsub/' + getElementById('topic').value,
+                connection.publish(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
                         $.atmosphere.configuration = {data: 'message=' + getElementByIdValue('phrase') });
                 getElementById('phrase').value = '';

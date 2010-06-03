@@ -14,7 +14,7 @@ jQuery.atmosphere = function()
             responseBody : '',
             headers : [],
             state : "messageReceived",
-            send : [],
+            publish : [],
             error: null
         },
         configuration : {},
@@ -75,9 +75,9 @@ jQuery.atmosphere = function()
                     && jQuery.atmosphere.configuration.requestCount++ < jQuery.atmosphere.configuration.maxRequest) {
 
                 jQuery.atmosphere.configuration.connected = true;
-                jQuery.atmosphere.response.send = function (url)
+                jQuery.atmosphere.response.publish = function (url)
                 {
-                    jQuery.atmosphere.send(url, null, jQuery.atmosphere.configuration);
+                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.configuration);
                 };
 
                 var configuration = jQuery.atmosphere.configuration;
@@ -170,9 +170,9 @@ jQuery.atmosphere = function()
         {
             var url = jQuery.atmosphere.configuration.url;
             var callback = jQuery.atmosphere.configuration.callback;
-            jQuery.atmosphere.response.send = function (url)
+            jQuery.atmosphere.response.publish = function (url)
             {
-                jQuery.atmosphere.send(url, null, jQuery.atmosphere.configuration);
+                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.configuration);
             };
 
             function init()
@@ -210,9 +210,9 @@ jQuery.atmosphere = function()
             var location = url.replace('http:', 'ws:');
             var websocket = new WebSocket(location);
 
-            jQuery.atmosphere.response.send = function (url)
+            jQuery.atmosphere.response.publish = function (url)
             {
-                websocket.send(jQuery.atmosphere.configuration.data);
+                websocket.publish(jQuery.atmosphere.configuration.data);
             };
 
             websocket.onopen = function(message)
@@ -277,7 +277,7 @@ jQuery.atmosphere = function()
             }
         },
 
-        send: function(url, callback, configuration)
+        publish: function(url, callback, configuration)
         {
             jQuery.atmosphere.configuration = jQuery.extend({
                 connected: false,
