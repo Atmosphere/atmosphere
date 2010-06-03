@@ -208,10 +208,29 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.configuration.callback;
             var location = url.replace('http:', 'ws:');
             var websocket = new WebSocket(location);
+            var configuration = jQuery.atmosphere.configuration;
+            var data;
 
             jQuery.atmosphere.response.publish = function (url)
             {
-                websocket.publish(jQuery.atmosphere.configuration.data);
+                try {
+                    data = jQuery.atmosphere.configuration.data;
+                    websocket.send(jQuery.atmosphere.configuration.data);
+                } catch (e) {
+                    websocket.close();
+                    // Websocket is not supported, reconnect using the fallback transport.
+                    configuration.transport = configuration.fallbackTransport;
+                    jQuery.atmosphere.configuration = configuration;
+                    if (configuration.fallbackTransport == 'streaming') {
+                        jQuery.atmosphere.executeStreamingRequest();
+                    } else {
+                        jQuery.atmosphere.executeRequest();
+                    }
+                    jQuery.atmosphere.configuration.suspend = false;
+                    jQuery.atmosphere.configuration.method = 'POST';
+                    jQuery.atmosphere.configuration.data = data;
+                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.configuration);
+                }
             };
 
             websocket.onopen = function(message)
@@ -231,6 +250,12 @@ jQuery.atmosphere = function()
                 else {
                     jQuery.atmosphere.response.responseBody = data;
                 }
+                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+            };
+
+            websocket.onerror = function(message)
+            {
+                jQuery.atmosphere.response.state = 'error';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 

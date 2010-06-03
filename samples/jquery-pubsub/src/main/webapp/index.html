@@ -46,6 +46,8 @@
                                 $('ul').prepend($('<li></li>').text(data));
                             }
                         }
+                    }  else {
+                        $.atmosphere.log('info', ["response.state: " + response.state]);
                     }
                 }
 
@@ -141,6 +143,7 @@
     <input id='topic' type='text'/>
 </div>
 <h2>Select transport to use for subscribing</h2>
+<h3>If you don't get any response, make sure you change the transport. </h3>
 <div id='select_transport'>
     <select id="transport">
         <option value="websocket">autodetect</option>
