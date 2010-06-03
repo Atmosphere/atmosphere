@@ -124,7 +124,6 @@ jQuery.atmosphere = function()
                                 response.status = 404;
                             }
 
-
                             setTimeout(function()
                             {
                                 jQuery.atmosphere.invokeCallback(response);

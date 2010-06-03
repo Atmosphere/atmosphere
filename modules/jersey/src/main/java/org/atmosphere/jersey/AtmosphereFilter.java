@@ -331,10 +331,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             Broadcaster b = ar.getBroadcaster();
             Object msg = o;
+            String returnMsg = null;
             // Something went wrong if null.
             if (o instanceof Broadcastable) {
                 b = ((Broadcastable) o).getBroadcaster();
                 msg = ((Broadcastable) o).getMessage();
+                returnMsg = ((Broadcastable) o).getResponseMessage().toString();
             }
 
             if (action == Action.RESUME_ON_BROADCAST) {
@@ -352,7 +354,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         if (f == null) return;
                         Object t = f.get();
                         if (o instanceof Broadcastable) {
-                            r.setEntity(t);
+                            r.setEntity(returnMsg);
                         }
                     } else if (delay == 0) {
                         b.delayBroadcast(msg);
