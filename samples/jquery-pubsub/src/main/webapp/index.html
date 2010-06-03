@@ -46,8 +46,6 @@
                                 $('ul').prepend($('<li></li>').text(data));
                             }
                         }
-                    } else if (response.state == 'closed') {
-                        $('ul').prepend($('<li></li>').text(getElementByIdValue('phrase').value));
                     }  else {
                         $.atmosphere.log('info', ["response.state: " + response.state]);
                     }
