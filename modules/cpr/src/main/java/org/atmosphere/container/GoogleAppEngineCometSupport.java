@@ -88,12 +88,16 @@ public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
             if (action.timeout != -1 && action.timeout < 30000) {
                 latch.await(action.timeout, TimeUnit.MILLISECONDS);
             } else {
-                latch.await(30000, TimeUnit.MILLISECONDS);
+                latch.await(20000, TimeUnit.MILLISECONDS);
             }
         } catch (Throwable ex) {
-            LoggerUtils.getLogger().log(Level.SEVERE, "Unable to resume the suspended connection");
+            LoggerUtils.getLogger().log(Level.WARNING, "Unable to resume the suspended connection", ex);
         } finally {
-            timedout(req, res);
+            try {
+                timedout(req, res);
+            } catch (Throwable e) {
+                LoggerUtils.getLogger().log(Level.WARNING, "Unable to timeout connection", e);
+            }
         }
     }
 }
