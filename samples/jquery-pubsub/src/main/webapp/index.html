@@ -6,7 +6,7 @@
     <script type="text/javascript">
         $(document).ready(function()
         {
-            var connection;
+            var connectedEndpoint;
             var callbackAdded = false;
             function getKeyCode(ev)
             {
@@ -38,31 +38,25 @@
                 // jquery.atmosphere.response
                 function callback(response)
                 {
-                    // Websocket events. 
+                    // Websocket events.
+                    $.atmosphere.log('info', ["response.state: " + response.state]);
                     if (response.state != 'connected' && response.state != 'closed') {
+                        $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
                             var data = response.responseBody
                             if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(data));
+                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " using transport " + response.transport));
                             }
                         }
-                    }  else {
-                        $.atmosphere.log('info', ["response.state: " + response.state]);
                     }
                 }
 
-                if (!callbackAdded) {
-                    callbackAdded = true;
-                } else {
-                    callback = null;
-                }
-
                 /* transport can be : long-polling, streaming or websocket */
-                $.atmosphere.subscribe(document.location.toString() + 'pubsub/' + getElementById('topic').value,
-                        callback,
-                        $.atmosphere.configuration = {transport: getElementById('transport').value});
-                connection = $.atmosphere.response;
-             
+                $.atmosphere.subscribe(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                        !callbackAdded? callback : null,
+                        $.atmosphere.request = {transport: getElementByIdValue('transport')});
+                connectedEndpoint = $.atmosphere.response;
+                callbackAdded = true;
             }
 
             getElementById('connect').onclick = function(event)
@@ -74,6 +68,7 @@
                 getElementById('sendMessage').className = '';
                 getElementById('phrase').focus();
                 subscribe();
+                getElementById('connect').value="Switch transport";
             }
 
             getElementById('topic').onkeyup = function(event)
@@ -82,11 +77,14 @@
             }
 
             getElementById('phrase').setAttribute('autocomplete', 'OFF');
-            getElementById('phrase').onkeyup = function(ev)
+            getElementById('phrase').onkeyup = function(event)
             {
-                var keyc = getKeyCode(ev);
+                var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
-                    connection.publish(getElementByIdValue('phrase'));
+                    connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                        null,
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') });
+                    
                     $('phrase').value = '';
                     return false;
                 }
@@ -99,9 +97,9 @@
                     alert("Please enter a message to publish");
                     return;
                 }
-                connection.publish(document.location.toString() + 'pubsub/' + getElementById('topic').value,
+                connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
-                        $.atmosphere.configuration = {data: 'message=' + getElementByIdValue('phrase').value });
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') });
                 getElementById('phrase').value = '';
                 return false;
             };
@@ -143,13 +141,13 @@
     <input id='topic' type='text'/>
 </div>
 <h2>Select transport to use for subscribing</h2>
-<h3>If you don't get any response, make sure you change the transport. </h3>
+<h3>You can change the transport any time. You may get many updates depending on what the browser will do with the previous connection.</h3>
 <div id='select_transport'>
     <select id="transport">
-        <option value="websocket">autodetect</option>
-        <option value="long-polling">long-polling</option>
-        <option value="streaming">http streaming</option>
-        <option value="websocket">websocket</option>
+        <option id="autodetect" value="websocket">autodetect</option>
+        <option id="long-polling" value="long-polling">long-polling</option>
+        <option id="streaming" value="streaming">http streaming</option>
+        <option id="websocket" value="websocket">websocket</option>
     </select>
     <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
 </div>
