@@ -90,7 +90,7 @@ public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
             } else {
                 latch.await(30000, TimeUnit.MILLISECONDS);
             }
-        } catch (InterruptedException ex) {
+        } catch (Throwable ex) {
             LoggerUtils.getLogger().log(Level.SEVERE, "Unable to resume the suspended connection");
         } finally {
             timedout(req, res);
