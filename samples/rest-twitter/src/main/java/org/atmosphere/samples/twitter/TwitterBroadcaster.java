@@ -75,7 +75,7 @@ public class TwitterBroadcaster extends JerseyBroadcaster {
     }
 
     @Override
-    public AtmosphereResource addAtmosphereResource(AtmosphereResource r) {
+    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> r) {
         if (events.size() == 0){
             event = r.getAtmosphereResourceEvent();
         }

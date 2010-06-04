@@ -38,7 +38,9 @@
 
 package org.atmosphere.cpr;
 
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -46,8 +48,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A Broadcaster is responsible for delivering messages to its subscribed
- * {@link AtmosphereResource}, which are representing a suspended response.
- * {@link AtmosphereResource} can be added using {@link Broadcaster#addAtmosphereResource},
+ * {@link AtmosphereResource<?,?>}, which are representing a suspended response.
+ * {@link AtmosphereResource<?,?>} can be added using {@link Broadcaster#addAtmosphereResource},
  * so when {@link #broadcast(java.lang.Object)} execute,
  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} will
  * be invoked and the suspended connection will have a chance to write the
@@ -60,7 +62,7 @@ import java.util.concurrent.TimeUnit;
  * the  operation has completed.
  * <br>
  * One final word on Broadcaster: by default, a Broadcaster will broadcast using
- * all {@link AtmosphereResource} on which the response has been suspended, e.g. {AtmosphereResource#suspend()}
+ * all {@link AtmosphereResource<?,?>} on which the response has been suspended, e.g. {AtmosphereResource<?,?>#suspend()}
  * has been invoked. This behavior is configurable and you can configure it by invoking the
  * {@link Broadcaster#setScope(org.atmosphere.cpr.Broadcaster.SCOPE)} ):<ul>
  * <li>REQUEST: broadcast events only to the AtmosphereResourceEvent associated with the current request.</li>
@@ -135,43 +137,43 @@ public interface Broadcaster {
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
-     * {@link AtmosphereHandler#onStateChange} with an instance of {@link AtmosphereResource}, representing
+     * {@link AtmosphereHandler#onStateChange} with an instance of {@link AtmosphereResource<?,?>}, representing
      * a single suspended response..
      *
      * @param o        and {@link Object} to be broadcasted.
-     * @param resource an {@link AtmosphereResource}
+     * @param resource an {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> broadcast(Object o, AtmosphereResource resource);
+    public Future<Object> broadcast(Object o, AtmosphereResource<?,?> resource);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
-     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of  {@link AtmosphereResource},
+     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of  {@link AtmosphereResource<?,?>},
      * representing a set of {@link AtmosphereHandler}.
      *
      * @param o      and {@link Object} to be broadcasted.
-     * @param subset a Set of {@link AtmosphereResource}
+     * @param subset a Set of {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> broadcast(Object o, Set<AtmosphereResource> subset);
+    public Future<Object> broadcast(Object o, Set<AtmosphereResource<?,?>> subset);
 
     /**
-     * Add a {@link AtmosphereResource} to the list of item to be notified when
+     * Add a {@link AtmosphereResource<?,?>} to the list of item to be notified when
      * the {@link Broadcaster#broadcast} is invoked.
      *
-     * @param resource an {@link AtmosphereResource}
-     * @return {@link AtmosphereResource} if added, or null if it was already there.
+     * @param resource an {@link AtmosphereResource<?,?>}
+     * @return {@link AtmosphereResource<?,?>} if added, or null if it was already there.
      */
-    public AtmosphereResource addAtmosphereResource(AtmosphereResource resource);
+    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> resource);
 
     /**
-     * Remove a {@link AtmosphereResource} from the list of item to be notified when
+     * Remove a {@link AtmosphereResource<?,?>} from the list of item to be notified when
      * the {@link Broadcaster#broadcast} is invoked.
      *
-     * @param resource an {@link AtmosphereResource}
-     * @return {@link AtmosphereResource} if removed, or null if it was not.
+     * @param resource an {@link AtmosphereResource<?,?>}
+     * @return {@link AtmosphereResource<?,?>} if removed, or null if it was not.
      */
-    public AtmosphereResource removeAtmosphereResource(AtmosphereResource resource);
+    public AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource<?,?> resource);
 
     /**
      * Set the {@link BroadcasterConfig} instance.
@@ -193,12 +195,12 @@ public interface Broadcaster {
     public void destroy();
 
     /**
-     * Return an {@link Iterator} of {@link AtmosphereResource}.
+     * Return an {@link List} of {@link AtmosphereResource<?,?>}.
      *
-     * @return {@link Iterator} of {@link AtmosphereResource} associated with this {@link Broadcaster}.
-     * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource)
+     * @return {@link List} of {@link AtmosphereResource<?,?>} associated with this {@link Broadcaster}.
+     * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource<?,?>)
      */
-    public Iterator<AtmosphereResource> getAtmosphereResources();
+    public Collection<AtmosphereResource<?,?>> getAtmosphereResources();
 
     /**
      * Set the scope.
@@ -229,7 +231,7 @@ public interface Broadcaster {
     public String getID();
 
     /**
-     * Resume all suspended responses ({@link AtmosphereResource}) added via
+     * Resume all suspended responses ({@link AtmosphereResource<?,?>}) added via
      * {@link Broadcaster#addAtmosphereResource}.
      */
     public void resumeAll();

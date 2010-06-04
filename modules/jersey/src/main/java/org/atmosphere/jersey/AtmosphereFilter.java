@@ -71,6 +71,7 @@ import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -110,8 +111,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
     private @Context UriInfo uriInfo;
 
-    private final ConcurrentHashMap<String, AtmosphereResource> resumeCandidates =
-            new ConcurrentHashMap<String, AtmosphereResource>();
+    private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest,HttpServletResponse>> resumeCandidates =
+            new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest,HttpServletResponse>>();
 
     private class Filter implements ResourceFilter, ContainerResponseFilter {
 
@@ -282,7 +283,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void configureResumeOnBroadcast(Broadcaster b) {
-            Iterator<AtmosphereResource> i = b.getAtmosphereResources();
+            Iterator<AtmosphereResource<?,?>> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
                 HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
                 r.setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, new Boolean(true));

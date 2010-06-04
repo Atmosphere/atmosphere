@@ -26,7 +26,7 @@ import java.util.logging.Level;
  */
 public final class JerseyBroadcasterUtil {
 
-    public final static void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    public final static void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
         HttpServletRequest res = (HttpServletRequest) r.getRequest();
 
         try {
@@ -68,7 +68,7 @@ public final class JerseyBroadcasterUtil {
                 String uuid = (String) res.getAttribute(AtmosphereFilter.RESUME_UUID);
                 if (uuid != null) {
                     if (res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
-                        ((ConcurrentHashMap<String, AtmosphereResource>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                        ((ConcurrentHashMap<String, AtmosphereResource<?,?>>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                     }
                 }
                 r.resume();
@@ -76,7 +76,7 @@ public final class JerseyBroadcasterUtil {
         }
     }
 
-    final static void onException(Throwable t, AtmosphereResource r) {
+    final static void onException(Throwable t, AtmosphereResource<?,?> r) {
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().log(Level.FINE, "", t);
         }

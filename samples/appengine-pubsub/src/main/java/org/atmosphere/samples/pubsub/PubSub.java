@@ -37,14 +37,10 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Cluster;
 import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.jersey.Broadcastable;
-import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.util.StringFilterAggregator;
 
 import javax.annotation.PreDestroy;
@@ -54,7 +50,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**

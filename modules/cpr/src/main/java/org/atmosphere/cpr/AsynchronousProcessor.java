@@ -365,7 +365,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     void shutdown() {
         closedDetector.shutdownNow();
-        for (AtmosphereResource r : aliveRequests.values()) {
+        for (AtmosphereResource<HttpServletRequest,HttpServletResponse> r : aliveRequests.values()) {
             try {
                 r.resume();
             } catch (Throwable t) {
