@@ -32,6 +32,7 @@
         <module>pubsub</module>
         <module>jquery-pubsub</module>
         <module>appengine-chat</module>
+        <module>appengine-pubsub</module>
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
         <module>websocket-chat</module>
