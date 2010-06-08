@@ -128,14 +128,11 @@ jQuery.atmosphere = function()
                                 response.status = 404;
                             }
 
-                            setTimeout(function()
-                            {
-                                jQuery.atmosphere.invokeCallback(response);
-                                jQuery.atmosphere.request = request;
-                                if (request.suspend) {
-                                    jQuery.atmosphere.executeRequest();
-                                }
-                            }, $.browser.msie ? 1000 : 1);
+                            jQuery.atmosphere.invokeCallback(response);
+                            jQuery.atmosphere.request = request;
+                            if (request.suspend) {
+                                jQuery.atmosphere.executeRequest();
+                            }
                         }
                     },
 
