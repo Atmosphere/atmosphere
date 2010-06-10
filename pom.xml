@@ -50,8 +50,8 @@
         <maven>2.2.0</maven>
     </prerequisites>
     <organization>
-        <name>Ning.</name>
-        <url>http://www.ning.com</url>
+        <name>SUN Microsystems</name>
+        <url>http://www.sun.com</url>
     </organization>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
