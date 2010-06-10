@@ -79,6 +79,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast =
             new ConcurrentLinkedQueue<Entry>();
+    private Future<?> notifierFuture;
 
     protected BroadcasterCache broadcasterCache;
 
@@ -96,6 +97,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
+        if (notifierFuture != null) {
+            notifierFuture.cancel(true);
+        }
+        
         if (bc != null) {
             bc.destroy();
         }
@@ -193,7 +198,7 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
-            bc.getExecutorService().submit(new Runnable() {
+            notifierFuture = bc.getExecutorService().submit(new Runnable() {
 
                 public void run() {
                     Entry msg = null;

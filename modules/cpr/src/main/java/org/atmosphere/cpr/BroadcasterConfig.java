@@ -45,6 +45,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
@@ -79,7 +81,15 @@ public class BroadcasterConfig {
     }
 
     protected void configExecutors() {
-        executorService = Executors.newFixedThreadPool(numOfProcessor);
+        executorService = Executors.newCachedThreadPool(new ThreadFactory(){
+
+            private AtomicInteger count = new AtomicInteger();
+
+            @Override
+            public Thread newThread(final Runnable runnable){
+                return new Thread(runnable,"Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+            }
+        });
         defaultExecutorService = executorService;
     }
 
