@@ -42,16 +42,16 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:svn:https://www.dev.java.net/svn/atmosphere</connection>
-        <developerConnection>scm:svn:https://www.dev.java.net/svn/atmosphere</developerConnection>
-        <url>https://atmosphere.dev.java.net/source/browse/atmosphere/#dirlist</url>
+        <connection>scm:git:git@github.com:jfarcand/atmosphere.git</connection>
+        <developerConnection>scm:git:git@github.com:jfarcand/atmosphere.git</developerConnection>        
+        <url>http://github.com/jfarcand/atmosphere</url>
     </scm>
     <prerequisites>
         <maven>2.2.0</maven>
     </prerequisites>
     <organization>
-        <name>SUN Microsystems</name>
-        <url>http://www.sun.com</url>
+        <name>Ning.</name>
+        <url>http://www.ning.com</url>
     </organization>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
