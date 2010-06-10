@@ -61,6 +61,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Implementation of <code>javax.servlet.FilterChain</code> used to manage
@@ -73,17 +74,13 @@ import java.io.IOException;
  */
 public final class AtmosphereFilterChain implements FilterChain {
 
-    public static final int INCREMENT = 8;
+    public static final int INCREMENT = 20;
 
     /**
      * Filters.
      */
-    private FilterConfigImpl[] filters = new FilterConfigImpl[8];
-    /**
-     * The int which is used to maintain the current position
-     * in the filter chain.
-     */
-    private int pos = 0;
+    private FilterConfigImpl[] filters = new FilterConfigImpl[20];
+
     /**
      * The int which gives the current number of filters in the chain.
      */
@@ -115,7 +112,7 @@ public final class AtmosphereFilterChain implements FilterChain {
 
     public void invokeFilterChain(ServletRequest request, ServletResponse response)
             throws IOException, ServletException {
-        pos = 0;
+        request.setAttribute("pos", new AtomicInteger(0));
         doFilter(request, response);
     }
 
@@ -133,8 +130,9 @@ public final class AtmosphereFilterChain implements FilterChain {
             throws IOException, ServletException {
 
         // Call the next filter if there is one
-        if (pos < n) {
-            FilterConfigImpl filterConfig = filters[pos++];
+        AtomicInteger pos = ((AtomicInteger)request.getAttribute("pos"));
+        if (pos.get() < n) {
+            FilterConfigImpl filterConfig = filters[pos.getAndIncrement()];
             Filter filter = null;
             try {
                 filter = filterConfig.getFilter();
@@ -193,13 +191,6 @@ public final class AtmosphereFilterChain implements FilterChain {
     }
 
     /**
-     * Release references to the filters and configImpl executed by this chain.
-     */
-    public void recycle() {
-        pos = 0;
-    }
-
-    /**
      * Set the servlet that will be executed at the end of this chain.
      * Set by the mapper filter
      */
@@ -231,7 +222,7 @@ public final class AtmosphereFilterChain implements FilterChain {
         }
 
         if (servlet != null) {
-            servlet.destroy();    
+            servlet.destroy();
         }
     }
 }
