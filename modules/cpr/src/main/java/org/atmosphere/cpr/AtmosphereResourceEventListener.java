@@ -49,6 +49,14 @@ import javax.servlet.http.HttpServletResponse;
 public interface AtmosphereResourceEventListener {
 
     /**
+     * Invoked when the {@link AtmosphereResource#suspend} has been completed and the response
+     * considered as suspended.
+     *
+     * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
+     */
+    void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+
+    /**
      * Invoked when the {@link AtmosphereResource#resume} is invoked or when the
      * suspend's time out expires.
      *

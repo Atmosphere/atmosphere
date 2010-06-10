@@ -71,6 +71,10 @@ public class MeteorTest {
             m.addListener(new AtmosphereResourceEventListener(){
 
                 @Override
+                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+                }
+
+                @Override
                 public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
                 }
 

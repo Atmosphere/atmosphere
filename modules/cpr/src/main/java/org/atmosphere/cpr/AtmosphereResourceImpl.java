@@ -174,6 +174,7 @@ public class AtmosphereResourceImpl implements
             action.timeout = timeout;
             broadcaster.addAtmosphereResource(this);
             req.removeAttribute(PRE_SUSPEND);
+            notifyListeners();
         }
     }
 
@@ -372,8 +373,16 @@ public class AtmosphereResourceImpl implements
             onResume(event);
         } else if (event.isCancelled()) {
             onDisconnect(event);
+        } else if (event.isSuspended()){
+            onSuspend(event);
         } else {
             onBroadcast(event);
+        }
+    }
+
+    void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+        for (AtmosphereResourceEventListener r : listeners) {
+            r.onSuspend(e);
         }
     }
 
