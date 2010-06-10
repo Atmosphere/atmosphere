@@ -22,7 +22,6 @@ jQuery.atmosphere = function()
         request : {},
         logLevel : 'info',
         callbacks: [],
-        failoverMessage : null,
 
         subscribe: function(url, callback, request)
         {
@@ -202,11 +201,12 @@ jQuery.atmosphere = function()
 
         streamingCallback : function(args)
         {
-            jQuery.atmosphere.response.transport = "streaming";
-            jQuery.atmosphere.response.status = 200;
+            var response = jQuery.atmosphere.response;
+            response.transport = "streaming";
+            response.status = 200;
             jQuery.atmosphere.response.responseBody = args;
 
-            jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+            jQuery.atmosphere.invokeCallback(response);
         },
         
         executeWebSocket : function()
