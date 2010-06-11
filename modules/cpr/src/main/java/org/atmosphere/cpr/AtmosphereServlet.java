@@ -91,7 +91,7 @@ import java.util.logging.Logger;
  * defined in META-INF/atmosphere.xml, or if atmosphere.xml is missing, all classes
  * that implements {@link AtmosphereHandler} will be discovered and mapped using
  * the class's name.
- *
+ * <p/>
  * This {@link Servlet} can be defined inside an application's web.xml using the following:
  * <p><pre><code>
  *  &lt;servlet&gt;
@@ -155,7 +155,7 @@ import java.util.logging.Logger;
  *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport/param-name&gt;
  *      &lt;param-value&gt;false&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p> 
+ * </code></pre></p>
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
  * <p/>
  * If you are planning to use JSP, Servlet or JSF, you can instead use the
@@ -172,7 +172,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
     public final static String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     public final static String PROPERTY_NATIVE_COMETSUPPORT = "org.atmosphere.useNative";
-    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.useWebSocket";   
+    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.useWebSocket";
     public final static String PROPERTY_USE_STREAM = "org.atmosphere.useStream";
     public final static String BROADCASTER_FACTORY = "org.atmosphere.cpr.broadcasterFactory";
     public final static String BROADCASTER_CLASS = "org.atmosphere.cpr.broadcasterClass";
@@ -192,11 +192,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static Logger logger = LoggerUtils.getLogger();
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
-
+    public final static String DEFAULT_NAMED_DISPATCHER = "default";
+   
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
-    
-    public final static String DEFAULT_NAMED_DISPATCHER = "default";
 
     // If we detect Servlet 3.0, should we still use the default
     // native Comet API.
@@ -279,14 +278,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public ServletContext getServletContext() {
             return AtmosphereServlet.this.getServletContext();
         }
-        
-        public String getDispatcherName() {
-			return dispatcherName;
-		}
 
-		public void setDispatcherName(String dispatcherName) {
-			this.dispatcherName = dispatcherName;
-		}
+        public String getDispatcherName() {
+            return dispatcherName;
+        }
+
+        public void setDispatcherName(String dispatcherName) {
+            this.dispatcherName = dispatcherName;
+        }
 
         public String getInitParameter(String name) {
             // First looks locally
@@ -356,7 +355,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             this.supportSession = supportSession;
         }
 
-        public AtmosphereServlet getServlet(){
+        public AtmosphereServlet getServlet() {
             return AtmosphereServlet.this;
         }
     }
@@ -518,19 +517,19 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         try {
             super.init(sc);
 
-            ServletConfig scFacade = new ServletConfig(){
+            ServletConfig scFacade = new ServletConfig() {
 
                 public String getServletName() {
                     return sc.getServletName();
                 }
 
                 public ServletContext getServletContext() {
-                    return sc.getServletContext();  
+                    return sc.getServletContext();
                 }
 
                 public String getInitParameter(String name) {
                     String param = sc.getInitParameter(name);
-                    if (param == null){
+                    if (param == null) {
                         return initParams.get(name);
                     }
                     return param;
@@ -693,7 +692,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         try {
-           cl.loadClass(JERSEY_CONTAINER);
+            cl.loadClass(JERSEY_CONTAINER);
             useStreamForFlushingComments = true;
         } catch (Throwable t) {
             return false;
@@ -781,7 +780,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * Load AtmosphereHandler defined under META-INF/atmosphere.xml
      *
      * @param stream The input stream we read from.
-     * @param c  The classloader
+     * @param c      The classloader
      */
     protected void loadAtmosphereDotXml(InputStream stream, URLClassLoader c)
             throws IOException, ServletException {
@@ -1148,7 +1147,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * Weblogic specific comet based implementation.
      *
      * @param rrk
-     * @return  true if suspended
+     * @return true if suspended
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -1264,6 +1263,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     /**
      * Return the {@link org.atmosphere.cpr.BroadcasterCache} class name.
+     *
      * @return the {@link org.atmosphere.cpr.BroadcasterCache} class name.
      */
     public String getBroadcasterCacheClassName() {
@@ -1272,6 +1272,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     /**
      * Set the {@link org.atmosphere.cpr.BroadcasterCache} class name.
+     *
      * @param broadcasterCacheClassName
      */
     public void setBroadcasterCacheClassName(String broadcasterCacheClassName) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
