@@ -195,6 +195,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
+    
+    public final static String DEFAULT_NAMED_DISPATCHER = "default";
 
     // If we detect Servlet 3.0, should we still use the default
     // native Comet API.
@@ -268,6 +270,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         private boolean supportSession = true;
         private BroadcasterFactory broadcasterFactory;
+        private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
 
         protected Map<String, AtmosphereHandlerWrapper> handlers() {
             return AtmosphereServlet.this.atmosphereHandlers;
@@ -276,6 +279,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public ServletContext getServletContext() {
             return AtmosphereServlet.this.getServletContext();
         }
+        
+        public String getDispatcherName() {
+			return dispatcherName;
+		}
+
+		public void setDispatcherName(String dispatcherName) {
+			this.dispatcherName = dispatcherName;
+		}
 
         public String getInitParameter(String name) {
             // First looks locally
