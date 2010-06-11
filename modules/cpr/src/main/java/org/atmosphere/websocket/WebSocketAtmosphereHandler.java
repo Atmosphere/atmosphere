@@ -71,8 +71,7 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
     public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
         if (!r.getResponse().getClass().isAssignableFrom(WebSocketHttpServletResponse.class)) {
             try {
-                r.getAtmosphereConfig().getServletContext().getNamedDispatcher("default")
-                        .forward(r.getRequest(), r.getResponse());
+            	r.getAtmosphereConfig().getServletContext().getNamedDispatcher(r.getAtmosphereConfig().getDispatcherName()).forward(r.getRequest(), r.getResponse());
             } catch (ServletException e) {
                 IOException ie = new IOException();
                 ie.initCause(e);
