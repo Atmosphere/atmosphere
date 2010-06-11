@@ -1,4 +1,4 @@
-Welcome to Atmosphere, a portable AjaxPush/Comet  and WebSocket Framework for everyone
+Welcome to Atmosphere, a portable AjaxPush/Comet and WebSocket Framework for everyone. The framework support the majority of existing Webserver, and our JQuery Plugin support WebSocket (when available) and Comet (Http Streaming and long Polling)
 
 Atmosphere is a POJO based framework using Inversion of Control (IoC) to bring push/Comet to the masses! Finally a framework which can run on any Java based Web Server, including Google App Engine, Tomcat, Jetty, GlassFish, Weblogic, Grizzly, JBossWeb and JBoss, Resin, etc. without having to wait for Servlet 3.0 Async support or without the needs to learn how Comet or WebSocket support has been differently implemented by all those Containers.  
 
@@ -28,13 +28,13 @@ If you are using Maven, just add the following dependency:
     <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module]</artifactId>
-         <version>0.5.7</version>
+         <version>0.5.8</version>
      </dependency>
 
 Where atmosphere-module can be: jersey, runtime, guice, bayeux, cluster or spade-server. Now, you'll have to add the Sonatype snapshot repo to your settings in order to be able to access the snapshot builds:
 
     http://oss.sonatype.org/service/local/repositories/snapshots/content
 
-Atmosphere 0.5.7 is our official release, and our work in progress version is 0.6, targeted for End May 2010.
+Atmosphere 0.5.8 is our official release, and our work in progress version is 0.6, targeted for End June 2010.
 
 If you are interested, subscribe to our mailing lists (user@atmosphere.dev.java.net or dev@atmosphere.dev.java.net) for more info!  We are on irc.freenode.net under #atmosphere-comet
