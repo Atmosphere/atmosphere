@@ -33,7 +33,7 @@ public final class JerseyBroadcasterUtil {
             ContainerResponse cr = (ContainerResponse) res.getAttribute(AtmosphereFilter.CONTAINER_RESPONSE);
 
             if (cr == null) {
-                LoggerUtils.getLogger().log(Level.WARNING, "Unexpected state. ContainerResponse cannot be null");
+                LoggerUtils.getLogger().log(Level.SEVERE, "Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
                 return;
             }
 
