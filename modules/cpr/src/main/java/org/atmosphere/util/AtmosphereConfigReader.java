@@ -68,15 +68,12 @@ public class AtmosphereConfigReader {
     private Logger logger = LoggerUtils.getLogger();
 
     final Map<String, String> tuples = new HashMap<String, String>();
-    final Map<String, ArrayList<Property>> atmosphereHandlerProperties =
-            new HashMap<String, ArrayList<Property>>();
-    final Map<String, String> broadcasters =
-            new HashMap<String, String>();
-    final Map<String, String> trackers =
-            new HashMap<String, String>();
-    String cometSupportClass = null;
-
-    String supportSession = "";
+    final Map<String, ArrayList<Property>> atmosphereHandlerProperties =  new HashMap<String, ArrayList<Property>>();
+    final Map<String, String> broadcasters = new HashMap<String, String>();
+    final Map<String, String> broadcasterCache = new HashMap<String, String>();
+    private String cometSupportClass = null;
+    private String supportSession = "";
+    private String[] broadcastFilterClasses;
 
     /**
      * Create a {@link DocumentBuilderFactory} element from META-INF/atmosphere.xml
@@ -136,10 +133,14 @@ public class AtmosphereConfigReader {
                     }
                 }
 
-                if (attrs.getNamedItem("tracker") != null) {
-                    String trackerClass = attrs.getNamedItem("tracker").getNodeValue();
-                    if (trackerClass != null) {
-                        trackers.put(attrs.getNamedItem("context-root").getNodeValue(), trackerClass);
+                if (attrs.getNamedItem("broadcastFilterClasses") != null) {
+                    broadcastFilterClasses = attrs.getNamedItem("broadcastFilter").getNodeValue().split(",");
+                }
+
+                if (attrs.getNamedItem("broadcasterCache") != null) {
+                    String bc = attrs.getNamedItem("broadcasterCache").getNodeValue();
+                    if (bc != null) {
+                        broadcasterCache.put(attrs.getNamedItem("context-root").getNodeValue(), bc);
                     }
                 }
                 if (attrs.getNamedItem("comet-support") != null) {
@@ -195,8 +196,8 @@ public class AtmosphereConfigReader {
     /**
      * Return a {@link Broadcaster}, or null.
      */
-    public String getTrackerName(String contextRoot) {
-        return trackers.get(contextRoot);
+    public String getBroadcasterCache(String contextRoot) {
+        return broadcasterCache.get(contextRoot);
     }
 
     /**
@@ -228,5 +229,9 @@ public class AtmosphereConfigReader {
      */
     public String getCometSupportClass() {
         return cometSupportClass;
+    }
+
+    public String[] getBroadcastFilterClasses(){
+        return broadcastFilterClasses;
     }
 }

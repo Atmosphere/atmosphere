@@ -37,8 +37,6 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.client.FormParamFilter;
-import org.atmosphere.client.JavascriptClientFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.SuspendResponse;
@@ -63,16 +61,8 @@ public class JQueryPubSub {
 
     private @PathParam("topic") Broadcaster topic;
 
-    private final JavascriptClientFilter filter = new JavascriptClientFilter();
-    private final FormParamFilter formParamFilter = new FormParamFilter();
-
     @GET
     public SuspendResponse<String> subscribe(@HeaderParam("X-Atmosphere-Transport") String transport) {
-
-        if (!topic.getBroadcasterConfig().hasFilters()) {
-            topic.getBroadcasterConfig().addFilter(formParamFilter);
-            topic.getBroadcasterConfig().addFilter(filter);
-        }
 
         boolean resumeOnBroadcast = false;
         if (transport != null && transport.equals("long-polling")) {

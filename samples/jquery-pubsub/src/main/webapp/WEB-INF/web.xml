@@ -1,31 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app version="3.0" xmlns="http://java.sun.com/xml/ns/javaee"
-    xmlns:j2ee="http://java.sun.com/xml/ns/javaee"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_3.0.xsd">
-        <description>Atmosphere REST PubSub</description>
-        <display-name>Atmosphere REST PubSub</display-name>
-        <servlet>
-            <description>AtmosphereServlet</description>
-            <servlet-name>AtmosphereServlet</servlet-name>
-            <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
-            <load-on-startup>0</load-on-startup>
-            <init-param>
-                <param-name>com.sun.jersey.config.property.packages</param-name>
-                <param-value>org.atmosphere.samples.pubsub</param-value>
-            </init-param>
-            <init-param>
-                <param-name>org.atmosphere.useWebSocket</param-name>
-                <param-value>true</param-value>
-            </init-param>
-            <init-param>
-                <param-name>org.atmosphere.useNative</param-name>
-                <param-value>true</param-value>
-            </init-param>
-        </servlet>
-        <servlet-mapping>
-            <servlet-name>AtmosphereServlet</servlet-name>
-            <url-pattern>/*</url-pattern>
-        </servlet-mapping>
-    </web-app>
+         xmlns:j2ee="http://java.sun.com/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_3.0.xsd">
+    <description>Atmosphere REST PubSub</description>
+    <display-name>Atmosphere REST PubSub</display-name>
+    <servlet>
+        <description>AtmosphereServlet</description>
+        <servlet-name>AtmosphereServlet</servlet-name>
+        <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
+        <load-on-startup>0</load-on-startup>
+        <init-param>
+            <param-name>com.sun.jersey.config.property.packages</param-name>
+            <param-value>org.atmosphere.samples.pubsub</param-value>
+        </init-param>
+        <init-param>
+            <param-name>org.atmosphere.useWebSocket</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>org.atmosphere.useNative</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        <init-param>
+            <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
+            <param-value>org.atmosphere.client.FormParamFilter,org.atmosphere.client.JavascriptClientFilter</param-value>
+        </init-param>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AtmosphereServlet</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
+</web-app>
 

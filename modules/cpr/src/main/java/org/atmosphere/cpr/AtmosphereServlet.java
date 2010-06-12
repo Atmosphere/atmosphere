@@ -145,15 +145,15 @@ import java.util.logging.Logger;
  * You can also configure Atmosphere to use http session or not
  * <p><pre><code>
  *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport/param-name&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport&lt;/param-name&gt;
  *      &lt;param-value&gt;false&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </code></pre></p>
- * You can also configure Atmosphere to use http session or not
+ * You can also configure {@link BroadcastFilter} that will be applied at all newly created {@link Broadcaster}
  * <p><pre><code>
  *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport/param-name&gt;
- *      &lt;param-value&gt;false&lt;/param-value&gt;
+ *      &lt;param-name&gt;org.atmosphere.cpr.broadcastFilterClasses&lt;/param-name&gt;
+ *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </code></pre></p>
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
@@ -165,7 +165,6 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet {
-
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     public final static String GAE_BROADCASTER = org.atmosphere.util.gae.GAEDefaultBroadcaster.class.getName();
@@ -193,47 +192,32 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     public final static String DEFAULT_NAMED_DISPATCHER = "default";
+    public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
    
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
-
-    // If we detect Servlet 3.0, should we still use the default
-    // native Comet API.
-    protected boolean useNativeImplementation = false;
-
-    protected boolean useBlockingImplementation = false;
-
-    protected boolean useStreamForFlushingComments = false;
-
+    protected final AtmosphereConfig config = new AtmosphereConfig();
+    protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
+    protected final boolean isFilter;
     /**
      * The list of {@link AtmosphereHandler} and their associated mapping.
      */
     private final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers =
             new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
 
-    // The WebServer we are running on.
+    // If we detect Servlet 3.0, should we still use the default
+    // native Comet API.
+    protected boolean useNativeImplementation = false;
+    protected boolean useBlockingImplementation = false;
+    protected boolean useStreamForFlushingComments = false;
     protected CometSupport cometSupport;
-
-    protected final AtmosphereConfig config = new AtmosphereConfig();
-
-    protected final boolean isFilter;
-
     protected static String broadcasterClassName = DefaultBroadcaster.class.getName();
-
-    protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
-
     protected boolean isCometSupportSpecified = false;
-
     protected boolean isBroadcasterSpecified = false;
-
     protected boolean isSessionSupportSpecified = false;
-
     private BroadcasterFactory broadcasterFactory;
-
     private static BroadcasterConfig broadcasterConfig = new BroadcasterConfig();
-
     private String broadcasterCacheClassName;
-
     private boolean webSocketEnabled = false;
 
     public final static class AtmosphereHandlerWrapper {
@@ -650,6 +634,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             initParams.put(RESUME_AND_KEEPALIVE, s);
         }
+        s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
+        if (s != null) {
+            configureBroadcasterFilter(s.split(","));
+        }
     }
 
     protected void loadConfiguration(ServletConfig sc) throws ServletException {
@@ -669,6 +657,21 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
         } catch (Throwable t) {
             throw new ServletException(t);
+        }
+    }
+
+    void configureBroadcasterFilter(String[] list){
+        for (String broadcastFilter: list) {
+            try {
+                broadcasterConfig.addFilter(BroadcastFilter.class.cast(
+                    Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance()));
+            } catch (InstantiationException e) {
+                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
+            } catch (IllegalAccessException e) {
+                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
+            } catch (ClassNotFoundException e) {
+                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
+            }
         }
     }
 
@@ -839,16 +842,20 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     wrapper.broadcaster = BroadcasterFactory.getDefault().get(bc, entry.getKey());
                 }
 
-                String trackerName = reader.getTrackerName(entry.getKey());
-                if (trackerName != null) {
-                    broadcasterCacheClassName = trackerName;
+                String bc = reader.getBroadcasterCache(entry.getKey());
+                if (bc != null) {
+                    broadcasterCacheClassName = bc;
                 }
-
 
                 if (reader.getCometSupportClass() != null) {
                     cometSupport = (CometSupport)
                             c.loadClass(reader.getCometSupportClass()).newInstance();
                 }
+
+                if (reader.getBroadcastFilterClasses() != null){
+                    configureBroadcasterFilter(reader.getBroadcastFilterClasses());
+                }
+
             } catch (Throwable t) {
                 logger.log(Level.WARNING, "Unable to load AtmosphereHandler class: "
                         + entry.getValue(), t);
