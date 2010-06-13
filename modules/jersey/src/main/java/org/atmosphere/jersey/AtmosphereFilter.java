@@ -165,11 +165,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast){
             String transport = request.getHeaderValue("X-Atmosphere-Transport");
-            if (transport == null || !transport.equals("long-polling")) {
-                return false;
-            } else if (transport.equals("long-polling")) {
+            if (transport != null && transport.equals("long-polling")) {
                 return true;
-            }
+            } 
             return resumeOnBroadcast;
         }
 
