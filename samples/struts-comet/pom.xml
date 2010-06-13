@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>java.current</groupId>
+   <artifactId>struts-comet</artifactId>
+   <packaging>war</packaging>
+   <version>1.0-SNAPSHOT</version>
+   <name>Struts Blank Archetype</name>
+   <url>http://struts.apache.org/1.x</url>
+   <dependencies>
+   <!--
+   		<dependency>
+				<groupId>org.atmosphere</groupId>
+				<artifactId>atmosphere-modules</artifactId>
+				<version>0.6-SNAPSHOT</version>
+			</dependency>
+			-->
+			<dependency>
+				<groupId>org.atmosphere</groupId>
+				<artifactId>atmosphere-runtime</artifactId>
+				<version>0.6-SNAPSHOT</version>
+			</dependency>
+       <dependency>
+          <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
+          <version>2.5</version>
+          <scope>provided</scope>
+       </dependency>
+      <dependency>
+         <groupId>junit</groupId>
+         <artifactId>junit</artifactId>
+         <version>3.8.1</version>
+         <scope>test</scope>
+      </dependency>
+      <dependency>
+         <groupId>org.apache.struts</groupId>
+         <artifactId>struts-core</artifactId>
+         <version>1.3.5</version>
+      </dependency>
+      <dependency>
+         <groupId>org.apache.struts</groupId>
+         <artifactId>struts-taglib</artifactId>
+         <version>1.3.5</version>
+      </dependency>
+      <!--dependency>
+         <groupId>org.apache.struts</groupId>
+         <artifactId>struts-tiles</artifactId>
+         <version>1.3.5</version>
+      </dependency-->
+      <dependency>
+         <groupId>org.apache.struts</groupId>
+         <artifactId>struts-extras</artifactId>
+         <version>1.3.5</version>
+      </dependency>
+
+      <dependency>
+				<groupId>log4j</groupId>
+				<artifactId>log4j</artifactId>
+				<version>1.2.9</version>
+			</dependency> 
+      <!--dependency>
+         <groupId>org.apache.struts</groupId>
+         <artifactId>struts-el</artifactId>
+         <version>1.3.5</version>
+      </dependency>
+       <dependency>
+           <groupId>javax.servlet</groupId>
+           <artifactId>jstl</artifactId>
+           <version>1.0.4</version>
+       </dependency>
+       <dependency>
+           <groupId>taglibs</groupId>
+           <artifactId>standard</artifactId>
+           <version>1.0.4</version>
+       </dependency-->
+
+   </dependencies>
+   <build>
+      <finalName>struts-comet</finalName>
+      <plugins>
+	<plugin>
+		<groupId>org.codehaus.mojo</groupId>
+		<artifactId>tomcat-maven-plugin</artifactId>
+		<configuration>
+			<warFile>C:\Sandbox\struts-comet\struts-comet\target\struts-comet.war</warFile>
+		</configuration>
+	</plugin>
+
+          <plugin>
+             <groupId>org.codehaus.cargo</groupId>
+             <artifactId>cargo-maven2-plugin</artifactId>
+             <configuration>
+                <container>
+                   <containerId>tomcat5x</containerId>
+                   <home>C:/servers/apache-tomcat-6.0.26</home>
+                   <log>target/tomcat5x.log</log>
+                   <output>target/tomcat5x.out</output>
+                </container>
+                <configuration>
+                   <home>target/tomcat5x</home>
+                </configuration>
+             </configuration>
+          </plugin>
+    		<plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                   <source>1.5</source>
+                   <target>1.5</target>
+                </configuration>
+            </plugin>
+    		<plugin>
+    			<groupId>org.mortbay.jetty</groupId>
+    			<artifactId>maven-jetty-plugin</artifactId>
+    			<version>6.0.1</version>
+    			<configuration>
+    				<scanIntervalSeconds>10</scanIntervalSeconds>
+    			</configuration>
+    		</plugin>
+    	</plugins>
+    </build>
+   <repositories>
+      <repository>
+				<id>sonatype-nexus-snapshots</id>
+				<name>sonatype-nexus-snapshots</name>
+				<url>http://oss.sonatype.org/content/repositories/snapshots</url>
+      </repository>
+   </repositories>
+   <!-- Uncomment in order to use Apache's Maven 2 snapshot repository
+   <repositories>
+      <repository>
+         <id>apache.snapshots</id>
+         <name>Apache Maven Repository (Snapshots and Test Builds)</name>
+         <url>http://cvs.apache.org/maven-snapshot-repository</url>
+         <releases><enabled>false</enabled></releases>
+         <snapshots><enabled>true</enabled></snapshots>
+      </repository>
+   </repositories>
+   -->
+
+
+
+</project>
