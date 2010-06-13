@@ -177,7 +177,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         // User may have changed it.
         config.mapBroadcasterToAtmosphereHandler(re.getBroadcaster(), g);
-
+                
         if (re.getAtmosphereResourceEvent().isSuspended()) {
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, re);            
@@ -375,5 +375,9 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 }
             }
         }
+    }
+
+    public boolean supportWebSocket(){
+        return false;
     }
 }

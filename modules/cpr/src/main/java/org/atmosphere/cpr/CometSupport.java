@@ -101,4 +101,10 @@ public interface CometSupport<E extends AtmosphereResource> {
      * @param actionEvent An instance of {@link AtmosphereServlet.Action}
      */
     public void action(E actionEvent);
+
+    /**
+     * Return true if this implementation supports the websocket protocol.
+     * return true if supported
+     */
+    public boolean supportWebSocket();
 }

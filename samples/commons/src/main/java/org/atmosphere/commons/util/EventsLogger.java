@@ -12,7 +12,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
 
     @Override
     public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
-        System.out.println("onResume: " + event);        
+        System.out.println("onSuspend: " + event);        
     }
 
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {

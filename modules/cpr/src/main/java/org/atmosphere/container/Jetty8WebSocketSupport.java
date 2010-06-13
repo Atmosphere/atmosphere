@@ -90,4 +90,9 @@ public class Jetty8WebSocketSupport extends Jetty7CometSupport{
     public String getContainerName() {
         return config.getServletConfig().getServletContext().getServerInfo() + " with WebSocket enabled.";
     }
+
+    @Override
+    public boolean supportWebSocket(){
+        return true;
+    }
 }

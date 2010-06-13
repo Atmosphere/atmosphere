@@ -55,10 +55,6 @@ public final class JerseyBroadcasterUtil {
                 cr.write();
             }
             cr.getOutputStream().flush();
-
-            if (r instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) r).notifyListeners();
-            }
         } catch (Throwable t) {
             onException(t, r);
         } finally {

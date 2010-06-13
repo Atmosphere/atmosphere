@@ -144,6 +144,11 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         }
     }
 
+    @Override
+    public boolean supportWebSocket(){
+        return true;
+    }
+
     /**
      * Hack Grizzly internal to uniform websocket support in Atmosphere.
      */
@@ -205,6 +210,5 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         public void close() throws IOException {
             webSocket.close();
         }
-
     }
 }

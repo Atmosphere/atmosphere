@@ -163,6 +163,28 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return this;
         }
 
+        boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast){
+            String transport = request.getHeaderValue("X-Atmosphere-Transport");
+            if (transport == null || !transport.equals("long-polling")) {
+                return false;
+            } else if (transport.equals("long-polling")) {
+                return true;
+            }
+            return resumeOnBroadcast;
+        }
+
+        boolean outputJunk(ContainerRequest request, boolean outputJunk){
+            String upgrade = servletReq.getHeader("Connection");
+            String transport = request.getHeaderValue("X-Atmosphere-Transport");
+            if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
+               return false;
+            } else if (transport != null && transport.equals("long-polling")) {
+                return false;
+            }
+
+            return outputJunk;
+        }
+
         /**
          * Configure the {@link AtmosphereResourceEvent} state (suspend, resume, broadcast)
          * based on the annotation the web application has used.
@@ -187,25 +209,22 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
 
-                    boolean outputJunk = s.outputComments();
-                    String transport = servletReq.getHeader("Connection");
-                    if (transport != null && transport.equalsIgnoreCase("Upgrade")) {
-                       outputJunk = false;
-                    }
+                    boolean outputJunk = outputJunk(request,s.outputComments());
+                    boolean resumeOnBroadcast =  resumeOnBroadcast(request,s.resumeOnBroadcast());
 
-                    suspend(sessionSupported, s.resumeOnBroadcast(), outputJunk,
-                            translateTimeUnit(s.period().value(),s.period().timeUnit()), request, response, r);
-                    
                     for (AtmosphereResourceEventListener el: s.listeners()) {
                         if (r instanceof AtmosphereEventLifecycle) {
                             ((AtmosphereEventLifecycle) r).addEventListener(el);
                         }
                     }
+                    suspend(sessionSupported, resumeOnBroadcast, outputJunk,
+                            translateTimeUnit(s.period().value(),s.period().timeUnit()), request, response, r);
+
                     break;
                 case SUSPEND:
                 case SUSPEND_RESUME:
-                    boolean resumeOnBroadcast = (action == Action.SUSPEND_RESUME);
-                    suspend(sessionSupported, resumeOnBroadcast, outputComments, suspendTimeout, request, response, r);
+                    outputJunk = outputJunk(request,outputComments);
+                    resumeOnBroadcast = resumeOnBroadcast(request,(action == Action.SUSPEND_RESUME));
 
                     for (Class<? extends AtmosphereResourceEventListener> e : listeners) {
                         try {
@@ -218,6 +237,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                     new IllegalStateException("Invalid AtmosphereResourceEventListener " + e));
                         }
                     }
+                    suspend(sessionSupported, resumeOnBroadcast, outputJunk, suspendTimeout, request, response, r);
                     break;
                 case RESUME:
                     if (response.getEntity() != null) {
@@ -481,7 +501,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         contentType.toString() : "text/html;charset=ISO-8859-1");
 
                 r.suspend(timeout, comments && !resumeOnBroadcast);
-
                 if (response.getEntity() != null) {
                     response.write();
                 }

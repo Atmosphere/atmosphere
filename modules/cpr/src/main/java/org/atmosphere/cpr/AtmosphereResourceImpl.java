@@ -47,6 +47,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 /**
@@ -90,6 +91,8 @@ public class AtmosphereResourceImpl implements
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
+
+    private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
 
 
     /**
@@ -158,7 +161,12 @@ public class AtmosphereResourceImpl implements
 
     public void suspend(long timeout, boolean flushComment) {
         if (!event.isResumedOnTimeout()) {
-            
+
+            String upgrade = req.getHeader("Connection");
+            if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade") && !cometSupport.supportWebSocket()) {
+                res.addHeader("X-Atmosphere-error","Websocket protocol not supported");
+            }
+
             // Set to expire far in the past.
             res.setHeader("Expires", "-1");
             // Set standard HTTP/1.1 no-cache headers.
@@ -373,7 +381,7 @@ public class AtmosphereResourceImpl implements
             onResume(event);
         } else if (event.isCancelled()) {
             onDisconnect(event);
-        } else if (event.isSuspended()){
+        } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()){
             onSuspend(event);
         } else {
             onBroadcast(event);

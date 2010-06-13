@@ -62,16 +62,9 @@ public class JQueryPubSub {
     private @PathParam("topic") Broadcaster topic;
 
     @GET
-    public SuspendResponse<String> subscribe(@HeaderParam("X-Atmosphere-Transport") String transport) {
-
-        boolean resumeOnBroadcast = false;
-        if (transport != null && transport.equals("long-polling")) {
-            resumeOnBroadcast = true;
-        }
-
+    public SuspendResponse<String> subscribe() {
         return new SuspendResponse.SuspendResponseBuilder<String>()
                 .broadcaster(topic)
-                .resumeOnBroadcast(resumeOnBroadcast)
                 .addListener(new EventsLogger())
                 .build();
     }

@@ -275,7 +275,7 @@ jQuery.atmosphere = function()
             };
 
             websocket.onclose = function(message)
-            {
+            {               
                 jQuery.atmosphere.response.state = 'closed';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
