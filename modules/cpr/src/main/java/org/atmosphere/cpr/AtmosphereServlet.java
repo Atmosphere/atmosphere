@@ -181,7 +181,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String PRIMEFACES_SERVLET = "org.primefaces.comet.PrimeFacesCometServlet";
     public final static String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
     public final static String WEB_INF = "/WEB-INF/classes/";
-    public final static String SUSPEND_WITHOUT_COMMENT = "org.atmosphere.suspendWithoutComments";
     public final static String RESUME_ON_BROADCAST = "org.atmosphere.resumeOnBroadcast";
     public final static String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
     public final static String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();

@@ -25,6 +25,7 @@
                 if (transport == 'autodetect') {
                     transport = 'websocket';
                 }
+
                 return false;
             }
             
@@ -40,12 +41,13 @@
                 {
                     // Websocket events.
                     $.atmosphere.log('info', ["response.state: " + response.state]);
-                    if (response.state != 'connected' && response.state != 'closed') {
+                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
+                    if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
                         $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
                             var data = response.responseBody
                             if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " using transport " + response.transport));
+                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " using transport: " + response.transport));
                             }
                         }
                     }
@@ -65,6 +67,12 @@
                     alert("Please enter a PubSub topic to subscribe");
                     return;
                 }
+                connect();
+            }
+
+            connect = function() 
+            {
+                getElementById('phrase').value = '';
                 getElementById('sendMessage').className = '';
                 getElementById('phrase').focus();
                 subscribe();
@@ -74,6 +82,11 @@
             getElementById('topic').onkeyup = function(event)
             {
                 getElementById('sendMessage').className = 'hidden';
+                var keyc = getKeyCode(event);
+                if (keyc == 13 || keyc == 10) {
+                    connect();
+                    return false;
+                }
             }
 
             getElementById('phrase').setAttribute('autocomplete', 'OFF');
@@ -84,8 +97,8 @@
                     connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
                         null,
                         $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') });
-                    
-                    $('phrase').value = '';
+
+                    getElementById('phrase').value = '';
                     return false;
                 }
                 return true;
@@ -104,6 +117,7 @@
                 return false;
             };
 
+            getElementById('topic').focus();
         });
     </script>
         <style type='text/css'>
@@ -135,13 +149,13 @@
     </style>
 </head>
 <body>
-<h1>PubSub Sample using Atmosphere's </h1>
+<h1>PubSub Sample using Atmosphere's JQuery Plug In</h1>
 <h2>Select PubSub topic to subscribe</h2>
 <div id='pubsub'>
     <input id='topic' type='text'/>
 </div>
 <h2>Select transport to use for subscribing</h2>
-<h3>You can change the transport any time. You may get many updates depending on what the browser will do with the previous connection.</h3>
+<h3>You can change the transport any time.</h3>
 <div id='select_transport'>
     <select id="transport">
         <option id="autodetect" value="websocket">autodetect</option>

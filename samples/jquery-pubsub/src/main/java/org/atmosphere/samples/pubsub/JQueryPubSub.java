@@ -65,6 +65,7 @@ public class JQueryPubSub {
     public SuspendResponse<String> subscribe() {
         return new SuspendResponse.SuspendResponseBuilder<String>()
                 .broadcaster(topic)
+                .outputComments(true)
                 .addListener(new EventsLogger())
                 .build();
     }

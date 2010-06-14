@@ -174,7 +174,7 @@ public class AtmosphereResourceImpl implements
             // Set standard HTTP/1.0 no-cache header.
             res.setHeader("Pragma", "no-cache");
 
-            if (flushComment && !Boolean.valueOf(config.getInitParameter(AtmosphereServlet.SUSPEND_WITHOUT_COMMENT))) {
+            if (flushComment) {
                 write();
             }
             req.setAttribute(PRE_SUSPEND, "true");
@@ -411,6 +411,4 @@ public class AtmosphereResourceImpl implements
             r.onBroadcast(e);
         }
     }
-
-
 }
