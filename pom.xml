@@ -424,7 +424,7 @@
     <properties>
         <jetty-version>6.1.22</jetty-version>
         <atmosphere-version>0.6-SNAPSHOT</atmosphere-version>
-        <jersey-version>1.2</jersey-version>
+        <jersey-version>1.3-SNAPSHOT</jersey-version>
         <jackson-version>1.3.1</jackson-version>
         <jaxb-version>2.1</jaxb-version>
         <jackson-version>1.3.1</jackson-version>
