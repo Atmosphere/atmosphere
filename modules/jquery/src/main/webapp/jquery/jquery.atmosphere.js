@@ -22,7 +22,6 @@ jQuery.atmosphere = function()
         request : {},
         logLevel : 'info',
         callbacks: [],
-        suspendedXMLHttpRequest : null,
         websocket : null,
 
         subscribe: function(url, callback, request)
@@ -83,8 +82,8 @@ jQuery.atmosphere = function()
                 iframe.parentNode.removeChild(iframe);
             }
             
-            if (jQuery.atmosphere.suspendedXMLHttpRequest != null) {
-                jQuery.atmosphere.suspendedXMLHttpRequest.abort();
+            if (activeRequest != null) {
+                activeRequest.abort();
             }
 
             if (jQuery.atmosphere.websocket != null) {
@@ -136,7 +135,6 @@ jQuery.atmosphere = function()
                          */
                         if (request.suspend) {
                             jQuery.atmosphere.closeSuspendedConnection();
-                            jQuery.atmosphere.suspendedXMLHttpRequest = XMLHttpRequest;
                         }
                     },
 
