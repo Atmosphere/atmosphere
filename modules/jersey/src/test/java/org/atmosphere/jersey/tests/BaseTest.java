@@ -572,8 +572,8 @@ public abstract class BaseTest {
     }
 
     @Test(timeOut = 60000)
-    public void testBroasdcasterScope() {
-        System.out.println("Running testBroasdcasterScope");
+    public void testBroadcasterScope() {
+        System.out.println("Running testBroadcasterScope");
         final CountDownLatch latch = new CountDownLatch(2);
         AsyncHttpClient c = new AsyncHttpClient();
         try {

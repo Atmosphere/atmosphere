@@ -65,7 +65,7 @@ public class AtmosphereProviders {
 
         public StringReader getStringReader(Class type, Type genericType, Annotation[] annotations) {
 
-            if (!type.getClass().isAssignableFrom(Broadcaster.class)) {
+            if (!Broadcaster.class.isAssignableFrom(type)) {
                 return null;
             }
 
