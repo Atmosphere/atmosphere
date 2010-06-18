@@ -38,6 +38,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.util.LoggerUtils;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 
 /**
@@ -109,6 +111,12 @@ public abstract class BroadcasterFactory {
      * @return a Broadcaster, or null if not found.
      */
     abstract public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull);
+
+    /**
+     * Return an immutable Collection of {@link Broadcaster} this factory contains.
+     * @return an immutable Collection of {@link Broadcaster} this factory contains.
+     */
+    abstract public Collection<Broadcaster> lookupAll();
 
     /**
      * Return the default {@link BroadcasterFactory}.
