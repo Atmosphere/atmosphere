@@ -41,7 +41,10 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.util.LoggerUtils;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -161,6 +164,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
 
         return b;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Collection<Broadcaster> lookupAll() {
+        return Collections.unmodifiableCollection(store.values());
     }
 
     /**
