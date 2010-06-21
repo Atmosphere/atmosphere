@@ -333,7 +333,6 @@
             <id>sonatype-nexus-snapshots</id>
             <name>sonatype-nexus-snapshots</name>
             <url>http://oss.sonatype.org/content/repositories/snapshots</url>
-            <uniqueVersion>false</uniqueVersion>            
         </snapshotRepository>
     </distributionManagement>
     <dependencies>
