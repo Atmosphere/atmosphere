@@ -36,25 +36,9 @@
  */
 package org.atmosphere.tests;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import org.atmosphere.container.JettyCometSupport;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.nio.SelectChannelConnector;
-import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 
 public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
