@@ -1,4 +1,4 @@
-/** 
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -106,9 +106,14 @@ jQuery.atmosphere = function()
         executeRequest: function()
         {
 
-            if ($.browser.msie && jQuery.atmosphere.request.transport == 'streaming') {
-                jQuery.atmosphere.executeStreamingRequest();
-                return;
+            if (jQuery.atmosphere.request.transport == 'streaming') {
+                if ($.browser.msie) {
+                    jQuery.atmosphere.ieStreaming();
+                    return;
+                } else if ((typeof window.addEventStream) == 'function') {
+                    jQuery.atmosphere.operaStreaming();
+                    return;
+                }
             }
 
             if (jQuery.atmosphere.request.requestCount++ < jQuery.atmosphere.request.maxRequest) {
@@ -142,7 +147,7 @@ jQuery.atmosphere = function()
                 if (request.suspend) {
                     activeRequest = ajaxRequest;
                 }
-                
+
                 ajaxRequest.open(request.method, request.url, true);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
@@ -175,14 +180,14 @@ jQuery.atmosphere = function()
                         if (request.suspend && ajaxRequest.status == 200) {
                             jQuery.atmosphere.executeRequest();
                         }
-                        
+
                         if ($.browser.msie) {
                             update = true;
                         }
                     } else if (!$.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;
                     } else {
-                        clearTimeout(request.id);                        
+                        clearTimeout(request.id);
                     }
 
                     if (update) {
@@ -237,7 +242,53 @@ jQuery.atmosphere = function()
             }
         },
 
-        executeStreamingRequest : function()
+        operaStreaming: function()
+        {
+
+            var url = jQuery.atmosphere.request.url;
+            var es = document.createElement('event-source');
+            var response = jQuery.atmosphere.response;
+
+            jQuery.atmosphere.response.push = function (url)
+            {
+                jQuery.atmosphere.request.transport = 'polling';
+                jQuery.atmosphere.request.callback = null;
+                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+            };
+            
+            es.setAttribute('src', url);
+            // without this check opera 9.5 would make two connections.
+            if (opera.version() < 9.5) {
+                document.body.appendChild(es);
+            }
+
+            var operaCallback = function (event) {
+                if (event.data) {
+                    var junkForWebkit = false;
+                    
+                    response.responseBody = event.data;
+                    if (event.data.indexOf("<!--") != -1) {
+                        junkForWebkit = true;
+                    }
+
+                    if (response.responseBody.indexOf("parent.callback") != -1) {
+                        var start = response.responseBody.indexOf("('") + 2;
+                        var end = response.responseBody.indexOf("')");
+                        response.responseBody = response.responseBody.substring(start, end);
+                    }
+
+                    if (junkForWebkit) return;
+
+                    response.state = "messageReceived";
+                    jQuery.atmosphere.invokeCallback(response);
+                }
+            };
+
+            es.addEventListener('payload', operaCallback, false);
+
+        },
+
+        ieStreaming : function()
         {
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function (url)
@@ -247,7 +298,6 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
-
             transferDoc = new ActiveXObject("htmlfile");
             transferDoc.open();
             transferDoc.close();
@@ -255,8 +305,9 @@ jQuery.atmosphere = function()
             transferDoc.body.appendChild(ifrDiv);
             ifrDiv.innerHTML = "<iframe src='" + url + "'></iframe>";
             transferDoc.parentWindow.callback = jQuery.atmosphere.streamingCallback;
-        },
-        
+        }
+        ,
+
         streamingCallback : function(args)
         {
             var response = jQuery.atmosphere.response;
@@ -266,7 +317,8 @@ jQuery.atmosphere = function()
             response.state = "messageReceived";
 
             jQuery.atmosphere.invokeCallback(response);
-        },
+        }
+        ,
 
         executeWebSocket : function()
         {
@@ -417,7 +469,8 @@ jQuery.atmosphere = function()
                 document.attachEvent('onunload', arg);
                 window.attachEvent('onunload', arg);
             }
-        },
+        }
+        ,
 
         kill_load_bar : function() {
             if (jQuery.atmosphere.killHiddenIFrame == null) {
@@ -435,7 +488,8 @@ jQuery.atmosphere = function()
             document.body.appendChild(ifr);
             ifr.src = 'about:blank';
             document.body.removeChild(ifr);
-        },
+        }
+        ,
 
         log: function (level, args)
         {
