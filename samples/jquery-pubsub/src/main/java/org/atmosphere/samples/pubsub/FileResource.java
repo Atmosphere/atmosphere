@@ -53,7 +53,7 @@ public class FileResource {
     @Context
     ServletContext sc;
 
-    @Path("/jquery/jquery{id}.js")
+    @Path("/jquery/{id}")
     @GET
     public InputStream getJQuery(@PathParam("id") PathSegment ps) {
         return sc.getResourceAsStream("/jquery/" + ps.getPath());
