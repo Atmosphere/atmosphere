@@ -56,7 +56,7 @@ public class JavascriptClientFilter implements BroadcastFilter {
             StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
                     .append(uniqueScriptToken.getAndIncrement())
                     .append("\">")
-                    .append("window.parent.$.atmosphere.streamingCallback")
+                    .append("parent.callback")
                     .append("('")
                     .append(message.toString())
                     .append("');</script>");
