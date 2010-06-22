@@ -44,12 +44,6 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 
 public class GrizzlyCometSupportTest extends BaseTest {
 
