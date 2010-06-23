@@ -6,7 +6,30 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <version>0.6-SNAPSHOT</version>
-    <url>https://atmosphere.dev.java.net</url>
+    <url>http://github.com/jfarcand/atmosphere</url>
+    <scm>
+        <connection>scm:git:git@github.com:jfarcand/atmosphere.git</connection>
+        <developerConnection>scm:git:git@github.com:jfarcand/atmosphere.git</developerConnection>
+        <url>http://github.com/jfarcand/atmosphere</url>
+    </scm>
+    <prerequisites>
+        <maven>2.2.0</maven>
+    </prerequisites>
+    <developers>
+        <developer>
+            <id>jfarcand</id>
+            <name>Jeanfrancois Arcand</name>
+            <email>jfarcand@apache.org</email>
+        </developer>
+        <developer>
+            <id>psandoz</id>
+            <name>Paul Sandoz</name>
+        </developer>
+        <developer>
+            <id>neotyk</id>
+            <name>Hubert Iwaniuk</name>
+        </developer>
+    </developers>
     <issueManagement>
         <system>bugzilla</system>
         <url>https://atmosphere.dev.java.net/servlets/ProjectIssues</url>
@@ -20,39 +43,18 @@
             <name>atmosphere Support List</name>
             <archive>users@atmosphere.dev.java.net</archive>
         </mailingList>
-        <mailingList>
-            <name>atmosphere Announce List</name>
-            <archive>announces@atmosphere.dev.java.net</archive>
-        </mailingList>
     </mailingLists>
-    <developers>
-        <developer>
-            <id>jfarcand</id>
-            <name>Jeanfrancois Arcand</name>
-            <email>jfarcand@dev.java.net</email>
-            <url>http://jfarcand.wordpress.com/</url>
-            <organization>Ning Inc</organization>
-            <organizationUrl>http://www.ning.com</organizationUrl>
-        </developer>
-    </developers>
     <licenses>
         <license>
             <name>CDDL</name>
             <url>https://glassfish.dev.java.net/public/CDDLv1.0.html</url>
         </license>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
     </licenses>
-    <scm>
-        <connection>scm:git:git@github.com:jfarcand/atmosphere.git</connection>
-        <developerConnection>scm:git:git@github.com:jfarcand/atmosphere.git</developerConnection>
-        <url>http://github.com/jfarcand/atmosphere</url>
-    </scm>
-    <prerequisites>
-        <maven>2.2.0</maven>
-    </prerequisites>
-    <organization>
-        <name>SUN Microsystems</name>
-        <url>http://www.sun.com</url>
-    </organization>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <scriptSourceDirectory>src/main/scripts</scriptSourceDirectory>
