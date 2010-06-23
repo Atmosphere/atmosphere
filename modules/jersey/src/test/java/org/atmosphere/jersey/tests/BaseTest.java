@@ -51,6 +51,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -96,9 +98,24 @@ public abstract class BaseTest {
         }
     }
 
+    protected int findFreePort() throws IOException {
+        ServerSocket socket = null;
+
+        try {
+            socket = new ServerSocket(0);
+
+            return socket.getLocalPort();
+        }
+        finally {
+            if (socket != null) {
+                socket.close();
+            }
+        }
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void setUpGlobal() throws Exception {
-        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         atmoServlet = new AtmosphereServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
@@ -189,7 +206,7 @@ public abstract class BaseTest {
                     fail("onThrowable", throwable);
                 }
 
-                public STATE onBodyPartReceived(HttpResponseBodyPart<String> bp) throws Exception {
+                public STATE onBodyPartReceived(HttpResponseBodyPart bp) throws Exception {
 
                     System.out.println("bp: " + new String(bp.getBodyPartBytes()));
                     response.set(response.get() + new String(bp.getBodyPartBytes()));
@@ -197,11 +214,11 @@ public abstract class BaseTest {
                     return STATE.CONTINUE;
                 }
 
-                public STATE onStatusReceived(HttpResponseStatus<String> hs) throws Exception {
+                public STATE onStatusReceived(HttpResponseStatus hs) throws Exception {
                     return STATE.CONTINUE;
                 }
 
-                public STATE onHeadersReceived(HttpResponseHeaders<String> rh) throws Exception {
+                public STATE onHeadersReceived(HttpResponseHeaders rh) throws Exception {
                     location.set(rh.getHeaders().getHeaderValue("Location"));
                     return STATE.CONTINUE;
                 }

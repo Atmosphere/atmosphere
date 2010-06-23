@@ -71,7 +71,7 @@ public class TomcatCometSupportTest extends BaseTest {
 
         System.setProperty("org.atmosphere.useNative", "true");
 
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         embedded = new Embedded();
         String path = new File(".").getAbsolutePath();

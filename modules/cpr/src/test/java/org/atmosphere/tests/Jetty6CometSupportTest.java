@@ -36,18 +36,36 @@
  */
 package org.atmosphere.tests;
 
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.Response;
 import org.atmosphere.container.JettyCometSupport;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.nio.SelectChannelConnector;
+import org.testng.annotations.Test;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 
 public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
 
-    public void setConnector() {
+    public void setConnector(int port) throws Exception {
         Connector listener = new SelectChannelConnector();
 
         listener.setHost("127.0.0.1");
-        listener.setPort(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999));
+        listener.setPort(port);
         server.addConnector(listener);
     }
 
@@ -55,4 +73,53 @@ public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
         atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
+    @Test(timeOut = 60000)
+    public void testSuspendTimeout() {
+        System.out.println("Running testSuspendTimeout");
+        final CountDownLatch latch = new CountDownLatch(1);
+        atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
+
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                currentTime = System.currentTimeMillis();
+                event.suspend(5000, false);
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+
+                try {
+                    event.getResource().getResponse().getOutputStream().write("resume".getBytes());
+                    assertTrue(event.isResumedOnTimeout());
+                    long time = System.currentTimeMillis() - currentTime;
+                    if (time > 5000 && time < 15000) {
+                        assertTrue(true);
+                    } else {
+                        assertFalse(false);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            Response r = c.prepareGet(urlTarget).execute().get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "resume");
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+        c.close();
+    }
 }

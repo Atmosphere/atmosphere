@@ -54,6 +54,7 @@ import org.testng.annotations.Test;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -88,6 +89,21 @@ public abstract class BaseTest {
                 }
             }
             return defaultValue;
+        }
+    }
+
+    protected int findFreePort() throws IOException {
+        ServerSocket socket = null;
+
+        try {
+            socket = new ServerSocket(0);
+
+            return socket.getLocalPort();
+        }
+        finally {
+            if (socket != null) {
+                socket.close();
+            }
         }
     }
 

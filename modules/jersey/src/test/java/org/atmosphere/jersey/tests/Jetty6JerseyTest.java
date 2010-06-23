@@ -55,7 +55,7 @@ public class Jetty6JerseyTest extends BlockingIOJerseyTest {
         Connector listener = new SelectChannelConnector();
 
         listener.setHost("127.0.0.1");
-        listener.setPort(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999));
+        listener.setPort(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort()));
         server.addConnector(listener);
 
         server.start();

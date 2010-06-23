@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -60,6 +61,21 @@ public class MeteorTest {
         }
     }
 
+    protected int findFreePort() throws IOException {
+        ServerSocket socket = null;
+
+        try {
+            socket = new ServerSocket(0);
+
+            return socket.getLocalPort();
+        }
+        finally {
+            if (socket != null) {
+                socket.close();
+            }
+        }
+    }
+    
     public static class Meteor1 extends HttpServlet {
         @Override
         public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -97,7 +113,7 @@ public class MeteorTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = org.atmosphere.tests.BaseTest.TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        int port = org.atmosphere.tests.BaseTest.TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new Server(port);
