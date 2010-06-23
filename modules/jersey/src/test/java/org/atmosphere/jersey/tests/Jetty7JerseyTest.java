@@ -46,7 +46,7 @@ public class Jetty7JerseyTest extends BaseTest {
 
     @Override
     public void startServer() throws Exception {
-        server = new Server(TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999));
+        server = new Server(port);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);

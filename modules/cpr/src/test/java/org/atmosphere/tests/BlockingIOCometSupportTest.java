@@ -36,35 +36,14 @@
  */
 package org.atmosphere.tests;
 
-import com.ning.http.client.AsyncCompletionHandler;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import org.apache.log4j.BasicConfigurator;
-import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 
 public class BlockingIOCometSupportTest extends BaseTest {
@@ -74,19 +53,19 @@ public class BlockingIOCometSupportTest extends BaseTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
         configureCometSupport();
-        setConnector();
+        setConnector(port);
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
-    public void setConnector() {
+    public void setConnector(int port) throws Exception {
     }
 
     public void configureCometSupport() {

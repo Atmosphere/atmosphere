@@ -74,7 +74,7 @@ public class TomcatJerseyTest extends BaseTest {
     public void setUpGlobal() throws Exception {
         System.setProperty("org.atmosphere.useNative", "true");
 
-        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         configureCometSupport();
         startServer();

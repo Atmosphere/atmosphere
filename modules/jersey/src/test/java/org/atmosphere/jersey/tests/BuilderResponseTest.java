@@ -29,7 +29,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest{
     @Override
     @BeforeMethod(alwaysRun = true)
     public void setUpGlobal() throws Exception {
-        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/builder/invoke";
         atmoServlet = new AtmosphereServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
