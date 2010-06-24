@@ -54,7 +54,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>0.6-SNAPSHOT</version>
+            <version>${atmosphere-version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish</groupId>
@@ -70,7 +70,7 @@
                 <dependency>
                     <groupId>org.atmosphere</groupId>
                     <artifactId>atmosphere-runtime</artifactId>
-                    <version>0.6-SNAPSHOT</version>
+                    <version>${atmosphere-version}</version>
                     <exclusions>
                         <exclusion>
                             <groupId>org.atmosphere</groupId>
@@ -96,7 +96,7 @@
                 <dependency>
                     <groupId>org.atmosphere</groupId>
                     <artifactId>atmosphere-runtime</artifactId>
-                    <version>0.6-SNAPSHOT</version>
+                    <version>${atmosphere-version}</version>
                     <exclusions>
                         <exclusion>
                             <groupId>org.atmosphere</groupId>

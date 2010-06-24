@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-annotations</artifactId>
-            <version>0.6-SNAPSHOT</version>
+            <version>${atmosphere-version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
