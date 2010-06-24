@@ -148,17 +148,17 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-weblogic</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-tomcat</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

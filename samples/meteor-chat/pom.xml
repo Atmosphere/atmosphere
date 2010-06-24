@@ -17,7 +17,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-commons</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

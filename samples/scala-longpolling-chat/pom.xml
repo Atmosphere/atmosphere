@@ -41,7 +41,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.sun.grizzly</groupId>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.atmosphere.plugins</groupId>
             <artifactId>atmosphere-grizzly-adapter</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>
