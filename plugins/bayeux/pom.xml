@@ -54,7 +54,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>0.6-SNAPSHOT</version>
+            <version>${atmosphere-version}</version>
         </dependency>
         <dependency>
             <groupId>org.cometd.java</groupId>
