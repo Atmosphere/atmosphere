@@ -72,12 +72,12 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jgroups</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
         <dependency>
             <groupId>com.sun.jersey.contribs</groupId>

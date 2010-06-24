@@ -67,7 +67,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-tomcat</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
     </dependencies>
 </project>

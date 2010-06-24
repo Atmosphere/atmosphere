@@ -42,7 +42,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
         <dependency>
             <groupId>com.sun.grizzly</groupId>
@@ -52,7 +52,7 @@
         <dependency>
             <groupId>org.atmosphere.plugins</groupId>
             <artifactId>atmosphere-grizzly-adapter</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
     </dependencies>
     <build>

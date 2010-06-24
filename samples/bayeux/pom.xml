@@ -22,7 +22,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-bayeux</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
         </dependency>
     </dependencies>
 
