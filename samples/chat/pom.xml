@@ -18,7 +18,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jgroups</artifactId>
-            <version>${atmosphere-version}</version>
+            <version>${pom.version}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
