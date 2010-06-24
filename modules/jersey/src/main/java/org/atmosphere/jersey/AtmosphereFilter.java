@@ -215,8 +215,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             ((AtmosphereEventLifecycle) r).addEventListener(el);
                         }
                     }
+
+                    Broadcaster bc = s.broadcaster();
+                    if (bc == null){
+                        bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
+                    }
+
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk,
-                            translateTimeUnit(s.period().value(),s.period().timeUnit()), request, response, r);
+                            translateTimeUnit(s.period().value(),s.period().timeUnit()), request, response,bc, r);
 
                     break;
                 case SUSPEND:
@@ -235,7 +241,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                     new IllegalStateException("Invalid AtmosphereResourceEventListener " + e));
                         }
                     }
-                    suspend(sessionSupported, resumeOnBroadcast, outputJunk, suspendTimeout, request, response, r);
+                    suspend(sessionSupported, resumeOnBroadcast, outputJunk, suspendTimeout, request, response, (
+                            Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER), r);
                     break;
                 case RESUME:
                     if (response.getEntity() != null) {
@@ -408,6 +415,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      long timeout,
                      ContainerRequest request,
                      ContainerResponse response,
+                     Broadcaster bc,
                      AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
 
             BroadcasterFactory bf = (BroadcasterFactory) servletReq
@@ -426,7 +434,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(RESUME_CANDIDATES, resumeCandidates);
             }
 
-            Broadcaster bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
             if (bc == null) {
                 bc = r.getBroadcaster();
             }

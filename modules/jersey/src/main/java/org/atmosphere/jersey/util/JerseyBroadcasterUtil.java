@@ -73,13 +73,16 @@ public final class JerseyBroadcasterUtil {
     }
 
     final static void onException(Throwable t, AtmosphereResource<?,?> r) {
-        if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-            LoggerUtils.getLogger().log(Level.FINE, "", t);
+        try {
+            if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
+                LoggerUtils.getLogger().log(Level.FINE, "", t);
+            }
+            if (t instanceof IOException && r instanceof AtmosphereEventLifecycle) {
+                ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
+                ((AtmosphereEventLifecycle) r).removeEventListeners();
+            }
+        } finally {
+            r.getBroadcaster().removeAtmosphereResource(r);
         }
-        if (t instanceof IOException && r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-            ((AtmosphereEventLifecycle) r).removeEventListeners();
-        }
-        r.getBroadcaster().removeAtmosphereResource(r);
     }
 }
