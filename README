@@ -15,7 +15,7 @@ Atmosphere is also availaible as part of the following framework:
 * Akka, event-driven, scalable and fault-tolerant architectures for the JVM
 * Google Widget Toolkit (GWT)
 
-Browse our super easy Rest based PubSub sample and read on what is Atmosphere exactly.
+Atmosphere ship with a JQuery Plug In that can be used with any Comet or WebSocket Framework:
 
     http://is.gd/bJXhH
 
