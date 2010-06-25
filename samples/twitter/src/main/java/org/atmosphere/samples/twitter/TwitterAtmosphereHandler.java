@@ -169,20 +169,14 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 response.getWriter().println("ok");
             } else if ("start".equals(action)) {
-                String message = "{ message : 'Welcome'}";              
+                String message = "{ message : 'Welcome'}";
                 response.setContentType("text/html;charset=ISO-8859-1");
-                atmoResource.suspend();
-                
+
                 String callback = request.getParameter("callback");
                 if (callback == null) {
                     callback = "alert";
                 }
 
-                response.getWriter().println("<script id='comet_" + counter++ + "'>" 
-                        + "window.parent." + callback + "(" + message + ");</script>");
-                response.getWriter().println(startingMessage);
-                response.getWriter().flush();
-                
                 // Use one Broadcaster per AtmosphereResource
                 try {
                     atmoResource.setBroadcaster(BroadcasterFactory.getDefault().get());
@@ -192,9 +186,15 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
                 // Create a Broadcaster based on this session id.
                 myBroadcasterFollower = atmoResource.getBroadcaster();
-                
+                atmoResource.suspend();
+
                 session.setAttribute("atmoResource", atmoResource);
                 session.setAttribute(sessionId, myBroadcasterFollower);
+
+                response.getWriter().println("<script id='comet_" + counter++ + "'>"
+                        + "window.parent." + callback + "(" + message + ");</script>");
+                response.getWriter().println(startingMessage);
+                response.getWriter().flush();
             } else if ("following".equals(action)) {
                 response.setContentType("text/html");
                 String follow = request.getParameter("message");
