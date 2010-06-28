@@ -36,22 +36,10 @@
  */
 package org.atmosphere.jersey.tests;
 
-import com.ning.http.client.AsyncCompletionHandler;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
-import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.testng.annotations.Test;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 public class Jetty7JerseyTest extends BaseTest {
     protected Server server;
@@ -74,50 +62,5 @@ public class Jetty7JerseyTest extends BaseTest {
     @Override
     public void stopServer() throws Exception {
         server.stop();
-    }
-
-
-    @Test(timeOut = 60000)
-    public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
-        System.out.println("Running testHeaderBroadcasterCache");
-        atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
-        final CountDownLatch latch = new CountDownLatch(1);
-        long t1 = System.currentTimeMillis();
-        AsyncHttpClient c = new AsyncHttpClient();
-        try {
-            // Suspend
-            c.preparePost(urlTarget).addParameter("message", "cacheme").execute().get();
-
-            // Broadcast
-            c.preparePost(urlTarget).addParameter("message", "cachememe").execute().get();
-
-            //Suspend
-            Response r = c.prepareGet(urlTarget + "/subscribeAndResume").addHeader("X-Cache-Date", String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
-
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    try {
-                        return r;
-                    } finally {
-                        latch.countDown();
-                    }
-                }
-            }).get();
-
-            try {
-                latch.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                fail(e.getMessage());
-            }
-
-            assertNotNull(r);
-            assertEquals(r.getStatusCode(), 200);
-            assertEquals(r.getResponseBody(), "cacheme\ncachememe\n");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-
-        c.close();
     }
 }
