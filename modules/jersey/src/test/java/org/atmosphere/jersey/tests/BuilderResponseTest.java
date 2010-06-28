@@ -1,8 +1,18 @@
 package org.atmosphere.jersey.tests;
 
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.Response;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class BuilderResponseTest extends BlockingIOJerseyTest{
 
@@ -23,4 +33,24 @@ public class BuilderResponseTest extends BlockingIOJerseyTest{
         startServer();
     }
 
+    @Test(timeOut = 20000)
+    public void test204() {
+        System.out.println("Running testSuspendTimeout");
+        AsyncHttpClient c = new AsyncHttpClient();
+        urlTarget = "http://127.0.0.1:" + port + "/builder/invoke/204";
+        try {
+            long t1 = System.currentTimeMillis();
+            Response r = c.prepareGet(urlTarget).execute().get(10, TimeUnit.SECONDS);
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 204);
+            String resume = r.getResponseBody();
+            long current = System.currentTimeMillis() - t1;
+            assertTrue(current > 5000 && current < 10000);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+        c.close();
+
+    }
 }

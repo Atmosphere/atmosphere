@@ -221,4 +221,18 @@ public class BuilderPubSubTest {
     Broadcastable broadcast(String m){
        return new Broadcastable(m + "\n", broadcaster);
     }
+
+    @GET
+    @Path("204")
+    public SuspendResponse<String> suspend204() {
+
+        SuspendResponse<String> r = new SuspendResponse.SuspendResponseBuilder<String>()
+                .broadcaster(broadcaster)
+                .outputComments(false)
+                .resumeOnBroadcast(true)
+                .period(5, TimeUnit.SECONDS)
+                .build();
+
+        return r;
+    }
 }
