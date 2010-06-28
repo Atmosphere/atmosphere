@@ -418,11 +418,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      Broadcaster bc,
                      AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
 
-            // Force the status code to 200 events independently of the value of the entity (null or not)
-            if (response.getEntity() == null) {
-                response.setStatus(200);
-            }
-                      
             BroadcasterFactory bf = (BroadcasterFactory) servletReq
                     .getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
 

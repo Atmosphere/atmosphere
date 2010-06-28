@@ -50,7 +50,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 
 /**
@@ -59,9 +58,6 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class Jetty7CometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
-
-    private final ConcurrentLinkedQueue<Continuation> resumed
-            = new ConcurrentLinkedQueue<Continuation>();
 
     public Jetty7CometSupport(AtmosphereConfig config) {
         super(config);
@@ -95,18 +91,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
                 if (logger.isLoggable(Level.FINE)) {
                     logger.fine("Resume " + res);
                 }
-
-                if (!resumed.remove(c)) {
-                    try {
-                        c.complete();
-                    } catch (java.lang.IllegalStateException ex) {
-                        if (logger.isLoggable(Level.FINE)) {
-                            logger.fine("Continuation.complete() " + ex);
-                        }
-                    } finally {
-                        resumed(req, res);
-                    }
-                }
+                c.complete();
             }
         } else if (!c.isInitial() && c.isExpired()) {
             timedout(req, res);
@@ -130,8 +115,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
                 if (logger.isLoggable(Level.FINE)) {
                     logger.fine("Continuation.complete() " + ex);
                 }
-            } finally {
-                resumed.offer(c);
             }
         } else {
             try {
