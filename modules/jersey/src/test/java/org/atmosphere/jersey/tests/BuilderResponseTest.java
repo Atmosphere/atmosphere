@@ -34,7 +34,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest{
     }
 
     @Test(timeOut = 20000)
-    public void test204() {
+    public void test200WithNoContent() {
         System.out.println("Running testSuspendTimeout");
         AsyncHttpClient c = new AsyncHttpClient();
         urlTarget = "http://127.0.0.1:" + port + "/builder/invoke/204";
@@ -42,7 +42,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest{
             long t1 = System.currentTimeMillis();
             Response r = c.prepareGet(urlTarget).execute().get(10, TimeUnit.SECONDS);
             assertNotNull(r);
-            assertEquals(r.getStatusCode(), 204);
+            assertEquals(r.getStatusCode(), 200);
             String resume = r.getResponseBody();
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
