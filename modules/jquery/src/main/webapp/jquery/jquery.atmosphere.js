@@ -327,7 +327,8 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
-            var location = url.replace('http:', 'ws:');
+            var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
+
             var websocket = new WebSocket(location);
             jQuery.atmosphere.websocket = websocket;
 
