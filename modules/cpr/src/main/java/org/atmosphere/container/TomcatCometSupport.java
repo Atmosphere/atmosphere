@@ -37,7 +37,6 @@
  */
 package org.atmosphere.container;
 
-import com.sun.grizzly.comet.CometEngine;
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometEvent.EventType;
 import org.atmosphere.cpr.AsynchronousProcessor;
