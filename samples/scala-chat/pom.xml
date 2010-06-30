@@ -41,7 +41,7 @@
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
         <version>0.7-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>                
+
     </parent>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-scala-chat</artifactId>
