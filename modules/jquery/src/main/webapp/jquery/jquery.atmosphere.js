@@ -21,7 +21,7 @@ jQuery.atmosphere = function()
     });
 
     return {
-        version : 0.6,
+        version : 0.7-SNAPSHOT,
         response : {
             status: 200,
             responseBody : '',
