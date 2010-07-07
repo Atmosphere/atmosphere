@@ -38,12 +38,15 @@ package org.atmosphere.tests.spade;
 
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import com.sun.grizzly.SSLConfig;
 import org.atmosphere.grizzly.AtmosphereSpadeServer;
 import org.atmosphere.util.LoggerUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.net.URL;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -113,7 +116,27 @@ public class SpadeServerTest {
             fail(e.getMessage());
         }
         c.close();
+    }
 
+    @Test(timeOut = 20000)
+    public void testSSLStartup() throws Exception{
+        System.out.println("Running testSSLStartup");
+
+        SSLConfig cfg = new SSLConfig();
+        ClassLoader cl = getClass().getClassLoader();
+        URL keystoreUrl = cl.getResource("ssltest-keystore.jks");
+        String keyStoreFile = new File(keystoreUrl.toURI()).getAbsolutePath();
+        cfg.setKeyStoreFile(keyStoreFile);
+        cfg.setKeyPass("changeit");
+
+        URL cacertsUrl = cl.getResource("ssltest-cacerts.jks");
+        String trustStoreFile = new File(cacertsUrl.toURI()).getAbsolutePath();
+        cfg.setTrustStoreFile(trustStoreFile);
+        cfg.setTrustStorePass("changeit");
+
+        AtmosphereSpadeServer sslSpade = AtmosphereSpadeServer.build("https://127.0.0.1:" + 7777 + "/",
+                PubSubTest.class.getPackage().getName(), cfg );
+        sslSpade.start();
     }
 
     public void startServer() throws Exception {
