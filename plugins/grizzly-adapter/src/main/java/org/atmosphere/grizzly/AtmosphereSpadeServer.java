@@ -37,6 +37,7 @@
  */
 package org.atmosphere.grizzly;
 
+import com.sun.grizzly.SSLConfig;
 import com.sun.grizzly.comet.CometAsyncFilter;
 import com.sun.grizzly.http.embed.GrizzlyWebServer;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -60,8 +61,8 @@ public final class AtmosphereSpadeServer {
     private final AtmosphereAdapter aa = new AtmosphereAdapter();
     private boolean defaultToJersey = true;
 
-    private AtmosphereSpadeServer(int port) {
-        gws = new GrizzlyWebServer(port);
+    private AtmosphereSpadeServer(int port, boolean secure) {
+        gws = new GrizzlyWebServer(port, ".", secure);
         gws.getSelectorThread().setDisplayConfiguration(false);
         gws.addAsyncFilter(new CometAsyncFilter());
     }
@@ -70,12 +71,11 @@ public final class AtmosphereSpadeServer {
      * Create a {@link AtmosphereSpadeServer} which listen based using the URI u.
      *
      * @param u The URI the server listen for requests
-     * @return
+     * @return an instance of AtmosphereSpadeServer
      */
     public static AtmosphereSpadeServer build(String u) {
        return AtmosphereSpadeServer.build(u,"");
     }
-
 
     /**
      * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
@@ -83,16 +83,41 @@ public final class AtmosphereSpadeServer {
      *
      * @param u The URI the server listen for requests
      * @param resourcesPackage The resources package name.
-     * @return
+     * @return an instance of AtmosphereSpadeServer
      */
     public static AtmosphereSpadeServer build(String u, String resourcesPackage) {
+        return AtmosphereSpadeServer.build(u,resourcesPackage,null);
+    }
+
+    /**
+     * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
+     * resources defined under the resources package.
+     *
+     * @param u The URI the server listen for requests
+     * @param sslConfig The {@link SSLConfig}
+     * @return an instance of AtmosphereSpadeServer
+     */
+    public static AtmosphereSpadeServer build(String u, SSLConfig sslConfig) {
+        return AtmosphereSpadeServer.build(u,null,sslConfig);
+    }
+
+    /**
+     * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
+     * resources defined under the resources package.
+     *
+     * @param u The URI the server listen for requests
+     * @param resourcesPackage The resources package name.
+     * @param sslConfig The {@link SSLConfig}
+     * @return
+     */
+    public static AtmosphereSpadeServer build(String u, String resourcesPackage, SSLConfig sslConfig) {
         if (u == null) {
             throw new IllegalArgumentException("The URI must not be null");
         }
         
         URI uri = URI.create(u);
         final String scheme = uri.getScheme();
-        if (!scheme.equalsIgnoreCase("http"))
+        if (!scheme.startsWith("http"))
             throw new IllegalArgumentException("The URI scheme, of the URI " + u +
                     ", must be equal (ignoring case) to 'http'");
 
@@ -109,7 +134,12 @@ public final class AtmosphereSpadeServer {
                     ". must start with a '/'");
         }
 
-        AtmosphereSpadeServer a = new AtmosphereSpadeServer(port);
+        boolean secure = false;
+        if (scheme.equalsIgnoreCase("https")) {
+            secure = true;
+        }
+
+        AtmosphereSpadeServer a = new AtmosphereSpadeServer(port, secure);
         if (path.length() > 1) {
             if (path.endsWith("/")) {
                 path = path.substring(0, path.length() - 1);
@@ -120,7 +150,16 @@ public final class AtmosphereSpadeServer {
         if (resourcesPackage != null) {
             a.aa.setResourcePackage(resourcesPackage);
         }
+
+        if (sslConfig != null) {
+            a.setSSLConfig(sslConfig);
+        }
+
         return a;
+    }
+
+    private void setSSLConfig(SSLConfig sslConfig) {
+        gws.setSSLConfig(sslConfig);
     }
 
     /**

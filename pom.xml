@@ -438,7 +438,7 @@
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b73</servlet-version>
         <bayeux-version>1.1.0</bayeux-version>
-        <grizzly-version>1.9.19-beta3</grizzly-version>
+        <grizzly-version>1.9.19-beta5</grizzly-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.1.1.v20100517</jetty7-version>
