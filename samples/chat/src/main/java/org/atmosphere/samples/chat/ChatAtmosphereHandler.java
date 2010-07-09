@@ -58,7 +58,7 @@ import org.atmosphere.util.XSSHtmlFilter;
  * Simple AtmosphereHandler that implement the logic to build a Chat application.
  *
  * @author Jeanfrancois Arcand
- * @autor TAKAI Naoto (Orginial author for the Comet based Chat).
+ * @autor TAKAI Naoto (original author for the Comet based Chat).
  */
 public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 

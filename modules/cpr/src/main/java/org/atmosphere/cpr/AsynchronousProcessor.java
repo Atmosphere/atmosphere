@@ -91,13 +91,12 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
             closedDetector.scheduleAtFixedRate(new Runnable(){
                 public void run(){
-                    long time = System.currentTimeMillis();
                     for (HttpServletRequest req: aliveRequests.keySet()){
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
-                        if (l != 0 && System.currentTimeMillis() - l > maxInactiveTime){
+                        if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime){
                             try {
-                                req.setAttribute(MAX_INACTIVE, (long)-1);
                                 cancelled(req,aliveRequests.get(req).getResponse());
+                                req.setAttribute(MAX_INACTIVE, (long)-1);                                
                             } catch (IOException e) {
                             } catch (ServletException e) {
                             }
@@ -284,6 +283,13 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
 
         AtmosphereResourceImpl re;
+        long l = (Long) req.getAttribute(MAX_INACTIVE);
+        if (l == -1) {
+            // The closedDetector closed the connection.
+            return timedoutAction;            
+        }
+        req.setAttribute(MAX_INACTIVE, (long)-1);
+
         // Something went wrong.
         if (req == null || res == null) {
             logger.warning("Invalid Request/Response: " + req + "/" + res);
@@ -346,6 +352,13 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
 
         AtmosphereResourceImpl re = null;
+        long l = (Long) req.getAttribute(MAX_INACTIVE);
+        if (l == -1) {
+            // The closedDetector closed the connection.
+            return timedoutAction;
+        }
+        req.setAttribute(MAX_INACTIVE, (long)-1);
+        
         try {
             re = (AtmosphereResourceImpl) req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
             if (re != null) {
