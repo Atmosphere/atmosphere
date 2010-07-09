@@ -40,12 +40,7 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.*;
 import org.atmosphere.util.StringFilterAggregator;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -961,6 +956,57 @@ public abstract class BaseTest {
             fail(e.getMessage());
         }
 
+        c.close();
+    }
+
+    @Test(timeOut = 60000)
+    public void testSuspendRejectPolicy() {
+        System.out.println("Running testSuspendTimeout");
+        final CountDownLatch latch = new CountDownLatch(1);
+        atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
+
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                currentTime = System.currentTimeMillis();
+                event.getBroadcaster().setSuspendPolicy(1, Broadcaster.POLICY.REJECT);
+                event.suspend(5000, false);
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+
+                try {
+                    event.getResource().getResponse().getOutputStream().write("resume".getBytes());
+                    assertTrue(event.isResumedOnTimeout());
+                    long time = System.currentTimeMillis() - currentTime;
+                    if (time > 5000 && time < 15000) {
+                        assertTrue(true);
+                    } else {
+                        assertFalse(false);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            Response r = c.prepareGet(urlTarget).execute().get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "resume");
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
         c.close();
     }
 }
