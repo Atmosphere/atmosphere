@@ -5,21 +5,29 @@
     xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_3.0.xsd">
     -->
 <web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
-  xmlns:j2ee="http://java.sun.com/xml/ns/javaee"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_2.5.xsd">
-    
+         xmlns:j2ee="http://java.sun.com/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_2.5.xsd">
+
     <description>Atmosphere Chat</description>
     <display-name>Atmosphere Chat</display-name>
     <servlet>
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
-        <!--
         <async-supported>true</async-supported>
+        <!--
+        Uncomment if you are using a WebServer that doesn't support Comet or you want to use blocking I/O
         <init-param>
             <param-name>org.atmosphere.useBlocking</param-name>
             <param-value>true</param-value>
+        </init-param>
+
+        WebServer that aren't supporting Comet and Jetty aren't supporting detection of browser disconnection.
+        Uncomment to let Atmosphere times out idle connection to avoid memory leak
+        <init-param>
+            <param-name>org.atmosphere.cpr.CometSupport.maxInactiveActivity</param-name>
+            <param-value>30000</param-value>
         </init-param>
         -->
         <load-on-startup>0</load-on-startup>

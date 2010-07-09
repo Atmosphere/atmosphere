@@ -284,9 +284,17 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
                     && HttpServletRequest.class.isAssignableFrom(r.getRequest().getClass())) {
-                HttpServletRequest.class.cast(r.getRequest()).setAttribute(CometSupport.MAX_INACTIVE, (Long)System.currentTimeMillis());
+                try {
+                    HttpServletRequest.class.cast(r.getRequest()).setAttribute(CometSupport.MAX_INACTIVE, (Long)System.currentTimeMillis());
+                } catch (Throwable t) {
+                    // Shield us from any corrupted Request
+                    if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
+                        LoggerUtils.getLogger().log(Level.FINE,"Preventing corruption of a recycled request",e);
+                        events.remove(r);
+                        return;
+                    }
+                }
             }
-            
             broadcast(r, e);
         }
     }
