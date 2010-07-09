@@ -53,10 +53,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
-
 /**
  * {@link Broadcaster} implementation.
  * <p/>
@@ -69,7 +69,7 @@ import java.util.logging.Level;
  */
 public class DefaultBroadcaster implements Broadcaster {
 
-    protected final Collection<AtmosphereResource<?,?>> events =
+    protected final ConcurrentLinkedQueue<AtmosphereResource<?,?>> events =
             new ConcurrentLinkedQueue<AtmosphereResource<?,?>>();
     protected BroadcasterConfig bc = AtmosphereServlet.getBroadcasterConfig();
     protected final BlockingQueue<Entry> messages =
@@ -80,8 +80,10 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast =
             new ConcurrentLinkedQueue<Entry>();
     private Future<?> notifierFuture;
-
     protected BroadcasterCache broadcasterCache;
+
+    private POLICY policy = POLICY.FIFO;
+    private long maxSuspendResource = -1;
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -340,6 +342,12 @@ public class DefaultBroadcaster implements Broadcaster {
         removeAtmosphereResource(r);
     }
 
+    @Override
+    public void setSuspendPolicy(long maxSuspendResource, POLICY policy) {
+        this.maxSuspendResource = maxSuspendResource;
+        this.policy = policy;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -397,6 +405,20 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> r) {
+
+        if (maxSuspendResource > 0 && events.size() == maxSuspendResource) {
+            // Resume the first in.
+            if (policy == POLICY.FIFO) {
+                try {
+                    events.poll().resume();
+                } catch (Throwable t) {
+                    LoggerUtils.getLogger().log(Level.WARNING,"addAtmosphereResource",t);
+                }
+            } else if (policy == POLICY.REJECT) {
+                throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
+            }
+        }
+
         if (events.contains(r)) {
             return r;
         }

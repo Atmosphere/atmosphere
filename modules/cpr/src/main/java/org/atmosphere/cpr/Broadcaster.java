@@ -78,6 +78,21 @@ public interface Broadcaster {
         REQUEST, APPLICATION, VM
     }
 
+    public enum POLICY {
+        FIFO, REJECT
+    }
+
+    /**
+     * Set the maximum number of suspended {@link AtmosphereResource}. If the max is reached, Atmosphere will either
+     * resume {@link AtmosphereResource} using {@link org.atmosphere.cpr.Broadcaster.POLICY#FIFO} (first in first out)
+     * or {@link org.atmosphere.cpr.Broadcaster.POLICY#REJECT} the {@link AtmosphereResource}.
+     *
+     * By default the number is uunlimited.
+     *
+     * @param maxSuspended max suspended
+     * @oaram policy the {@link org.atmosphere.cpr.Broadcaster.POLICY}
+     */
+    public void setSuspendPolicy(long maxSuspended, POLICY policy);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
