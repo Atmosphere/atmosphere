@@ -41,6 +41,7 @@ package org.atmosphere.cpr;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -156,7 +157,7 @@ public class Meteor {
 
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
-                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName());
+                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }
