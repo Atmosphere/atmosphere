@@ -66,9 +66,7 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
-
-    private String atmosphereCtx = "";
-
+    
     private final GrizzlyApplication grizzlyApplication = new GrizzlyApplication();
 
     public GlassFishWebSocketSupport(AtmosphereConfig config) {
@@ -83,7 +81,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             throws IOException, ServletException {
 
         String connection = req.getHeader("Connection");
-        if (connection == null || !connection.equalsIgnoreCase("Upgrade")) {
+        if (!"Upgrade".equalsIgnoreCase(connection)) {
             return super.service(req, res);
         } else {
             Action action = suspended(req, res);
@@ -115,18 +113,13 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         private WebSocketProcessor webSocketProcessor;
 
-        @Override
-        public WebSocket createSocket(final Request request, final Response response) throws IOException {
-            return new AtmoWebSocket(this, request, response);
-        }
-
         public void onConnect(WebSocket w) {
 
-            if (!AtmoWebSocket.class.isAssignableFrom(w.getClass())) {
+            if (!BaseServerWebSocket.class.isAssignableFrom(w.getClass())) {
                 throw new IllegalStateException();
             }
 
-            AtmoWebSocket webSocket = AtmoWebSocket.class.cast(w);
+            BaseServerWebSocket webSocket = BaseServerWebSocket.class.cast(w);
             webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocketSupport(webSocket));
             try {
                 webSocketProcessor.connect(webSocket.getRequest());
@@ -147,38 +140,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     @Override
     public boolean supportWebSocket(){
         return true;
-    }
-
-    /**
-     * Hack Grizzly internal to uniform websocket support in Atmosphere.
-     */
-    private class AtmoWebSocket extends BaseServerWebSocket {
-
-        private Request coyoteRequest;
-
-        public AtmoWebSocket(WebSocketListener listener, final Request request, final Response response) {
-            super(listener, request, response);
-            coyoteRequest = request;
-        }
-
-        public HttpServletRequest getRequest() throws IOException {
-            GrizzlyRequest r = new GrizzlyRequest();
-            r.setRequest(coyoteRequest);
-            AtmoRequest h = new AtmoRequest(r);
-            h.contextImpl();
-            return h;
-        }
-
-        class AtmoRequest extends HttpServletRequestImpl {
-
-            public AtmoRequest(GrizzlyRequest request) throws IOException {
-                super(request);
-            }
-
-            public void contextImpl() {
-                setContextImpl(new ServletContextImpl());
-            }
-        }
     }
 
     public class GrizzlyWebSocketSupport implements WebSocketSupport {
