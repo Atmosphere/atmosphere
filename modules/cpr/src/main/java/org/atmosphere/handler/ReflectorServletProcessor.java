@@ -42,6 +42,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
+import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -60,6 +61,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.logging.Level;
 
 /**
  * Simple {@link AtmosphereServletProcessor} that delegate the {@link AtmosphereHandler#onRequest}
@@ -132,6 +134,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {
+            LoggerUtils.getLogger().log(Level.SEVERE,"onRequest",ex);
             throw new RuntimeException(ex);
         }
     }
