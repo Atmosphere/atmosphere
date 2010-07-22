@@ -140,11 +140,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     @Override
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
         Broadcaster b = getBroadcaster(id);
-        if (b != null && b.getScope() == Broadcaster.SCOPE.REQUEST) {
-            throw new IllegalStateException("Broadcaster " + b
-                    + " cannot be looked up as its scope is REQUEST");
-        }
-
         if (b != null && !c.isAssignableFrom(b.getClass())) {
             String em = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
             if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {

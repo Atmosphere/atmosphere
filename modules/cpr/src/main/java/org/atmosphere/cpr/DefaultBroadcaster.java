@@ -84,6 +84,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
+    private final AtomicBoolean requestScoped = new AtomicBoolean(false);
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -405,6 +406,11 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> r) {
+
+        if (scope == SCOPE.REQUEST && requestScoped.getAndSet(true)) {
+            throw new IllegalStateException("Broadcaster " + this
+                    + " cannot be used as its scope is set to REQUEST");
+        }
 
         if (maxSuspendResource > 0 && events.size() == maxSuspendResource) {
             // Resume the first in.
