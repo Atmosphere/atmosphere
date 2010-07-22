@@ -46,6 +46,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -98,10 +99,11 @@ public class AtmosphereResourceImpl implements
     /**
      * Create an {@link AtmosphereResource}.
      *
-     * @param config
-     * @param broadcaster The {@link Broadcaster}.
-     * @param req         The {@link HttpServletRequest}
-     * @param res         The {@link HttpServletResponse}
+     * @param config       The {@link AtmosphereConfig}
+     * @param broadcaster  The {@link Broadcaster}.
+     * @param req          The {@link HttpServletRequest}
+     * @param res          The {@link HttpServletResponse}
+     * @param cometSupport The {@link CometSupport}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
                                   HttpServletRequest req, HttpServletResponse res,
@@ -184,6 +186,18 @@ public class AtmosphereResourceImpl implements
             req.setAttribute(PRE_SUSPEND, "true");
             action.type = AtmosphereServlet.Action.TYPE.SUSPEND;
             action.timeout = timeout;
+
+            // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
+            // is unique.
+            if (broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) {
+                String id = broadcaster.getID();
+                Class<? extends Broadcaster> clazz = broadcaster.getClass(); 
+                broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
+                if (broadcaster == null) {
+                    broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id + "/" + UUID.randomUUID(), true);
+                }
+            }
+
             broadcaster.addAtmosphereResource(this);
             req.removeAttribute(PRE_SUSPEND);
             notifyListeners();
