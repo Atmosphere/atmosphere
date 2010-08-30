@@ -34,6 +34,7 @@ jQuery.atmosphere = function()
         },
 
         request : {},
+        abordingConnection: false,
         logLevel : 'info',
         callbacks: [],
         activeTransport : null,
@@ -93,6 +94,7 @@ jQuery.atmosphere = function()
          * Always make sure one transport is used, not two at the same time except for Websocket.
          */
         closeSuspendedConnection : function () {
+            abordingConnection = true;
             if (activeRequest != null) {
                 activeRequest.abort();
             }
@@ -101,6 +103,7 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.websocket.close();
                 jQuery.atmosphere.websocket = null;
             }
+            abordingConnection = false;
         },
 
         executeRequest: function()
@@ -173,6 +176,8 @@ jQuery.atmosphere = function()
 
                 ajaxRequest.onreadystatechange = function()
                 {
+                    if (abordingConnection) return;
+
                     var junkForWebkit = false;
                     var update = false;
                     if (ajaxRequest.readyState == 4) {
