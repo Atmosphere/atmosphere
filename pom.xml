@@ -436,7 +436,7 @@
         <gwt-version>1.7.0</gwt-version>
         <junit-version>3.8.1</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
-        <servlet-version>3.0-b73</servlet-version>
+        <servlet-version>3.0-b74b</servlet-version>
         <bayeux-version>1.1.0</bayeux-version>
         <grizzly-version>1.9.19</grizzly-version>
         <jboss-version>2.1.1.GA</jboss-version>
