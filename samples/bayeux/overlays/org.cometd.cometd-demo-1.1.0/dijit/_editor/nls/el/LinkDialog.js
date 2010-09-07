@@ -1,1 +1,0 @@
-({"set":"Ορισμός","text":"Περιγραφή:","insertImageTitle":"Ιδιότητες εικόνας","url":"Διεύθυνση URL:","createLinkTitle":"Ιδιότητες διασύνδεσης","newWindow":"New Window","topWindow":"Topmost Window","target":"Target:","parentWindow":"Parent Window","currentWindow":"Current Window"})

@@ -1,1 +1,0 @@
-({"descending":"Csökkenő","ascending":"Növekvő","nestedSort":"Beágyazott rendezés","unsorted":"Az oszlop nincs rendezve","singleSort":"Egyszerű rendezés","sortingState":"${0} - ${1}"})

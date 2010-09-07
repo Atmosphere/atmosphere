@@ -44,9 +44,8 @@ import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
 import org.atmosphere.guice.AtmosphereGuiceServlet;
 
+import java.util.Collections;
 import java.util.Map;
-
-import static com.google.common.collect.ImmutableMap.of;
 
 public class GuiceConfig extends GuiceServletContextListener {
 
@@ -58,7 +57,7 @@ public class GuiceConfig extends GuiceServletContextListener {
                 bind(PubSubTest.class);
                 bind(new TypeLiteral<Map<String, String>>() {
                 }).annotatedWith(Names.named(AtmosphereGuiceServlet.JERSEY_PROPERTIES)).toInstance(
-                        of("", ""));
+                        Collections.<String, String>emptyMap());
             }
         });
     }

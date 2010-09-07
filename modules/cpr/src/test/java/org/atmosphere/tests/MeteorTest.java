@@ -3,7 +3,6 @@ package org.atmosphere.tests;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
-import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -132,7 +131,6 @@ public class MeteorTest {
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
         server.stop();
         server = null;
     }

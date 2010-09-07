@@ -219,7 +219,7 @@ public abstract class BaseTest {
                 }
 
                 public STATE onHeadersReceived(HttpResponseHeaders rh) throws Exception {
-                    location.set(rh.getHeaders().getHeaderValue("Location"));
+                    location.set(rh.getHeaders().getFirstValue("Location"));
                     return STATE.CONTINUE;
                 }
 

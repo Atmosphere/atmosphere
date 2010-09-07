@@ -1,1 +1,0 @@
-({"backwards":"Indietro","findReplace":"Mostra/Nascondi Trova/Sostituisci","replaceAll":"Tutte le occorrenze","replaceDialogText":"Occorrenze sostituite: ${0}.","replaceButton":"Sostituisci","findButton":"Trova","findLabel":"Trova:","matchCase":"Maiuscole/minuscole","replaceLabel":"Sostituisci con:"})

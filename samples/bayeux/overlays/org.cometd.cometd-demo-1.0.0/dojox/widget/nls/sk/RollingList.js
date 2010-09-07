@@ -1,1 +1,0 @@
-({"empty":"&lt;PRÁZDNY&gt;"})
