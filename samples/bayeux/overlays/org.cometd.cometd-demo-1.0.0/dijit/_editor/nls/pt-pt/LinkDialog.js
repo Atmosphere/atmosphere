@@ -1,1 +1,0 @@
-({"set":"Definir","text":"Descrição:","insertImageTitle":"Propriedades da imagem","url":"URL:","createLinkTitle":"Propriedades da ligação"})

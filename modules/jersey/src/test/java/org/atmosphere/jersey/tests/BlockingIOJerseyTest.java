@@ -36,7 +36,6 @@
  */
 package org.atmosphere.jersey.tests;
 
-import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
@@ -72,7 +71,6 @@ public class BlockingIOJerseyTest extends BaseTest {
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
         server.stop();
         server = null;
     }

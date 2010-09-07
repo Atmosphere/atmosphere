@@ -36,7 +36,6 @@
  */
 package org.atmosphere.tests;
 
-import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.eclipse.jetty.server.Server;
@@ -73,7 +72,6 @@ public class Jetty7CometSupportTest extends BaseTest {
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
         server.stop();
         server = null;
     }

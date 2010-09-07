@@ -1,1 +1,0 @@
-({"backwards":"V opačném směru","findReplace":"Přepnout hledání/nahrazování","replaceAll":"Všechny výskyty","replaceDialogText":"Počet nahrazených výskytů: ${0}. ","replaceButton":"Nahradit","findButton":"Najít","findLabel":"Hledaný řetězec:","matchCase":"S rozlišením velkých a malých písmen","replaceLabel":"Nahrazující řetězec:"})

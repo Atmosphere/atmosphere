@@ -1,1 +1,0 @@
-({"close":"[اغلاق]","title":"العنوان","authors":"المؤلفين","summary":"الملخص","content":"محتويات","contributors":"المساهمين","updated":"تعديل في","displayOptions":"[اختيارات العرض]","id":"الكود"})

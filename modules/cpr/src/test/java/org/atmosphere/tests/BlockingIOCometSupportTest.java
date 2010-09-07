@@ -36,13 +36,11 @@
  */
 package org.atmosphere.tests;
 
-import org.apache.log4j.BasicConfigurator;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.bio.SocketConnector;
-import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
@@ -83,7 +81,6 @@ public class BlockingIOCometSupportTest extends BaseTest {
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         atmoServlet.destroy();
-        BasicConfigurator.resetConfiguration();
         server.stop();
         server = null;
     }

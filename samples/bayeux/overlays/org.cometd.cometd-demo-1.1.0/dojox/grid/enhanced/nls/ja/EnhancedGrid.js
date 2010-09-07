@@ -1,1 +1,0 @@
-({"descending":"降順","ascending":"昇順","nestedSort":"ネストされたソート","unsorted":"この列はソートしないでください","singleSort":"単一ソート","sortingState":"${0} - ${1}"})
