@@ -155,6 +155,9 @@ jQuery.atmosphere = function()
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date());
+                for(var x in request.headers) {
+                    ajaxRequest.setRequestHeader(x, request.headers[x]);
+                }
 
                 if (!$.browser.msie) {
                     ajaxRequest.onerror = function()
