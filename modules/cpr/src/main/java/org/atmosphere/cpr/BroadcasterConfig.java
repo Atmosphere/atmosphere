@@ -101,7 +101,9 @@ public class BroadcasterConfig {
      * @param executorService to be used when broadcasting.
      */
     public BroadcasterConfig setExecutorService(ExecutorService executorService) {
-        this.executorService.shutdown();
+        if (this.executorService != null) {
+            this.executorService.shutdown();
+        }
         this.executorService = executorService;
         return this;
     }
