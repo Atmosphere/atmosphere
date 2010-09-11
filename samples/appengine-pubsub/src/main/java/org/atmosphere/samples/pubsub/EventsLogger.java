@@ -11,19 +11,18 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     public EventsLogger() {
     }
 
-    @Override
     public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
         System.out.println("onResume: " + event);
     }
-    @Override
+    
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         System.out.println("onResume: " + event);
     }
-    @Override
+    
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         System.out.println("onDisconnect: " + event);
     }
-    @Override
+    
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         System.out.println("onBroadcast: " + event);
     }
