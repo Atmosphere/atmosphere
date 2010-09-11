@@ -90,7 +90,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      */
     protected boolean testClassExists(final String testClass) {
         try {
-            return testClass != null && testClass.length() > 0 && Class.forName(testClass) != null;
+            return testClass != null && testClass.length() > 0 &&  Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
         } catch (ClassNotFoundException ex) {
             return false;
         } catch (NoClassDefFoundError ex) {
