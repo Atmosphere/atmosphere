@@ -246,6 +246,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void push(Entry msg) {
 
+        String prevMessage = msg.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
             while (i.hasNext()) {
@@ -257,8 +258,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Append so we do a single flush
                     if (e.message instanceof String
                             && msg.message instanceof String) {
-                        msg.message = e.message.toString()
-                                + msg.message.toString();
+                        msg.message = e.message + msg.message.toString();
                     } else {
                         push(e);
                     }
@@ -287,6 +287,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 push(r, msg.message);
             }
         }
+        msg.message = prevMessage;
     }
 
     protected void push(AtmosphereResource<?,?> r, Object msg) {
