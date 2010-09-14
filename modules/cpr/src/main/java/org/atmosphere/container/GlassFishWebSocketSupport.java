@@ -37,20 +37,11 @@
  */
 package org.atmosphere.container;
 
-import com.sun.grizzly.http.servlet.HttpServletRequestImpl;
-import com.sun.grizzly.http.servlet.HttpServletResponseImpl;
-import com.sun.grizzly.http.servlet.ServletContextImpl;
-import com.sun.grizzly.tcp.Request;
-import com.sun.grizzly.tcp.http11.GrizzlyRequest;
 import com.sun.grizzly.websockets.BaseServerWebSocket;
 import com.sun.grizzly.websockets.DataFrame;
-import com.sun.grizzly.websockets.NetworkHandler;
-import com.sun.grizzly.websockets.ServerNetworkHandler;
 import com.sun.grizzly.websockets.WebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
-import com.sun.grizzly.websockets.WebSocketListener;
-import org.apache.coyote.Response;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.WebSocketProcessor;
