@@ -435,9 +435,6 @@
         <tomcat7-version>7.0.0-RC2</tomcat7-version>
         <jgroups-version>2.7.0.GA</jgroups-version>
         <common-logging-version>1.1.1</common-logging-version>
-        <!-- Uncomment when an official maven release happens
-        <shoal-version>1.1-SNAPSHOT</shoal-version>
-        -->
         <scala.version>2.7.7</scala.version>
         <shade-version>1.2.1</shade-version>
         <felix-version>1.4.0</felix-version>
