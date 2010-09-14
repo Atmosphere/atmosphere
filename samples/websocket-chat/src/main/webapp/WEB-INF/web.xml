@@ -17,6 +17,10 @@
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <load-on-startup>0</load-on-startup>
         <init-param>
+            <param-name>grizzly.application.path</param-name>
+            <param-value>/index.html</param-value>
+        </init-param>
+        <init-param>
             <param-name>org.atmosphere.websocket.WebSocketAtmosphereHandler</param-name>
             <param-value>true</param-value>
         </init-param>
