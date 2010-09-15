@@ -36,8 +36,6 @@
  */
 package org.atmosphere.websocket;
 
-import org.atmosphere.util.LoggerUtils;
-
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
@@ -50,7 +48,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.logging.Level;
 
 /**
  * Wrapper around an {@link HttpServletResponse} which use an instance of {@link WebSocketSupport}
@@ -418,8 +415,7 @@ public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends Ht
                 try {
                     webSocketSupport.write(frame, new String(chars, offset, lenght));
                 } catch (IOException e) {
-                    LoggerUtils.getLogger().log(Level.INFO, "", e);
-
+                    throw new RuntimeException(e);
                 }
             }
 
@@ -427,8 +423,7 @@ public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends Ht
                 try {
                     webSocketSupport.write(frame, new String(chars));
                 } catch (IOException e) {
-                    LoggerUtils.getLogger().log(Level.INFO, "", e);
-
+                    throw new RuntimeException(e);
                 }
             }
 
@@ -436,8 +431,7 @@ public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends Ht
                 try {
                     webSocketSupport.write(frame, new String(s.substring(offset, lenght)));
                 } catch (IOException e) {
-                    LoggerUtils.getLogger().log(Level.INFO, "", e);
-
+                    throw new RuntimeException(e);
                 }
             }
 
@@ -445,8 +439,7 @@ public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends Ht
                 try {
                     webSocketSupport.write(frame, new String(s));
                 } catch (IOException e) {
-                    LoggerUtils.getLogger().log(Level.INFO, "", e);
-
+                    throw new RuntimeException(e);
                 }
             }
         };
