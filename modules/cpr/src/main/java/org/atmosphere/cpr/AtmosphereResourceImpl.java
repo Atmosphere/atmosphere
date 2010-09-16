@@ -162,6 +162,12 @@ public class AtmosphereResourceImpl implements
     }
 
     public void suspend(long timeout, boolean flushComment) {
+
+        if (req.getSession(false) != null && req.getSession().getMaxInactiveInterval() != -1 && req.getSession().getMaxInactiveInterval() < timeout) {
+            throw new IllegalStateException("Cannot suspend a " +
+                    "response longer than the session timeout. Increase the value of session-timeout in web.xml");
+        }
+                
         if (!event.isResumedOnTimeout()) {
 
             String upgrade = req.getHeader("Connection");
