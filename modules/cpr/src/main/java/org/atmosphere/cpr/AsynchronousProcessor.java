@@ -67,6 +67,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     protected final static Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected final static Action cancelledAction = new Action(Action.TYPE.CANCELLED);
+    private final static int DEFAULT_SESSION_TIMEOUT = 1800;
 
     protected final Logger logger = LoggerUtils.getLogger();
 
@@ -162,7 +163,9 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             // operation from disparate requests.
             HttpSession session = req.getSession(true);
             // Do not allow times out.
-            session.setMaxInactiveInterval(-1);
+            if (session.getMaxInactiveInterval() == DEFAULT_SESSION_TIMEOUT) {
+                session.setMaxInactiveInterval(-1);
+            } 
         }
 
         req.setAttribute(AtmosphereServlet.SUPPORT_SESSION, supportSession());
