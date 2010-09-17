@@ -82,6 +82,7 @@ public abstract class AbstractReflectorAtmosphereHandler
                 event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), o);
             } catch (Throwable ex){
                 LoggerUtils.getLogger().log(Level.WARNING,"Serializer exception",ex);
+                throw new IOException(ex);
             }
         } else {
             boolean isUsingStream = false;
