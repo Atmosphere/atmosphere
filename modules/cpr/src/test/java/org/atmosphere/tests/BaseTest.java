@@ -53,8 +53,10 @@ import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -479,28 +481,25 @@ public abstract class BaseTest {
     public void testDelayNextBroadcast() {
         System.out.println("Running testDelayNextBroadcast");
         final CountDownLatch latch = new CountDownLatch(2);
-        final CountDownLatch suspended = new CountDownLatch(1);
 
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
 
             AtomicBoolean b = new AtomicBoolean(false);
-            AtomicBoolean delayOrPush = new AtomicBoolean(true);
+            AtomicInteger count  = new AtomicInteger(0);
             private long currentTime;
 
-            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException
+            {
                 if (!b.getAndSet(true)) {
-                    try {
-                        event.suspend();
-                    } finally {
-                        suspended.countDown();
-                    }
+                    event.suspend(-1, false);
+
                 } else {
                     currentTime = System.currentTimeMillis();
 
-                    if (delayOrPush.getAndSet(false)) {
-                        event.getBroadcaster().delayBroadcast("foo");
+                    if (count.getAndIncrement() < 4) {
+                        event.getBroadcaster().delayBroadcast("message-" + count.get() + " ");
                     } else {
-                        event.getBroadcaster().broadcast("foo");
+                        event.getBroadcaster().broadcast("message-final");
                     }
                 }
             }
@@ -510,17 +509,11 @@ public abstract class BaseTest {
                     return;
                 }
                 try {
-                    long time = System.currentTimeMillis() - currentTime;
-                    if (time > 5000 && time < 6000) {
-                        assertTrue(true);
-                    } else {
-                        assertFalse(false);
-                    }
-                    assertFalse(event.isCancelled());
-                    assertNotNull(event.getMessage());
-                    assertEquals(event.getMessage(), "foofoo");
+                    event.getResource().getResponse().getWriter().write((String)event.getMessage());
                     event.getResource().getResponse().flushBuffer();
                     event.getResource().resume();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 } finally {
                     latch.countDown();
                 }
@@ -529,31 +522,21 @@ public abstract class BaseTest {
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
-            c.prepareGet(urlTarget).execute(new AsyncCompletionHandler<String>() {
+            Future<Response> f = c.prepareGet(urlTarget).execute();
 
-                @Override
-                public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
-                    } finally {
-                        latch.countDown();
-                    }
-                    return null;
-                }
-            });
+            latch.await(5, TimeUnit.SECONDS);
 
-            suspended.await(20, TimeUnit.SECONDS);
             c.prepareGet(urlTarget).execute().get();
-            Response r = c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
 
-            try {
-                latch.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                fail(e.getMessage());
-            }
+            c.prepareGet(urlTarget).execute().get();
+
+            Response r = f.get(10, TimeUnit.SECONDS);
 
             assertNotNull(r);
+            assertEquals(r.getResponseBody(), "message-0 message-1 message-2 message-3 message-final");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
             e.printStackTrace();
