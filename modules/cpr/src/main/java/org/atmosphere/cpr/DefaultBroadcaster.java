@@ -249,6 +249,7 @@ public class DefaultBroadcaster implements Broadcaster {
         String prevMessage = msg.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
+            StringBuilder b = new StringBuilder();
             while (i.hasNext()) {
                 Entry e = i.next();
                 if (!(e.future instanceof BroadcasterFuture)) {
@@ -258,7 +259,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Append so we do a single flush
                     if (e.message instanceof String
                             && msg.message instanceof String) {
-                        msg.message = e.message + msg.message.toString();
+                        b.append(e.message);
                     } else {
                         push(e);
                     }
@@ -268,6 +269,9 @@ public class DefaultBroadcaster implements Broadcaster {
                         ((BroadcasterFuture) e.future).done();
                     }
                 }
+            }
+            if (b.length() > 0) {
+                msg.message = b.append(msg.message).toString();
             }
         }
 
@@ -536,7 +540,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return f;
     }
 
-    /**                                                          Meteor
+    /**                                                          
      * {@inheritDoc}
      */
     public Future<?> scheduleFixedBroadcast(final Object o, long period, TimeUnit t) {
