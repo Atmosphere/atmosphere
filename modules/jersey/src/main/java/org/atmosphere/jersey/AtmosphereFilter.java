@@ -253,7 +253,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                     }
 
-                    if (r == null && sessionSupported) {
+                    if (sessionSupported) {
                         r = (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
                     } else {
                         String path = response.getContainerRequest().getPath();
