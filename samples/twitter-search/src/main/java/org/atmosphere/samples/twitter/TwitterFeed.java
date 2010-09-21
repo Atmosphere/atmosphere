@@ -13,6 +13,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -23,18 +25,19 @@ public class TwitterFeed {
 
     private final AsyncHttpClient asyncClient = new AsyncHttpClient();
 
+    private final ConcurrentHashMap<String, Future<?>> futures = new ConcurrentHashMap<String, Future<?>>();
+
     @GET
     public SuspendResponse<String> search(final @PathParam("tagid") Broadcaster feed,
                                           final @PathParam("tagid") String tagid) {
 
         if (feed.getAtmosphereResources().size() == 0) {
 
-            feed.scheduleFixedBroadcast(new Callable<String>(){
+            Future<?> future = feed.scheduleFixedBroadcast(new Callable<String>() {
 
                 private final AtomicReference<String> refreshUrl = new AtomicReference<String>("");
 
-                public String call() throws Exception
-                {
+                public String call() throws Exception {
                     String query = null;
                     if (!refreshUrl.get().isEmpty()) {
                         query = refreshUrl.get();
@@ -44,24 +47,25 @@ public class TwitterFeed {
                     asyncClient.prepareGet("http://search.twitter.com/search.json" + query).execute(
                             new AsyncCompletionHandler<Object>() {
 
-                        @Override
-                        public Object onCompleted(Response response) throws Exception {
-                            // Parse
-                            // Broadcast
-                            String s = response.getResponseBody();
-                            JSONObject json = new JSONObject(s);
-                            refreshUrl.set(json.getString("refresh_url"));
+                                @Override
+                                public Object onCompleted(Response response) throws Exception {
+                                    // Parse
+                                    // Broadcast
+                                    String s = response.getResponseBody();
+                                    JSONObject json = new JSONObject(s);
+                                    refreshUrl.set(json.getString("refresh_url"));
 
-                            feed.broadcast(s).get();
-                            return null;
-                        }
+                                    feed.broadcast(s).get();
+                                    return null;
+                                }
 
-                    });
+                            });
                     return null;
                 }
 
             }, 1, TimeUnit.SECONDS);
-            
+
+            futures.put(tagid, future);
         }
 
         return new SuspendResponse.SuspendResponseBuilder<String>()
@@ -71,11 +75,12 @@ public class TwitterFeed {
                 .build();
     }
 
-//    @POST
-//    public ??? newTweet(@FormParam("tweet") String message) {
-//        return new Broadcastable(message, "", feed);
-//    }
-
-
-
-}
+    @GET
+    @Path("stop")
+    public String stopSearch(final @PathParam("tagid") Broadcaster feed,
+                             final @PathParam("tagid") String tagid) {
+            feed.resumeAll();
+            futures.get(tagid).cancel(true);
+            return "DONE";
+        }
+    }
