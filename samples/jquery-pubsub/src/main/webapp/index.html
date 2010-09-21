@@ -47,7 +47,7 @@
                         if (response.status == 200) {
                             var data = response.responseBody
                             if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " using transport: " + response.transport));
+                                $('ul').prepend($('<li></li>').text(" Message Received: " + data));
                             }
                         }
                     }
@@ -96,7 +96,7 @@
                 if (keyc == 13 || keyc == 10) {
                     connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
                         null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') });
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -112,7 +112,7 @@
                 }
                 connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') });
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
                 getElementById('phrase').value = '';
                 return false;
             };
