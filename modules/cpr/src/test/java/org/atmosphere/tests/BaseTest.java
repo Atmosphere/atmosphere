@@ -496,8 +496,8 @@ public abstract class BaseTest {
                 } else {
                     currentTime = System.currentTimeMillis();
 
-                    if (count.getAndIncrement() < 4) {
-                        event.getBroadcaster().delayBroadcast("message-" + count.get() + " ");
+                    if (count.get() < 4) {
+                        event.getBroadcaster().delayBroadcast("message-" + count.getAndIncrement() + " ");
                     } else {
                         event.getBroadcaster().broadcast("message-final");
                     }
