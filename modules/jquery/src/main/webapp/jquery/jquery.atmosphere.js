@@ -201,11 +201,19 @@ jQuery.atmosphere = function()
                     if (update) {
                         if (request.transport == 'streaming') {
                             response.responseBody = ajaxRequest.responseText.substring(request.lastIndex, ajaxRequest.responseText.length);
-                            request.lastIndex = ajaxRequest.responseText.length;
 
-                            if (response.responseBody.indexOf("<!--") != -1) {
-                                junkForWebkit = true;
+                            if (request.lastIndex == 0 && response.responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
+                                var endOfJunk = "<!-- EOD -->";
+                                var endOfJunkLenght = "<!-- EOD -->".length;
+                                var junkEnd = response.responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+
+                                if (junkEnd != ajaxRequest.responseText.length) {
+                                    response.responseBody = response.responseBody.substring(junkEnd);
+                                } else {
+                                    junkForWebkit = true;
+                                }
                             }
+                            request.lastIndex = ajaxRequest.responseText.length;
 
                         } else {
                             response.responseBody = ajaxRequest.responseText;
@@ -216,8 +224,6 @@ jQuery.atmosphere = function()
                             var end = response.responseBody.indexOf("')");
                             response.responseBody = response.responseBody.substring(start, end);
                         }
-
-                        if (junkForWebkit) return;
 
                         try {
                             response.status = ajaxRequest.status;
@@ -232,6 +238,8 @@ jQuery.atmosphere = function()
                         } else {
                             response.state = "messagePublished";
                         }
+
+                        if (junkForWebkit) return;                        
                         jQuery.atmosphere.invokeCallback(response);
                     }
                 }
