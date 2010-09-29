@@ -382,6 +382,14 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             if (logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, "", ex);
             }
+        } finally {
+            try {
+                aliveRequests.remove(req);
+                re.notifyListeners();
+            } finally {
+                re.removeEventListeners();
+                re.getBroadcaster().removeAtmosphereResource(re);
+            }
         }
 
         return cancelledAction;
