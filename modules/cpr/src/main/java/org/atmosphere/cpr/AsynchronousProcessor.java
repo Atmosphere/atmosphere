@@ -158,6 +158,14 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
     Action action(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
+        String upgrade = req.getHeader("Connection");
+        if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade") && !supportWebSocket()) {
+            res.setStatus(501);
+            res.addHeader("X-Atmosphere-error","Websocket protocol not supported");
+            res.flushBuffer();
+            return new Action();
+        }
+
         if (supportSession()) {
             // Create the session needed to support the Resume
             // operation from disparate requests.

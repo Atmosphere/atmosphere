@@ -339,6 +339,7 @@ jQuery.atmosphere = function()
         executeWebSocket : function()
         {
             var request = jQuery.atmosphere.request;
+            var success = false;
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
@@ -353,7 +354,7 @@ jQuery.atmosphere = function()
                 var data;
                 var ws = jQuery.atmosphere.websocket;
                 try {
-                    data = jQuery.atmosphere.request.data;
+                    data = jQuery.atmosphere.request.data
                     ws.send(jQuery.atmosphere.request.data);
                 } catch (e) {
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
@@ -378,6 +379,7 @@ jQuery.atmosphere = function()
 
             websocket.onopen = function(message)
             {
+                success = true;
                 jQuery.atmosphere.response.state = 'openning';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
@@ -404,8 +406,25 @@ jQuery.atmosphere = function()
 
             websocket.onclose = function(message)
             {
-                jQuery.atmosphere.response.state = 'closed';
-                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                if (!success) {
+                    var data = jQuery.atmosphere.request.data;
+                    jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
+                    // Websocket is not supported, reconnect using the fallback transport.
+                    request.transport = request.fallbackTransport;
+                    jQuery.atmosphere.request = request;
+                    jQuery.atmosphere.executeRequest();
+
+                    // Repost the data.
+                    jQuery.atmosphere.request.suspend = false;
+                    jQuery.atmosphere.request.method = 'POST';
+                    jQuery.atmosphere.request.data = data;
+                    jQuery.atmosphere.response.state = 'messageReceived';
+                    jQuery.atmosphere.response.transport = request.fallbackTransport;
+                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+                } else {
+                    jQuery.atmosphere.response.state = 'closed';
+                    jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                }
             };
         }
         ,
