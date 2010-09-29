@@ -12,6 +12,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -30,6 +31,10 @@ public class TwitterFeed {
     @GET
     public SuspendResponse<String> search(final @PathParam("tagid") Broadcaster feed,
                                           final @PathParam("tagid") String tagid) {
+
+        if (tagid.isEmpty()) {
+            throw new WebApplicationException();
+        }
 
         if (feed.getAtmosphereResources().size() == 0) {
 
