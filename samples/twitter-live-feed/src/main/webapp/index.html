@@ -51,7 +51,7 @@
                                 incompleteMessage = "";
 
                                 var i = 0;
-                                for (i = 0; i < result.results.length; i++){
+                                for (i = result.results.length -1 ; i > -1; i--){
                                     $('ul').prepend($('<li></li>').text("[" + response.transport + "] " + result.results[i].from_user + " "
                                             + result.results[i].text));
                                 }

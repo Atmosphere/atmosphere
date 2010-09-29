@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-twitter-search</artifactId>
+    <artifactId>atmosphere-twitter-live-feed</artifactId>
     <packaging>war</packaging>
     <version>0.7-SNAPSHOT</version>
-    <name>atmosphere-twitter-search</name>
+    <name>atmosphere-twitter-live-feed</name>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
