@@ -351,7 +351,7 @@ public class AtmosphereResourceImpl implements
         StringBuilder s = new StringBuilder();
 
         s.append("<!-- ----------------------------------------------------------" +
-                "---------------------------------------------------------------" +
+                "------ http://github.com/Atmosphere ----------------------------" +
                 "-------------------------------------------- -->\n");
         s.append("<!-- Welcome to the Atmosphere Framework. To work with all the" +
                 " browsers when suspending connection, Atmosphere must output some" +
@@ -361,6 +361,7 @@ public class AtmosphereResourceImpl implements
                     "---------------------------------------------------------------" +
                     "-------------------------------------------- -->\n");
         }
+        s.append("<!-- EOD -->");
         return s.toString();
     }
 
