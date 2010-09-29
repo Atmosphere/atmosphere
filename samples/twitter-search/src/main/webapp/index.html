@@ -8,6 +8,7 @@
         {
             var connectedEndpoint;
             var callbackAdded = false;
+            var incompleteMessage = "";
             function getKeyCode(ev)
             {
                 if (window.event) return window.event.keyCode;
@@ -45,12 +46,17 @@
                         if (response.status == 200) {
                             var data = response.responseBody;
 
-                            var result =  $.parseJSON(data);
+                            try {
+                                var result =  $.parseJSON(incompleteMessage + data);
+                                incompleteMessage = "";
 
-                            var i = 0;
-                            for (i = 0; i < result.results.length; i++){
-                                $('ul').prepend($('<li></li>').text("[" + response.transport + "] " + result.results[i].from_user + " "
-                                        + result.results[i].text));
+                                var i = 0;
+                                for (i = 0; i < result.results.length; i++){
+                                    $('ul').prepend($('<li></li>').text("[" + response.transport + "] " + result.results[i].from_user + " "
+                                            + result.results[i].text));
+                                }
+                            } catch (err) {
+                                incompleteMessage = data;
                             }
                         }
                     }

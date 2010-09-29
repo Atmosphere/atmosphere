@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>twitter-search</artifactId>
+    <artifactId>atmosphere-twitter-search</artifactId>
     <packaging>war</packaging>
     <version>0.7-SNAPSHOT</version>
-    <name>twitter-search</name>
+    <name>atmosphere-twitter-search</name>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.ning</groupId>
             <artifactId>async-http-client</artifactId>
-            <version>1.1.0</version>
+            <version>1.2.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.sun.jersey</groupId>
