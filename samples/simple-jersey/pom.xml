@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.6.2</version>
+        <version>0.7-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-simple-jersey</artifactId>
     <packaging>war</packaging>
-    <version>0.6.2</version>
+    <version>0.7-SNAPSHOT</version>
     <name>atmosphere-simple-jersey</name>
     <url>http://maven.apache.org</url>
     <dependencies>
