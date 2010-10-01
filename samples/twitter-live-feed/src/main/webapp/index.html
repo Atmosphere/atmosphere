@@ -76,6 +76,11 @@
                 getElementById('connect').value="Switch transport";
             }
 
+            function stop()
+            {
+                $.atmosphere.publish(document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop");
+            }
+
             getElementById('connect').onclick = function(event)
             {
                 if (getElementById('topic').value == '') {
@@ -134,7 +139,9 @@
         <option id="streaming" value="streaming">http streaming</option>
         <option id="websocket" value="websocket">websocket</option>
     </select>
-    <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
+    <input id='connect' class='button' type='submit' name='connect' value='Get Real Time Tweet'/>
+    <input id='stop' class='button' type='submit' name='stop' value='Stop Real Time Tweet'/>
+
 </div>
 <h2>Real Time Twitter Search</h2>
 <ul></ul>
