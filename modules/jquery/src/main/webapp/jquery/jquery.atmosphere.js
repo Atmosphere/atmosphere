@@ -214,7 +214,7 @@ jQuery.atmosphere = function()
                                 }
                             }
                             request.lastIndex = ajaxRequest.responseText.length;
-
+                            if (junkForWebkit) return;                                                    
                         } else {
                             response.responseBody = ajaxRequest.responseText;
                         }
@@ -239,7 +239,6 @@ jQuery.atmosphere = function()
                             response.state = "messagePublished";
                         }
 
-                        if (junkForWebkit) return;                        
                         jQuery.atmosphere.invokeCallback(response);
                     }
                 }
@@ -363,14 +362,6 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
 
-                    // Repost the data.
-                    jQuery.atmosphere.request.suspend = false;
-                    jQuery.atmosphere.request.method = 'POST';
-                    jQuery.atmosphere.request.data = data;
-                    jQuery.atmosphere.response.state = 'messageReceived';
-                    jQuery.atmosphere.response.transport = request.fallbackTransport;
-                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
-
                     ws.onclose = function(message) {
                     }
                     ws.close();
@@ -413,14 +404,6 @@ jQuery.atmosphere = function()
                     request.transport = request.fallbackTransport;
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
-
-                    // Repost the data.
-                    jQuery.atmosphere.request.suspend = false;
-                    jQuery.atmosphere.request.method = 'POST';
-                    jQuery.atmosphere.request.data = data;
-                    jQuery.atmosphere.response.state = 'messageReceived';
-                    jQuery.atmosphere.response.transport = request.fallbackTransport;
-                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
                 } else {
                     jQuery.atmosphere.response.state = 'closed';
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
