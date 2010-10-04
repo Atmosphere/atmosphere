@@ -81,7 +81,7 @@ public class BroadcasterConfig {
     }
 
     protected void configExecutors() {
-        executorService = Executors.newCachedThreadPool(new ThreadFactory(){
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactory(){
 
             private AtomicInteger count = new AtomicInteger();
 
