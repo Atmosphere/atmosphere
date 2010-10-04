@@ -568,9 +568,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance());
         }
 
-        logger.info("Using " + broadcasterClassName
-                + " with a Thread Pool size of : "
-                + BroadcasterConfig.numOfProcessor);
+        logger.info("Using " + broadcasterClassName);
     }
 
     /**
