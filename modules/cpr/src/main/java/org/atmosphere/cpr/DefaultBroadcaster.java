@@ -119,6 +119,7 @@ public class DefaultBroadcaster implements Broadcaster {
         broadcasterCache = null;
         started.set(false);
         destroyed.set(true);
+        BroadcasterFactory.getDefault().remove(this, name);
     }
 
     /**
@@ -304,9 +305,6 @@ public class DefaultBroadcaster implements Broadcaster {
             trackBroadcastMessage(r, msg);
             e = r.getAtmosphereResourceEvent();
             e.setMessage(msg);
-            if (r instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) r).notifyListeners();
-            }
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
                     && HttpServletRequest.class.isAssignableFrom(r.getRequest().getClass())) {
@@ -322,6 +320,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
             broadcast(r, e);
+            if (r instanceof AtmosphereEventLifecycle) {
+                ((AtmosphereEventLifecycle) r).notifyListeners();
+            }
         }
     }
 
