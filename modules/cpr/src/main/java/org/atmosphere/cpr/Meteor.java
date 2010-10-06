@@ -90,7 +90,7 @@ public class Meteor {
      * @return a {@link Meteor} or null if not found
      */
     public static Meteor lookup(HttpServletRequest r) {
-        return cache.get(r);
+        return cache.get(r.getAttribute(ATMOSPHERE_RESOURCE));
     }
 
 
