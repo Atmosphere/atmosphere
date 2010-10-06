@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html
+        xmlns="http://www.w3.org/1999/xhtml"
+        xmlns:wicket="http://wicket.apache.org/dtds.data/wicket-xhtml1.4-strict.dtd"
+        xml:lang="en"
+        lang="en">
+<wicket:head>
+    <script src="http://github.com/Atmosphere/atmosphere/raw/master/modules/jquery/src/main/webapp/jquery/jquery-1.4.2.js"
+            type="text/javascript"></script>
+    <script src="http://github.com/Atmosphere/atmosphere/raw/master/modules/jquery/src/main/webapp/jquery/jquery.atmosphere.js"
+            type="text/javascript"></script>
+    <script>
+
+        $(document).ready(function() {
+            function callback(response) {
+                // Websocket events.
+                $.atmosphere.log('info', ["response.state: " + response.state]);
+                $.atmosphere.log('info', ["response.transport: " + response.transport]);
+                if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
+                    $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
+                    if (response.status == 200) {
+                        var data = response.responseBody
+                        document.getElementById('clock').innerHTML = data;
+                    }
+                }
+            }
+
+            // You can set websocket, streaming or long-polling here.
+            $.atmosphere.subscribe(document.getElementById('cometStart').href,
+                    callback,
+                    $.atmosphere.request = {transport: 'long-polling'});
+        });
+    </script>
+
+</wicket:head>
+<body>
+<wicket:panel>
+    <a wicket:id="cometStart" id="cometStart"></a>
+
+    <div wicket:id="clock" id="clock">99:99:99</div>
+
+    <div>
+        <iframe id="cometFrame" name="cometFrame" width="0" height="0" border="0" style="border-width: 0px">
+        </iframe>
+    </div>
+</wicket:panel>
+</body>
+</html>
