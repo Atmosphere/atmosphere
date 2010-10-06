@@ -199,7 +199,7 @@ public class AtmosphereResourceImpl implements
                 String id = broadcaster.getID();
                 Class<? extends Broadcaster> clazz = broadcaster.getClass(); 
                 broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
-                if (broadcaster == null) {
+                if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
                     broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id + "/" + UUID.randomUUID(), true);
                 }
             }

@@ -91,6 +91,7 @@ public class BroadcasterScopeTest {
 
                 @Override
                 public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+                     event.getResource().getRequest().setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
@@ -102,8 +103,7 @@ public class BroadcasterScopeTest {
                 }
 
                 @Override
-                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-                    event.getResource().getRequest().setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, "true");
+                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {                   
                 }
             });
 
