@@ -63,8 +63,8 @@ import static org.atmosphere.cpr.AtmosphereServlet.ATMOSPHERE_RESOURCE;
  */
 public class Meteor {
 
-    private final static ConcurrentHashMap<HttpServletRequest, Meteor> cache =
-            new ConcurrentHashMap<HttpServletRequest, Meteor>();
+    private final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
+            new ConcurrentHashMap<AtmosphereResource, Meteor>();
 
     private final AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
 
@@ -74,13 +74,13 @@ public class Meteor {
                    List<BroadcastFilter> l, Serializer s) {
 
         this.r = r;
-        r.setSerializer(s);
+        this.r.setSerializer(s);
         if (l != null) {
             for (BroadcastFilter f : l) {
-                r.getBroadcaster().getBroadcasterConfig().addFilter(f);
+                this.r.getBroadcaster().getBroadcasterConfig().addFilter(f);
             }
         }
-        cache.put(r.getRequest(), this);
+        cache.put(this.r, this);
     }
 
     /**
@@ -101,10 +101,6 @@ public class Meteor {
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
     public final static Meteor build(HttpServletRequest r) {
-
-        Meteor m = lookup(r);
-        if (m != null) return m;
-
         return build(r, null);
     }
 
@@ -201,7 +197,7 @@ public class Meteor {
      */
     public Meteor resume() {
         r.resume();
-        cache.remove(r.getRequest());
+        cache.remove(r);
         return this;
     }
 
