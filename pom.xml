@@ -440,5 +440,6 @@
         <felix-version>1.4.0</felix-version>
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
+        <wicket.version>1.4.12</wicket.version>        
     </properties>
 </project>

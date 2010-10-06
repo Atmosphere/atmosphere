@@ -55,13 +55,11 @@ import java.util.logging.Level;
  */
 public class PushPage extends WebPage implements AtmosphereResourceEventListener {
 
-    private transient Meteor meteor;
-
     public PushPage() {
         HttpServletRequest req = getWebRequestCycle().getWebRequest().getHttpServletRequest();
 
         // Grap a Meteor
-        meteor = Meteor.build(req);
+        Meteor meteor = Meteor.build(req);
 
         // Set our Broadcaster
         meteor.setBroadcaster(((WicketPushApplication) getApplication()).getBroadcaster());
@@ -84,8 +82,10 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
         // If we are using long-polling, resume the connection as soon as we get an event.
         String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
         if (transport != null && transport.equalsIgnoreCase("long-polling")) {
+            Meteor meteor = Meteor.lookup(event.getResource().getRequest());
+
             meteor.removeListener(this);
-            event.getResource().resume();
+            meteor.resume();
         }
     }
 

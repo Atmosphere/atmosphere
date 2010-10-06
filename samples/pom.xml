@@ -15,7 +15,6 @@
         <module>commons</module>
         <module>chat</module>
         <module>flickr-comet</module>
-        <module>simple-jersey</module>
         <module>rest-chat</module>
         <module>rest-cluster-chat</module>
         <module>twitter</module>
@@ -35,6 +34,7 @@
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
         <module>websocket-chat</module>
+        <module>wicket-clock</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
