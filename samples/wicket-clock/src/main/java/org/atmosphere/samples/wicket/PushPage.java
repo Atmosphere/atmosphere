@@ -45,6 +45,10 @@ import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Date;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 /**
@@ -55,14 +59,23 @@ import java.util.logging.Level;
  */
 public class PushPage extends WebPage implements AtmosphereResourceEventListener {
 
+    private final AtomicBoolean scheduleStarted = new AtomicBoolean(false);
+
     public PushPage() {
         HttpServletRequest req = getWebRequestCycle().getWebRequest().getHttpServletRequest();
 
         // Grap a Meteor
         Meteor meteor = Meteor.build(req);
 
-        // Set our Broadcaster
-        meteor.setBroadcaster(((WicketPushApplication) getApplication()).getBroadcaster());
+        // Start scheduling update.
+        if (!scheduleStarted.getAndSet(true)) {
+            meteor.schedule(new Callable<String>() {
+                public String call() {
+                    String s = new Date().toString();
+                    return s;
+                }
+            }, 1); // One second
+        }
 
         // Add us to the listener list.
         meteor.addListener(this);
@@ -93,19 +106,21 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
         String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
         HttpServletRequest req = event.getResource().getRequest();
         LoggerUtils.getLogger().log(Level.INFO, String.format("Suspending the %s response from ip %s:%s",
-                transport == null ? "websocket" : transport , req.getRemoteAddr(), req.getRemotePort()));
+                transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()));
     }
 
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
         HttpServletRequest req = event.getResource().getRequest();
         LoggerUtils.getLogger().log(Level.INFO, String.format("Resuming the %s response from ip %s:%s",
-                transport == null ? "websocket" : transport , req.getRemoteAddr(), req.getRemotePort()));    }
+                transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()));
+    }
 
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
         HttpServletRequest req = event.getResource().getRequest();
         LoggerUtils.getLogger().log(Level.INFO, String.format("%s connection dropped from ip %s:%s",
-                transport == null ? "websocket" : transport , req.getRemoteAddr(), req.getRemotePort()));    }
+                transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()));
+    }
 }
 

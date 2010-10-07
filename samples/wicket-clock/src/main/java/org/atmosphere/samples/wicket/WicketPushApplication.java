@@ -53,20 +53,6 @@ import java.util.concurrent.TimeUnit;
  * @author Jeanfrancois Arcand
  */
 public class WicketPushApplication extends WebApplication {
-    private final Broadcaster broadcaster;
-
-    /**
-     * Constructor
-     */
-    public WicketPushApplication() throws InstantiationException, IllegalAccessException {
-        broadcaster = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "Wicket");
-        broadcaster.scheduleFixedBroadcast(new Callable<String>() {
-            public String call() {
-                String s = new Date().toString();
-                return s;
-            }
-        }, 1, TimeUnit.SECONDS);
-    }
 
     /**
      * @see org.apache.wicket.Application#getHomePage()
@@ -75,7 +61,4 @@ public class WicketPushApplication extends WebApplication {
         return HomePage.class;
     }
 
-    public Broadcaster getBroadcaster() {
-        return broadcaster;
-    }
 }
