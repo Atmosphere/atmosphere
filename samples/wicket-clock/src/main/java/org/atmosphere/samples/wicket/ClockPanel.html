@@ -29,7 +29,7 @@
             // You can set websocket, streaming or long-polling here.
             $.atmosphere.subscribe(document.getElementById('cometStart').href,
                     callback,
-                    $.atmosphere.request = {transport: 'long-polling'});
+                    $.atmosphere.request = {transport: 'websocket'});
         });
     </script>
 
