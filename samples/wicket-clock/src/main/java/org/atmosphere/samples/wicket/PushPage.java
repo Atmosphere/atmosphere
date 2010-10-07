@@ -47,7 +47,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Date;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -79,8 +78,6 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
 
         // Add us to the listener list.
         meteor.addListener(this);
-
-        LoggerUtils.getLogger().log(Level.INFO, "Suspending connection");
 
         // Depending on the connection
         String transport = req.getHeader("X-Atmosphere-Transport");
