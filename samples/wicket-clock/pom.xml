@@ -12,7 +12,7 @@
     <artifactId>atmosphere-wicket-clock</artifactId>
     <packaging>war</packaging>
     <version>0.7-SNAPSHOT</version>
-    <name>atmosphere-websocket-chat</name>
+    <name>atmosphere-wicket-clock</name>
     <url>http://maven.apache.org</url>
     <build>
         <resources>
