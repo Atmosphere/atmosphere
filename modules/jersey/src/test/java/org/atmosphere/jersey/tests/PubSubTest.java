@@ -67,7 +67,6 @@ import java.util.concurrent.Executors;
 @Produces("text/plain;charset=ISO-8859-1")
 public class PubSubTest {
 
-
     /**
      * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
      */

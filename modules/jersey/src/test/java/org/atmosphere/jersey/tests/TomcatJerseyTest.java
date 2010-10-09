@@ -54,7 +54,7 @@ import javax.servlet.ServletException;
 import java.io.File;
 
 
-public class TomcatJerseyTest extends BaseTest {
+public class TomcatJerseyTest extends BasePubSubTest {
 
     protected Embedded embedded;
 
