@@ -41,7 +41,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
-public class Jetty7JerseyTest extends BaseTest {
+public class Jetty7JerseyTest extends BasePubSubTest {
     protected Server server;
 
     @Override

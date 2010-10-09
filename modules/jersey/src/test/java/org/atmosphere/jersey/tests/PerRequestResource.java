@@ -34,61 +34,56 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.jersey;
-
-import com.sun.jersey.spi.StringReader;
-import com.sun.jersey.spi.StringReaderProvider;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
+package org.atmosphere.jersey.tests;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.WebApplicationException;
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Suspend;
+
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+
+import static org.testng.Assert.assertNotNull;
 
 /**
- * Placeholder for injection of Atmosphere object based on
- * any parameter value (header, cookie, query, matrix or path)
+ * Simple PubSubTest resource that demonstrate many functionality supported by
+ * Atmosphere.
  *
- * @author Paul.Sandoz@Sun.Com
- * @author Jean-Francois Arcand
+ * @author Jeanfrancois Arcand
  */
-public class AtmosphereProviders {
+@Path("/perrequest")
+@Produces("text/plain;charset=ISO-8859-1")
+public class PerRequestResource {
 
-    public static class BroadcasterProvider implements StringReaderProvider {
+    @Context Broadcaster b;
 
-        @Context HttpServletRequest req;
+    @Context BroadcasterFactory bf;
 
-        @Override
-        public StringReader getStringReader(Class type, Type genericType, Annotation[] annotations) {
-
-            if (!Broadcaster.class.isAssignableFrom(type)) {
-                return null;
-            }
-
-            return new StringReader() {
-                @Override
-                public Object fromString(String topic) {
-                    Broadcaster broadcaster = null;
-                    try {
-                        AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
-                                (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                        BroadcasterFactory bp = (BroadcasterFactory)
-                                req.getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
-
-                        broadcaster = bp.lookup(r.getBroadcaster().getClass(), topic, true);
-                    } catch (Throwable ex) {
-                        throw new WebApplicationException(ex);
-                    }
-                    req.setAttribute(AtmosphereFilter.INJECTED_BROADCASTER, broadcaster);
-                    return broadcaster;
-                }
-            };
-        }
+    @Context AtmosphereResource<HttpServletRequest, HttpServletResponse> ar;
+    
+    @GET
+    @Suspend (period = 5000, outputComments = false)
+    public String subscribe() {
+        System.out.println(b);
+        System.out.println(bf);
+        System.out.println(ar);
+        return "perrequest";
     }
+
+
+    @POST
+    @Broadcast
+    public String publish(@FormParam("message") String message){
+        return message;
+    }
+
+
 }

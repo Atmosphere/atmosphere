@@ -39,14 +39,12 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import com.sun.jersey.spi.inject.InjectableProvider;
+import java.util.Collection;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Type;
 
 /**
@@ -54,42 +52,97 @@ import java.lang.reflect.Type;
  * by Jersey.
  *
  * @author Jeanfrancois Arcand
+ * @author Paul Sandoz
  */
-@Provider
-public class BroadcasterFactoryInjector implements InjectableProvider<Context, Type> {
+abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
 
-    // The current {@link HttpServletRequest{
-    @Context HttpServletRequest req;
-
-    public ComponentScope getScope() {
-        return ComponentScope.Singleton;
+    boolean isValidType(Type t) {
+        return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class)t);
     }
 
-    public Injectable getInjectable(ComponentContext ic, Context a, Type c) {
-        if (BroadcasterFactory.class.isAssignableFrom(c.getClass())) {
+    public static final class PerRequest extends BroadcasterFactoryInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.PerRequest;
+        }
+
+        @Override
+        public Injectable<BroadcasterFactory> getInjectable(ComponentContext ic, Context a, Type c) {
+            if (!isValidType(c))
+                return null;
+
             return new Injectable<BroadcasterFactory>() {
-
+                @Override
                 public BroadcasterFactory getValue() {
-                    AtmosphereResource r = null;
-
-                    if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
-                        r = (AtmosphereResource) req.getSession().
-                                getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
-                    }
-
-                    if (r == null) {
-                        r = (AtmosphereResource)
-                                req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                    }
-
-                    if (r != null) {
-                        return r.getAtmosphereConfig().getBroadcasterFactory();
-                    } else {
-                        return null;
-                    }
+                    return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
                 }
             };
         }
-        return null;
+    }
+
+    public static final class Singleton extends BroadcasterFactoryInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.Singleton;
+        }
+
+        @Override
+        public Injectable<BroadcasterFactory> getInjectable(ComponentContext ic, Context a, Type c) {
+            if (!isValidType(c))
+                return null;
+
+            return new Injectable<BroadcasterFactory>() {
+                @Override
+                public BroadcasterFactory getValue() {
+                    return new BroadcasterFactoryProxy();
+                }
+            };
+        }
+        
+        class BroadcasterFactoryProxy extends BroadcasterFactory {
+            BroadcasterFactory _get() {
+                return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
+            }
+
+            @Override
+            public Broadcaster get() throws IllegalAccessException, InstantiationException {
+                return _get().get();
+            }
+
+            @Override
+            public Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException {
+                return _get().get(c, id);
+            }
+
+            @Override
+            public void destroy() {
+                _get().destroy();
+            }
+
+            @Override
+            public boolean add(Broadcaster b, Object id) {
+                return _get().add(b, id);
+            }
+
+            @Override
+            public boolean remove(Broadcaster b, Object id) {
+                return _get().remove(b, id);
+            }
+
+            @Override
+            public Broadcaster lookup(Class<? extends Broadcaster> c, Object id) {
+                return _get().lookup(c, id);
+            }
+
+            @Override
+            public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+                return _get().lookup(c, id, createIfNull);
+            }
+
+            @Override
+            public Collection<Broadcaster> lookupAll() {
+                return _get().lookupAll();
+            }
+        }
     }
 }
