@@ -34,44 +34,48 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
+
 package org.atmosphere.jersey.tests;
 
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.Response;
+import java.util.concurrent.TimeUnit;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
-public class BlockingIOJerseyTest extends BasePubSubTest {
+/**
+ *
+ * @author paulsandoz
+ */
+public class SingletonResourceTest extends BaseGrizzyTest {
 
-    protected Server server;
-    protected Context root;
-    protected final static String ROOT = "/*";
-
-    @Override
-    public void configureCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
+    String getUrlTarget(int port) {
+        return "http://127.0.0.1:" + port + "/singleton";
     }
 
-    @Override
-    public void startServer() throws Exception {
-        server = new Server(port);
-        root = new Context(server, "/", Context.SESSIONS);
-        root.addServlet(new ServletHolder(atmoServlet), ROOT);
-        server.start();
+    @Test(timeOut = 20000)
+    public void testSingletonSuspendTimeout() {
+        System.out.println("Running testSingletonSuspendTimeout");
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            long t1 = System.currentTimeMillis();
+            Response r = c.prepareGet(urlTarget).execute().get(10, TimeUnit.SECONDS);
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "singleton");
+            long current = System.currentTimeMillis() - t1;
+            assertTrue(current > 5000 && current < 10000);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+        c.close();
+
     }
 
-    @Override
-    public void stopServer() throws Exception {
-        server.stop();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
-        server.stop();
-        server = null;
-    }
 }

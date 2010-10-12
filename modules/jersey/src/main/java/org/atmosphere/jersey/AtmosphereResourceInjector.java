@@ -39,16 +39,16 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import com.sun.jersey.spi.inject.InjectableProvider;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereServlet;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.ext.Provider;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
 /**
@@ -56,35 +56,11 @@ import java.lang.reflect.Type;
  * by Jersey.
  *
  * @author Jeanfrancois Arcand
+ * @author Paul Sandoz
  */
-@Provider
-public class AtmosphereResourceInjector implements InjectableProvider<Context, Type> {
+abstract class AtmosphereResourceInjector extends BaseInjectableProvider {
 
-    // The current {@link HttpServletRequest}
-    @Context
-    HttpServletRequest req;
-
-    public ComponentScope getScope() {
-        return ComponentScope.Singleton;
-    }
-
-    public Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>> getInjectable(ComponentContext ic, Context a, Type c) {
-        if (isValidType(c)) {
-
-            return new Injectable<AtmosphereResource<HttpServletRequest, HttpServletResponse>>() {
-                /**
-                 * Return the current {@link AtmosphereResourceEvent}
-                 */
-                public AtmosphereResource<HttpServletRequest, HttpServletResponse> getValue() {
-                    return (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                            req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                }
-            };
-        }
-        return null;
-    }
-
-    public boolean isValidType(Type c) {
+    boolean isValidType(Type c) {
         if (c == AtmosphereResource.class) return true;
 
         if (c  instanceof ParameterizedType){
@@ -100,4 +76,51 @@ public class AtmosphereResourceInjector implements InjectableProvider<Context, T
         }
         return false;
     }
+
+    public static final class PerRequest extends AtmosphereResourceInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.PerRequest;
+        }
+
+        @Override
+        public Injectable<AtmosphereResource> getInjectable(ComponentContext ic, Context a, Type c) {
+            if (!isValidType(c))
+                return null;
+
+            return new Injectable<AtmosphereResource>() {
+                @Override
+                public AtmosphereResource getValue() {
+                    return getAtmosphereResource(AtmosphereResource.class, false);
+                }
+            };
+        }
+    }
+
+    public static final class Singleton extends AtmosphereResourceInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.Singleton;
+        }
+
+        @Override
+        public Injectable<AtmosphereResource> getInjectable(ComponentContext ic, Context a, Type c) {
+            if (!isValidType(c))
+                return null;
+
+            return new Injectable<AtmosphereResource>() {
+                @Override
+                public AtmosphereResource getValue() {
+                    return (AtmosphereResource)Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                            new Class[] { AtmosphereResource.class }, new InvocationHandler() {
+                        @Override
+                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                            return method.invoke(getAtmosphereResource(AtmosphereResource.class, false), args);
+                        }
+                    });
+                }
+            };
+        }
+    }
+
 }

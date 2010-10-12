@@ -37,29 +37,41 @@
 
 package org.atmosphere.jersey;
 
-import com.sun.jersey.api.core.ResourceConfig;
-import com.sun.jersey.api.core.ResourceConfigurator;
-import java.util.Collections;
-
+import com.sun.jersey.spi.inject.InjectableProvider;
+import java.lang.reflect.Type;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.Context;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
 
 /**
- * Automatically add the {@link AtmosphereFilter} to the list of {@link ResourceConfig}.
  *
- * @author Jeanfrancois Arcand
  * @author Paul Sandoz
  */
-public class AtmosphereResourceConfigurator implements ResourceConfigurator {
+abstract class BaseInjectableProvider implements InjectableProvider<Context, Type> {
+    // The current {@link HttpServletRequest{
+    @Context HttpServletRequest req;
 
-    @Override
-    public void configure(ResourceConfig config) {
-        Collections.addAll(config.getClasses(), 
-                AtmosphereProviders.BroadcasterProvider.class, 
-                BroadcasterFactoryInjector.PerRequest.class,
-                BroadcasterFactoryInjector.Singleton.class,
-                BroadcasterInjector.PerRequest.class,
-                BroadcasterInjector.Singleton.class,
-                AtmosphereResourceInjector.PerRequest.class,
-                AtmosphereResourceInjector.Singleton.class);
-        config.getResourceFilterFactories().add(AtmosphereFilter.class);
+    protected AtmosphereResource getAtmosphereResource(Class injectType, boolean session) {
+        AtmosphereResource r = null;
+
+        try {
+            if (session) {
+                if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
+                    r = (AtmosphereResource) req.getSession().
+                            getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
+                }
+            }
+
+            if (r == null) {
+                r = (AtmosphereResource)
+                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+            }
+
+            return r;
+        } catch (IllegalStateException ex) {
+            throw new IllegalStateException("An instance of the class " + injectType.getName() + " could not be injected because there is no HTTP request in scope", ex);
+        }
     }
+
 }

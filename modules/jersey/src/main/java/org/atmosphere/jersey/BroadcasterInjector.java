@@ -39,14 +39,12 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import com.sun.jersey.spi.inject.InjectableProvider;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import org.atmosphere.cpr.Broadcaster;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Type;
 
 /**
@@ -54,48 +52,60 @@ import java.lang.reflect.Type;
  * by Jersey.
  *
  * @author Jeanfrancois Arcand
- */
-@Provider
-public class BroadcasterInjector implements InjectableProvider<Context, Type> {
+  * @author Paul Sandoz
+*/
+abstract class BroadcasterInjector extends BaseInjectableProvider {
 
-    // The current {@link HttpServletRequest{
-    @Context
-    HttpServletRequest req;
-
-    public ComponentScope getScope() {
-        return ComponentScope.Singleton;
+    boolean isValidType(Type t) {
+        return (t instanceof Class) && Broadcaster.class.isAssignableFrom((Class)t);            
     }
 
-    public Injectable getInjectable(ComponentContext ic, Context a, Type c) {
-        if (c instanceof Class) {
-            Class _c = (Class) c;
-            if (Broadcaster.class.isAssignableFrom(_c)) {
-                return new Injectable<Broadcaster>() {
-
-                    /**
-                     * Return the current {@link Broadcaster}
-                     */
-                    public Broadcaster getValue() {
-                        AtmosphereResource r = null;
-
-                        if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
-                            r = (AtmosphereResource) req.getSession().
-                                    getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
-                        }
-
-                        if (r == null) {
-                            r = (AtmosphereResource) req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                        }
-                        
-                        if (r != null) {
-                            return r.getBroadcaster();
-                        } else {
-                            return null;
-                        }
-                    }
-                };
-            }
+    public static final class PerRequest extends BroadcasterInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.PerRequest;
         }
-        return null;
+
+        @Override
+        public Injectable getInjectable(ComponentContext ic, Context a, Type t) {
+            if (!isValidType(t))
+                return null;
+
+            return new Injectable<Broadcaster>() {
+                @Override
+                public Broadcaster getValue() {
+                    return getAtmosphereResource(Broadcaster.class, true).getBroadcaster();
+                }
+            };
+        }
+    }
+
+    public static final class Singleton extends BroadcasterInjector {
+        @Override
+        public ComponentScope getScope() {
+            return ComponentScope.Singleton;
+        }
+
+        @Override
+        public Injectable getInjectable(ComponentContext ic, Context a, Type t) {
+            if (!isValidType(t))
+                return null;
+
+            return new Injectable<Broadcaster>() {
+                @Override
+                public Broadcaster getValue() {
+                    return (Broadcaster)Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                            new Class[] { Broadcaster.class },
+                            new InvocationHandler() {
+                        @Override
+                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                            return method.invoke(getAtmosphereResource(Broadcaster.class, true).getBroadcaster(),
+                                    args);
+                        }
+                    });
+
+                }
+            };
+        }
     }
 }
