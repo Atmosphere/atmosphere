@@ -42,7 +42,7 @@ import com.sun.grizzly.http.servlet.ServletAdapter;
 import org.atmosphere.container.GrizzlyCometSupport;
 
 
-public class GrizzlyJerseyTest extends BaseTest {
+public class GrizzlyJerseyTest extends BasePubSubTest {
 
     protected GrizzlyWebServer ws;
     protected ServletAdapter sa;

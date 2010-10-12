@@ -36,42 +36,35 @@
  */
 package org.atmosphere.jersey.tests;
 
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
-import org.testng.annotations.AfterMethod;
+
+import com.sun.grizzly.comet.CometAsyncFilter;
+import com.sun.grizzly.http.embed.GrizzlyWebServer;
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import org.atmosphere.container.GrizzlyCometSupport;
 
 
-public class BlockingIOJerseyTest extends BasePubSubTest {
+public abstract class BaseGrizzyTest extends BaseTest {
 
-    protected Server server;
-    protected Context root;
-    protected final static String ROOT = "/*";
+    protected GrizzlyWebServer ws;
+    protected ServletAdapter sa;
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
     @Override
     public void startServer() throws Exception {
-        server = new Server(port);
-        root = new Context(server, "/", Context.SESSIONS);
-        root.addServlet(new ServletHolder(atmoServlet), ROOT);
-        server.start();
+        ws = new GrizzlyWebServer(port);
+        sa = new ServletAdapter();
+        ws.addAsyncFilter(new CometAsyncFilter());
+        sa.setServletInstance(atmoServlet);
+        ws.addGrizzlyAdapter(sa, new String[]{ROOT});
+        ws.start();
     }
 
     @Override
     public void stopServer() throws Exception {
-        server.stop();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
-        server.stop();
-        server = null;
+        ws.stop();
     }
 }
