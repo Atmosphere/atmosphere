@@ -47,7 +47,7 @@ jQuery.atmosphere = function()
                 timeout: 300000,
                 method: 'GET',
                 headers: {},
-                contentType : "text/html;charset=ISO-8859-1",
+                contentType : '',
                 cache: true,
                 async: true,
                 ifModified: false,
@@ -155,6 +155,11 @@ jQuery.atmosphere = function()
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+
+                if (contentType != '') {
+                    ajaxRequest.setRequestHeader("Content-Type", contentType);
+                }
+
                 for(var x in request.headers) {
                     ajaxRequest.setRequestHeader(x, request.headers[x]);
                 }
