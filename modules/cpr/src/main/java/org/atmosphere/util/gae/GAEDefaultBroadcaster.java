@@ -69,12 +69,12 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public Future<Object> broadcast(Object msg) {
-        msg = filter(msg);
+    public <T> Future<T> broadcast(T msg) {
+        Object newMsg = filter(msg);
         if (msg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(msg, null, f));
+        push(new Entry(newMsg, null, f));
         return f;
     }
 
@@ -82,12 +82,12 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public Future<Object> broadcast(Object msg, AtmosphereResource r) {
-        msg = filter(msg);
-        if (msg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+    public <T> Future<T> broadcast(T msg, AtmosphereResource<?,?> r) {
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(msg, r, f));
+        push(new Entry(newMsg, r, f));
         return f;
     }
 
@@ -95,12 +95,12 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public Future<Object> broadcast(Object msg, Set<AtmosphereResource<?,?>> subset) {
-        msg = filter(msg);
-        if (msg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?,?>> subset) {
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(msg, subset, f));
+        push(new Entry(newMsg, subset, f));
         return f;
     }
 
@@ -108,7 +108,7 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public Future<Object> delayBroadcast(final Object o, long delay, TimeUnit t) {
+    public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
         throw new UnsupportedOperationException(GAEBroadcasterConfig.NOT_SUPPORTED);
     }
 

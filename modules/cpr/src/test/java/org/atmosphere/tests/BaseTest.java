@@ -992,4 +992,143 @@ public abstract class BaseTest {
         }
         c.close();
     }
+
+    @Test(timeOut = 60000)
+    public void testBroadcastOnResume() {
+        System.out.println("Running testScheduleBroadcast");
+        final CountDownLatch latch = new CountDownLatch(2);
+        final CountDownLatch suspended = new CountDownLatch(1);
+
+        atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
+
+            AtomicBoolean b = new AtomicBoolean(false);
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (!b.getAndSet(true)) {
+                    try {
+                        event.suspend();
+                        event.getBroadcaster().broadcastOnResume("broadcastOnResume");
+                    } finally {
+                        suspended.countDown();
+                    }
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (event.isResuming()) {
+                    assertFalse(event.isCancelled());
+                    assertNotNull(event.getMessage());
+                    assertEquals(event.getMessage(), "broadcastOnResume");
+                    event.getResource().getResponse().flushBuffer();
+                    return;
+                }
+                try {
+                    event.getResource().resume();
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            c.prepareGet(urlTarget).execute(new AsyncCompletionHandler<String>() {
+
+                @Override
+                public String onCompleted(Response response) throws Exception {
+                    try {
+                        assertEquals(response.getResponseBody(),
+                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                    } finally {
+                        latch.countDown();
+                    }
+                    return null;
+                }
+            });
+            suspended.await(20, TimeUnit.SECONDS);
+
+            Response r = c.prepareGet(urlTarget).execute().get();
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+
+        try {
+            latch.await(20, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            fail(e.getMessage());
+        }
+        c.close();
+
+    }
+
+    @Test(timeOut = 60000)
+    public void testBroadcastOnResumeMsg() {
+        System.out.println("Running testBroadcastOnResumeMsg");
+        final CountDownLatch latch = new CountDownLatch(2);
+        final CountDownLatch suspended = new CountDownLatch(1);
+
+        atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
+
+            AtomicBoolean b = new AtomicBoolean(false);
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (!b.getAndSet(true)) {
+                    try {
+                        event.suspend();
+                        event.getBroadcaster().broadcastOnResume("broadcastOnResume");
+                    } finally {
+                        suspended.countDown();
+                    }
+                } else {
+                    event.resume();
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (event.isResuming()) {
+                    assertNotNull(event.getMessage());
+                    assertEquals(event.getMessage(), "broadcastOnResume");
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            c.prepareGet(urlTarget).execute(new AsyncCompletionHandler<String>() {
+
+                @Override
+                public String onCompleted(Response response) throws Exception {
+                    try {
+                        assertEquals(response.getResponseBody(),
+                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                    } finally {
+                        latch.countDown();
+                    }
+                    return null;
+                }
+            });
+            suspended.await(10, TimeUnit.SECONDS);
+
+            Response r = c.prepareGet(urlTarget).execute().get();
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+
+        try {
+            latch.await(20, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            fail(e.getMessage());
+        }
+        c.close();
+
+    }
+
 }

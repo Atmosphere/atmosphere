@@ -105,7 +105,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
 
             //Simple Broadcast
             bc.getBroadcasterConfig().addFilter(new XSSHtmlFilter());
-            Future<Object> f = bc.broadcast(event.getAtmosphereConfig().getWebServerName()
+            Future<String> f = bc.broadcast(event.getAtmosphereConfig().getWebServerName()
                     + "**has suspended a connection from "
                     + req.getRemoteAddr());
 

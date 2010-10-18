@@ -83,5 +83,5 @@ public class BlockingIOCometSupportTest extends BaseTest {
         atmoServlet.destroy();
         server.stop();
         server = null;
-    }       
+    }
 }

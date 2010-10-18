@@ -81,6 +81,8 @@ public class DefaultBroadcaster implements Broadcaster {
     protected SCOPE scope = SCOPE.APPLICATION;
     protected String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
+    protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
+
     private Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
@@ -199,12 +201,21 @@ public class DefaultBroadcaster implements Broadcaster {
 
         public Object message;
         public Object eventsToPush;
-        public Future<?> future;
+        public BroadcasterFuture<?> future;
 
-        public Entry(Object message, Object eventsToPush, Future future) {
+        public Entry(Object message, Object eventsToPush, BroadcasterFuture<?> future) {
             this.message = message;
             this.eventsToPush = eventsToPush;
             this.future = future;
+        }
+
+        @Override
+        public String toString() {
+            return "Entry{" +
+                    "message=" + message +
+                    ", eventsToPush=" + eventsToPush +
+                    ", future=" + future +
+                    '}';
         }
     }
 
@@ -247,7 +258,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void push(Entry msg) {
-
         String prevMessage = msg.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
@@ -299,11 +309,21 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void push(AtmosphereResource<?, ?> r, Object msg) {
         AtmosphereResourceEvent e = null;
         synchronized (r) {
-            if (!r.getAtmosphereResourceEvent().isSuspended())
+
+            if (r.getAtmosphereResourceEvent().isCancelled()) {
                 return;
+            }
 
             trackBroadcastMessage(r, msg);
             e = r.getAtmosphereResourceEvent();
+
+            if (Callable.class.isAssignableFrom(msg.getClass())) {
+                try {
+                    msg = Callable.class.cast(msg).call();
+                } catch (Exception e1) {
+                    LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+                }
+            }
             e.setMessage(msg);
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
@@ -376,16 +396,17 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public Future<Object> broadcast(Object msg) {
+    @Override
+    public <T> Future<T> broadcast(T msg) {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
         start();
-        msg = filter(msg);
-        if (msg == null) return null;
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
-        messages.offer(new Entry(msg, null, f));
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        messages.offer(new Entry(newMsg, null, f));
         return f;
     }
 
@@ -406,38 +427,67 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public Future<Object> broadcast(Object msg, AtmosphereResource<?, ?> r) {
+    @Override
+    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
         start();
-        msg = filter(msg);
-        if (msg == null) return null;
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
-        messages.offer(new Entry(msg, r, f));
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        messages.offer(new Entry(newMsg, r, f));
         return f;
     }
 
     /**
      * {@inheritDoc}
      */
-    public Future<Object> broadcast(Object msg, Set<AtmosphereResource<?, ?>> subset) {
+    @Override
+    public <T> Future<T> broadcastOnResume(T msg) {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
         start();
-        msg = filter(msg);
-        if (msg == null) return null;
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
-        messages.offer(new Entry(msg, subset, f));
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        broadcastOnResume.offer(new Entry(newMsg, null, f));
+        return f;
+    }
+
+    protected void broadcastOnResume(){
+        // That's suck.
+        Iterator<Entry> i = broadcastOnResume.iterator();
+        while (i.hasNext()) {
+            push(i.next());
+            i.remove();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+
+        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+
+        start();
+        Object newMsg = filter(msg);
+        if (newMsg == null) return null;
+
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        messages.offer(new Entry(newMsg, subset, f));
         return f;
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -477,6 +527,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
         if (!events.contains(r)) {
             return null;
@@ -495,6 +546,7 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param bc
      */
+    @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
     }
@@ -511,27 +563,27 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public Future<Object> delayBroadcast(Object o) {
+    public <T> Future<T> delayBroadcast(T o) {
         return delayBroadcast(o, 0, null);
     }
 
     /**
      * {@inheritDoc}
      */
-    public Future<Object> delayBroadcast(final Object o, long delay, TimeUnit t) {
+    public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final Future<Object> future = new BroadcasterFuture<Object>(msg);
+        final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg);
         final Entry e = new Entry(msg, null, future);
-        Future<Object> f;
+        Future<T> f;
         if (delay > 0) {
-            f = bc.getScheduledExecutorService().schedule(new Callable<Object>() {
+            f = bc.getScheduledExecutorService().schedule(new Callable<T>() {
 
-                public Object call() throws Exception {
+                public T call() throws Exception {
                     delayedBroadcast.remove(e);
                     if (Callable.class.isAssignableFrom(o.getClass())) {
                         try {
@@ -540,16 +592,16 @@ public class DefaultBroadcaster implements Broadcaster {
                                 Entry entry = new Entry(r, null, null);
                                 push(entry);
                             }
-                            return msg;
+                            return (T) msg;
                         } catch (Exception e1) {
                             LoggerUtils.getLogger().log(Level.SEVERE, "", e);
                         }
                     }
                     push(e);
-                    return msg;
+                    return (T) msg;
                 }
             }, delay, t);
-            e.future = f;
+            e.future = new BroadcasterFuture<Object>(f, msg);
         }
         delayedBroadcast.offer(e);
         return future;

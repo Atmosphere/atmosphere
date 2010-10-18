@@ -61,7 +61,6 @@ public class AtmosphereResourceEventImpl implements
 
     protected final AtmosphereResourceImpl r;
 
-
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl r) {
         this.r = r;
     }
@@ -136,4 +135,13 @@ public class AtmosphereResourceEventImpl implements
         r.write(os, o);
     }
 
+    @Override
+    public String toString() {
+        return "AtmosphereResourceEventImpl{" +
+                "isCancelled=" + isCancelled +
+                ", isResumedOnTimeout=" + isResumedOnTimeout +
+                ", message=" + message +
+                ", r=" + r +
+                '}';
+    }
 }
