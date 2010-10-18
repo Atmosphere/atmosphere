@@ -162,7 +162,8 @@ public interface Broadcaster {
     public <T> Future<T> broadcast(T o, AtmosphereResource<?,?> resource);
 
     /**
-     * Broadcast the {@link Object} to all suspended response when the the resume operations occurs.
+     * Broadcast the {@link Object} when an {@link AtmosphereResource} is resumed by a timeout or when using
+     * {@link org.atmosphere.cpr.AtmosphereResource#resume()}
      *
      * @param o        and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}

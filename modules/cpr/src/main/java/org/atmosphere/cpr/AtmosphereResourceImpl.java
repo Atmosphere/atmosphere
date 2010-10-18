@@ -134,7 +134,7 @@ public class AtmosphereResourceImpl implements
             // We need it as Jetty doesn't support timeout
             Broadcaster b = getBroadcaster();
             if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster)b).broadcastOnResume();
+                ((DefaultBroadcaster)b).broadcastOnResume(this);
             }
 
             notifyListeners();
