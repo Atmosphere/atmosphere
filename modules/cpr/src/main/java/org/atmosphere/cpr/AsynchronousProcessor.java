@@ -315,7 +315,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
             Broadcaster b = re.getBroadcaster();
             if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster)b).broadcastOnResume();
+                ((DefaultBroadcaster)b).broadcastOnResume(re);
             }
 
             if (re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) != null) {

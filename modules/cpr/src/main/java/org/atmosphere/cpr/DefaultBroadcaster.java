@@ -71,7 +71,7 @@ import java.util.logging.Level;
  */
 public class DefaultBroadcaster implements Broadcaster {
 
-    protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> events =
+    protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
     protected BroadcasterConfig bc = AtmosphereServlet.getBroadcasterConfig();
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
@@ -115,7 +115,8 @@ public class DefaultBroadcaster implements Broadcaster {
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
-        events.clear();
+        resources.clear();
+        broadcastOnResume.clear();
         messages.clear();
         delayedBroadcast.clear();
         broadcasterCache = null;
@@ -128,7 +129,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public Collection<AtmosphereResource<?, ?>> getAtmosphereResources() {
-        return Collections.unmodifiableCollection(events);
+        return Collections.unmodifiableCollection(resources);
     }
 
     /**
@@ -138,7 +139,7 @@ public class DefaultBroadcaster implements Broadcaster {
         this.scope = scope;
         try {
             if (scope == SCOPE.REQUEST) {
-                for (AtmosphereResource<?, ?> r : events) {
+                for (AtmosphereResource<?, ?> r : resources) {
                     Broadcaster b = BroadcasterFactory.getDefault().get(this.getClass(),
                             this.getClass().getSimpleName() + "/" + UUID.randomUUID());
 
@@ -151,7 +152,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
 
-                if (!events.isEmpty()) {
+                if (!resources.isEmpty()) {
                     this.destroy();
                 }
             }
@@ -192,7 +193,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void resumeAll() {
-        for (AtmosphereResource<?, ?> r : events) {
+        for (AtmosphereResource<?, ?> r : resources) {
             r.resume();
         }
     }
@@ -200,12 +201,12 @@ public class DefaultBroadcaster implements Broadcaster {
     public class Entry {
 
         public Object message;
-        public Object eventsToPush;
+        public Object multipleAtmoResources;
         public BroadcasterFuture<?> future;
 
-        public Entry(Object message, Object eventsToPush, BroadcasterFuture<?> future) {
+        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future) {
             this.message = message;
-            this.eventsToPush = eventsToPush;
+            this.multipleAtmoResources = multipleAtmoResources;
             this.future = future;
         }
 
@@ -213,7 +214,7 @@ public class DefaultBroadcaster implements Broadcaster {
         public String toString() {
             return "Entry{" +
                     "message=" + message +
-                    ", eventsToPush=" + eventsToPush +
+                    ", multipleAtmoResources=" + multipleAtmoResources +
                     ", future=" + future +
                     '}';
         }
@@ -287,18 +288,18 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        if (events.isEmpty()) {
+        if (resources.isEmpty()) {
             trackBroadcastMessage(null, msg.message);
         }
 
-        if (msg.eventsToPush == null) {
-            for (AtmosphereResource<?, ?> r : events) {
+        if (msg.multipleAtmoResources == null) {
+            for (AtmosphereResource<?, ?> r : resources) {
                 push(r, msg.message);
             }
-        } else if (msg.eventsToPush instanceof AtmosphereResource<?, ?>) {
-            push((AtmosphereResource<?, ?>) msg.eventsToPush, msg.message);
-        } else if (msg.eventsToPush instanceof Set) {
-            Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) msg.eventsToPush;
+        } else if (msg.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
+            push((AtmosphereResource<?, ?>) msg.multipleAtmoResources, msg.message);
+        } else if (msg.multipleAtmoResources instanceof Set) {
+            Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) msg.multipleAtmoResources;
             for (AtmosphereResource<?, ?> r : sub) {
                 push(r, msg.message);
             }
@@ -334,7 +335,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Shield us from any corrupted Request
                     if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
                         LoggerUtils.getLogger().log(Level.FINE, "Preventing corruption of a recycled request", e);
-                        events.remove(r);
+                        resources.remove(r);
                         return;
                     }
                 }
@@ -458,12 +459,17 @@ public class DefaultBroadcaster implements Broadcaster {
         return f;
     }
 
-    protected void broadcastOnResume(){
+    protected void broadcastOnResume(AtmosphereResource<?,?> r){
         // That's suck.
         Iterator<Entry> i = broadcastOnResume.iterator();
         while (i.hasNext()) {
-            push(i.next());
-            i.remove();
+            Entry e = i.next();
+            e.multipleAtmoResources = r;
+            push(e);
+        } 
+        
+        if (resources.isEmpty()) {
+            broadcastOnResume.clear();
         }
     }
 
@@ -497,11 +503,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     + " cannot be used as its scope is set to REQUEST");
         }
 
-        if (maxSuspendResource > 0 && events.size() == maxSuspendResource) {
+        if (maxSuspendResource > 0 && resources.size() == maxSuspendResource) {
             // Resume the first in.
             if (policy == POLICY.FIFO) {
                 try {
-                    events.poll().resume();
+                    resources.poll().resume();
                 } catch (Throwable t) {
                     LoggerUtils.getLogger().log(Level.WARNING, "addAtmosphereResource", t);
                 }
@@ -510,16 +516,16 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        if (events.contains(r)) {
+        if (resources.contains(r)) {
             return r;
         }
 
         // Re-add yourself
-        if (events.isEmpty()) {
+        if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().add(this, name);
         }
 
-        events.add(r);
+        resources.add(r);
         checkCachedAndPush(r, r.getAtmosphereResourceEvent());
         return r;
     }
@@ -529,13 +535,13 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
-        if (!events.contains(r)) {
+        if (!resources.contains(r)) {
             return null;
         }
-        events.remove(r);
+        resources.remove(r);
 
         // Will help preventing OOM.
-        if (events.isEmpty()) {
+        if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
         return r;
@@ -653,7 +659,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 .append("\tName: ").append(name).append("\n")
                 .append("\tScope: ").append(scope).append("\n")
                 .append("\tBroasdcasterCache ").append(broadcasterCache).append("\n")
-                .append("\tAtmosphereResource: ").append(events.size()).append("\n")
+                .append("\tAtmosphereResource: ").append(resources.size()).append("\n")
                 .toString();
     }
 }
