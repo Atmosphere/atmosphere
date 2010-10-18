@@ -101,7 +101,7 @@ public interface Broadcaster {
      * @param o and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> broadcast(Object o);
+    public <T> Future<T> broadcast(T o);
 
     /**
      * Delay the broadcast operation. The {@link Object} will be broadcasted
@@ -111,7 +111,7 @@ public interface Broadcaster {
      * @param o and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> delayBroadcast(Object o);
+    public <T> Future<T> delayBroadcast(T o);
 
     /**
      * Delay the broadcast operation. The {@link Object} will be broadcasted once the
@@ -122,7 +122,7 @@ public interface Broadcaster {
      * @param t     a {@link TimeUnit} of delay.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> delayBroadcast(Object o, long delay, TimeUnit t);
+    public <T> Future<T> delayBroadcast(T o, long delay, TimeUnit t);
 
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
@@ -135,7 +135,7 @@ public interface Broadcaster {
      * @param t      a {@link TimeUnit} of period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<?> scheduleFixedBroadcast(Object o, long period, TimeUnit t);
+    public <T> Future<T> scheduleFixedBroadcast(T o, long period, TimeUnit t);
 
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
@@ -148,7 +148,7 @@ public interface Broadcaster {
      * @param t       a {@link TimeUnit} of waitFor and period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<?> scheduleFixedBroadcast(Object o, long waitFor, long period, TimeUnit t);
+    public <T> Future<T> scheduleFixedBroadcast(T o, long waitFor, long period, TimeUnit t);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
@@ -159,7 +159,15 @@ public interface Broadcaster {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> broadcast(Object o, AtmosphereResource<?,?> resource);
+    public <T> Future<T> broadcast(T o, AtmosphereResource<?,?> resource);
+
+    /**
+     * Broadcast the {@link Object} to all suspended response when the the resume operations occurs.
+     *
+     * @param o        and {@link Object} to be broadcasted.
+     * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
+     */
+    public <T> Future<T> broadcastOnResume(T o);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
@@ -170,7 +178,7 @@ public interface Broadcaster {
      * @param subset a Set of {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public Future<Object> broadcast(Object o, Set<AtmosphereResource<?,?>> subset);
+    public <T> Future<T> broadcast(T o, Set<AtmosphereResource<?,?>> subset);
 
     /**
      * Add a {@link AtmosphereResource<?,?>} to the list of item to be notified when

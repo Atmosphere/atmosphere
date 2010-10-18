@@ -51,6 +51,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -311,6 +312,12 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         if (re != null) {
             re.getAtmosphereResourceEvent().isResumedOnTimeout = true;
+
+            Broadcaster b = re.getBroadcaster();
+            if (b instanceof DefaultBroadcaster) {
+                ((DefaultBroadcaster)b).broadcastOnResume();
+            }
+
             if (re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) != null) {
                 re.getAtmosphereResourceEvent().isResumedOnTimeout =
                         (Boolean) re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT);

@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -129,6 +130,13 @@ public class AtmosphereResourceImpl implements
     public void resume() {
         if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
             action.type = AtmosphereServlet.Action.TYPE.RESUME;
+
+            // We need it as Jetty doesn't support timeout
+            Broadcaster b = getBroadcaster();
+            if (b instanceof DefaultBroadcaster) {
+                ((DefaultBroadcaster)b).broadcastOnResume();
+            }
+
             notifyListeners();
             listeners.clear();
             broadcaster.removeAtmosphereResource(this);

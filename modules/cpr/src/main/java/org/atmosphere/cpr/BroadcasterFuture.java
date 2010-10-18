@@ -59,18 +59,32 @@ public class BroadcasterFuture<E> implements Future {
 
     private final E msg;
 
+    private final Future<?> innerFuture;
+
     public BroadcasterFuture(E msg) {
+        this(null,msg);
+    }
+
+    public BroadcasterFuture(Future<?> innerFuture, E msg) {
         this.msg = msg;
-        latch = new CountDownLatch(1);
+        this.innerFuture = innerFuture;
+        if (innerFuture == null) {
+            latch = new CountDownLatch(1);
+        } else {
+            latch = null;
+        }
     }
 
     /**
-     * Cancel
-     *
-     * @param b
-     * @return
+     * {@inheritDoc}
      */
+    @Override
     public boolean cancel(boolean b) {
+
+        if (innerFuture != null) {
+            return innerFuture.cancel(b);
+        }
+
         if (latch.getCount() == 1) {
             latch.countDown();
             isCancelled = true;
@@ -79,18 +93,28 @@ public class BroadcasterFuture<E> implements Future {
     }
 
     /**
-     * True is cancelled.
-     *
-     * @return
+     * {@inheritDoc}
      */
+    @Override
     public boolean isCancelled() {
+
+        if (innerFuture != null) {
+            return innerFuture.isCancelled();
+        }
+
         return isCancelled;
     }
 
     /**
-     * True when done.
+     * {@inheritDoc}
      */
+    @Override
     public boolean isDone() {
+
+        if (innerFuture != null) {
+            return innerFuture.isDone();
+        }
+
         isDone = true;
         return isDone;
     }
@@ -100,29 +124,34 @@ public class BroadcasterFuture<E> implements Future {
      */
     public void done() {
         isDone = true;
-        latch.countDown();
+        if (latch != null) {
+            latch.countDown();
+        }
     }
 
     /**
-     * Block until a {@link Broadcaster} completed it broadcast operation.
-     *
-     * @return The filtered message.
-     * @throws InterruptedException
-     * @throws ExecutionException
+     * {@inheritDoc}
      */
+    @Override
     public E get() throws InterruptedException, ExecutionException {
+        if (innerFuture != null) {
+            return (E) innerFuture.get();
+        }
+
         latch.await();
         return msg;
     }
 
     /**
-     * Block until a {@link Broadcaster} completed it broadcast operation.
-     *
-     * @param l  The time to wait.
-     * @param tu {@link TimeUnit}
-     * @return The filtered message.
+     * {@inheritDoc}
      */
+    @Override
     public E get(long l, TimeUnit tu) throws InterruptedException, ExecutionException, TimeoutException {
+
+        if (innerFuture != null) {
+            return (E) innerFuture.get();
+        }
+
         latch.await(l, tu);
         return msg;
     }
