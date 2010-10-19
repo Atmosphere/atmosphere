@@ -204,7 +204,11 @@ public class BlockingIOCometSupport extends AsynchronousProcessor implements Com
                 String s = config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE);
                 if (latchId != -1 && (s == null || s.equalsIgnoreCase("false"))) {
                     CountDownLatch latch = latchs.remove(latchId);
-                    latch.countDown();
+                    if (latch == null) {
+                        logger.log(Level.SEVERE, String.format("Unable to resume the suspended connection with latchId", latchId));
+                    } else {
+                        latch.countDown();
+                    }
                 } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
                     logger.log(Level.SEVERE, "Unable to resume the suspended connection");
                 }
