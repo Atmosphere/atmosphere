@@ -197,7 +197,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor implements Com
 
                 if (latchId == -1 && supportSession()) {
                     if (req.getSession().getAttribute(LATCH) != null) {
-                        latchId = (Integer) req.getSession().getAttribute(String.valueOf(req.hashCode()));
+                        latchId = (Integer) req.getSession().getAttribute(LATCH);
                     }
                 }
 
