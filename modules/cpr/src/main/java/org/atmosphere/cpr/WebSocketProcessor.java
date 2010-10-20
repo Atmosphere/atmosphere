@@ -81,7 +81,7 @@ public class WebSocketProcessor implements Serializable {
 
         r = (AtmosphereResource) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
         ah = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
-        if (!r.getAtmosphereResourceEvent().isSuspended()) {
+        if (r == null || !r.getAtmosphereResourceEvent().isSuspended()) {
             webSocketSupport.close();
         }
     }
