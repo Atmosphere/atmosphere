@@ -1,26 +1,30 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
     <script type="text/javascript" src="jquery/jquery-1.4.2.js"></script>
-    <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
+    <script type="text/javascript" src="jquery/swfobject.js"></script>
+    <script type="text/javascript" src="jquery/FABridge.js"></script>
+    <script type="text/javascript" src="jquery/web_socket.js"></script>
+    <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
+    
     <script type="text/javascript">
-        $(document).ready(function()
-        {
+        WEB_SOCKET_SWF_LOCATION = "jquery/WebSocketMain.swf";
+        WEB_SOCKET_DEBUG = true;
+        
+        $(document).ready(function() {
             var connectedEndpoint;
             var callbackAdded = false;
-            function getKeyCode(ev)
-            {
+
+            function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
                 return ev.keyCode;
             }
 
-            function getElementById()
-            {
+            function getElementById() {
                 return document.getElementById(arguments[0]);
             }
 
-            function getTransport(t)
-            {
+            function getTransport(t) {
                 transport = t.options[t.selectedIndex].value;
                 if (transport == 'autodetect') {
                     transport = 'websocket';
@@ -28,17 +32,14 @@
 
                 return false;
             }
-            
-            function getElementByIdValue()
-            {
+
+            function getElementByIdValue() {
                 return document.getElementById(arguments[0]).value;
             }
 
-            function subscribe()
-            {
+            function subscribe() {
                 // jquery.atmosphere.response
-                function callback(response)
-                {
+                function callback(response) {
                     // Websocket events.
                     $.atmosphere.log('info', ["response.state: " + response.state]);
                     $.atmosphere.log('info', ["response.transport: " + response.transport]);
@@ -53,25 +54,22 @@
                     }
                 }
 
-                /* transport can be : long-polling, streaming or websocket */
-                $.atmosphere.subscribe(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                        !callbackAdded? callback : null,
-                        $.atmosphere.request = {transport: getElementByIdValue('transport')});
+                var location = document.location.toString() + 'pubsub/' + getElementByIdValue('topic');
+                $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') , webSocketImpl : new WebSocket(location.replace('http:', 'ws:').replace('https:', 'wss:')) });
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 
-            function connect()
-            {
+            function connect() {
                 getElementById('phrase').value = '';
                 getElementById('sendMessage').className = '';
                 getElementById('phrase').focus();
                 subscribe();
-                getElementById('connect').value="Switch transport";
+                getElementById('connect').value = "Switch transport";
             }
 
-            getElementById('connect').onclick = function(event)
-            {
+            getElementById('connect').onclick = function(event) {
                 if (getElementById('topic').value == '') {
                     alert("Please enter a PubSub topic to subscribe");
                     return;
@@ -79,8 +77,7 @@
                 connect();
             }
 
-            getElementById('topic').onkeyup = function(event)
-            {
+            getElementById('topic').onkeyup = function(event) {
                 getElementById('sendMessage').className = 'hidden';
                 var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
@@ -90,13 +87,12 @@
             }
 
             getElementById('phrase').setAttribute('autocomplete', 'OFF');
-            getElementById('phrase').onkeyup = function(event)
-            {
+            getElementById('phrase').onkeyup = function(event) {
                 var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
                     connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                        null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
+                            null,
+                            $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -104,8 +100,7 @@
                 return true;
             };
 
-            getElementById('send_message').onclick = function(event)
-            {
+            getElementById('send_message').onclick = function(event) {
                 if (getElementById('topic').value == '') {
                     alert("Please enter a message to publish");
                     return;
@@ -120,7 +115,7 @@
             getElementById('topic').focus();
         });
     </script>
-        <style type='text/css'>
+    <style type='text/css'>
         div {
             border: 0px solid black;
         }
@@ -150,12 +145,16 @@
 </head>
 <body>
 <h1>PubSub Sample using Atmosphere's JQuery Plug In</h1>
+
 <h2>Select PubSub topic to subscribe</h2>
+
 <div id='pubsub'>
     <input id='topic' type='text'/>
 </div>
 <h2>Select transport to use for subscribing</h2>
+
 <h3>You can change the transport any time.</h3>
+
 <div id='select_transport'>
     <select id="transport">
         <option id="autodetect" value="websocket">autodetect</option>
@@ -167,12 +166,15 @@
 </div>
 <br/>
 <br/>
+
 <h2 id="s_h" class='hidden'>Publish Topic</h2>
+
 <div id='sendMessage' class='hidden'>
     <input id='phrase' type='text'/>
     <input id='send_message' class='button' type='submit' name='Publish' value='Publish Message'/>
 </div>
 <br/>
+
 <h2>Real Time PubSub Update</h2>
 <ul></ul>
 </body>

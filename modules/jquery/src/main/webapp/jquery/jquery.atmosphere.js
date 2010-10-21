@@ -61,7 +61,8 @@ jQuery.atmosphere = function()
                 logLevel :  'info',
                 requestCount : 0,
                 fallbackTransport : 'streaming',
-                transport : 'long-polling'
+                transport : 'long-polling',
+                webSocketImpl: null
 
             }, request);
 
@@ -79,7 +80,7 @@ jQuery.atmosphere = function()
             if (jQuery.atmosphere.request.transport != 'websocket') {
                 jQuery.atmosphere.executeRequest();
             } else if (jQuery.atmosphere.request.transport == 'websocket') {
-                if (!window.WebSocket) {
+                if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
                     jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport"]);
                     jQuery.atmosphere.request.transport = jQuery.atmosphere.request.fallbackTransport;
                     jQuery.atmosphere.executeRequest();
@@ -184,7 +185,7 @@ jQuery.atmosphere = function()
 
                 ajaxRequest.onreadystatechange = function()
                 {
-                    if (abordingConnection) return;
+                    if (jQuery.atmosphere.abordingConnection) return;
 
                     var junkForWebkit = false;
                     var update = false;
@@ -350,7 +351,13 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
-            var websocket = new WebSocket(location);
+            var websocket = null;
+            if (jQuery.atmosphere.request.webSocketImpl != null) {
+                websocket = jQuery.atmosphere.request.webSocketImpl;
+            } else {
+                websocket = new WebSocket(location);
+            }
+
             jQuery.atmosphere.websocket = websocket;
 
             jQuery.atmosphere.response.push = function (url)
