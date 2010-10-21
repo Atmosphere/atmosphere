@@ -15,12 +15,14 @@
 package org.atmosphere.plugin.bayeux;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.cometd.server.ClientImpl;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.thread.Timeout;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.concurrent.ExecutionException;
 
 /* ------------------------------------------------------------ */
 
@@ -147,7 +149,16 @@ public class AtmosphereBayeuxClient extends ClientImpl {
     public void resume() {
         synchronized (this) {
             if (_continuation != null) {
-                _continuation.resume();
+                try {
+                    AtmosphereServlet.getBroadcasterConfig().getExecutorService().submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            _continuation.resume();
+                        }
+                    }).get();
+                } catch (Throwable t){
+                    // Ignore
+                }
             }
             _continuation = null;
         }
