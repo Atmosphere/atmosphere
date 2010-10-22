@@ -35,7 +35,7 @@
  * holder.
  *
  */
-package org.atmosphere.plugin.cluster.jms;
+package org.atmosphere.plugin.jms;
 
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
@@ -64,7 +64,6 @@ import java.util.logging.Logger;
  */
 public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     private static Logger logger = LoggerUtils.getLogger();
-
 
     private Connection connection;
     private Session session;

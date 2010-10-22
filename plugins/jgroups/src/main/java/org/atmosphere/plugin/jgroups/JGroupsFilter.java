@@ -35,81 +35,68 @@
  * holder.
  *
  */
-package org.atmosphere.plugin.cluster.jms;
+package org.atmosphere.plugin.jgroups;
 
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
-import org.atmosphere.util.LoggerUtils;
+import org.jgroups.ChannelException;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageListener;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-import javax.jms.TextMessage;
-import javax.jms.Topic;
-import javax.naming.Context;
-import javax.naming.InitialContext;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Clustering support based on JMS
+ * Clustering support based on JGroupsFilter (http://jgroups.org)
  * 
- * @author Jean-francois Arcand
+ * @author Hubert Iwaniuk
  */
-public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
-    private static Logger logger = LoggerUtils.getLogger();
+public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFilter{
 
-
-    private Connection connection;
-    private Session session;
-    private MessageConsumer consumer;
-    private MessageProducer publisher;
-
-    private String clusterName;
-
-    private Broadcaster bc = null;
+    final static Logger logger = Logger.getLogger("JGroupsFilter");
+    private JChannel jchannel;
+    private String clusterName = "cluster-jgroups";
+    private Broadcaster bc;
     private final ConcurrentLinkedQueue<String> receivedMessages =
             new ConcurrentLinkedQueue<String>();
 
-    public JMSFilter(){
+    public JGroupsFilter() {
         this(null);
     }
 
     /**
-     * Create a JMSFilter based filter.
+     * Create a JGroupsFilter based filter.
      * @param bc the Broadcaster to use when receiving update from the cluster.
      */
-    public JMSFilter(Broadcaster bc) {
-        this(bc,"atmosphere-framework");
+    public JGroupsFilter(Broadcaster bc) {
+        this(bc, "atmosphere-framework");
     }
 
     /**
-     * Create a JMSFilter based filter.
+     * Create a JGroupsFilter based filter.
      * @param bc the Broadcaster to use when receiving update from the cluster.
      * @param containerName the current WebServer'name.
      */
-    public JMSFilter(Broadcaster bc, String containerName) {
-        this(bc,containerName,"cluster-atmosphere");
+    public JGroupsFilter(Broadcaster bc, String containerName) {
+        this(bc, containerName, "cluster-atmosphere");
     }
 
-
     /**
-     * Create a JMSFilter based filter.
+     * Create a JGroupsFilter based filter.
      * @param bc the Broadcaster to use when receiving update from the cluster.
      * @param containerName the current WebServer'name.
      * @param clusterName the cluster's group name.
      */
-    public JMSFilter(Broadcaster bc, String containerName, String clusterName) {
-
+    public JGroupsFilter(Broadcaster bc, String containerName, String clusterName) {
+        this.bc = bc;
+        this.clusterName = clusterName;
     }
 
-    public void setAddress(String clusterName){
+    public void setAddress(String clusterName) {
         this.clusterName = clusterName;
     }
 
@@ -117,47 +104,38 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
      * Preapre the cluter.
      */
     public void init() {
-        try{
+        try {
+            logger.log(Level.INFO, "Starting Atmosphere JGroups Clustering support");
 
-            Context ctx = new InitialContext();
-            ConnectionFactory connectionFactory =
-                    (ConnectionFactory)ctx.lookup("jms/atmosphereFactory");
-
-            Topic topic =  (Topic)ctx.lookup("jms/" + clusterName);
-            connection = connectionFactory.createConnection();
-            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            consumer = session.createConsumer(topic,clusterName);
-            consumer.setMessageListener(this);
-            publisher = session.createProducer(topic);
-
-            connection.start();
-        } catch(Throwable ex){
-            throw new IllegalStateException("Unable to initialize JMSFilter" ,ex);
+            //initialize jgroups channel
+            jchannel = new JChannel();
+            //register for Group Events
+            jchannel.setReceiver(this);
+            //join group
+            jchannel.connect(clusterName);
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, "", t);
         }
     }
 
     /**
      * Shutown the cluster.
-     * TODO: Not sure we should close the cluster.
      */
-    public void destroy(){
-
+    public void destroy() {
+        jchannel.shutdown();
     }
 
-    public void onMessage(Message msg) {
-        try {
-            TextMessage textMessage = (TextMessage) msg;
-            String message = textMessage.getText();
-            receivedMessages.offer(message);
-
-            if (message != null && bc != null){
-                bc.broadcast(message);
+    /** {@inheritDoc} */
+    @Override
+    public void receive(final Message message) {
+        final String msg = (String) message.getObject();
+        if (message.getSrc() != jchannel.getLocalAddress()){
+            if (msg != null) {
+                receivedMessages.offer(msg);
+                if (bc != null) {
+                    bc.broadcast(msg);
+                }
             }
-        } catch (JMSException ex) {
-            if (logger.isLoggable(Level.WARNING)){
-                logger.log(Level.WARNING,"",ex);
-            }
-
         }
     }
 
@@ -169,13 +147,13 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String){
             String message = (String)o;
-            try {
-                // Avoid re-broadcasting
-                if (!receivedMessages.remove(message)) {
-                    publisher.send(session.createTextMessage(message));
+            // Avoid re-broadcasting
+            if (!receivedMessages.remove(message)) {
+                try {
+                    jchannel.send(new Message(null, null, message));
+                } catch (ChannelException e) {
+                    logger.log(Level.WARNING, "", e);
                 }
-            } catch (JMSException ex) {
-                logger.log(Level.WARNING, "", ex);
             }
             return new BroadcastAction(message);
         } else {
@@ -186,7 +164,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     /**
      * Return the current {@link Broadcaster}
      */
-    public Broadcaster getBroadcaster(){
+    public Broadcaster getBroadcaster() {
         return bc;
     }
 
@@ -194,7 +172,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
      * Set the current {@link Broadcaster} to use when a cluster event happens.
      * @param bc
      */
-    public void setBroadcaster(Broadcaster bc){
+    public void setBroadcaster(Broadcaster bc) {
         this.bc = bc;
     }
 }

@@ -53,7 +53,7 @@ public class XSSHtmlFilter implements BroadcastFilter {
      * @param o The object to introspect.
      * @return a well formed
      */
-    public BroadcastAction filter(Object o) {
+    public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String) {
             String message = (String) o;
 

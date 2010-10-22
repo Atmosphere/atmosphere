@@ -35,7 +35,7 @@
  * holder.
  *
  */
-package org.atmosphere.plugin.cluster.redis;
+package org.atmosphere.plugin.redis;
 
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;

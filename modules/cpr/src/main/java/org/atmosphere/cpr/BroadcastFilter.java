@@ -55,6 +55,7 @@ public interface BroadcastFilter {
 
         private final ACTION a;
         private final Object o;
+        private Object originalMsg;
 
         public enum ACTION {
             CONTINUE, ABORT
@@ -78,14 +79,22 @@ public interface BroadcastFilter {
             return a;
         }
 
+        public Object originalMessage() {
+            return originalMsg;
+        }
+
+        void setOriginalMsg(Object originalMsg) {
+            this.originalMsg = originalMsg;
+        }
     }
 
     /**
      * Transform or Filter a message. Return null to tell the associated
      * {@link Broadcaster} to discard the message, e.g to not broadcast it.
      *
+     * @param originalMessage The original message which was {@link Broadcaster#broadcast(Object)};
      * @param message Object a message
      * @return a transformed message.
      */
-    BroadcastAction filter(Object message);
+    BroadcastAction filter(Object originalMessage, Object message);
 }

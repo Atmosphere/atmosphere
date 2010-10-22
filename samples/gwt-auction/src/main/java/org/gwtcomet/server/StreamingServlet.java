@@ -106,7 +106,7 @@ public class StreamingServlet extends RemoteServiceServlet {
 
     private final class GWTBroadcasterFilter implements BroadcastFilter {
 
-        public BroadcastAction filter(Object message) {
+        public BroadcastAction filter(Object originalMsg, Object message) {
             try {
                 StreamingServiceBusiness.Event event = (StreamingServiceBusiness.Event) message;
                 StringBuffer stream = new StringBuffer();

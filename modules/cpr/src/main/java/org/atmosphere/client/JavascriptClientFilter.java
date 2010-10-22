@@ -50,7 +50,7 @@ public class JavascriptClientFilter implements BroadcastFilter {
     private final AtomicInteger uniqueScriptToken = new AtomicInteger();
 
     @Override
-    public BroadcastAction filter(Object message) {
+    public BroadcastAction filter(Object originalMessage, Object message) {
 
         if (message instanceof String) {
             StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
