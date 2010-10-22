@@ -43,11 +43,11 @@ package org.atmosphere.cpr;
  */
 public interface ClusterBroadcastFilter extends BroadcastFilterLifecycle {
     /**
-     * Cluster's name.
+     * Cluster's name or address
      *
      * @param name
      */
-    void setClusterName(String name);
+    void setAddress(String name);
 
     /**
      * The {@link Broadcaster} to use.

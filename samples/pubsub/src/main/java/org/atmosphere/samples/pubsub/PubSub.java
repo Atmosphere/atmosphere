@@ -45,7 +45,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.JerseyBroadcaster;
-import org.atmosphere.plugin.cluster.jgroups.JGroupsFilter;
+import org.atmosphere.plugin.cluster.redis.RedisFilter;
 import org.atmosphere.util.StringFilterAggregator;
 
 import javax.annotation.PreDestroy;
@@ -145,8 +145,8 @@ public class PubSub {
     @POST
     @Broadcast
     @Cluster(
-        name="chat",
-        value= JGroupsFilter.class
+        name="atmosphere",
+        value= RedisFilter.class
     )
     public Broadcastable publish(@FormParam("message") String message){
         return broadcast(message);
