@@ -102,7 +102,7 @@
                 }
                 connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase')});
                 getElementById('phrase').value = '';
                 return false;
             };
@@ -139,7 +139,7 @@
     </style>
 </head>
 <body>
-<h1>PubSub Sample using Atmosphere's JQuery Plug In</h1>
+<h1>Redis PubSub Sample using Atmosphere's JQuery Plug In</h1>
 
 <h2>Select PubSub topic to subscribe</h2>
 

@@ -312,7 +312,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (msg.writeLocally) {
                     push(r, finalMsg);
                 }
-            }
+            }                                                                                                                                                                               
         } else if (msg.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
             trackBroadcastMessage((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
             if (msg.writeLocally) {
