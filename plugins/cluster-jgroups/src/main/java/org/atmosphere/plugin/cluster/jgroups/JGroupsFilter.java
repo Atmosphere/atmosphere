@@ -145,7 +145,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      * @param o the message to broadcast.
      * @return The same message.
      */
-    public BroadcastAction filter(Object o) {
+    public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String){
             String message = (String)o;
             // Avoid re-broadcasting

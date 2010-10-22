@@ -198,7 +198,7 @@ public class BroadcasterConfig {
     protected BroadcastAction filter(Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
-            transformed = mf.filter(transformed.message());
+            transformed = mf.filter(object, transformed.message());
             if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                 return transformed;
             }

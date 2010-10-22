@@ -48,7 +48,7 @@ public class JsonpFilter implements BroadcastFilter {
     private static final String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
     private static final String END_SCRIPT_TAG = "</script>\n";
 
-    public BroadcastAction filter(Object o) {
+    public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String) {
             String m = (String) o;
             String name = m;

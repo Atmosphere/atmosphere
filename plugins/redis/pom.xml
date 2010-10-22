@@ -27,7 +27,7 @@
                     <instructions>
                         <Import-Package>*</Import-Package>
                         <Export-Package>
-                            org.atmosphere.plugin.cluster.redis.*
+                            org.atmosphere.plugin.redis.*
                         </Export-Package>
                     </instructions>
                 </configuration>
@@ -46,15 +46,14 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-annotations</artifactId>
+            <artifactId>atmosphere-jersey</artifactId>
             <version>${pom.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>1.3.0</version>
-            <type>jar</type>
+            <version>${jedis.version}</version>
         </dependency>
 
     </dependencies>

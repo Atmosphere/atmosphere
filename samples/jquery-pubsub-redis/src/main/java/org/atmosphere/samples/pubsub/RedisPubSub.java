@@ -34,39 +34,53 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.samples.scala.chat
+package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.cpr.BroadcastFilter
-import org.atmosphere.cpr.BroadcastFilter.BroadcastAction
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Cluster;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.jersey.Broadcastable;
+import org.atmosphere.jersey.SuspendResponse;
+import org.atmosphere.plugin.cluster.redis.RedisFilter;
+
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 
 /**
- * Simple {@link BroadcastFilter} that produce jsonp String.
+ * Simple PubSub resource that demonstrate many functionality supported by
+ * Atmosphere JQuery Plugin and Atmosphere Jersey extension.
  *
  * @author Jeanfrancois Arcand
  */
-class JsonpFilter extends BroadcastFilter {
+@Path("/pubsub/{topic}")
+@Produces("text/html;charset=ISO-8859-1")
+public class RedisPubSub {
 
-    val BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n"
-    val END_SCRIPT_TAG = "</script>\n"
+    private @PathParam("topic") Broadcaster topic;
+                                                                                                                                                                                                        
+    @GET
+    public SuspendResponse<String> subscribe() {
 
-    def filter(originalMessage: Object,o : Object) : BroadcastAction = {
-        if (o.isInstanceOf[String]){
-            var m = o.asInstanceOf[String]
-            var name = m
-            var message = ""
-
-            if (m.indexOf("__") > 0) {
-                name = m.substring(0, m.indexOf("__"))
-                message = m.substring(m.indexOf("__") + 2)
-            }
-
-            val result: String = (BEGIN_SCRIPT_TAG + "window.parent.app.update({ name: \""
-                    + name + "\", message: \""
-                    + message + "\" });\n"
-                    + END_SCRIPT_TAG)
-            new BroadcastAction(result)
-        } else {
-            new BroadcastAction(o)
+        if (topic.getAtmosphereResources().size() == 0) {
+            RedisFilter redisFilter = new RedisFilter(topic, "localhost");
+            topic.getBroadcasterConfig().addFilter(redisFilter);
         }
+        
+        return new SuspendResponse.SuspendResponseBuilder<String>()
+                .broadcaster(topic)
+                .outputComments(true)
+                .addListener(new EventsLogger())
+                .build();
+    }
+
+    @POST
+    @Broadcast
+    public Broadcastable publish(@FormParam("message") String message) {
+        return new Broadcastable(message, "", topic);
     }
 }

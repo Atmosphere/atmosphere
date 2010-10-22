@@ -34,39 +34,33 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.samples.scala.chat
+package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.cpr.BroadcastFilter
-import org.atmosphere.cpr.BroadcastFilter.BroadcastAction
+import javax.servlet.ServletContext;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.PathSegment;
+import java.io.InputStream;
 
-/**
- * Simple {@link BroadcastFilter} that produce jsonp String.
- *
- * @author Jeanfrancois Arcand
- */
-class JsonpFilter extends BroadcastFilter {
+@Path("/")
+@Produces("text/html")
+public class FileResource {
 
-    val BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n"
-    val END_SCRIPT_TAG = "</script>\n"
+    private
+    @Context
+    ServletContext sc;
 
-    def filter(originalMessage: Object,o : Object) : BroadcastAction = {
-        if (o.isInstanceOf[String]){
-            var m = o.asInstanceOf[String]
-            var name = m
-            var message = ""
+    @Path("/jquery/{id}")
+    @GET
+    public InputStream getJQuery(@PathParam("id") PathSegment ps) {
+        return sc.getResourceAsStream("/jquery/" + ps.getPath());
+    }
 
-            if (m.indexOf("__") > 0) {
-                name = m.substring(0, m.indexOf("__"))
-                message = m.substring(m.indexOf("__") + 2)
-            }
-
-            val result: String = (BEGIN_SCRIPT_TAG + "window.parent.app.update({ name: \""
-                    + name + "\", message: \""
-                    + message + "\" });\n"
-                    + END_SCRIPT_TAG)
-            new BroadcastAction(result)
-        } else {
-            new BroadcastAction(o)
-        }
+    @GET
+    public InputStream getIndex() {
+        return sc.getResourceAsStream("/index.html");
     }
 }

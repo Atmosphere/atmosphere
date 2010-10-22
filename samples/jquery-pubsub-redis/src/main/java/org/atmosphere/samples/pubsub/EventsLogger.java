@@ -34,39 +34,35 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.samples.scala.chat
+package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.cpr.BroadcastFilter
-import org.atmosphere.cpr.BroadcastFilter.BroadcastAction
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
 
-/**
- * Simple {@link BroadcastFilter} that produce jsonp String.
- *
- * @author Jeanfrancois Arcand
- */
-class JsonpFilter extends BroadcastFilter {
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-    val BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n"
-    val END_SCRIPT_TAG = "</script>\n"
+public class EventsLogger implements AtmosphereResourceEventListener {
 
-    def filter(originalMessage: Object,o : Object) : BroadcastAction = {
-        if (o.isInstanceOf[String]){
-            var m = o.asInstanceOf[String]
-            var name = m
-            var message = ""
+    public EventsLogger() {
+    }
 
-            if (m.indexOf("__") > 0) {
-                name = m.substring(0, m.indexOf("__"))
-                message = m.substring(m.indexOf("__") + 2)
-            }
 
-            val result: String = (BEGIN_SCRIPT_TAG + "window.parent.app.update({ name: \""
-                    + name + "\", message: \""
-                    + message + "\" });\n"
-                    + END_SCRIPT_TAG)
-            new BroadcastAction(result)
-        } else {
-            new BroadcastAction(o)
-        }
+    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+        System.out.println("onSuspend: " + event.getResource().getRequest().getRemoteAddr()
+                + event.getResource().getRequest().getRemotePort());
+    }
+
+    public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        System.out.println("onResume: " + event.getResource().getRequest().getRemoteAddr());
+    }
+
+    public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        System.out.println("onDisconnect: " + event.getResource().getRequest().getRemoteAddr()
+                + event.getResource().getRequest().getRemotePort());
+    }
+
+    public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        System.out.println("onBroadcast: " + event.getMessage());
     }
 }

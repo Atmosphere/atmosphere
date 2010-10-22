@@ -35,6 +35,8 @@
         <module>chat-guice</module>
         <module>websocket-chat</module>
         <module>wicket-clock</module>
+        <module>jquery-pubsub-redis</module>
+        
     </modules>
     <build>
         <finalName>${artifactId}</finalName>

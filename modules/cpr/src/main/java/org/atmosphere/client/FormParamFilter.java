@@ -46,7 +46,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 public class FormParamFilter implements BroadcastFilter{
 
     @Override
-    public BroadcastAction filter(Object message) {
+    public BroadcastAction filter(Object originalMessage, Object message) {
 
         if ( (message instanceof String) && ((String) message).indexOf("=") != -1) {
             message =  message.toString().split("=")[1];
