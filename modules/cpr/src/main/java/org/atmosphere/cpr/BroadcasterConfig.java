@@ -60,8 +60,6 @@ import java.util.logging.Logger;
 public class BroadcasterConfig {
     public final static Logger logger = LoggerUtils.getLogger();
 
-    final static int numOfProcessor = Runtime.getRuntime().availableProcessors();
-
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters =
             new ConcurrentLinkedQueue<BroadcastFilter>();
 
@@ -266,7 +264,7 @@ public class BroadcasterConfig {
     public ScheduledExecutorService getScheduledExecutorService() {
         synchronized (lock) {
             if (scheduler == null) {
-                scheduler = Executors.newScheduledThreadPool(numOfProcessor);
+                scheduler = Executors.newSingleThreadScheduledExecutor();
             }
         }
         return scheduler;
