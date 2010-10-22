@@ -51,7 +51,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.plugin.cluster.jgroups.JGroupsFilter;
+import org.atmosphere.plugin.jgroups.JGroupsFilter;
 import org.atmosphere.util.XSSHtmlFilter;
 
 /**

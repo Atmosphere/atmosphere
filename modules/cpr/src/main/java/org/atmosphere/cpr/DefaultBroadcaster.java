@@ -52,6 +52,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -83,6 +84,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
+    private final CountDownLatch startedLatch = new CountDownLatch(1);
     private Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
@@ -203,11 +205,20 @@ public class DefaultBroadcaster implements Broadcaster {
         public Object message;
         public Object multipleAtmoResources;
         public BroadcasterFuture<?> future;
+        public boolean writeLocally;
 
         public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future) {
             this.message = message;
             this.multipleAtmoResources = multipleAtmoResources;
             this.future = future;
+            this.writeLocally = true;
+        }
+
+        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, boolean writeLocally) {
+            this.message = message;
+            this.multipleAtmoResources = multipleAtmoResources;
+            this.future = future;
+            this.writeLocally = writeLocally;
         }
 
         @Override
@@ -218,6 +229,36 @@ public class DefaultBroadcaster implements Broadcaster {
                     ", future=" + future +
                     '}';
         }
+    }
+
+    protected Runnable getBroadcastHandler() {
+        return new Runnable() {
+            public void run() {
+                Entry msg = null;
+                try {
+                    msg = messages.take();
+
+                    if (startedLatch.getCount() != 0) {
+                        startedLatch.countDown();
+                    }
+
+                    // Leader/follower
+                    bc.getExecutorService().submit(this);
+                    push(msg);
+                } catch (Throwable ex) {
+                    // Catch all exception to avoid killing this thread.
+                    LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
+                } finally {
+                    if (msg != null) {
+                        if (msg.future instanceof BroadcasterFuture) {
+                            ((BroadcasterFuture) msg.future).done();
+                        } else {
+                            msg.future.cancel(true);
+                        }
+                    }
+                }
+            }
+        };
     }
 
     protected void start() {
@@ -232,29 +273,15 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
-            notifierFuture = bc.getExecutorService().submit(new Runnable() {
+            notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
 
-                public void run() {
-                    Entry msg = null;
-                    try {
-                        msg = messages.take();
-                        // Leader/follower
-                        bc.getExecutorService().submit(this);
-                        push(msg);
-                    } catch (Throwable ex) {
-                        // Catch all exception to avoid killing this thread.
-                        LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
-                    } finally {
-                        if (msg != null) {
-                            if (msg.future instanceof BroadcasterFuture) {
-                                ((BroadcasterFuture) msg.future).done();
-                            } else {
-                                msg.future.cancel(true);
-                            }
-                        }
-                    }
+            if (startedLatch.getCount() != 0) {
+                try {
+                    startedLatch.await();
+                } catch (InterruptedException e) {
+                    ;;
                 }
-            });
+            }
         }
     }
 
@@ -292,19 +319,41 @@ public class DefaultBroadcaster implements Broadcaster {
             trackBroadcastMessage(null, msg.message);
         }
 
+        Object finalMsg = translate(msg.message);
+
         if (msg.multipleAtmoResources == null) {
             for (AtmosphereResource<?, ?> r : resources) {
-                push(r, msg.message);
+                trackBroadcastMessage(r, finalMsg);
+                if (msg.writeLocally) {
+                    push(r, finalMsg);
+                }
             }
         } else if (msg.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
-            push((AtmosphereResource<?, ?>) msg.multipleAtmoResources, msg.message);
+            trackBroadcastMessage((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
+            if (msg.writeLocally) {
+                push((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
+            }
         } else if (msg.multipleAtmoResources instanceof Set) {
             Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) msg.multipleAtmoResources;
             for (AtmosphereResource<?, ?> r : sub) {
-                push(r, msg.message);
+                trackBroadcastMessage(r, finalMsg);
+                if (msg.writeLocally) {
+                    push(r, finalMsg);
+                }
             }
         }
         msg.message = prevMessage;
+    }
+
+    private Object translate(Object msg) {
+        if (Callable.class.isAssignableFrom(msg.getClass())) {
+            try {
+                return  Callable.class.cast(msg).call();
+            } catch (Exception e) {
+                LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+            }
+        }
+        return msg;
     }
 
     protected void push(AtmosphereResource<?, ?> r, Object msg) {
@@ -315,16 +364,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            trackBroadcastMessage(r, msg);
             e = r.getAtmosphereResourceEvent();
-
-            if (Callable.class.isAssignableFrom(msg.getClass())) {
-                try {
-                    msg = Callable.class.cast(msg).call();
-                } catch (Exception e1) {
-                    LoggerUtils.getLogger().log(Level.SEVERE, "", e);
-                }
-            }
             e.setMessage(msg);
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()

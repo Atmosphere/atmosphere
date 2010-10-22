@@ -50,6 +50,8 @@ import java.util.concurrent.Future;
 
 /**
  * Abstract {@link org.atmosphere.cpr.Broadcaster} that delegates the internal processing to a proxy.
+ *
+ * @author Jeanfrancois Arcand
  */
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 

@@ -37,7 +37,6 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Cluster;
 import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -45,7 +44,6 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.JerseyBroadcaster;
-import org.atmosphere.plugin.cluster.redis.RedisFilter;
 import org.atmosphere.util.StringFilterAggregator;
 
 import javax.annotation.PreDestroy;
@@ -61,7 +59,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
  * Atmosphere.
- * 
+ *
  * @author Jeanfrancois Arcand
  */
 @Path("/{topic}")
@@ -69,23 +67,26 @@ import java.util.concurrent.TimeUnit;
 public class PubSub {
 
     @PreDestroy
-    public void destroy(){
+    public void destroy() {
         System.out.println("Testing the @PreDestroy");
     }
-    
+
     /**
      * Inject a {@link Broadcaster} based on @Path
      */
-    private @PathParam("topic") Broadcaster topic;
+    private
+    @PathParam("topic")
+    Broadcaster topic;
 
     /**
      * Suspend the response, and register a {@link AtmosphereResourceEventListener}
      * that get notified when events occurs like client disconnection, broadcast
      * or when the response get resumed.
+     *
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @GET
-    @Suspend(listeners={EventsLogger.class})
+    @Suspend(listeners = {EventsLogger.class})
     public Broadcastable subscribe() {
         return new Broadcastable(topic);
     }
@@ -94,19 +95,20 @@ public class PubSub {
      * Suspend the response, and register a {@link AtmosphereResourceEventListener}
      * that get notified when events occurs like client disconnection, broadcast
      * or when the response get resumed.
+     *
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @GET
     @Path("subscribeAndUsingExternalThread")
-    @Suspend(resumeOnBroadcast=true, listeners={EventsLogger.class})
+    @Suspend(resumeOnBroadcast = true, listeners = {EventsLogger.class})
     public String subscribeAndResumeUsingExternalThread(final @PathParam("topic") String topic) {
-        Executors.newSingleThreadExecutor().submit(new Runnable(){
+        Executors.newSingleThreadExecutor().submit(new Runnable() {
             public void run() {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                 }
-                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class,topic).broadcast("\nEcho: " + topic);
+                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class, topic).broadcast("\nEcho: " + topic);
             }
         });
         return "foo";
@@ -115,40 +117,44 @@ public class PubSub {
     /**
      * Suspend the response, and tell teh framework to resume the response                                                                                                                     \
      * when the first @Broadcast operation occurs.
+     *
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @GET
-    @Suspend(resumeOnBroadcast=true,listeners={EventsLogger.class})
+    @Suspend(resumeOnBroadcast = true, listeners = {EventsLogger.class})
     @Path("subscribeAndResume")
     public Broadcastable subscribeAndResume() {
         return new Broadcastable(topic);
     }
 
 
-    /**                                                                               '
+    /**
+     * '
      * Broadcast XML data using JAXB
+     *
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @POST
     @Produces("application/xml")
     @Broadcast
-    public Broadcastable publishWithXML(@FormParam("message") String message){
-        return new Broadcastable(new JAXBBean(message),topic);
+    public Broadcastable publishWithXML(@FormParam("message") String message) {
+        return new Broadcastable(new JAXBBean(message), topic);
     }
 
     /**
      * Broadcast messahge to this server and also to other server using JGroups
+     *
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @POST
     @Broadcast
-    @Cluster(
-        name="atmosphere",
-        value= RedisFilter.class
-    )
-    public Broadcastable publish(@FormParam("message") String message){
+    /* @Cluster(
+        name="chat",
+        value= JGroupsFilter.class
+    ) */
+    public Broadcastable publish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -156,13 +162,14 @@ public class PubSub {
      * Retain Broadcast events until we have enough data. See the {@link StringFilterAggregator}
      * to configure the amount of data buffered before the events gets written
      * back to the set of suspended response.
+     *
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @POST
-    @Broadcast(value={StringFilterAggregator.class})
+    @Broadcast(value = {StringFilterAggregator.class})
     @Path("aggregate")
-    public Broadcastable aggregate(@FormParam("message") String message){
+    public Broadcastable aggregate(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -173,10 +180,10 @@ public class PubSub {
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
-    @Schedule(period=5, resumeOnBroadcast=true)
+    @Schedule(period = 5, resumeOnBroadcast = true)
     @POST
     @Path("scheduleAndResume")
-    public Broadcastable scheduleAndResume(@FormParam("message") String message){
+    public Broadcastable scheduleAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -187,10 +194,10 @@ public class PubSub {
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
-    @Schedule(period=10, waitFor=5)
+    @Schedule(period = 10, waitFor = 5)
     @POST
     @Path("delaySchedule")
-    public Broadcastable delaySchedule(@FormParam("message") String message){
+    public Broadcastable delaySchedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -200,10 +207,10 @@ public class PubSub {
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
-    @Schedule(period=5)
+    @Schedule(period = 5)
     @POST
     @Path("schedule")
-    public Broadcastable schedule(@FormParam("message") String message){
+    public Broadcastable schedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -213,17 +220,17 @@ public class PubSub {
      * @param message A String from an HTML form
      * @return A {@link Broadcastable} used to broadcast events.
      */
-    @Broadcast(delay=5)
+    @Broadcast(delay = 5)
     @POST
     @Path("delay")
-    public Broadcastable delayPublish(@FormParam("message") String message){
+    public Broadcastable delayPublish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Broadcast(delay=5, resumeOnBroadcast=true)
+    @Broadcast(delay = 5, resumeOnBroadcast = true)
     @POST
     @Path("delayAndResume")
-    public Broadcastable delayPublishAndResume(@FormParam("message") String message){
+    public Broadcastable delayPublishAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -235,8 +242,8 @@ public class PubSub {
      */
     @Path("buffer")
     @POST
-    @Broadcast(delay=0)
-    public Broadcastable buffer(@FormParam("message") String message){
+    @Broadcast(delay = 0)
+    public Broadcastable buffer(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -249,17 +256,18 @@ public class PubSub {
      */
     @POST
     @Path("broadcast")
-    public String manualDelayBroadcast(@FormParam("message") String message){
+    public String manualDelayBroadcast(@FormParam("message") String message) {
         topic.delayBroadcast(message, 10, TimeUnit.SECONDS);
         return message;
     }
 
     /**
      * Create a new {@link Broadcastable}.
+     *
      * @param m
      * @return
      */
-    Broadcastable broadcast(String m){
-       return new Broadcastable(m + "\n", topic);
+    Broadcastable broadcast(String m) {
+        return new Broadcastable(m + "\n", topic);
     }
 } 

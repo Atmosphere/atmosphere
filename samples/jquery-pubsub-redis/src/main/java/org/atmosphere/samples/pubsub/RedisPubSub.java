@@ -37,12 +37,9 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Cluster;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.SuspendResponse;
-import org.atmosphere.plugin.cluster.redis.RedisFilter;
+import org.atmosphere.plugin.redis.RedisBroadcaster;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -52,8 +49,8 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 
 /**
- * Simple PubSub resource that demonstrate many functionality supported by
- * Atmosphere JQuery Plugin and Atmosphere Jersey extension.
+ * Simple Redis PubSub resource that demonstrate many functionality supported by
+ * Atmosphere JQuery Plugin,  Atmosphere Jersey extension and Atmosphere Redis Plugin
  *
  * @author Jeanfrancois Arcand
  */
@@ -61,16 +58,11 @@ import javax.ws.rs.Produces;
 @Produces("text/html;charset=ISO-8859-1")
 public class RedisPubSub {
 
-    private @PathParam("topic") Broadcaster topic;
-                                                                                                                                                                                                        
+    private @PathParam("topic") RedisBroadcaster topic;
+
     @GET
     public SuspendResponse<String> subscribe() {
 
-        if (topic.getAtmosphereResources().size() == 0) {
-            RedisFilter redisFilter = new RedisFilter(topic, "localhost");
-            topic.getBroadcasterConfig().addFilter(redisFilter);
-        }
-        
         return new SuspendResponse.SuspendResponseBuilder<String>()
                 .broadcaster(topic)
                 .outputComments(true)
