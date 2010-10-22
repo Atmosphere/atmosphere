@@ -16,8 +16,8 @@
     <modules>
         <module>grizzly-adapter</module>
         <module>bayeux</module>
-        <module>cluster-jgroups</module>
-        <module>cluster-jms</module>
-        <module>cluster-redis</module>
+        <module>jgroups</module>
+        <module>jms</module>
+        <module>redis</module>
     </modules>
 </project>

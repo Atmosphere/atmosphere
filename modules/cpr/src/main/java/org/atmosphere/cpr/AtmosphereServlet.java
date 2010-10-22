@@ -82,6 +82,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -166,6 +167,10 @@ import java.util.logging.Logger;
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet {
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
+    public final static String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
+    public final static String JMS_BROADCASTER = "org.atmosphere.plugin.jms.JMSBroadcaster";
+    public final static String JGROUPS_BROADCASTER = "org.atmosphere.plugin.jgroups.JGroupsBroadcaster";
+
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     public final static String GAE_BROADCASTER = org.atmosphere.util.gae.GAEDefaultBroadcaster.class.getName();
     public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
@@ -203,6 +208,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     private final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers =
             new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
+
+    private final ConcurrentLinkedQueue<String> broadcasterTypes =  new ConcurrentLinkedQueue<String>();
 
     // If we detect Servlet 3.0, should we still use the default
     // native Comet API.
@@ -385,6 +392,17 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public AtmosphereServlet(boolean isFilter) {
         this.isFilter = isFilter;
         readSystemProperties();
+
+        populateBroadcasterType();
+    }
+
+    /**
+     * The order of addition is quite important here.
+     */
+    private void populateBroadcasterType() {
+        broadcasterTypes.add(REDIS_BROADCASTER);
+        broadcasterTypes.add(JGROUPS_BROADCASTER);
+        broadcasterTypes.add(JMS_BROADCASTER);
     }
 
     /**
@@ -700,7 +718,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         logger.warning("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
-        if (!isBroadcasterSpecified) broadcasterClassName = JERSEY_BROADCASTER;
+        if (!isBroadcasterSpecified) broadcasterClassName = lookupDefaultBroadcasterType();
         rsp.setServletClassName(JERSEY_CONTAINER);
         sessionSupport(false);
         initParams.put(DISABLE_ONSTATE_EVENT, "true");
@@ -715,6 +733,17 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         addAtmosphereHandler(mapping, rsp, b);
         return true;
+    }
+
+    protected String lookupDefaultBroadcasterType() {
+        for (String b: broadcasterTypes) {
+            try {
+                Class.forName(b);
+                return b;
+            } catch (ClassNotFoundException e) {
+            }
+        }
+        return JERSEY_BROADCASTER;
     }
 
     protected void sessionSupport(boolean sessionSupport) {
@@ -1282,6 +1311,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public void setBroadcasterCacheClassName(String broadcasterCacheClassName) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
         configureBroadcaster();
+    }
+
+    /**
+     * Add a new Broadcaster class name AtmosphereServlet can use when initializing requests, and when
+     * atmosphere.xml broadcaster element is unspecified.
+     * 
+     * @param broadcasterTypeString
+     */
+    public void addBroadcasterType(String broadcasterTypeString) {
+        broadcasterTypes.add(broadcasterTypeString);
     }
 
     /**

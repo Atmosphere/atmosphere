@@ -47,7 +47,7 @@ import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.util.XSSHtmlFilter;
 import org.atmosphere.annotation.Cluster;
-import org.atmosphere.plugin.cluster.jgroups.JGroupsFilter;
+import org.atmosphere.plugin.jgroups.JGroupsFilter;
 import org.atmosphere.commons.jersey.JsonpFilter;
 
 @Path("/chat")

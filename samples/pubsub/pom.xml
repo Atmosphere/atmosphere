@@ -16,11 +16,6 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-jedis</artifactId>
-            <version>${pom.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
             <version>${pom.version}</version>
         </dependency>
@@ -35,5 +30,4 @@
             <version>${jersey-version}</version>
         </dependency> 
     </dependencies>
-
 </project>
