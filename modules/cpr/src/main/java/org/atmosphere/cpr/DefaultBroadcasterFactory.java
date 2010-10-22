@@ -65,12 +65,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private final Class<? extends Broadcaster> clazz;
 
-    private final BroadcasterConfig config;
-
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, BroadcasterConfig config) {
+    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz) {
         this.clazz = clazz;
-        this.config = config;
-        
+
         if (factory == null) {
             this.factory = this;
         }
@@ -81,7 +78,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public Broadcaster get() throws IllegalAccessException, InstantiationException {
         Broadcaster b = clazz.newInstance();
-        b.setBroadcasterConfig(config);
+        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
         b.setID(clazz.getSimpleName() + "-" + new Random().nextInt());
         store.put(b.getID(), b);
         return b;
@@ -96,7 +93,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (c == null) throw new NullPointerException("Class is null");
 
         Broadcaster b = c.newInstance();
-        b.setBroadcasterConfig(config);
+        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
         b.setID(id.toString());
 
         store.put(id, b);
@@ -192,7 +189,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public static BroadcasterFactory build(Class<? extends Broadcaster> clazz, BroadcasterConfig config)
             throws InstantiationException, IllegalAccessException {
-        return new DefaultBroadcasterFactory(clazz, config);
+        return new DefaultBroadcasterFactory(clazz);
     }
 
     /**
@@ -207,7 +204,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, BroadcasterConfig config)
             throws InstantiationException, IllegalAccessException {
 
-        factory = new DefaultBroadcasterFactory(clazz, config);
+        factory = new DefaultBroadcasterFactory(clazz);
         return factory;
     }
 

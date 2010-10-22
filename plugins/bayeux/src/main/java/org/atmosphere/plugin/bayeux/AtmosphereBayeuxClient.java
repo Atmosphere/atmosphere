@@ -150,7 +150,7 @@ public class AtmosphereBayeuxClient extends ClientImpl {
         synchronized (this) {
             if (_continuation != null) {
                 try {
-                    AtmosphereServlet.getBroadcasterConfig().getExecutorService().submit(new Runnable() {
+                    _continuation.getBroadcaster().getBroadcasterConfig().getExecutorService().submit(new Runnable() {
                         @Override
                         public void run() {
                             _continuation.resume();

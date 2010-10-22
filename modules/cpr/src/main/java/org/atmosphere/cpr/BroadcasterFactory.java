@@ -132,7 +132,7 @@ public abstract class BroadcasterFactory {
             } catch (ClassNotFoundException e) {
                 LoggerUtils.getLogger().log(Level.SEVERE,"",e);
             }
-            factory = new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b , AtmosphereServlet.getBroadcasterConfig());
+            factory = new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b);
 
         }
         return factory;

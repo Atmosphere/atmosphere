@@ -166,6 +166,8 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet {
+    public final static Logger logger = LoggerUtils.getLogger();
+
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
     public final static String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
     public final static String JMS_BROADCASTER = "org.atmosphere.plugin.jms.JMSBroadcaster";
@@ -192,7 +194,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
     public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
     public final static String WEBSOCKET_ATMOSPHEREHANDLER = WebSocketAtmosphereHandler.class.getName();
-    public final static Logger logger = LoggerUtils.getLogger();
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     public final static String DEFAULT_NAMED_DISPATCHER = "default";
@@ -203,6 +204,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected final AtmosphereConfig config = new AtmosphereConfig();
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
+    public static String[] broadcasterFilters = new String[0];
+
     /**
      * The list of {@link AtmosphereHandler} and their associated mapping.
      */
@@ -222,8 +225,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected boolean isBroadcasterSpecified = false;
     protected boolean isSessionSupportSpecified = false;
     private BroadcasterFactory broadcasterFactory;
-    private static BroadcasterConfig broadcasterConfig = new BroadcasterConfig();
-    private String broadcasterCacheClassName;
+    protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
 
     public final static class AtmosphereHandlerWrapper {
@@ -563,7 +565,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         if (broadcasterFactory == null) {
             broadcasterFactory = new DefaultBroadcasterFactory((Class<Broadcaster>)
-                    Thread.currentThread().getContextClassLoader().loadClass(broadcasterClassName), broadcasterConfig);
+                    Thread.currentThread().getContextClassLoader().loadClass(broadcasterClassName));
             config.broadcasterFactory = broadcasterFactory;
         }
 
@@ -573,17 +575,18 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         while (i.hasNext()) {
             e = i.next();
             w = e.getValue();
+            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters);
+
             if (w.broadcaster == null) {
                 w.broadcaster = broadcasterFactory.get();
             } else {
                 w.broadcaster.setBroadcasterConfig(broadcasterConfig);
+                if (broadcasterCacheClassName != null) {
+                    broadcasterConfig.setBroadcasterCache((BroadcasterCache)
+                            Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance());
+                }
             }
             w.broadcaster.setID(e.getKey());
-        }
-
-        if (broadcasterCacheClassName != null) {
-            broadcasterConfig.setBroadcasterCache((BroadcasterCache)
-                    Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance());
         }
 
         logger.info("Using " + broadcasterClassName);
@@ -651,7 +654,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
         if (s != null) {
-            configureBroadcasterFilter(s.split(","));
+            broadcasterFilters = s.split(",");
         }
     }
 
@@ -672,21 +675,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
         } catch (Throwable t) {
             throw new ServletException(t);
-        }
-    }
-
-    void configureBroadcasterFilter(String[] list){
-        for (String broadcastFilter: list) {
-            try {
-                broadcasterConfig.addFilter(BroadcastFilter.class.cast(
-                    Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance()));
-            } catch (InstantiationException e) {
-                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
-            } catch (IllegalAccessException e) {
-                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
-            } catch (ClassNotFoundException e) {
-                logger.log(Level.WARNING,String.format("Error trying to instanciate BroadcastFilter %s",broadcastFilter),e);
-            }
         }
     }
 
@@ -763,7 +751,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             broadcasterClassName = GAE_BROADCASTER;
             isBroadcasterSpecified = true;
             cometSupport = new GoogleAppEngineCometSupport(config);
-            broadcasterConfig = new GAEBroadcasterConfig();
             return true;
         } else {
             return false;
@@ -802,7 +789,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         BroadcasterFactory.factory = null;
         BroadcasterFactory.getDefault().destroy();
-        broadcasterConfig = new BroadcasterConfig();
     }
 
     /**
@@ -879,7 +865,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
 
                 if (reader.getBroadcastFilterClasses() != null){
-                    configureBroadcasterFilter(reader.getBroadcastFilterClasses());
+                    broadcasterFilters = reader.getBroadcastFilterClasses();
                 }
 
             } catch (Throwable t) {
@@ -1283,15 +1269,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         this.broadcasterFactory = broadcasterFactory;
         configureBroadcaster();
         return this;
-    }
-
-    /**
-     * Return the {@link BroadcasterConfig} used by this instance.
-     *
-     * @return {@link BroadcasterConfig}
-     */
-    public static BroadcasterConfig getBroadcasterConfig() {
-        return broadcasterConfig;
     }
 
     /**

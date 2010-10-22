@@ -448,18 +448,13 @@ public class AtmosphereResourceImpl implements
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
-                "req=" + req +
-                ", res=" + res +
                 ", action=" + action +
-                ", broadcaster=" + broadcaster +
-                ", config=" + config +
+                ", broadcaster=" + broadcaster.getClass().getName() +
                 ", cometSupport=" + cometSupport +
                 ", serializer=" + serializer +
                 ", isInScope=" + isInScope +
-                ", event=" + event +
                 ", useWriter=" + useWriter +
                 ", listeners=" + listeners +
-                ", isSuspendEvent=" + isSuspendEvent +
                 '}';
     }
 
