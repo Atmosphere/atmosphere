@@ -1,5 +1,6 @@
 package org.atmosphere.jersey.tests;
 
+import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -7,7 +8,9 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -53,4 +56,5 @@ public class BuilderResponseTest extends BlockingIOJerseyTest{
         c.close();
 
     }
+
 }

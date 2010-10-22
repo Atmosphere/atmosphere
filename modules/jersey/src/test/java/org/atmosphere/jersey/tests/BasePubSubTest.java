@@ -83,7 +83,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testSuspendWithCommentsTimeout() {
         System.out.println("Running testSuspendWithCommentsTimeout");
 
@@ -122,7 +122,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testProgrammaticResume() {
         System.out.println("Running testProgrammaticResume");
         AsyncHttpClient c = new AsyncHttpClient();
@@ -196,7 +196,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testDelayBroadcast() {
         System.out.println("Running testDelayBroadcast");
         final CountDownLatch latch = new CountDownLatch(1);
@@ -242,7 +242,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testDelayNextBroadcast() {
         System.out.println("Running testDelayNextBroadcast");
         final CountDownLatch latch = new CountDownLatch(1);
@@ -292,7 +292,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testScheduleBroadcast() {
         System.out.println("Running testScheduleBroadcast");
         final CountDownLatch latch = new CountDownLatch(1);
@@ -337,7 +337,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testBroadcastFilter() {
         System.out.println("Running testBroadcastFilter");
         final CountDownLatch latch = new CountDownLatch(1);
@@ -432,7 +432,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         System.out.println("Running testHeaderBroadcasterCache");
         atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
@@ -476,7 +476,7 @@ public abstract class BasePubSubTest extends BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000)
+    @Test(timeOut = 25000)
     public void testProgrammaticDelayBroadcast() {
         System.out.println("Running testDelayBroadcast");
         final CountDownLatch latch = new CountDownLatch(1);
@@ -518,62 +518,4 @@ public abstract class BasePubSubTest extends BaseTest {
         }
         c.close();
     }
-
-    @Test(timeOut = 60000)
-    public void testBroadcasterScope() {
-        System.out.println("Running testBroadcasterScope");
-        final CountDownLatch latch = new CountDownLatch(2);
-        AsyncHttpClient c = new AsyncHttpClient();
-        try {
-            final AtomicReference<Response> response = new AtomicReference<Response>();
-            c.prepareGet(urlTarget + "/scope").execute(new AsyncCompletionHandler<Response>() {
-
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    try {
-                        response.set(r);
-                        return r;
-                    } finally {
-                        latch.countDown();
-                    }
-                }
-            });
-
-            final AtomicReference<Response> response2 = new AtomicReference<Response>();
-            c.prepareGet("http://localhost:9999/suspend2/scope").execute(new AsyncCompletionHandler<Response>() {
-
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    try {
-                        response2.set(r);
-                        return r;
-                    } finally {
-                        latch.countDown();
-                    }
-                }
-            });
-
-            try {
-                latch.await(20, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                fail(e.getMessage());
-            }
-
-            Response r = response.get();
-            assertNotNull(r);
-            assertEquals(r.getStatusCode(), 200);
-            assertEquals(r.getResponseBody(), "bar");
-
-            Response r2 = response.get();
-            assertNotNull(r2);
-            assertEquals(r2.getStatusCode(), 200);
-            assertEquals(r2.getResponseBody(), "bar");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-        c.close();
-
-    }
-
 }
