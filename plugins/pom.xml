@@ -18,5 +18,6 @@
         <module>bayeux</module>
         <module>cluster-jgroups</module>
         <module>cluster-jms</module>
+        <module>cluster-redis</module>
     </modules>
 </project>

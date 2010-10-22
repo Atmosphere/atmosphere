@@ -71,7 +71,6 @@ import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -560,7 +559,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<ClusterBroadcastFilter> c : suspendTimeout) {
                     try {
                         ClusterBroadcastFilter cbf = c.newInstance();
-                        cbf.setClusterName(am.getAnnotation(Cluster.class).name());
+                        cbf.setAddress(am.getAnnotation(Cluster.class).name());
                         f.addCluster(cbf);
                     } catch (Throwable t) {
                         logger.log(Level.WARNING, "Invalid ClusterBroadcastFilter", t);
