@@ -52,7 +52,6 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -84,7 +83,6 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
-    private final CountDownLatch startedLatch = new CountDownLatch(1);
     private Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
@@ -237,11 +235,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 Entry msg = null;
                 try {
                     msg = messages.take();
-
-                    if (startedLatch.getCount() != 0) {
-                        startedLatch.countDown();
-                    }
-
                     // Leader/follower
                     bc.getExecutorService().submit(this);
                     push(msg);
@@ -274,14 +267,6 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterCache.start();
 
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
-
-            if (startedLatch.getCount() != 0) {
-                try {
-                    startedLatch.await();
-                } catch (InterruptedException e) {
-                    ;;
-                }
-            }
         }
     }
 
