@@ -39,6 +39,7 @@ package org.atmosphere.util.gae;
 
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -59,10 +60,12 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
 
     public GAEDefaultBroadcaster() {
         super();
+        bc = new GAEBroadcasterConfig(AtmosphereServlet.broadcasterFilters);
     }
 
     public GAEDefaultBroadcaster(String name) {
         super(name);
+        bc = new GAEBroadcasterConfig(AtmosphereServlet.broadcasterFilters);
     }
 
     /**

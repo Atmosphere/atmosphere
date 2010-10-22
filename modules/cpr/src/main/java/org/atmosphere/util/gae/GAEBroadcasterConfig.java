@@ -37,7 +37,6 @@
 
 package org.atmosphere.util.gae;
 
-
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.BroadcastFilterLifecycle;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -54,7 +53,8 @@ public class GAEBroadcasterConfig extends BroadcasterConfig {
 
     final static String NOT_SUPPORTED = "ExecutorService not supported with Google App Engine";
 
-    public GAEBroadcasterConfig() {
+    public GAEBroadcasterConfig(String[] list) {
+        super(list);
     }
 
     @Override

@@ -38,6 +38,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.util.LoggerUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
@@ -55,6 +58,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterConfig {
+    public final static Logger logger = LoggerUtils.getLogger();
 
     final static int numOfProcessor = Runtime.getRuntime().availableProcessors();
 
@@ -71,8 +75,27 @@ public class BroadcasterConfig {
 
     private BroadcasterCache broadcasterCache;
 
-    public BroadcasterConfig() {
+    public BroadcasterConfig(String[] list) {
         configExecutors();
+        configureBroadcasterFilter(list);
+        configureBroadcasterCache();
+    }
+
+    private void configureBroadcasterCache() {
+        try {
+            if (AtmosphereServlet.broadcasterCacheClassName != null) {
+                setBroadcasterCache((BroadcasterCache)
+                        Thread.currentThread().getContextClassLoader()
+                                .loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance());
+            }
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     public BroadcasterConfig(ExecutorService executorService, ScheduledExecutorService scheduler) {
@@ -81,13 +104,13 @@ public class BroadcasterConfig {
     }
 
     protected void configExecutors() {
-        executorService = Executors.newCachedThreadPool(new ThreadFactory(){
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
 
             private AtomicInteger count = new AtomicInteger();
 
             @Override
-            public Thread newThread(final Runnable runnable){
-                return new Thread(runnable,"Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+            public Thread newThread(final Runnable runnable) {
+                return new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
             }
         });
         defaultExecutorService = executorService;
@@ -136,7 +159,7 @@ public class BroadcasterConfig {
     }
 
     public void destroy() {
-        if (broadcasterCache != null){
+        if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
 
@@ -177,23 +200,25 @@ public class BroadcasterConfig {
      * Remove all {@link BroadcastFilter}
      */
     public void removeAllFilters() {
-        for (BroadcastFilter e: filters) {
+        for (BroadcastFilter e : filters) {
             removeFilter(e);
         }
     }
 
     /**
      * Return true if this object contains {@link BroadcastFilter}
+     *
      * @return true if this object contains {@link BroadcastFilter}
      */
-    public boolean hasFilters(){
+    public boolean hasFilters() {
         return !filters.isEmpty();
     }
 
     /**
      * Invoke {@link BroadcastFilter} in the other they were added.
+     *
      * @param object the broadcasted object.
-     * @return  BroadcastAction that tell Atmosphere to invoke the next filter or not.
+     * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
@@ -221,7 +246,7 @@ public class BroadcasterConfig {
      * is used if that method is not invoked.
      *
      * @param scheduler to be used when broadcasting.
-     * @return  this.
+     * @return this.
      */
     public BroadcasterConfig setScheduledExecutorService(ScheduledExecutorService scheduler) {
         if (this.scheduler != null) {
@@ -249,6 +274,7 @@ public class BroadcasterConfig {
 
     /**
      * Set a {@link BroadcasterCache}
+     *
      * @param broadcasterCache a {@link BroadcasterCache}
      * @return this
      */
@@ -259,6 +285,7 @@ public class BroadcasterConfig {
 
     /**
      * Get a {@link BroadcasterCache}
+     *
      * @return this
      */
     public BroadcasterCache getBroadcasterCache() {
@@ -284,4 +311,20 @@ public class BroadcasterConfig {
             return list;
         }
     }
+
+    void configureBroadcasterFilter(String[] list) {
+        for (String broadcastFilter : list) {
+            try {
+                addFilter(BroadcastFilter.class.cast(
+                        Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance()));
+            } catch (InstantiationException e) {
+                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
+            } catch (IllegalAccessException e) {
+                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
+            } catch (ClassNotFoundException e) {
+                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
+            }
+        }
+    }
+
 }

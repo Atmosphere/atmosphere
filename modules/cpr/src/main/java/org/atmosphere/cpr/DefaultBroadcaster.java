@@ -73,7 +73,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
-    protected BroadcasterConfig bc = AtmosphereServlet.getBroadcasterConfig();
+    protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
@@ -98,6 +98,7 @@ public class DefaultBroadcaster implements Broadcaster {
         this.name = name;
         setID(name);
         broadcasterCache = new DefaultBroadcasterCache();
+        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters);
     }
 
     /**
@@ -256,12 +257,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-
-            if (bc == null) {
-                LoggerUtils.getLogger().log(Level.WARNING, "BroadcasterConfig was null. It is recommended to use a BroadcasterFactory " +
-                        "for creating Broadcaster instead of using new");
-                bc = new BroadcasterConfig();
-            }
 
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
