@@ -444,4 +444,23 @@ public class AtmosphereResourceImpl implements
             r.onBroadcast(e);
         }
     }
+    
+    @Override
+    public String toString() {
+        return "AtmosphereResourceImpl{" +
+                "req=" + req +
+                ", res=" + res +
+                ", action=" + action +
+                ", broadcaster=" + broadcaster +
+                ", config=" + config +
+                ", cometSupport=" + cometSupport +
+                ", serializer=" + serializer +
+                ", isInScope=" + isInScope +
+                ", event=" + event +
+                ", useWriter=" + useWriter +
+                ", listeners=" + listeners +
+                ", isSuspendEvent=" + isSuspendEvent +
+                '}';
+    }
+
 }
