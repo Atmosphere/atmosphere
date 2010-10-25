@@ -45,7 +45,6 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -55,10 +54,12 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class RedisBroadcaster extends AbstractBroadcasterProxy {
-    private final Jedis jedisSubscriber;
-    private final Jedis jedisPublisher;
+    private static final Logger logger = LoggerUtils.getLogger();
+
+    private Jedis jedisSubscriber;
+    private Jedis jedisPublisher;
     private final URI uri;
-    static final Logger logger = LoggerUtils.getLogger();
+    private String auth = "atmosphere";
 
     public RedisBroadcaster() {
         this(RedisBroadcaster.class.getSimpleName(), URI.create("http://localhost:6379"));
@@ -75,25 +76,56 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     public RedisBroadcaster(String id, URI uri) {
         super(id);
         this.uri = uri;
+    }
 
-        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort(), 500);
+    public String getAuth() {
+        return auth;
+    }
+
+    public void setAuth(String auth) {
+        this.auth = auth;
+    }
+
+    @Override
+    protected void start() {
+        super.start();
+    }
+
+    public void setUp() {
+        if (uri == null) return;
+
+        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "", e);
         }
 
-        jedisSubscriber.auth("atmosphere");
+        jedisSubscriber.auth(auth);
         jedisSubscriber.flushAll();
 
-        jedisPublisher = new Jedis(uri.getHost(), uri.getPort(), 500);
+        jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "", e);
         }
-        jedisPublisher.auth("atmosphere");
+        jedisPublisher.auth(auth);
         jedisPublisher.flushAll();
+    }
+
+    @Override
+    public void setID(String id) {
+        super.setID(id);
+        if (jedisPublisher != null) {
+            try {
+                jedisPublisher.disconnect();
+                jedisSubscriber.disconnect();
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "", e);
+            }
+        }
+        setUp();        
     }
 
     /**
@@ -113,26 +145,40 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     /**
      * {@inheritDoc}
      */
-    @Override
+    @Override                                                                 
     public void incomingBroadcast() {
+        logger.info("Subscribing to: " + getID());
         jedisSubscriber.subscribe(new JedisPubSub() {
             public void onMessage(String channel, String message) {
                 broadcastReceivedMessage(message);
             }
 
             public void onSubscribe(String channel, int subscribedChannels) {
+                if (logger.isLoggable(Level.FINE))
+                    logger.fine("onSubscribe: " + channel);
             }
 
             public void onUnsubscribe(String channel, int subscribedChannels) {
+                if (logger.isLoggable(Level.FINE))
+                    logger.fine("onUnsubscribe: " + channel);
             }
 
             public void onPSubscribe(String pattern, int subscribedChannels) {
+                if (logger.isLoggable(Level.FINE))
+                    logger.fine("onPSubscribe: " + pattern);
+
             }
 
             public void onPUnsubscribe(String pattern, int subscribedChannels) {
+                if (logger.isLoggable(Level.FINE))
+                    logger.fine("onPUnsubscribe: " + pattern);
+
             }
 
             public void onPMessage(String pattern, String channel, String message) {
+                if (logger.isLoggable(Level.FINE))
+                    logger.fine("onPMessage: " + pattern + " " + channel + " " + message);
+
             }
         }, getID());
     }

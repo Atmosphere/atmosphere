@@ -46,6 +46,8 @@ import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
@@ -54,7 +56,7 @@ import java.util.concurrent.Future;
  * @author Jeanfrancois Arcand
  */
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
-
+    private static final Logger logger = LoggerUtils.getLogger();    
     private Method jerseyBroadcast;
 
     public AbstractBroadcasterProxy() {
@@ -63,6 +65,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     public AbstractBroadcasterProxy(String id) {
         super(id);
+        start();
     }
 
     /**
@@ -111,8 +114,12 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     }
 
     protected void broadcastReceivedMessage(Object message) {
-        Object newMsg = filter(message);
-        push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg)));
+        try {
+            Object newMsg = filter(message);
+            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg)));
+        } catch (Throwable t) {
+            logger.log(Level.SEVERE, "", t);
+        }
     }
 
     /**
@@ -120,7 +127,6 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg) {
-        start();
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -138,7 +144,6 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
-        start();
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -156,8 +161,6 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
-        start();
-
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
