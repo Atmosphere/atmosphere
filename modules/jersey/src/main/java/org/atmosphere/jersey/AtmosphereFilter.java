@@ -559,7 +559,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<ClusterBroadcastFilter> c : suspendTimeout) {
                     try {
                         ClusterBroadcastFilter cbf = c.newInstance();
-                        cbf.setAddress(am.getAnnotation(Cluster.class).name());
+                        cbf.setUri(am.getAnnotation(Cluster.class).name());
                         f.addCluster(cbf);
                     } catch (Throwable t) {
                         logger.log(Level.WARNING, "Invalid ClusterBroadcastFilter", t);

@@ -47,7 +47,7 @@ public interface ClusterBroadcastFilter extends BroadcastFilterLifecycle {
      *
      * @param name
      */
-    void setAddress(String name);
+    void setUri(String name);
 
     /**
      * The {@link Broadcaster} to use.

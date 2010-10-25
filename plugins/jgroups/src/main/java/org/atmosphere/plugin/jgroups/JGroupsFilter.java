@@ -96,7 +96,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
         this.clusterName = clusterName;
     }
 
-    public void setAddress(String clusterName) {
+    public void setUri(String clusterName) {
         this.clusterName = clusterName;
     }
 

@@ -45,6 +45,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,41 +59,56 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class RedisFilter implements ClusterBroadcastFilter {
-    static final Logger logger = LoggerUtils.getLogger();
+    private static final Logger logger = LoggerUtils.getLogger();
     private Broadcaster bc;
     private static final AtomicInteger count = new AtomicInteger();
-    private final Jedis jedisSubscriber;
-    private final Jedis jedisPublisher;
     private final ExecutorService listener = Executors.newSingleThreadExecutor();
-    private String address = "localhost";
     private final ConcurrentLinkedQueue<String> receivedMessages = new ConcurrentLinkedQueue<String>();
+    private Jedis jedisSubscriber;
+    private Jedis jedisPublisher;
+    private URI uri;
+    private String auth = "atmosphere";
 
-    public RedisFilter(Broadcaster bc) {
-        this(bc, "atmosphere-framework");
+    public RedisFilter() {
+        this(RedisFilter.class.getSimpleName(), URI.create("http://localhost:6379"));
+    }
+
+    public RedisFilter(String id) {
+        this(id, URI.create("http://localhost:6379"));
+    }
+
+    public RedisFilter(URI uri) {
+        this(RedisFilter.class.getSimpleName(), uri);
+    }
+
+    public RedisFilter(String id, URI uri) {
+        this.uri = uri;
     }
 
     public RedisFilter(Broadcaster bc, String address) {
 
         this.bc = bc;
-        this.address = address;
+        this.uri = URI.create(address);
 
-        jedisSubscriber = new Jedis(address, 6379, 500);
+        if (uri == null) return;
+
+        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "", e);
         }
 
-        jedisSubscriber.auth("atmosphere");
+        jedisSubscriber.auth(auth);
         jedisSubscriber.flushAll();
 
-        jedisPublisher = new Jedis(address, 6379, 500);
+        jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "", e);
         }
-        jedisPublisher.auth("atmosphere");
+        jedisPublisher.auth(auth);
         jedisPublisher.flushAll();
     }
 
@@ -100,8 +116,8 @@ public class RedisFilter implements ClusterBroadcastFilter {
      * {@inheritDoc}
      */
     @Override
-    public void setAddress(String address) {
-        this.address = address;
+    public void setUri(String address) {
+        this.uri = URI.create(address);
     }
 
     /**
@@ -120,18 +136,31 @@ public class RedisFilter implements ClusterBroadcastFilter {
                     }
 
                     public void onSubscribe(String channel, int subscribedChannels) {
+                        if (logger.isLoggable(Level.FINE))
+                            logger.fine("onSubscribe: " + channel);
                     }
 
                     public void onUnsubscribe(String channel, int subscribedChannels) {
+                        if (logger.isLoggable(Level.FINE))
+                            logger.fine("onUnsubscribe: " + channel);
                     }
 
                     public void onPSubscribe(String pattern, int subscribedChannels) {
+                        if (logger.isLoggable(Level.FINE))
+                            logger.fine("onPSubscribe: " + pattern);
+
                     }
 
                     public void onPUnsubscribe(String pattern, int subscribedChannels) {
+                        if (logger.isLoggable(Level.FINE))
+                            logger.fine("onPUnsubscribe: " + pattern);
+
                     }
 
                     public void onPMessage(String pattern, String channel, String message) {
+                        if (logger.isLoggable(Level.FINE))
+                            logger.fine("onPMessage: " + pattern + " " + channel + " " + message);
+
                     }
                 }, bc.getID());
             }

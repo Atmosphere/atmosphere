@@ -108,7 +108,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
 
     }
 
-    public void setAddress(String clusterName){
+    public void setUri(String clusterName){
         this.clusterName = clusterName;
     }
 
