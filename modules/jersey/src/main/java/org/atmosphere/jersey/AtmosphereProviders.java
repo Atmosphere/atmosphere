@@ -70,25 +70,29 @@ public class AtmosphereProviders {
                 return null;
             }
 
-            return new StringReader() {
-                @Override
-                public Object fromString(String topic) {
-                    Broadcaster broadcaster = null;
-                    try {
-                        AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
-                                (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-                        BroadcasterFactory bp = (BroadcasterFactory)
-                                req.getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
-
-                        broadcaster = bp.lookup(r.getBroadcaster().getClass(), topic, true);
-                    } catch (Throwable ex) {
-                        throw new WebApplicationException(ex);
-                    }
-                    req.setAttribute(AtmosphereFilter.INJECTED_BROADCASTER, broadcaster);
-                    return broadcaster;
-                }
-            };
+            return new BroadcasterStringReader();
         }
+
+        @StringReader.ValidateDefaultValue(false)
+        public class BroadcasterStringReader implements StringReader {
+            @Override
+            public Object fromString(String topic) {
+                Broadcaster broadcaster = null;
+                try {
+                    AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
+                            (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
+                                    req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                    BroadcasterFactory bp = (BroadcasterFactory)
+                            req.getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
+
+                    broadcaster = bp.lookup(r.getBroadcaster().getClass(), topic, true);
+                } catch (Throwable ex) {
+                    throw new WebApplicationException(ex);
+                }
+                req.setAttribute(AtmosphereFilter.INJECTED_BROADCASTER, broadcaster);
+                return broadcaster;
+            }
+        }
+
     }
 }
