@@ -2,15 +2,9 @@
 <head>
     <script type="text/javascript" src="jquery/jquery-1.4.2.js"></script>
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
-    <script type="text/javascript" src="jquery/swfobject.js"></script>
-    <script type="text/javascript" src="jquery/FABridge.js"></script>
-    <script type="text/javascript" src="jquery/web_socket.js"></script>
     <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
     
     <script type="text/javascript">
-        WEB_SOCKET_SWF_LOCATION = "jquery/WebSocketMain.swf";
-        WEB_SOCKET_DEBUG = true;
-        
         $(document).ready(function() {
             var connectedEndpoint;
             var callbackAdded = false;
@@ -56,7 +50,7 @@
 
                 var location = document.location.toString() + 'pubsub/' + getElementByIdValue('topic');
                 $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: getElementByIdValue('transport') , webSocketImpl : new WebSocket(location.replace('http:', 'ws:').replace('https:', 'wss:')) });
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
