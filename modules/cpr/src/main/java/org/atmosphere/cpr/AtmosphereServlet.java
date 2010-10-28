@@ -48,10 +48,11 @@ import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
+import org.atmosphere.util.ClassLoaderUtil;
+import org.atmosphere.util.ExpandJar;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.util.Version;
-import org.atmosphere.util.gae.GAEBroadcasterConfig;
 import org.atmosphere.websocket.JettyWebSocketSupport;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
@@ -660,17 +661,22 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected void loadConfiguration(ServletConfig sc) throws ServletException {
         try {
-            //TODO -> Add support for WEB-INF/lib/*.jar
             URL url = sc.getServletContext().getResource("/WEB-INF/classes/");
             URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                     Thread.currentThread().getContextClassLoader());
             loadAtmosphereDotXml(sc.getServletContext().
                     getResourceAsStream("/META-INF/atmosphere.xml"), urlC);
+
             if (atmosphereHandlers.size() == 0) {
                 autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
 
                 if (atmosphereHandlers.size() == 0) {
                     detectSupportedFramework(sc);
+                }
+
+                if (atmosphereHandlers.size() == 0) {
+                    logger.log(Level.SEVERE, "No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+                    throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
                 }
             }
         } catch (Throwable t) {
@@ -961,6 +967,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
             }
         }
+        
         logger.info("Atmosphere using Broadcaster " + broadcasterClassName);
     }
 
