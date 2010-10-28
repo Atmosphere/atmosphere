@@ -145,6 +145,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+         <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ping</artifactId>
+            <version>${pom.version}</version>
+        </dependency>       
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>

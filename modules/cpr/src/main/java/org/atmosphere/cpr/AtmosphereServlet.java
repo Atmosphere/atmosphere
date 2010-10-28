@@ -69,6 +69,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -541,7 +542,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     return sc.getInitParameterNames();
                 }
             };
-
+            pingForStats();
             doInitParams(scFacade);
             detectGoogleAppEngine(scFacade);
             loadConfiguration(scFacade);
@@ -1303,6 +1304,18 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public void addBroadcasterType(String broadcasterTypeString) {
         broadcasterTypes.add(broadcasterTypeString);
+    }
+
+    /**
+     * See {@link org.atmosphere.ping.AtmospherePing}
+     */
+    protected void pingForStats() {
+        try {
+            Class ping  = Class.forName("org.atmosphere.ping.AtmospherePing");
+            Method pingM = ping.getMethod("ping", new Class[]{String.class});
+            pingM.invoke(null, new String[]{Version.getRawVersion()});
+        } catch (Throwable e) {
+        }  
     }
 
     /**
