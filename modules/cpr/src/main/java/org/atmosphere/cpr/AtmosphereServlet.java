@@ -48,8 +48,6 @@ import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
-import org.atmosphere.util.ClassLoaderUtil;
-import org.atmosphere.util.ExpandJar;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.util.Version;

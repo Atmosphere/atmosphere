@@ -14,6 +14,7 @@
     <name>atmosphere-modules</name>
     <url>https://atmosphere.dev.java.net</url>
     <modules>
+        <module>ping</module>
         <module>compat-tomcat</module>
         <module>compat-jbossweb</module>
         <module>compat-weblogic</module>
