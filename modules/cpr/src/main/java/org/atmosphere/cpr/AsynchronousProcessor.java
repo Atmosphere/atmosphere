@@ -167,6 +167,11 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             return new Action();
         }
 
+        if (config.handlers().size() == 0) {
+            logger.log(Level.SEVERE, "No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+            throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+        }
+                
         if (supportSession()) {
             // Create the session needed to support the Resume
             // operation from disparate requests.
