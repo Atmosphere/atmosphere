@@ -861,7 +861,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 if (reader.getCometSupportClass() != null) {
                     cometSupport = (CometSupport)
-                            c.loadClass(reader.getCometSupportClass()).newInstance();
+                            c.loadClass(reader.getCometSupportClass())
+                                    .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
                 }
 
                 if (reader.getBroadcastFilterClasses() != null){
