@@ -672,11 +672,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 if (atmosphereHandlers.size() == 0) {
                     detectSupportedFramework(sc);
                 }
-
-                if (atmosphereHandlers.size() == 0) {
-                    logger.log(Level.SEVERE, "No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-                    throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-                }
             }
         } catch (Throwable t) {
             throw new ServletException(t);
