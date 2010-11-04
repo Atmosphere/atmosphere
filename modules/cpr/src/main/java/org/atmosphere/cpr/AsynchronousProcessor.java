@@ -189,7 +189,13 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 g.broadcaster, req, res, this);
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE, re);
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, g.atmosphereHandler);
-        g.atmosphereHandler.onRequest(re);
+
+        try {
+            g.atmosphereHandler.onRequest(re);
+        } catch (IOException t) {
+            re.notifyListeners(t);
+            throw t;
+        }
 
         // User may have changed it.
         config.mapBroadcasterToAtmosphereHandler(re.getBroadcaster(), g);
@@ -348,6 +354,12 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
             } else {
                 r.getResponse().flushBuffer();
+            }
+        } catch (IOException ex) {
+            try {
+                r.notifyListeners(ex);
+            } catch (Throwable t) {
+                logger.log(Level.WARNING,"",ex);
             }
         } finally {
             try {

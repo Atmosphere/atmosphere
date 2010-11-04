@@ -42,6 +42,7 @@ import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -391,8 +392,14 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
         } catch (IOException ex) {
+            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
+                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
+            }
             onException(ex, r);
         } catch (RuntimeException ex) {
+            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
+                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
+            }
             onException(ex, r);
         }
     }

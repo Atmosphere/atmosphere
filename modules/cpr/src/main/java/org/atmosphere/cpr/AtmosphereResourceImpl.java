@@ -421,6 +421,15 @@ public class AtmosphereResourceImpl implements
         }
     }
 
+    /**
+     * Notify {@link AtmosphereResourceEventListener} an unexpected exception occured.
+     */
+    public void notifyListeners(Throwable t) {
+        for (AtmosphereResourceEventListener r : listeners) {
+            r.onThrowable(t);
+        }
+    }
+
     void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onSuspend(e);

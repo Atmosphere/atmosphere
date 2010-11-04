@@ -105,6 +105,11 @@ public class BroadcasterScopeTest {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {                   
                 }
+
+                @Override
+                public void onThrowable(Throwable t) {
+
+                }
             });
 
             if (servletLatch != null) {
