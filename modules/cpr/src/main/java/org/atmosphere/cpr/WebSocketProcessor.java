@@ -100,6 +100,9 @@ public class WebSocketProcessor implements Serializable {
                 ah.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, false, true));
             }
         } catch (IOException e) {
+            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
+                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
+            }
             AtmosphereServlet.logger.log(Level.INFO, "", e);
         }
     }

@@ -101,6 +101,11 @@ public class MeteorTest {
                 public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
                     event.getResource().getRequest().setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, "true");
                 }
+
+                @Override
+                public void onThrowable(Throwable t) {
+
+                }
             });
             
             if (servletLatch != null) {
