@@ -211,11 +211,14 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     public CometSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
+        CometSupport cs = null;
         if (!useWebsocketIfPossible) {
-            return resolve(useNativeIfPossible, defaultToBlocking);
+            cs = resolve(useNativeIfPossible, defaultToBlocking);
         } else {
-            return resolveWebSocket(detectWebSocketPresent());
+            cs = resolveWebSocket(detectWebSocketPresent());
         }
+
+        if (cs == null) return new BlockingIOCometSupport(config);
     }
 
     public CometSupport resolveWebSocket(final java.util.List<Class<? extends CometSupport>> available) {
