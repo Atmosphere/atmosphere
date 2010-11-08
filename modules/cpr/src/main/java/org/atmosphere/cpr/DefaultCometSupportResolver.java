@@ -218,7 +218,11 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
             cs = resolveWebSocket(detectWebSocketPresent());
         }
 
-        if (cs == null) return new BlockingIOCometSupport(config);
+        if (cs == null) {
+            return new BlockingIOCometSupport(config);
+        } else {
+            return cs;
+        }
     }
 
     public CometSupport resolveWebSocket(final java.util.List<Class<? extends CometSupport>> available) {
