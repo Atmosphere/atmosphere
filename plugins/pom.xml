@@ -19,6 +19,5 @@
         <module>jgroups</module>
         <module>jms</module>
         <module>redis</module>
-        <module>xmpp</module>        
     </modules>
 </project>
