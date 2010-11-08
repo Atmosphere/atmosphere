@@ -39,12 +39,12 @@
 package org.atmosphere.cpr;
 
 
+import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.atmosphere.util.LoggerUtils;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -61,8 +61,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private final ConcurrentHashMap<Object, Broadcaster> store
             = new ConcurrentHashMap<Object, Broadcaster>();
 
-    private static BroadcasterFactory factory;
-
     private final Class<? extends Broadcaster> clazz;
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz) {
@@ -72,12 +70,16 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             this.factory = this;
         }
     }
-                       
+
     /**
      * {@inheritDoc}
      */
     public Broadcaster get() throws IllegalAccessException, InstantiationException {
         Broadcaster b = clazz.newInstance();
+
+        if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
+            AbstractBroadcasterProxy.class.cast(b).configure(config);
+        }
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
         b.setID(clazz.getSimpleName() + "-" + new Random().nextInt());
         store.put(b.getID(), b);
@@ -93,6 +95,10 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (c == null) throw new NullPointerException("Class is null");
 
         Broadcaster b = c.newInstance();
+
+        if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
+            AbstractBroadcasterProxy.class.cast(b).configure(config);
+        }
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
         b.setID(id.toString());
 
@@ -128,7 +134,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public final Broadcaster lookup(Class<? extends Broadcaster> c, Object id) {
-        return lookup(c,id,false);
+        return lookup(c, id, false);
     }
 
     /**
@@ -147,7 +153,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         if (b == null && createIfNull) {
             try {
-                b = get(c,id);
+                b = get(c, id);
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException(e);
             } catch (InstantiationException e) {
@@ -196,15 +202,16 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz  A class implementing {@link Broadcaster}
-     * @param config An instance of {@link BroadcasterConfig}
+     * @param c An instance of {@link AtmosphereServlet.AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, BroadcasterConfig config)
+    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereServlet.AtmosphereConfig c)
             throws InstantiationException, IllegalAccessException {
 
         factory = new DefaultBroadcasterFactory(clazz);
+        config = c;
         return factory;
     }
 

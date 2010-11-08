@@ -50,6 +50,7 @@ import java.util.logging.Level;
 public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
+    protected static AtmosphereServlet.AtmosphereConfig config;
 
     /**
      * Return an instance of the default {@link Broadcaster}
@@ -124,17 +125,11 @@ public abstract class BroadcasterFactory {
      * @return the default {@link BroadcasterFactory}.
      */
     public synchronized static BroadcasterFactory getDefault() {
-        if (factory == null) {
-            Class<? extends Broadcaster> b = null;
-            try {
-                ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                b = (Class<? extends Broadcaster>) cl.loadClass(AtmosphereServlet.getDefaultBroadcasterClassName());
-            } catch (ClassNotFoundException e) {
-                LoggerUtils.getLogger().log(Level.SEVERE,"",e);
-            }
-            factory = new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b);
-
-        }
         return factory;
+    }
+
+    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereServlet.AtmosphereConfig c) {
+        factory = f;
+        config = c;
     }
 }

@@ -124,7 +124,9 @@ public class DefaultBroadcaster implements Broadcaster {
         broadcasterCache = null;
         started.set(false);
         destroyed.set(true);
-        BroadcasterFactory.getDefault().remove(this, name);
+        if (BroadcasterFactory.getDefault() != null) {
+            BroadcasterFactory.getDefault().remove(this, name);
+        }
     }
 
     /**

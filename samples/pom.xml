@@ -36,7 +36,7 @@
         <module>websocket-chat</module>
         <module>wicket-clock</module>
         <module>jquery-pubsub-redis</module>
-        
+        <module>jquery-pubsub-xmpp</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>

@@ -39,6 +39,7 @@ package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
 
@@ -58,6 +59,7 @@ import java.util.logging.Logger;
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     private static final Logger logger = LoggerUtils.getLogger();    
     private Method jerseyBroadcast;
+    protected AtmosphereServlet.AtmosphereConfig config;
 
     public AbstractBroadcasterProxy() {
         this(AbstractBroadcasterProxy.class.getSimpleName());
@@ -66,6 +68,16 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     public AbstractBroadcasterProxy(String id) {
         super(id);
         start();
+    }
+
+    /**
+     * Allow this Broadcaster to configure itself using the {@link AtmosphereServlet.AtmosphereConfig} or the 
+     * {@link javax.servlet.ServletContext}.
+     *
+     * @param config the {@link AtmosphereServlet.AtmosphereConfig}
+     */
+    public void configure(AtmosphereServlet.AtmosphereConfig config) {
+        this.config = config;
     }
 
     /**
@@ -97,7 +109,6 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         if (r.getRequest() instanceof HttpServletRequest) {
             if (((HttpServletRequest) r.getRequest()).getAttribute("cr") != null) {
-                //JerseyBroadcasterUtil.broadcast(r, e);
                 try {
                     if (jerseyBroadcast == null) {
                         Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");

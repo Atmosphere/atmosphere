@@ -55,11 +55,13 @@ import java.util.logging.Logger;
  */
 public class RedisBroadcaster extends AbstractBroadcasterProxy {
     private static final Logger logger = LoggerUtils.getLogger();
+    private static final String REDIS_AUTH = RedisBroadcaster.class.getName() + ".authorization";
+    private static final String REDIS_SERVER = RedisBroadcaster.class.getName() + ".server";
 
     private Jedis jedisSubscriber;
     private Jedis jedisPublisher;
-    private final URI uri;
-    private String auth = "atmosphere";
+    private URI uri;
+    private String authToken = "atmosphere";
 
     public RedisBroadcaster() {
         this(RedisBroadcaster.class.getSimpleName(), URI.create("http://localhost:6379"));
@@ -79,11 +81,11 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     }
 
     public String getAuth() {
-        return auth;
+        return authToken;
     }
 
     public void setAuth(String auth) {
-        this.auth = auth;
+        this.authToken = auth;
     }
 
     @Override
@@ -94,6 +96,16 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     public void setUp() {
         if (uri == null) return;
 
+        if (config != null) {
+            if (config.getServletConfig().getInitParameter(REDIS_AUTH) != null) {
+                authToken = config.getServletConfig().getInitParameter(REDIS_AUTH);
+            }
+
+            if (config.getServletConfig().getInitParameter(REDIS_SERVER) != null) {
+                uri = URI.create(config.getServletConfig().getInitParameter(REDIS_SERVER));
+            }
+        }
+
         jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
@@ -101,7 +113,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             logger.log(Level.SEVERE, "", e);
         }
 
-        jedisSubscriber.auth(auth);
+        jedisSubscriber.auth(authToken);
         jedisSubscriber.flushAll();
 
         jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
@@ -110,7 +122,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "", e);
         }
-        jedisPublisher.auth(auth);
+        jedisPublisher.auth(authToken);
         jedisPublisher.flushAll();
     }
 
