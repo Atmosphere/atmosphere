@@ -119,5 +119,9 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
         LoggerUtils.getLogger().log(Level.INFO, String.format("%s connection dropped from ip %s:%s",
                 transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()));
     }
+
+    public void onThrowable(Throwable t) {
+        t.printStackTrace(System.err);
+    }
 }
 

@@ -65,4 +65,8 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         System.out.println("onBroadcast: " + event.getMessage());
     }
+
+    public void onThrowable(Throwable t) {
+        t.printStackTrace(System.err);
+    }
 }
