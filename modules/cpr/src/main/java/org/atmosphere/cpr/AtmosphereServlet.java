@@ -172,6 +172,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
     public final static String JMS_BROADCASTER = "org.atmosphere.plugin.jms.JMSBroadcaster";
     public final static String JGROUPS_BROADCASTER = "org.atmosphere.plugin.jgroups.JGroupsBroadcaster";
+    public final static String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
 
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     public final static String GAE_BROADCASTER = org.atmosphere.util.gae.GAEDefaultBroadcaster.class.getName();
@@ -394,14 +395,31 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public AtmosphereServlet(boolean isFilter) {
         this.isFilter = isFilter;
         readSystemProperties();
-
+        configureDefaultBroadcasterFactory();
         populateBroadcasterType();
     }
+
+
+    /**
+     * Configure the {@link org.atmosphere.cpr.BroadcasterFactory}
+     */
+    protected void configureDefaultBroadcasterFactory() {
+        Class<? extends Broadcaster> b = null;
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            b = (Class<? extends Broadcaster>) cl.loadClass(AtmosphereServlet.getDefaultBroadcasterClassName());
+        } catch (ClassNotFoundException e) {
+            LoggerUtils.getLogger().log(Level.SEVERE,"",e);
+        }
+        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b), config);
+    }
+
 
     /**
      * The order of addition is quite important here.
      */
     private void populateBroadcasterType() {
+        broadcasterTypes.add(XMPP_BROADCASTER);
         broadcasterTypes.add(REDIS_BROADCASTER);
         broadcasterTypes.add(JGROUPS_BROADCASTER);
         broadcasterTypes.add(JMS_BROADCASTER);
@@ -717,7 +735,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
-        Broadcaster b = bc.getDeclaredConstructor(new Class[]{String.class}).newInstance(mapping);
+        Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
 
         addAtmosphereHandler(mapping, rsp, b);
         return true;
@@ -787,8 +805,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
             h.getValue().broadcaster.destroy();
         }
-        BroadcasterFactory.factory = null;
-        BroadcasterFactory.getDefault().destroy();
+        if (BroadcasterFactory.getDefault() != null) {
+            BroadcasterFactory.getDefault().destroy();
+            BroadcasterFactory.factory = null;
+        }
     }
 
     /**
