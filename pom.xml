@@ -309,12 +309,10 @@
             <name>Scala-Tools Maven2 Repository</name>
             <url>http://scala-tools.org/repo-releases</url>
         </repository>
-        <!--
         <repository>
             <id>jboss</id>
             <url>https://repository.jboss.org/nexus/content/groups/public/</url>
         </repository>
-        -->
         <repository>
             <id>codehaus</id>
             <name>repository.codehaus.org</name>
