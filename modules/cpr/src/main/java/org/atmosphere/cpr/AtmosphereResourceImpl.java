@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -94,6 +93,8 @@ public class AtmosphereResourceImpl implements
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
 
+    private final boolean injectCacheHeaders;
+
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
 
 
@@ -115,6 +116,9 @@ public class AtmosphereResourceImpl implements
         this.config = config;
         this.cometSupport = cometSupport;
         this.event = new AtmosphereResourceEventImpl(this);
+
+        String nocache = config.getInitParameter(AtmosphereServlet.NO_CACHE_HEADERS);
+        injectCacheHeaders = nocache != null ? false : true;
     }
 
     /**
@@ -187,12 +191,14 @@ public class AtmosphereResourceImpl implements
                 }
             }
 
-            // Set to expire far in the past.
-            res.setHeader("Expires", "-1");
-            // Set standard HTTP/1.1 no-cache headers.
-            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-            // Set standard HTTP/1.0 no-cache header.
-            res.setHeader("Pragma", "no-cache");
+            if (injectCacheHeaders) {
+                // Set to expire far in the past.
+                res.setHeader("Expires", "-1");
+                // Set standard HTTP/1.1 no-cache headers.
+                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                // Set standard HTTP/1.0 no-cache header.
+                res.setHeader("Pragma", "no-cache");
+            }
 
             if (flushComment) {
                 write();

@@ -199,7 +199,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     public final static String DEFAULT_NAMED_DISPATCHER = "default";
     public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
-   
+    public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
+
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config = new AtmosphereConfig();
