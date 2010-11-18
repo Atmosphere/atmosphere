@@ -624,8 +624,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (Callable.class.isAssignableFrom(o.getClass())) {
                         try {
                             Object r = Callable.class.cast(o).call();
-                            if (r != null) {
-                                Entry entry = new Entry(r, null, null);
+                            final Object msg = filter(r);
+                            if (msg != null) {
+                                Entry entry = new Entry(msg, null, null);
                                 push(entry);
                             }
                             return (T) msg;
@@ -633,6 +634,8 @@ public class DefaultBroadcaster implements Broadcaster {
                             LoggerUtils.getLogger().log(Level.SEVERE, "", e);
                         }
                     }
+                    final Object msg = filter(o);
+                    final Entry e = new Entry(msg, null, null);
                     push(e);
                     return (T) msg;
                 }
@@ -664,21 +667,23 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final Entry e = new Entry(o, null, null);
         return bc.getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
             public void run() {
                 if (Callable.class.isAssignableFrom(o.getClass())) {
                     try {
                         Object r = Callable.class.cast(o).call();
-                        if (r != null) {
-                            Entry entry = new Entry(r, null, null);
+                        final Object msg = filter(r);
+                        if (msg != null) {
+                            Entry entry = new Entry(msg, null, null);
                             push(entry);
                         }
                         return;
-                    } catch (Exception e1) {
+                    } catch (Exception e) {
                         LoggerUtils.getLogger().log(Level.SEVERE, "", e);
                     }
                 }
+                final Object msg = filter(o);
+                final Entry e = new Entry(msg, null, null);
                 push(e);
             }
         }, waitFor, period, t);

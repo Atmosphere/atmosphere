@@ -30,7 +30,11 @@
             <param-name>filterMappingUrlPattern</param-name>
             <param-value>/*</param-value>
         </init-param>
-        <load-on-startup>0</load-on-startup>
+        <init-param>
+            <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
+            <param-value>org.atmosphere.client.FormParamFilter,org.atmosphere.client.JavascriptClientFilter</param-value>
+        </init-param>
+        <load-on-startup>0</load-on-startup>        
     </servlet>
 
     <servlet-mapping>
