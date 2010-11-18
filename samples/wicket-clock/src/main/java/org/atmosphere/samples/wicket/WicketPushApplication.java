@@ -39,12 +39,8 @@ package org.atmosphere.samples.wicket;
 
 import org.apache.wicket.protocol.http.WebApplication;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.DefaultBroadcaster;
 
 import java.util.Date;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Create a {@link Broadcaster} that will broadcast the {@link Date} every second to the set of suspended Wicket connections.
