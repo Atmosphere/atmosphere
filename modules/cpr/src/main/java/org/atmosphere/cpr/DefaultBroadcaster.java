@@ -389,7 +389,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void trackBroadcastMessage(final AtmosphereResource<?, ?> r, Object msg) {
         broadcasterCache.addToCache(r, msg);
     }
-
+                                                                                                             
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
@@ -410,8 +410,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().log(Level.FINE, "", t);
         }
-        if (t instanceof IOException && r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
+        
+        if (r instanceof AtmosphereEventLifecycle) {
+            ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
             ((AtmosphereEventLifecycle) r).removeEventListeners();
         }
         removeAtmosphereResource(r);

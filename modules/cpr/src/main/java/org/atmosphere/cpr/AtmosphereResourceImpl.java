@@ -422,17 +422,27 @@ public class AtmosphereResourceImpl implements
             onDisconnect(event);
         } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()){
             onSuspend(event);
+        } else if ( event.throwable() != null ){
+            onThrowable(event);
         } else {
             onBroadcast(event);
         }
     }
 
     /**
-     * Notify {@link AtmosphereResourceEventListener} an unexpected exception occured.
+     * Notify {@link AtmosphereResourceEventListener} an unexpected exception occured.\
+     * @pram a {@link Throwable}
      */
-    public void notifyListeners(Throwable t) {
+    public void onThrowable(Throwable t) {
+        onThrowable(new AtmosphereResourceEventImpl(this,false, false, t));
+    }
+    
+    void onThrowable(AtmosphereResourceEvent e) {
+        AtmosphereHandler<HttpServletRequest,HttpServletResponse> atmosphereHandler  =
+                        (AtmosphereHandler<HttpServletRequest,HttpServletResponse>)
+                            req.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
-            r.onThrowable(t);
+            r.onThrowable(e);
         }
     }
 

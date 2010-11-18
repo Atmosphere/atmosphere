@@ -41,6 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link AtmosphereResourceEvent} implementation for Servlet Container.
@@ -51,10 +52,13 @@ public class AtmosphereResourceEventImpl implements
         AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> {
 
     // Was the remote connection closed.
-    private boolean isCancelled = false;
+    private final AtomicBoolean isCancelled = new AtomicBoolean(false);
 
     // Is Resumed on Timeout?
-    protected boolean isResumedOnTimeout = false;
+    private final AtomicBoolean isResumedOnTimeout = new AtomicBoolean(false);
+
+    //
+    private final Throwable throwable;
 
     // The current message
     protected Object message = null;
@@ -63,12 +67,21 @@ public class AtmosphereResourceEventImpl implements
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl r) {
         this.r = r;
+        this.throwable = null;
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl r, boolean isCancelled, boolean isResumedOnTimeout) {
-        this.isCancelled = isCancelled;
-        this.isResumedOnTimeout = isResumedOnTimeout;
+        this.isCancelled.set(isCancelled);
+        this.isResumedOnTimeout.set(isResumedOnTimeout);
         this.r = r;
+        this.throwable = null;
+    }
+
+    public AtmosphereResourceEventImpl(AtmosphereResourceImpl r, boolean isCancelled, boolean isResumedOnTimeout, Throwable throwable) {
+        this.isCancelled.set(isCancelled);
+        this.isResumedOnTimeout.set(isResumedOnTimeout);
+        this.r = r;
+        this.throwable = throwable;
     }
 
     /**
@@ -107,18 +120,29 @@ public class AtmosphereResourceEventImpl implements
      * {@inheritDoc}
      */
     public boolean isResumedOnTimeout() {
-        return isResumedOnTimeout;
+        return isResumedOnTimeout.get();
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isCancelled() {
-        return isCancelled;
+        return isCancelled.get();
     }
 
     protected void setCancelled(boolean isCancelled) {
-        this.isCancelled = isCancelled;
+        this.isCancelled.set(isCancelled);
+    }
+
+    protected void setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+        this.isResumedOnTimeout.set(isResumedOnTimeout);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Throwable throwable() {
+        return throwable;
     }
 
     /**

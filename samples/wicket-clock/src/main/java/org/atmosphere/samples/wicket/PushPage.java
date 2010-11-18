@@ -120,8 +120,8 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
                 transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()));
     }
 
-    public void onThrowable(Throwable t) {
-        t.printStackTrace(System.err);
+    public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        event.throwable().printStackTrace(System.err);
     }
 }
 

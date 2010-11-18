@@ -51,7 +51,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -193,7 +192,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
         try {
             g.atmosphereHandler.onRequest(re);
         } catch (IOException t) {
-            re.notifyListeners(t);
+            re.onThrowable(t);
             throw t;
         }
 
@@ -322,7 +321,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
         re = (AtmosphereResourceImpl) req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
 
         if (re != null) {
-            re.getAtmosphereResourceEvent().isResumedOnTimeout = true;
+            re.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
 
             Broadcaster b = re.getBroadcaster();
             if (b instanceof DefaultBroadcaster) {
@@ -330,8 +329,8 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
 
             if (re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) != null) {
-                re.getAtmosphereResourceEvent().isResumedOnTimeout =
-                        (Boolean) re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT);
+                re.getAtmosphereResourceEvent().setIsResumedOnTimeout(
+                        (Boolean) re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT));
             }
             invokeAtmosphereHandler(re);
         }
@@ -357,7 +356,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
         } catch (IOException ex) {
             try {
-                r.notifyListeners(ex);
+                r.onThrowable(ex);
             } catch (Throwable t) {
                 logger.log(Level.WARNING,"",ex);
             }

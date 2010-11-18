@@ -83,8 +83,8 @@ public interface AtmosphereResourceEventListener {
      * Invoked when an operations failed to execute for an unknown reason like : IOException because the client
      * remotly closed the connection, a broken connection, etc.
      *
-     * @param t  a {@link Throwable}}
+     * @param event a {@link AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse>}
      */
-    void onThrowable(Throwable t);
+    void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
 
 }
