@@ -107,7 +107,7 @@ public class BroadcasterScopeTest {
                 }
 
                 @Override
-                public void onThrowable(Throwable t) {
+                public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
 
                 }
             });

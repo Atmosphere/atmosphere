@@ -101,7 +101,7 @@ public class WebSocketProcessor implements Serializable {
             }
         } catch (IOException e) {
             if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
+                AtmosphereResourceImpl.class.cast(r).onThrowable(e);
             }
             AtmosphereServlet.logger.log(Level.INFO, "", e);
         }

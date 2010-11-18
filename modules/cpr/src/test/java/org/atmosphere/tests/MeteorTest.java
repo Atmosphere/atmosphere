@@ -103,7 +103,7 @@ public class MeteorTest {
                 }
 
                 @Override
-                public void onThrowable(Throwable t) {
+                public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
 
                 }
             });
