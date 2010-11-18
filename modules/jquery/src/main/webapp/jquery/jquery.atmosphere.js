@@ -157,8 +157,8 @@ jQuery.atmosphere = function()
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
 
-                if (jQuery.atmosphere.contentType != '') {
-                    ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.contentType);
+                if (jQuery.atmosphere.request.contentType != '') {
+                    ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);
                 }
 
                 for(var x in request.headers) {
@@ -460,6 +460,7 @@ jQuery.atmosphere = function()
                 connected: false,
                 timeout: 60000,
                 method: 'POST',
+                contentType : '',                
                 headers: {},
                 cache: true,
                 async: true,
