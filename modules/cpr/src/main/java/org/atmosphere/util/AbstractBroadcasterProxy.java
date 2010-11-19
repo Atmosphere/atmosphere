@@ -87,6 +87,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     /**
      * Implement this method to broadcast message to external source like JGroups, Redis, etc.
+     * @param message outgoing message
      */
     abstract public void outgoingBroadcast(Object message);
 
@@ -127,7 +128,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected void broadcastReceivedMessage(Object message) {
         try {
             Object newMsg = filter(message);
-            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg)));
+            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg), message));
         } catch (Throwable t) {
             logger.log(Level.SEVERE, "", t);
         }

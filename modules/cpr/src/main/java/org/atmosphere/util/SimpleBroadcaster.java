@@ -84,7 +84,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(newMsg, null, f));
+        push(new Entry(newMsg, null, f, msg));
         return f;
     }
 
@@ -97,7 +97,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(newMsg, r, f));
+        push(new Entry(newMsg, r, f, msg));
         return f;
     }
 
@@ -111,7 +111,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         f.done();
-        push(new Entry(newMsg, subset, f));
+        push(new Entry(newMsg, subset, f, msg));
         return f;
     }
 }
