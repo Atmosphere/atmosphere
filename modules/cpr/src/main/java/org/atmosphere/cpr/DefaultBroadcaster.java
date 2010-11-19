@@ -208,12 +208,14 @@ public class DefaultBroadcaster implements Broadcaster {
         public Object multipleAtmoResources;
         public BroadcasterFuture<?> future;
         public boolean writeLocally;
+        public Object originalMessage;
 
-        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future) {
+        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, Object originalMessage) {
             this.message = message;
             this.multipleAtmoResources = multipleAtmoResources;
             this.future = future;
             this.writeLocally = true;
+            this.originalMessage = originalMessage;
         }
 
         public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, boolean writeLocally) {
@@ -306,26 +308,42 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (msg.multipleAtmoResources == null) {
             for (AtmosphereResource<?, ?> r : resources) {
-                trackBroadcastMessage(r, finalMsg);
+                finalMsg = perRequestFilter(r, msg);
                 if (msg.writeLocally) {
                     push(r, finalMsg);
                 }
             }                                                                                                                                                                               
         } else if (msg.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
-            trackBroadcastMessage((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
+            finalMsg = perRequestFilter((AtmosphereResource<?, ?>) msg.multipleAtmoResources, msg);
+
             if (msg.writeLocally) {
                 push((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
             }
         } else if (msg.multipleAtmoResources instanceof Set) {
             Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) msg.multipleAtmoResources;
             for (AtmosphereResource<?, ?> r : sub) {
-                trackBroadcastMessage(r, finalMsg);
+                finalMsg = perRequestFilter(r, msg);
                 if (msg.writeLocally) {
                     push(r, finalMsg);
                 }
             }
         }
         msg.message = prevMessage;
+    }
+
+    protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
+        Object finalMsg = msg.originalMessage;
+        if (r.getRequest() instanceof HttpServletRequest) {
+            Object message = msg.originalMessage;
+            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
+            if (a.action() == BroadcastAction.ACTION.ABORT || msg == null)
+                finalMsg = message;
+            else
+                finalMsg = a.message();
+        }
+               
+        trackBroadcastMessage(r, finalMsg);
+        return finalMsg;
     }
 
     private Object translate(Object msg) {
@@ -437,7 +455,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        messages.offer(new Entry(newMsg, null, f));
+        messages.offer(new Entry(newMsg, null, f, msg));
         return f;
     }
 
@@ -468,7 +486,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        messages.offer(new Entry(newMsg, r, f));
+        messages.offer(new Entry(newMsg, r, f, msg));
         return f;
     }
 
@@ -485,7 +503,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        broadcastOnResume.offer(new Entry(newMsg, null, f));
+        broadcastOnResume.offer(new Entry(newMsg, null, f, msg));
         return f;
     }
 
@@ -516,7 +534,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        messages.offer(new Entry(newMsg, subset, f));
+        messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
 
@@ -614,7 +632,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (msg == null) return null;
 
         final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg);
-        final Entry e = new Entry(msg, null, future);
+        final Entry e = new Entry(msg, null, future, o);
         Future<T> f;
         if (delay > 0) {
             f = bc.getScheduledExecutorService().schedule(new Callable<T>() {
@@ -626,7 +644,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             Object r = Callable.class.cast(o).call();
                             final Object msg = filter(r);
                             if (msg != null) {
-                                Entry entry = new Entry(msg, null, null);
+                                Entry entry = new Entry(msg, null, null, o);
                                 push(entry);
                             }
                             return (T) msg;
@@ -635,7 +653,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                     final Object msg = filter(o);
-                    final Entry e = new Entry(msg, null, null);
+                    final Entry e = new Entry(msg, null, null, o);
                     push(e);
                     return (T) msg;
                 }
@@ -674,7 +692,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = Callable.class.cast(o).call();
                         final Object msg = filter(r);
                         if (msg != null) {
-                            Entry entry = new Entry(msg, null, null);
+                            Entry entry = new Entry(msg, null, null, o);
                             push(entry);
                         }
                         return;
@@ -683,7 +701,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
                 final Object msg = filter(o);
-                final Entry e = new Entry(msg, null, null);
+                final Entry e = new Entry(msg, null, null, o);
                 push(e);
             }
         }, waitFor, period, t);

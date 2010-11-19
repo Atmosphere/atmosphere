@@ -37,69 +37,23 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+
 import javax.servlet.http.HttpServletRequest;
 
 /**
- * Transform a message of type 'E" before it get broadcasted to
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }
- * <p/>
- * See {@link org.atmosphere.util.XSSHtmlFilter} for an example.
+ * A markable interface that can be used in conjonction with {@link BroadcastFilter} to filter
+ * message per request.
  *
- * @author Jeanfrancois Arcand
  */
-public interface BroadcastFilter {
+public interface PerRequestBroadcastFilter {
 
     /**
-     * Simple class that tells the {@link Broadcaster} to broadcast or not
-     * the transformed value.
-     */
-    public class BroadcastAction {
-
-        private final ACTION a;
-        private final Object o;
-        private Object originalMsg;
-
-        public enum ACTION {
-            CONTINUE, ABORT
-        }
-
-        public BroadcastAction(ACTION a, Object o) {
-            this.a = a;
-            this.o = o;
-        }
-
-        public BroadcastAction(Object o) {
-            this.a = ACTION.CONTINUE;
-            this.o = o;
-        }
-
-        public Object message() {
-            return o;
-        }
-
-        public ACTION action() {
-            return a;
-        }
-
-        public Object originalMessage() {
-            return originalMsg;
-        }
-
-        void setOriginalMsg(Object originalMsg) {
-            this.originalMsg = originalMsg;
-        }
-    }
-
-    /**
-     * Transform or Filter a message. Return null to tell the associated
-     * {@link Broadcaster} to discard the message, e.g to not broadcast it.
+     * Transform or Filter a message per request, with V as an indicator.
      *
-     * @param originalMessage The original message which was {@link Broadcaster#broadcast(Object)};
-     * @param message         Object a message
+     * @param request The {@link javax.servlet.http.HttpServletRequest} send before the response was suspended/upgraded.
+     * @param message Object a message
      * @return a transformed message.
      */
-    BroadcastAction filter(Object originalMessage, Object message);
-
+    BroadcastAction filter(HttpServletRequest request, Object message);
 }
-
-

@@ -126,7 +126,6 @@ public interface AtmosphereResource<E, F> {
      */
     public E getRequest();
 
-
     /**
      * Return the underlying <F> Response.
      *
@@ -154,7 +153,6 @@ public interface AtmosphereResource<E, F> {
      * @param broadcaster
      */
     public void setBroadcaster(Broadcaster broadcaster);
-
 
     /**
      * Set the {@link Serializer} to use when {@link AtmosphereResource#write}
