@@ -39,6 +39,7 @@ package org.atmosphere.websocket;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jetty 7 & 8 WebSocket support.
@@ -48,6 +49,8 @@ import java.io.IOException;
 public class JettyWebSocketSupport implements WebSocketSupport {
 
     private final Outbound outbound;
+
+    private AtomicBoolean webSocketLatencyCheck = new AtomicBoolean(false);
 
     public JettyWebSocketSupport(Outbound outbound) {
         this.outbound = outbound;
@@ -60,16 +63,19 @@ public class JettyWebSocketSupport implements WebSocketSupport {
     }
 
     public void write(byte frame, String data) throws IOException {
+        checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data);
     }
 
     public void write(byte frame, byte[] data) throws IOException {
+        checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data, 0, data.length);
     }
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
+        checkWebSocketLatencyCheck();        
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data, offset, length);
     }
@@ -77,5 +83,21 @@ public class JettyWebSocketSupport implements WebSocketSupport {
     public void close() throws IOException {
         outbound.disconnect();
     }
+
+    /**
+     * There is an issue in Jetty where the Websocket connection gets closed just after the handshake and the
+     * first broadcast occurs quickly after the handshake. If Chrome is processing the handshake and received messages,
+     * it close the connection.
+     */
+    private void checkWebSocketLatencyCheck() {
+        if (!webSocketLatencyCheck.getAndSet(true)) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                ;
+            }
+        }
+    }
+
 
 }
