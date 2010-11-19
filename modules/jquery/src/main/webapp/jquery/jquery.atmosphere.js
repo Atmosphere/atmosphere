@@ -389,6 +389,7 @@ jQuery.atmosphere = function()
 
             websocket.onmessage = function(message)
             {
+                success = true;
                 var data = message.data;
                 if (data.indexOf("parent.callback") != -1) {
                     var start = data.indexOf("('") + 2;
