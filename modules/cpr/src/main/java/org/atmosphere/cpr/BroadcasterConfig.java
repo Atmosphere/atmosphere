@@ -215,7 +215,7 @@ public class BroadcasterConfig {
             removeFilter(e);
         }
     }
-
+    
     /**
      * Return true if this object contains {@link BroadcastFilter}
      *

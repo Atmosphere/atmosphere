@@ -332,14 +332,14 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
-        Object finalMsg = msg.originalMessage;
-        if (r.getRequest() instanceof HttpServletRequest) {
+        Object finalMsg = msg.message;
+        if (r.getRequest() instanceof HttpServletRequest && bc.hasFilters()) {
             Object message = msg.originalMessage;
             BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
             if (a.action() == BroadcastAction.ACTION.ABORT || msg == null)
                 finalMsg = message;
             else
-                finalMsg = a.message();
+                finalMsg = !a.message().equals(msg.originalMessage) ? a.message() : message;
         }
                
         trackBroadcastMessage(r, finalMsg);
@@ -652,12 +652,14 @@ public class DefaultBroadcaster implements Broadcaster {
                             LoggerUtils.getLogger().log(Level.SEVERE, "", e);
                         }
                     }
+                    
                     final Object msg = filter(o);
                     final Entry e = new Entry(msg, null, null, o);
                     push(e);
                     return (T) msg;
                 }
             }, delay, t);
+
             e.future = new BroadcasterFuture<Object>(f, msg);
         }
         delayedBroadcast.offer(e);
