@@ -346,8 +346,8 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
-            if (location.indexof("ws") != -1) {
-                if (location.indexof("../") != -1) {
+            if (location.indexOf("ws") != -1) {
+                if (location.indexOf("../") != -1) {
                     location = location.substring(3);
                 }
                 location = "ws://" + location;
