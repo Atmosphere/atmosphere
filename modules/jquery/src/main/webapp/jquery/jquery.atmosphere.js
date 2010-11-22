@@ -344,7 +344,8 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
-
+            var location = url;
+            
             if (location.indexOf("http://") == -1) {
                 if (location.indexOf("../") != -1) {
                     location = location.substring(2);
