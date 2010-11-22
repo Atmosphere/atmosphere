@@ -344,14 +344,18 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
+
+            if (location.indexOf("http://") == -1) {
+                if (location.indexOf("../") != -1) {
+                    location = location.substring(2);
+                }
+                var currentDocBase = document.location.href;
+                var path = currentDocBase.indexOf("/",4);
+
+                location = currentDocBase.substring(0, path) + location;
+            }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
-            if (location.indexOf("ws") == -1) {
-                if (location.indexOf("../") != -1) {
-                    location = document.location.href + location.substring(3);
-                }
-                location = "ws://" + location;
-            }
 
             var websocket = null;
             if (jQuery.atmosphere.request.webSocketImpl != null) {
