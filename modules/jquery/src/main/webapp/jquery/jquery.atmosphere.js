@@ -348,7 +348,7 @@ jQuery.atmosphere = function()
 
             if (location.indexOf("ws") == -1) {
                 if (location.indexOf("../") != -1) {
-                    location = location.substring(3);
+                    location = document.location.href + location.substring(3);
                 }
                 location = "ws://" + location;
             }
