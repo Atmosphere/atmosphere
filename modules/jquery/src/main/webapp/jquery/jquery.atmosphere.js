@@ -220,7 +220,7 @@ jQuery.atmosphere = function()
                                 }
                             }
                             request.lastIndex = ajaxRequest.responseText.length;
-                            if (junkForWebkit) return;                                                    
+                            if (junkForWebkit) return;
                         } else {
                             response.responseBody = ajaxRequest.responseText;
                         }
@@ -266,46 +266,41 @@ jQuery.atmosphere = function()
         operaStreaming: function()
         {
 
-            var url = jQuery.atmosphere.request.url;
-            var es = document.createElement('event-source');
-            var response = jQuery.atmosphere.response;
+            jQuery.atmosphere.closeSuspendedConnection();
 
+            var url = jQuery.atmosphere.request.url;
+            var callback = jQuery.atmosphere.request.callback;
             jQuery.atmosphere.response.push = function (url)
             {
                 jQuery.atmosphere.request.transport = 'polling';
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
-            
-            es.setAttribute('src', url);
-            // without this check opera 9.5 would make two connections.
-            if (opera.version() < 9.5) {
-                document.body.appendChild(es);
+
+            function init()
+            {
+                var iframe = document.createElement("iframe");
+                iframe.style.width = "10px";
+                iframe.style.height = "10px";
+                iframe.style.border = "10px";
+                iframe.id = "__atmosphere";
+                document.body.appendChild(iframe);
+                var d;
+                if (iframe.contentWindow) {
+                    d = iframe.contentWindow.document;
+                } else if (iframe.document) {
+                    d = iframe.document;
+                } else if (iframe.contentDocument) {
+                    d = iframe.contentDocument;
+                }
+
+                if (/\?/i.test(url)) url += "&";
+                else url += "?";
+                url += "callback=jquery.atmosphere.streamingCallback";
+                iframe.src = url;
             }
 
-            var operaCallback = function (event) {
-                if (event.data) {
-                    var junkForWebkit = false;
-                    
-                    response.responseBody = event.data;
-                    if (event.data.indexOf("<!--") != -1) {
-                        junkForWebkit = true;
-                    }
-
-                    if (response.responseBody.indexOf("parent.callback") != -1) {
-                        var start = response.responseBody.indexOf("('") + 2;
-                        var end = response.responseBody.indexOf("')");
-                        response.responseBody = response.responseBody.substring(start, end);
-                    }
-
-                    if (junkForWebkit) return;
-
-                    response.state = "messageReceived";
-                    jQuery.atmosphere.invokeCallback(response);
-                }
-            };
-
-            es.addEventListener('payload', operaCallback, false);
+            init();
 
         },
 
@@ -351,6 +346,13 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
+            if (!location.startsWith("ws")) {
+                if (location.startsWith("../")) {
+                    location = location.substring(3);
+                }
+                location = "ws://" + location;
+            }
+
             var websocket = null;
             if (jQuery.atmosphere.request.webSocketImpl != null) {
                 websocket = jQuery.atmosphere.request.webSocketImpl;
@@ -389,7 +391,6 @@ jQuery.atmosphere = function()
 
             websocket.onmessage = function(message)
             {
-                success = true;
                 var data = message.data;
                 if (data.indexOf("parent.callback") != -1) {
                     var start = data.indexOf("('") + 2;
@@ -461,7 +462,7 @@ jQuery.atmosphere = function()
                 connected: false,
                 timeout: 60000,
                 method: 'POST',
-                contentType : '',                
+                contentType : '',
                 headers: {},
                 cache: true,
                 async: true,
