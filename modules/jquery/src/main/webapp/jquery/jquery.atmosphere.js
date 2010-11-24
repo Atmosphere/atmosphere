@@ -114,7 +114,7 @@ jQuery.atmosphere = function()
                 if ($.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
                     return;
-                } else {
+                } else if ((typeof window.addEventStream) == 'function') {
                     jQuery.atmosphere.operaStreaming();
                     return;
                 }
@@ -269,6 +269,9 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.closeSuspendedConnection();
 
             var url = jQuery.atmosphere.request.url;
+            if (url.indexOf)
+
+
             var callback = jQuery.atmosphere.request.callback;
             jQuery.atmosphere.response.push = function (url)
             {
@@ -310,7 +313,7 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.response.push = function (url)
             {
                 jQuery.atmosphere.request.transport = 'polling';
-                jQuery.atmosphere.request.callback = null;
+                jQuery.atmosphere.request.callback = null;                                 
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
