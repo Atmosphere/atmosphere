@@ -270,7 +270,7 @@ jQuery.atmosphere = function()
 
             var url = jQuery.atmosphere.request.url;
             if (url.indexOf("?") > 0) {
-                url = url.substring(url.indexOf("?"));
+                url = url.substring(0,url.indexOf("?"));
             }
 
             var callback = jQuery.atmosphere.request.callback;
