@@ -114,7 +114,7 @@ jQuery.atmosphere = function()
                 if ($.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
                     return;
-                } else if ((typeof window.addEventStream) == 'function') {
+                } else {
                     jQuery.atmosphere.operaStreaming();
                     return;
                 }
@@ -269,10 +269,6 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.closeSuspendedConnection();
 
             var url = jQuery.atmosphere.request.url;
-            if (url.indexOf("?") > 0) {
-                url = url.substring(0,url.indexOf("?"));
-            }
-
             var callback = jQuery.atmosphere.request.callback;
             jQuery.atmosphere.response.push = function (url)
             {
