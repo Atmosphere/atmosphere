@@ -80,8 +80,9 @@ public class JavascriptClientFilter implements BroadcastFilter, PerRequestBroadc
                     .append(message.toString())
                     .append("');</script>");
             message = sb.toString();
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);            
         }
-        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, null);
     }
 }
 

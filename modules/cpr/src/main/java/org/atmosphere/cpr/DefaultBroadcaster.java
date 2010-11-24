@@ -336,10 +336,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (r.getRequest() instanceof HttpServletRequest && bc.hasFilters()) {
             Object message = msg.originalMessage;
             BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
-            if (a.action() == BroadcastAction.ACTION.ABORT || msg == null)
-                finalMsg = message;
-            else
-                finalMsg = !a.message().equals(msg.originalMessage) ? a.message() : message;
+            if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
+               finalMsg = a.message();   
+            }
         }
                
         trackBroadcastMessage(r, finalMsg);
@@ -644,7 +643,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             Object r = Callable.class.cast(o).call();
                             final Object msg = filter(r);
                             if (msg != null) {
-                                Entry entry = new Entry(msg, null, null, o);
+                                Entry entry = new Entry(msg, null, null, r);
                                 push(entry);
                             }
                             return (T) msg;
@@ -694,7 +693,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = Callable.class.cast(o).call();
                         final Object msg = filter(r);
                         if (msg != null) {
-                            Entry entry = new Entry(msg, null, null, o);
+                            Entry entry = new Entry(msg, null, null, r);
                             push(entry);
                         }
                         return;
