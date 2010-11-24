@@ -69,18 +69,20 @@ public class JavascriptClientFilter implements BroadcastFilter, PerRequestBroadc
 
     @Override
     public BroadcastAction filter(HttpServletRequest request, Object message) {
-        
-        String userAgent = request.getHeader("User-Agent").toLowerCase();
-        if (userAgent != null && userAgent.startsWith("opera") && message instanceof String) {
-            StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
-                    .append(uniqueScriptToken.getAndIncrement())
-                    .append("\">")
-                    .append("window.parent.$.atmosphere.streamingCallback")
-                    .append("('")
-                    .append(message.toString())
-                    .append("');</script>");
-            message = sb.toString();
-            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);            
+
+        if (request.getHeader("User-Agent") != null) {
+            String userAgent = request.getHeader("User-Agent").toLowerCase();
+            if (userAgent != null && userAgent.startsWith("opera") && message instanceof String) {
+                StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
+                        .append(uniqueScriptToken.getAndIncrement())
+                        .append("\">")
+                        .append("window.parent.$.atmosphere.streamingCallback")
+                        .append("('")
+                        .append(message.toString())
+                        .append("');</script>");
+                message = sb.toString();
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+            }
         }
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, null);
     }
