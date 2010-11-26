@@ -90,7 +90,7 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
      * @param r an {@link AtmosphereResource}
      * @throws IOException
      */
-    public void upgrade(AtmosphereResource r) throws IOException {
+    public void upgrade(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().fine("Suspending request: " + r.getRequest());
         }
