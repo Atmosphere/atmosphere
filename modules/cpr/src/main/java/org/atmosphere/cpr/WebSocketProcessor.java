@@ -91,7 +91,10 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void broadcast(byte frame, byte[] data, int offset, int length) {
-        r.getBroadcaster().broadcast(data);
+
+        byte[] b = new byte[length];
+        System.arraycopy(data, offset, b, 0, length);
+        r.getBroadcaster().broadcast(b);
     }
 
     public void close() {
