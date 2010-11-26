@@ -1337,6 +1337,24 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
+     *  https://issues.apache.org/jira/browse/WICKET-3190
+     */
+    private static class JettyRequestFix extends HttpServletRequestWrapper {
+
+            public JettyRequestFix(HttpServletRequest request) {
+                super(request);
+            }
+
+            public String getContextPath() {
+                String path = super.getContextPath();
+                if (path == null || path.equals("")) {
+                    return "/";
+                }
+                return path;
+            }
+        }
+
+    /**
      * Jetty 7 and up WebSocket support.
      *
      * @param request
@@ -1354,7 +1372,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             public void onConnect(WebSocket.Outbound outbound) {
                 webSocketProcessor = new WebSocketProcessor(AtmosphereServlet.this, new JettyWebSocketSupport(outbound));
                 try {
-                    webSocketProcessor.connect(new JettyWebSocketSupport(request));
+                    webSocketProcessor.connect(new JettyRequestFix(request));
                 } catch (IOException e) {
                     logger.log(Level.WARNING, "", e);
                 }
@@ -1372,21 +1390,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 webSocketProcessor.close();
             }
         };
-
-        class JettyRequestFix extends HttpServletRequestWrapper {
-
-            public JettyRequestFix(HttpServletRequest request) {
-                super(request);
-            }
-
-            public String getContextPath() {
-                String path = super.getContextPath();
-                if (path == null || path.equals("")) {
-                    return "/";
-                }
-                return path;
-            }
-        }
     }
         
 
