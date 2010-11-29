@@ -43,7 +43,7 @@ public final class JerseyBroadcasterUtil {
                 cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
             } else if (e.getMessage() instanceof List) {
-                for (String msg : (List<String>) e.getMessage()) {
+                for (Object msg : (List<Object>) e.getMessage()) {
                     cr.setResponse(Response.ok(msg).build());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
