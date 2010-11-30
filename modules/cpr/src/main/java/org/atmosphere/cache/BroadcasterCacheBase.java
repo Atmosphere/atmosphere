@@ -111,7 +111,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
     /**
      * {@inheritDoc}
      */
-    public final void addToCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, final Object e) {
+    public final synchronized void addToCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, final Object e) {
 
         if (logger.isLoggable(Level.FINE)) {
             logger.fine("Adding message for " + r + ": " + e);
@@ -160,7 +160,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
     /**
      * {@inheritDoc}
      */
-    public final List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public final synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
 
         CachedMessage cm = retrieveLastMessage(r);
         boolean isNew = false;
