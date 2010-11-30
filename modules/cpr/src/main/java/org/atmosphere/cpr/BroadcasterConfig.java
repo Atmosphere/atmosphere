@@ -226,6 +226,24 @@ public class BroadcasterConfig {
     }
 
     /**
+     * Return true if this object contains {@link BroadcastFilter}
+     *
+     * @return true if this object contains {@link BroadcastFilter}
+     */
+    public boolean hasPerRequestFilters() {
+        if (filters.isEmpty()) {
+            return false;
+        } else {
+            for(BroadcastFilter b: filters) {
+                if (PerRequestBroadcastFilter.class.isAssignableFrom(b.getClass())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Invoke {@link BroadcastFilter} in the other they were added.
      *
      * @param object the broadcasted object.

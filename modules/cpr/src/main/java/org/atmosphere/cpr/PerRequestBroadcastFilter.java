@@ -46,7 +46,7 @@ import javax.servlet.http.HttpServletRequest;
  * message per request.
  *
  */
-public interface PerRequestBroadcastFilter {
+public interface PerRequestBroadcastFilter extends BroadcastFilter{
 
     /**
      * Transform or Filter a message per request, with V as an indicator.
