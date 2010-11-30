@@ -342,9 +342,10 @@ jQuery.atmosphere = function()
             var success = false;
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
             jQuery.atmosphere.response.transport = "websocket";
-            var url = jQuery.atmosphere.request.url;
+            var url = jQuery.atmosphere.parseUri(jQuery.atmosphere.request.url);
             var callback = jQuery.atmosphere.request.callback;
-            var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
+            var source = url.source;
+            var location = source.replace('http:', 'ws:').replace('https:', 'wss:');
 
             var websocket = null;
             if (jQuery.atmosphere.request.webSocketImpl != null) {
@@ -553,8 +554,35 @@ jQuery.atmosphere = function()
             {
                 log('debug', arguments);
             }
+        },
+
+        parseUri : function(str) {
+            var options = {
+                strictMode: false,
+                key: ["source","protocol","authority","userInfo","user","password","host","port","relative","path","directory","file","query","anchor"],
+                q:   {
+                    name:   "queryKey",
+                    parser: /(?:^|&)([^&=]*)=?([^&]*)/g
+                },
+                parser: {
+                    strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+                    loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
+                }
+            }
+            var o = options,
+                    m = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
+                    uri = {},
+                    i = 14;
+
+            while (i--) uri[o.key[i]] = m[i] || "";
+
+            uri[o.q.name] = {};
+            uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
+                if ($1) uri[o.q.name][$1] = $2;
+            });
+
+            return uri;
         }
     }
 
-}
-        ();
+}();
