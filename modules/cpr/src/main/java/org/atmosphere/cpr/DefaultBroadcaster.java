@@ -305,6 +305,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         Object finalMsg = translate(msg.message);
+        msg.message = finalMsg;
 
         if (msg.multipleAtmoResources == null) {
             for (AtmosphereResource<?, ?> r : resources) {
@@ -333,7 +334,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
         Object finalMsg = msg.message;
-        if (r.getRequest() instanceof HttpServletRequest && bc.hasFilters()) {
+        if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
             Object message = msg.originalMessage;
             BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
             if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {

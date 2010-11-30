@@ -36,7 +36,6 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
 import javax.servlet.http.HttpServletRequest;
@@ -47,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Jeanfrancois Arcand
  */
-public class JavascriptClientFilter implements BroadcastFilter, PerRequestBroadcastFilter {
+public class JavascriptClientFilter implements PerRequestBroadcastFilter {
 
     private final AtomicInteger uniqueScriptToken = new AtomicInteger();
 

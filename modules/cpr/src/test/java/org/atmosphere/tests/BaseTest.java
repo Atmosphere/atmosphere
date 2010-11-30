@@ -815,15 +815,12 @@ public abstract class BaseTest {
                 if (event.isResuming()) {
                     return;
                 }
-                try {
-                    assertFalse(event.isCancelled());
-                    assertNotNull(event.getMessage());
-                    assertEquals(event.getMessage(), "123456789101234567891012345678910");
-                    event.getResource().getResponse().flushBuffer();
-                    event.getResource().resume();
-                } finally {
-                    latch.countDown();
-                }
+                assertFalse(event.isCancelled());
+                assertNotNull(event.getMessage());
+                assertEquals(event.getMessage(), "123456789101234567891012345678910");
+                event.getResource().getResponse().flushBuffer();
+                event.getResource().resume();
+                latch.countDown();
             }
         }, new RecyclableBroadcaster("suspend"));
 
