@@ -136,7 +136,7 @@ jQuery.atmosphere = function()
                 var ajaxRequest;
                 var error = false;
                 if ($.browser.msie) {
-                    var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"]
+                    var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"];
                     for (var i = 0; i < activexmodes.length; i++) {
                         try {
                             ajaxRequest = new ActiveXObject(activexmodes[i])
@@ -247,7 +247,7 @@ jQuery.atmosphere = function()
 
                         jQuery.atmosphere.invokeCallback(response);
                     }
-                }
+                };
                 ajaxRequest.send(request.data);
 
                 if (request.suspend) {
@@ -314,7 +314,7 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
-            transferDoc = new ActiveXObject("htmlfile");
+            var transferDoc = new ActiveXObject("htmlfile");
             transferDoc.open();
             transferDoc.close();
             var ifrDiv = transferDoc.createElement("div");
@@ -360,7 +360,7 @@ jQuery.atmosphere = function()
                 var data;
                 var ws = jQuery.atmosphere.websocket;
                 try {
-                    data = jQuery.atmosphere.request.data
+                    data = jQuery.atmosphere.request.data;
                     ws.send(jQuery.atmosphere.request.data);
                 } catch (e) {
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
@@ -370,7 +370,7 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.executeRequest();
 
                     ws.onclose = function(message) {
-                    }
+                    };
                     ws.close();
                 }
             };

@@ -36,16 +36,17 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Filter that inject Javascript code to a broadcast so it can be used with the Atmosphere JQuery Plugin.
- * 
+ *
  * @author Jeanfrancois Arcand
  */
-public class JavascriptClientFilter implements BroadcastFilter {
+public class JavascriptClientFilter implements PerRequestBroadcastFilter {
 
     private final AtomicInteger uniqueScriptToken = new AtomicInteger();
 
@@ -65,4 +66,28 @@ public class JavascriptClientFilter implements BroadcastFilter {
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
 
+    @Override
+    public BroadcastAction filter(HttpServletRequest request, Object message) {
+
+        if (request.getHeader("User-Agent") != null) {
+            String userAgent = request.getHeader("User-Agent").toLowerCase();
+            if (userAgent != null && userAgent.startsWith("opera") && message instanceof String) {
+                StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
+                        .append(uniqueScriptToken.getAndIncrement())
+                        .append("\">")
+                        .append("window.parent.$.atmosphere.streamingCallback")
+                        .append("('")
+                        .append(message.toString())
+                        .append("');</script>");
+                message = sb.toString();
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+            }
+        }
+        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, null);
+    }
 }
+
+
+
+
+

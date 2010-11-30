@@ -40,6 +40,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.util.LoggerUtils;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -62,6 +63,9 @@ public class BroadcasterConfig {
 
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters =
             new ConcurrentLinkedQueue<BroadcastFilter>();
+
+    protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters =
+            new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
 
     private ExecutorService executorService;
 
@@ -153,6 +157,10 @@ public class BroadcasterConfig {
             ((BroadcastFilterLifecycle) e).init();
         }
 
+        if (e instanceof PerRequestBroadcastFilter) {
+            perRequestFilters.add((PerRequestBroadcastFilter)e);
+        }
+
         return filters.offer(e);
     }
 
@@ -191,6 +199,11 @@ public class BroadcasterConfig {
         if (e instanceof BroadcastFilterLifecycle) {
             ((BroadcastFilterLifecycle) e).destroy();
         }
+
+        if (e instanceof PerRequestBroadcastFilter) {
+            perRequestFilters.remove(e);
+        }
+        
         return filters.remove(e);
     }
 
@@ -202,7 +215,7 @@ public class BroadcasterConfig {
             removeFilter(e);
         }
     }
-
+    
     /**
      * Return true if this object contains {@link BroadcastFilter}
      *
@@ -210,6 +223,24 @@ public class BroadcasterConfig {
      */
     public boolean hasFilters() {
         return !filters.isEmpty();
+    }
+
+    /**
+     * Return true if this object contains {@link BroadcastFilter}
+     *
+     * @return true if this object contains {@link BroadcastFilter}
+     */
+    public boolean hasPerRequestFilters() {
+        if (filters.isEmpty()) {
+            return false;
+        } else {
+            for(BroadcastFilter b: filters) {
+                if (PerRequestBroadcastFilter.class.isAssignableFrom(b.getClass())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -222,6 +253,23 @@ public class BroadcasterConfig {
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
             transformed = mf.filter(object, transformed.message());
+            if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                return transformed;
+            }
+        }
+        return transformed;
+    }
+
+    /**
+     * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link javax.servlet.http.HttpServletRequest}
+     * @param request {@link javax.servlet.http.HttpServletRequest}
+     * @param object the broadcasted object.
+     * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
+     */
+    protected BroadcastAction filter(HttpServletRequest request, Object object) {
+        BroadcastAction transformed = new BroadcastAction(object);
+        for (PerRequestBroadcastFilter mf : perRequestFilters) {
+            transformed = mf.filter(request, transformed.message());
             if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                 return transformed;
             }
