@@ -42,7 +42,6 @@ import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -424,7 +423,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void onException(Throwable t, AtmosphereResource<?, ?> r) {
+    protected void onException(Throwable t, final AtmosphereResource<?, ?> r) {
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().log(Level.FINE, "", t);
         }
@@ -433,7 +432,17 @@ public class DefaultBroadcaster implements Broadcaster {
             ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
             ((AtmosphereEventLifecycle) r).removeEventListeners();
         }
-        removeAtmosphereResource(r);
+
+        /**
+         * Make sure we resume the connection on every IOException.
+         */
+        bc.getExecutorService().execute(new Runnable(){
+            @Override
+            public void run() {
+                r.resume();
+            }
+        });
+
     }
 
     @Override
