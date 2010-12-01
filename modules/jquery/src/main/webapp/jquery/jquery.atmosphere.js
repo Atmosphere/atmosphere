@@ -281,9 +281,9 @@ jQuery.atmosphere = function()
             function init()
             {
                 var iframe = document.createElement("iframe");
-                iframe.style.width = "10px";
-                iframe.style.height = "10px";
-                iframe.style.border = "10px";
+                iframe.style.width = "0px";
+                iframe.style.height = "0px";
+                iframe.style.border = "0px";
                 iframe.id = "__atmosphere";
                 document.body.appendChild(iframe);
                 var d;
