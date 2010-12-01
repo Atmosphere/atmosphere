@@ -315,7 +315,8 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
-            var transferDoc = new ActiveXObject("htmlfile");
+            //Must not use var here to avoid IE from disconnecting
+            transferDoc = new ActiveXObject("htmlfile");
             transferDoc.open();
             transferDoc.close();
             var ifrDiv = transferDoc.createElement("div");
