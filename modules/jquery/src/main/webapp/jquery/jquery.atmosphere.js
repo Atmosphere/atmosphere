@@ -83,6 +83,7 @@ jQuery.atmosphere = function()
                 if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
                     jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport"]);
                     jQuery.atmosphere.request.transport = jQuery.atmosphere.request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = jQuery.atmosphere.request.fallbackTransport;
                     jQuery.atmosphere.executeRequest();
                 }
                 else {
@@ -366,6 +367,7 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = request.fallbackTransport;
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
 
@@ -409,6 +411,8 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = request.fallbackTransport;
+
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
                 } else {
