@@ -52,6 +52,8 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -89,6 +91,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
+    private final ExecutorService finalizer = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -126,6 +129,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
+        finalizer.shutdownNow();
     }
 
     /**
@@ -436,7 +440,7 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        bc.getExecutorService().execute(new Runnable(){
+        finalizer.execute(new Runnable(){
             @Override
             public void run() {
                 r.resume();
