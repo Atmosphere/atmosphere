@@ -61,6 +61,12 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-servlet_3.0_spec</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>coyote</artifactId>
             <version>${tomcat-version}</version>
