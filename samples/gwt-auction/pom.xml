@@ -27,8 +27,8 @@
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
-                    <artifactId>javax.servlet</artifactId>
-                    <groupId>servlet-api</groupId>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
