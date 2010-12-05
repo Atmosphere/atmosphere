@@ -91,10 +91,6 @@
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
-                    <groupId>org.eclipse.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>javax.servlet</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
@@ -106,10 +102,6 @@
             <version>${jetty7-version}</version>
             <scope>test</scope>
             <exclusions>
-                <exclusion>
-                    <groupId>org.eclipse.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>javax.servlet</groupId>
                     <artifactId>servlet-api</artifactId>

@@ -350,14 +350,6 @@
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
-                    <groupId>org.eclipse.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.eclipse.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>javax.servlet</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
@@ -380,10 +372,6 @@
                     <groupId>org.mortbay.jetty</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -396,10 +384,6 @@
                     <groupId>org.mortbay.jetty</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -410,10 +394,6 @@
             <exclusions>
                 <exclusion>
                     <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
             </exclusions>
