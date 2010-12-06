@@ -20,5 +20,6 @@
         <module>jms</module>
         <module>redis</module>
         <module>xmpp</module>        
+        <module>guice</module>        
     </modules>
 </project>
