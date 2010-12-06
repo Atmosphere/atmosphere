@@ -25,12 +25,13 @@
             <artifactId>gwt-user</artifactId>
             <version>${gwt-version}</version>
             <scope>provided</scope>
-            <exclusions>
+            <!-- exclusion of servlet-api is useless since this jar embeds internally servlet-api jar -->
+            <!--<exclusions>
                 <exclusion>
-                    <artifactId>javax.servlet</artifactId>
-                    <groupId>servlet-api</groupId>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
                 </exclusion>
-            </exclusions>
+            </exclusions>-->
         </dependency>
     </dependencies>
 </project>
