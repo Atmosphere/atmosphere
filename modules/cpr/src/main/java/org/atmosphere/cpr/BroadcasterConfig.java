@@ -106,7 +106,7 @@ public class BroadcasterConfig {
     }
 
     protected void configExecutors() {
-        executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        executorService = Executors.newCachedThreadPool(new ThreadFactory() {
 
             private AtomicInteger count = new AtomicInteger();
 
@@ -135,8 +135,10 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@Executors#newFixedThreadPool} and will use
-     * the underlying number of core/processor as an indication of the thread number.
+     * By default it returns {@Executors#newFixedThreadPool} of size 1.
+     *
+     * WARNING: If you can that API to execute asynchronous task, make sure the size of the pool
+     * is larger than 1 as your task may block the current execution of {@link Broadcaster#broadcast(Object)}}
      *
      * @return An ExecutorService.
      */

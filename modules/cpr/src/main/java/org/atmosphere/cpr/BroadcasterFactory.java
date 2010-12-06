@@ -36,11 +36,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.util.LoggerUtils;
-
 import java.util.Collection;
-import java.util.List;
-import java.util.logging.Level;
 
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.

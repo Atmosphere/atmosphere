@@ -83,6 +83,7 @@ jQuery.atmosphere = function()
                 if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
                     jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport"]);
                     jQuery.atmosphere.request.transport = jQuery.atmosphere.request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = jQuery.atmosphere.request.fallbackTransport;
                     jQuery.atmosphere.executeRequest();
                 }
                 else {
@@ -280,9 +281,9 @@ jQuery.atmosphere = function()
             function init()
             {
                 var iframe = document.createElement("iframe");
-                iframe.style.width = "10px";
-                iframe.style.height = "10px";
-                iframe.style.border = "10px";
+                iframe.style.width = "0px";
+                iframe.style.height = "0px";
+                iframe.style.border = "0px";
                 iframe.id = "__atmosphere";
                 document.body.appendChild(iframe);
                 var d;
@@ -314,7 +315,8 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
-            var transferDoc = new ActiveXObject("htmlfile");
+            //Must not use var here to avoid IE from disconnecting
+            transferDoc = new ActiveXObject("htmlfile");
             transferDoc.open();
             transferDoc.close();
             var ifrDiv = transferDoc.createElement("div");
@@ -342,10 +344,21 @@ jQuery.atmosphere = function()
             var success = false;
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
             jQuery.atmosphere.response.transport = "websocket";
-            var url = jQuery.atmosphere.parseUri(jQuery.atmosphere.request.url);
+            var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
-            var source = url.source;
-            var location = source.replace('http:', 'ws:').replace('https:', 'wss:');
+
+            if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
+                var path = document.location;
+                var str = new String(path);
+                var len = str.length;
+                var end = str.lastIndexOf("/");
+
+                if ( url.indexOf("/") == 0 && ((end + 1) == len) ) {
+                    str = str.substring(0, end);
+                }
+                url = str + url;
+            }
+            var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
             var websocket = null;
             if (jQuery.atmosphere.request.webSocketImpl != null) {
@@ -367,6 +380,7 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = request.fallbackTransport;
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
 
@@ -410,6 +424,8 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    jQuery.atmosphere.response.transport = request.fallbackTransport;
+
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
                 } else {
@@ -555,34 +571,6 @@ jQuery.atmosphere = function()
                 log('debug', arguments);
             }
         },
-
-        parseUri : function(str) {
-            var options = {
-                strictMode: false,
-                key: ["source","protocol","authority","userInfo","user","password","host","port","relative","path","directory","file","query","anchor"],
-                q:   {
-                    name:   "queryKey",
-                    parser: /(?:^|&)([^&=]*)=?([^&]*)/g
-                },
-                parser: {
-                    strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
-                    loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
-                }
-            }
-            var o = options,
-                    m = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
-                    uri = {},
-                    i = 14;
-
-            while (i--) uri[o.key[i]] = m[i] || "";
-
-            uri[o.q.name] = {};
-            uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
-                if ($1) uri[o.q.name][$1] = $2;
-            });
-
-            return uri;
-        }
     }
 
 }();

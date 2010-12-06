@@ -1247,10 +1247,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     /**
      * Set the default {@link Broadcaster} class name
      *
-     * @param broadcasterClassName the broadcasterClassName to set
+     * @param bccn the broadcasterClassName to set
      */
-    public static void setDefaultBroadcasterClassName(String broadcasterClassName) {
-        broadcasterClassName = broadcasterClassName;
+    public static void setDefaultBroadcasterClassName(String bccn) {
+        broadcasterClassName = bccn;
     }
 
     /**
