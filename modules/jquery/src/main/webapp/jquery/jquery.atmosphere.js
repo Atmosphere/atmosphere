@@ -346,6 +346,18 @@ jQuery.atmosphere = function()
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
+
+            if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
+                var path = document.location;
+                var str = new String(path);
+                var len = str.length;
+                var end = str.lastIndexOf("/");
+
+                if ( url.indexOf("/") == 0 && ((end + 1) == len) ) {
+                    str = str.substring(0, end);
+                }
+                url = str + url;
+            }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
             var websocket = null;
@@ -559,6 +571,7 @@ jQuery.atmosphere = function()
                 log('debug', arguments);
             }
         }
+        ,
     }
 
 }
