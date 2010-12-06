@@ -42,7 +42,6 @@ import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -53,6 +52,8 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -90,6 +91,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
+    private final ExecutorService finalizer = Executors.newCachedThreadPool();
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -127,6 +129,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
+        finalizer.shutdown();
     }
 
     /**
@@ -424,7 +427,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void onException(Throwable t, AtmosphereResource<?, ?> r) {
+    protected void onException(Throwable t, final AtmosphereResource<?, ?> r) {
         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
             LoggerUtils.getLogger().log(Level.FINE, "", t);
         }
@@ -433,7 +436,17 @@ public class DefaultBroadcaster implements Broadcaster {
             ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
             ((AtmosphereEventLifecycle) r).removeEventListeners();
         }
-        removeAtmosphereResource(r);
+
+        /**
+         * Make sure we resume the connection on every IOException.
+         */
+        finalizer.execute(new Runnable(){
+            @Override
+            public void run() {
+                r.resume();
+            }
+        });
+
     }
 
     @Override

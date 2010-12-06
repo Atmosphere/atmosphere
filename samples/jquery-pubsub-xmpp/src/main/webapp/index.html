@@ -5,10 +5,10 @@
     <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
     
     <script type="text/javascript">
-        
         $(document).ready(function() {
             var connectedEndpoint;
             var callbackAdded = false;
+            var detectedTransport = null;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -38,6 +38,8 @@
                     // Websocket events.
                     $.atmosphere.log('info', ["response.state: " + response.state]);
                     $.atmosphere.log('info', ["response.transport: " + response.transport]);
+
+                    detectedTransport = response.transport;
                     if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
                         $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
@@ -85,9 +87,16 @@
             getElementById('phrase').onkeyup = function(event) {
                 var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
+
+                    var m = " sent using " + detectedTransport;
+                    if (detectedTransport == null) {
+                        detectedTransport = getElementByIdValue('transport');
+                        m = " sent trying to use " + detectedTransport;
+                    }
+
                     connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
                             null,
-                            $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + " sent using " + getElementByIdValue('transport')});
+                            $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -100,9 +109,17 @@
                     alert("Please enter a message to publish");
                     return;
                 }
+
+                var m = " sent using " + detectedTransport;
+                if (detectedTransport == null) {
+                    detectedTransport = getElementByIdValue('transport');
+                    m = " sent trying to use " + detectedTransport;
+                }
+
                 connectedEndpoint.push(document.location.toString() + 'pubsub/' + getElementById('topic').value,
                         null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase')});
+                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + m});
+
                 getElementById('phrase').value = '';
                 return false;
             };
