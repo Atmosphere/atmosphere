@@ -39,6 +39,7 @@ package org.atmosphere.tests;
 import org.apache.catalina.Context;
 import org.apache.catalina.Engine;
 import org.apache.catalina.Host;
+import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Embedded;
@@ -107,7 +108,12 @@ public class TomcatCometSupportTest extends BaseTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        embedded.stop();
+    public void unsetAtmosphereHandler() {
+        try {
+            embedded.stop();
+        } catch (LifecycleException ignored) {
+            // simply ignore the stop of the container, which may fail
+            ignored.printStackTrace(System.out);
+        }
     }
 }
