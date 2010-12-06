@@ -81,7 +81,6 @@ public class GuiceManagedAtmoshpereServlet extends AtmosphereServlet {
         setUseStreamForFlushingComments(true);
 
         rsp.setServlet(guiceServlet);
-        //rsp.setFilterClassName(GUICE_FILTER);
         getAtmosphereConfig().setSupportSession(false);
 
         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
