@@ -59,6 +59,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
+import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -232,6 +233,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     for (Class<? extends AtmosphereResourceEventListener> e : listeners) {
                         try {
                             AtmosphereResourceEventListener el = e.newInstance();
+                            InjectorProvider.getInjector().inject(el);
                             if (r instanceof AtmosphereEventLifecycle) {
                                 ((AtmosphereEventLifecycle) r).addEventListener(el);
                             }
@@ -339,6 +341,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<org.atmosphere.cpr.BroadcastFilter> filter : filters) {
                     try {
                         f = filter.newInstance();
+                        InjectorProvider.getInjector().inject(f);
                     } catch (Throwable t) {
                         logger.warning("Invalid @BroadcastFilter: " + filter);
                     }
@@ -559,6 +562,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<ClusterBroadcastFilter> c : suspendTimeout) {
                     try {
                         ClusterBroadcastFilter cbf = c.newInstance();
+                        InjectorProvider.getInjector().inject(cbf);
                         cbf.setUri(am.getAnnotation(Cluster.class).name());
                         f.addCluster(cbf);
                     } catch (Throwable t) {

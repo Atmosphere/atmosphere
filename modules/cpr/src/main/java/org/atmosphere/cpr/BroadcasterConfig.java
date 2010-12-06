@@ -38,6 +38,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -86,9 +87,9 @@ public class BroadcasterConfig {
     private void configureBroadcasterCache() {
         try {
             if (AtmosphereServlet.broadcasterCacheClassName != null) {
-                setBroadcasterCache((BroadcasterCache)
-                        Thread.currentThread().getContextClassLoader()
-                                .loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance());
+                BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader().loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance();
+                InjectorProvider.getInjector().inject(cache);
+                setBroadcasterCache(cache);
             }
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
@@ -363,8 +364,9 @@ public class BroadcasterConfig {
     void configureBroadcasterFilter(String[] list) {
         for (String broadcastFilter : list) {
             try {
-                addFilter(BroadcastFilter.class.cast(
-                        Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance()));
+                BroadcastFilter bf = BroadcastFilter.class.cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
+                InjectorProvider.getInjector().inject(bf);
+                addFilter(bf);
             } catch (InstantiationException e) {
                 logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
             } catch (IllegalAccessException e) {

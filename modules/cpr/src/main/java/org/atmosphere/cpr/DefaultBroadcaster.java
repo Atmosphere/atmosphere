@@ -39,6 +39,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
+import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -151,7 +152,9 @@ public class DefaultBroadcaster implements Broadcaster {
                             this.getClass().getSimpleName() + "/" + UUID.randomUUID());
 
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
-                        DefaultBroadcaster.class.cast(b).broadcasterCache = bc.getBroadcasterCache().getClass().newInstance();
+                        BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
+                        InjectorProvider.getInjector().inject(cache);
+                        DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
                     }
                     r.setBroadcaster(b);
                     if (r.getAtmosphereResourceEvent().isSuspended()) {

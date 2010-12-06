@@ -39,6 +39,7 @@
 package org.atmosphere.cpr;
 
 
+import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.atmosphere.util.LoggerUtils;
 
@@ -76,7 +77,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public Broadcaster get() throws IllegalAccessException, InstantiationException {
         Broadcaster b = clazz.newInstance();
-
+        InjectorProvider.getInjector().inject(b);
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
             AbstractBroadcasterProxy.class.cast(b).configure(config);
         }
@@ -95,7 +96,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (c == null) throw new NullPointerException("Class is null");
 
         Broadcaster b = c.newInstance();
-
+        InjectorProvider.getInjector().inject(b);
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
             AbstractBroadcasterProxy.class.cast(b).configure(config);
         }
