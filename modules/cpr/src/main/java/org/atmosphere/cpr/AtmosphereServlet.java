@@ -45,6 +45,9 @@ import org.atmosphere.container.GoogleAppEngineCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
+import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.di.ServletContextHolder;
+import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
@@ -166,7 +169,7 @@ import java.util.logging.Logger;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet {
+public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider {
     public final static Logger logger = LoggerUtils.getLogger();
 
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
@@ -540,6 +543,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         try {
             super.init(sc);
 
+            ServletContextHolder.register(this);
+
             ServletConfig scFacade = new ServletConfig() {
 
                 public String getServletName() {
@@ -602,8 +607,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             } else {
                 w.broadcaster.setBroadcasterConfig(broadcasterConfig);
                 if (broadcasterCacheClassName != null) {
-                    broadcasterConfig.setBroadcasterCache((BroadcasterCache)
-                            Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance());
+                    BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance();
+                    InjectorProvider.getInjector().inject(cache);
+                    broadcasterConfig.setBroadcasterCache(cache);
                 }
             }
             w.broadcaster.setID(e.getKey());
@@ -835,6 +841,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             try {
                 if (!entry.getValue().equals(ReflectorServletProcessor.class.getName())) {
                     g = (AtmosphereHandler) c.loadClass(entry.getValue()).newInstance();
+                    InjectorProvider.getInjector().inject(g);
                 } else {
                     g = new ReflectorServletProcessor();
                 }
@@ -973,7 +980,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     Class<?> clazz = c.loadClass(className);
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
                         AtmosphereHandler g = (AtmosphereHandler) clazz.newInstance();
-
+                        InjectorProvider.getInjector().inject(g);
                         logger.info("Successfully loaded " + g
                                 + " mapped to context-path " + g.getClass().getSimpleName());
                         atmosphereHandlers.put("/" + g.getClass().getSimpleName(),
