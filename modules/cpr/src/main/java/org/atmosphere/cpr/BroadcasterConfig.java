@@ -111,7 +111,7 @@ public class BroadcasterConfig {
     }
 
     protected void configExecutors() {
-        executorService = Executors.newCachedThreadPool(new ThreadFactory() {
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
 
             private AtomicInteger count = new AtomicInteger();
 
@@ -137,7 +137,7 @@ public class BroadcasterConfig {
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
      * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * is used if that method is not invoked.
+     * of size 1 is used if that method is not invoked.
      *
      * @param executorService to be used when broadcasting.
      */
@@ -151,10 +151,7 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
-     *
-     * WARNING: If you can that API to execute asynchronous task, make sure the size of the pool
-     * is larger than 1 as your task may block the current execution of {@link Broadcaster#broadcast(Object)}}
+     * By default it returns {@link java.util.concurrent.Executors#newFixedThreadPool(int)} of size 1.
      *
      * @return An ExecutorService.
      */
