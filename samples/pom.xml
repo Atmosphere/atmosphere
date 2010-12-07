@@ -38,6 +38,7 @@
         <module>jquery-pubsub-redis</module>
         <module>jquery-pubsub-xmpp</module>
         <module>atmosphere-ee6</module>
+        <module>di-guice-sample</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
