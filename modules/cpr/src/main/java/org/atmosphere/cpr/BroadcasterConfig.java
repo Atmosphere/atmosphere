@@ -69,7 +69,11 @@ public class BroadcasterConfig {
 
     private ExecutorService executorService;
 
+    private ExecutorService asyncWriteService;
+
     private ExecutorService defaultExecutorService;
+
+    private ExecutorService defaultAsyncWriteService;
 
     private ScheduledExecutorService scheduler;
 
@@ -100,9 +104,10 @@ public class BroadcasterConfig {
 
     }
 
-    public BroadcasterConfig(ExecutorService executorService, ScheduledExecutorService scheduler) {
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService, ScheduledExecutorService scheduler) {
         this.executorService = executorService;
         this.scheduler = scheduler;
+        this.asyncWriteService = asyncWriteService;
     }
 
     protected void configExecutors() {
@@ -116,6 +121,17 @@ public class BroadcasterConfig {
             }
         });
         defaultExecutorService = executorService;
+
+        asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
+
+            private AtomicInteger count = new AtomicInteger();
+
+            @Override
+            public Thread newThread(final Runnable runnable) {
+                return new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+            }
+        });
+        defaultAsyncWriteService = asyncWriteService;
     }
 
     /**
@@ -135,7 +151,7 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@Executors#newFixedThreadPool} of size 1.
+     * By default it returns {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
      *
      * WARNING: If you can that API to execute asynchronous task, make sure the size of the pool
      * is larger than 1 as your task may block the current execution of {@link Broadcaster#broadcast(Object)}}
@@ -147,13 +163,38 @@ public class BroadcasterConfig {
     }
 
     /**
+     * Set an {@link ExecutorService} which can be used to write
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
+     * is used if that method is not invoked.
+     *
+     * @param asyncWriteService to be used when writing events .
+     */
+    public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService) {
+        if (this.asyncWriteService != null) {
+            this.asyncWriteService.shutdown();
+        }
+        this.asyncWriteService = asyncWriteService;
+        return this;
+    }
+
+    /**
+     * Return the {@link ExecutorService} this {@link Broadcaster} use for executing asynchronous write of events.
+     * By default it returns {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
+     *
+     * @return An ExecutorService.
+     */
+    public ExecutorService getAsyncWriteService() {
+        return asyncWriteService;
+    }
+
+    /**
      * Add a {@link BroadcastFilter}
      *
      * @param e {@link BroadcastFilter}
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
-        if (filters.contains(e)) return false;
+        if (filters.contains(e) || checkDuplicateFilter(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
             ((BroadcastFilterLifecycle) e).init();
@@ -166,6 +207,15 @@ public class BroadcasterConfig {
         return filters.offer(e);
     }
 
+    private boolean checkDuplicateFilter(BroadcastFilter e) {
+        for (BroadcastFilter f: filters) {
+            if (f.getClass().isAssignableFrom(e.getClass())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void destroy() {
         if (broadcasterCache != null) {
             broadcasterCache.stop();
@@ -174,8 +224,14 @@ public class BroadcasterConfig {
         if (executorService != null) {
             executorService.shutdown();
         }
+        if (asyncWriteService != null) {
+            asyncWriteService.shutdown();
+        }
         if (defaultExecutorService != null) {
             defaultExecutorService.shutdown();
+        }
+        if (defaultAsyncWriteService != null) {
+            defaultAsyncWriteService.shutdown();
         }
 
         if (scheduler != null) {
