@@ -400,7 +400,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public AtmosphereServlet(boolean isFilter) {
         this.isFilter = isFilter;
         readSystemProperties();
-        configureDefaultBroadcasterFactory();
         populateBroadcasterType();
     }
 
@@ -416,7 +415,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         } catch (ClassNotFoundException e) {
             LoggerUtils.getLogger().log(Level.SEVERE,"",e);
         }
-        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(b == null ? DefaultBroadcaster.class : b), config);
+        Class bc = (b == null ? DefaultBroadcaster.class : b);
+        logger.log(Level.INFO, "configureDefaultBroadcasterFactor using class: "+bc);
+        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc), config);
     }
 
 
@@ -569,6 +570,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             };
             pingForStats();
             doInitParams(scFacade);
+            configureDefaultBroadcasterFactory();
             detectGoogleAppEngine(scFacade);
             loadConfiguration(scFacade);
 
@@ -589,8 +591,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void configureBroadcaster() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         if (broadcasterFactory == null) {
-            broadcasterFactory = new DefaultBroadcasterFactory((Class<Broadcaster>)
-                    Thread.currentThread().getContextClassLoader().loadClass(broadcasterClassName));
+            Class bc = (Class<Broadcaster>) Thread.currentThread().getContextClassLoader().loadClass(broadcasterClassName);
+            broadcasterFactory = new DefaultBroadcasterFactory(bc);
             config.broadcasterFactory = broadcasterFactory;
         }
 
