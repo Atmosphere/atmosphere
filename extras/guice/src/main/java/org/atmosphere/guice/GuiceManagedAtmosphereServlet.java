@@ -98,8 +98,6 @@ public class GuiceManagedAtmosphereServlet extends AtmosphereServlet {
 
     public static final String JERSEY_PROPERTIES = GuiceManagedAtmosphereServlet.class.getName() + ".properties";
 
-    private static final String GUICE_FILTER = "com.google.inject.servlet.GuiceFilter";
-
     /**
      * Auto-detect Jersey when no atmosphere.xml file are specified.
      *
