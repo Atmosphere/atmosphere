@@ -14,10 +14,18 @@
 jQuery.atmosphere = function()
 {
     var activeRequest;
-    $(window).unload(function()
+    jQuery(window).unload(function()
     {
-        if (activeRequest)
+        if (activeRequest){
             activeRequest.abort();
+        }
+
+        if( !(typeof(transferDoc) == 'undefined') ){
+            if(transferDoc != null){
+                transferDoc = null;
+                CollectGarbage();
+            }
+        }
     });
 
     return {
@@ -106,6 +114,13 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.websocket = null;
             }
             abordingConnection = false;
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
         },
 
         executeRequest: function()
@@ -307,6 +322,14 @@ jQuery.atmosphere = function()
 
         ieStreaming : function()
         {
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
+
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function (url)
             {
