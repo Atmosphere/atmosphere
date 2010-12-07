@@ -363,15 +363,14 @@ public class DefaultBroadcaster implements Broadcaster {
         return msg;
     }
 
-    protected void push(AtmosphereResource<?, ?> r, Object msg) {
-        AtmosphereResourceEvent e = null;
-        synchronized (r) {
+    protected void push(final AtmosphereResource<?, ?> r, final Object msg) {
 
+        synchronized (r) {
             if (r.getAtmosphereResourceEvent().isCancelled()) {
                 return;
             }
 
-            e = r.getAtmosphereResourceEvent();
+            final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
             e.setMessage(msg);
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
@@ -387,14 +386,20 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
             }
-            broadcast(r, e);
-            if (r instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) r).notifyListeners();
-            }
+
+            bc.getAsyncWriteService().execute(new Runnable(){
+                @Override
+                public void run() {
+                    broadcast(r, e);
+                    if (r instanceof AtmosphereEventLifecycle) {
+                        ((AtmosphereEventLifecycle) r).notifyListeners();
+                    }
+                }
+            });
         }
     }
 
-    protected void checkCachedAndPush(AtmosphereResource<?, ?> r, AtmosphereResourceEvent e) {
+    protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
             broadcast(r, e);
