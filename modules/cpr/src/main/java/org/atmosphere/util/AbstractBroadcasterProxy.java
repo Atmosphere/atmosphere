@@ -103,6 +103,14 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         };
     }
 
+    protected void reconfigure() {
+        if (notifierFuture != null) {
+            notifierFuture.cancel(true);
+        }
+        notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
+    }
+
+
     /**
      * {@inheritDoc}
      */
