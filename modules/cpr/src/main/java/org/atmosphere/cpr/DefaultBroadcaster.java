@@ -91,7 +91,6 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
-    private final ExecutorService finalizer = Executors.newCachedThreadPool();
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -129,7 +128,6 @@ public class DefaultBroadcaster implements Broadcaster {
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
-        finalizer.shutdown();
     }
 
     /**
@@ -445,7 +443,7 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        finalizer.execute(new Runnable(){
+        bc.getAsyncWriteService().execute(new Runnable(){
             @Override
             public void run() {
                 r.resume();
