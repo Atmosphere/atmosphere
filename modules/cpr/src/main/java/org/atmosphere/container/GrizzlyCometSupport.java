@@ -47,8 +47,6 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.CometSupport;
-import org.mortbay.util.ajax.Continuation;
-import org.mortbay.util.ajax.ContinuationSupport;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -155,8 +153,8 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
         CometHandler handler = ctx.getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
 
-        if (handler == null && supportSession()) {
-            handler = ctx.getCometHandler((Integer) req.getSession().getAttribute(ATMOSPHERE));
+        if (handler == null && supportSession() && req.getSession(false) != null) {
+            handler = ctx.getCometHandler((Integer) req.getSession(false).getAttribute(ATMOSPHERE));
             req.getSession().removeAttribute(ATMOSPHERE);
         }
 
