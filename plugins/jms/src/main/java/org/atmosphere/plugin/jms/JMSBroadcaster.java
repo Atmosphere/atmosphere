@@ -73,12 +73,12 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     }
 
     public JMSBroadcaster(String id) {
-        this(id, "atmosphere-jms");
+        this(id, "atmosphere");
     }
 
     public JMSBroadcaster(String id, String clusterName) {
         super(id);
-        this.clusterName = clusterName + "-id";
+        this.clusterName = clusterName;
 
     }
     
