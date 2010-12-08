@@ -85,7 +85,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
-    private Future<?> notifierFuture;
+    protected Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
