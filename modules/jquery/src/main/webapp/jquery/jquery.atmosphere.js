@@ -595,6 +595,11 @@ jQuery.atmosphere = function()
             div.firstChild.href = url;
             div.innerHTML = div.innerHTML;
             return div.firstChild.href;
+        },
+
+        close : function()
+        {
+            jQuery.atmosphere.closeSuspendedConnection();
         }
 
     }
