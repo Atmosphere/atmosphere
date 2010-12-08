@@ -42,6 +42,7 @@ import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -337,7 +338,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object finalMsg = msg.message;
         if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
             Object message = msg.originalMessage;
-            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
+            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
             if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
                finalMsg = a.message();   
             }
@@ -443,12 +444,14 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        bc.getAsyncWriteService().execute(new Runnable(){
+        bc.getAsyncWriteService().execute( new Runnable()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 r.resume();
             }
-        });
+        } );
 
     }
 
