@@ -44,7 +44,7 @@
                     if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
                         $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
-                            var data = response.responseBody
+                            var data = response.responseBody;
                             if (data.length > 0) {
                                 $('ul').prepend($('<li></li>').text(" Message Received: " + data));
                             }
