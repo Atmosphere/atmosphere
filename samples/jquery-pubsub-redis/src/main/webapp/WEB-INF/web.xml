@@ -25,10 +25,6 @@
             <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
             <param-value>org.atmosphere.client.FormParamFilter,org.atmosphere.client.JavascriptClientFilter</param-value>
         </init-param>
-      <init-param>
-        <param-name>org.atmosphere.plugin.redis.RedisBroadcaster.server</param-name>
-        <param-value>http://192.168.2.106:6379</param-value>
-      </init-param>
       <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
