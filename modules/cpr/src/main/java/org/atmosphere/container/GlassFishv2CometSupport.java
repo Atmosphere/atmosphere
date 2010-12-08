@@ -39,7 +39,6 @@ package org.atmosphere.container;
 
 import com.sun.enterprise.web.connector.grizzly.comet.CometContext;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
-import com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -154,9 +153,8 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
                 .getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
 
-        if (handler == null && supportSession()) {
-            handler = ctx
-                    .getCometHandler((Integer) req.getSession().getAttribute(ATMOSPHERE));
+        if (handler == null && supportSession() && req.getSession(false) != null) {
+            handler = ctx.getCometHandler((Integer) req.getSession(false).getAttribute(ATMOSPHERE));
             req.getSession().removeAttribute(ATMOSPHERE);
         }
 
