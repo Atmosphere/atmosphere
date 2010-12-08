@@ -42,6 +42,7 @@ import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -322,10 +323,10 @@ public class BroadcasterConfig {
      * @param object the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(HttpServletRequest request, Object object) {
+    protected BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
-            transformed = mf.filter(request, transformed.message());
+            transformed = mf.filter(request, response, transformed.message());
             if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                 return transformed;
             }

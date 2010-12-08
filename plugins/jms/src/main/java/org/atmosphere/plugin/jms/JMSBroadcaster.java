@@ -58,6 +58,9 @@ import java.util.logging.Logger;
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JMS
  *
+ * The {@link ConnectionFactory} name's is jms/atmosphereFactory
+ * The {@link Topic} by appending jms/{@link org.atmosphere.cpr.Broadcaster#getID()}
+ *
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
@@ -66,37 +69,31 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private Session session;
     private MessageConsumer consumer;
     private MessageProducer publisher;
-    private String clusterName;
 
-    public JMSBroadcaster() {
-        this(JMSBroadcaster.class.getSimpleName());
-    }
-
-    public JMSBroadcaster(String id) {
-        this(id, "atmosphere-jms");
-    }
-
-    public JMSBroadcaster(String id, String clusterName) {
-        super(id);
-        this.clusterName = clusterName + "-id";
-
-    }
-    
     /**
      * {@inheritDoc}
      */
     @Override
     public void incomingBroadcast() {
         try {
-
+            
+            String id = getID();
+            if (id.startsWith("/*")){
+                id = "atmosphere";
+            }
+                        
+            logger.info("Looking up: jms/atmosphereFactory");
             Context ctx = new InitialContext();
             ConnectionFactory connectionFactory =
                     (ConnectionFactory) ctx.lookup("jms/atmosphereFactory");
 
-            Topic topic = (Topic) ctx.lookup("jms/" + clusterName);
+            logger.info(String.format("Looking up topic: %s", id));
+            Topic topic = (Topic) ctx.lookup("jms/" + id);
             connection = connectionFactory.createConnection();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            consumer = session.createConsumer(topic, clusterName);
+
+            logger.info(String.format("Create customer: %s", id));
+            consumer = session.createConsumer(topic, id);
             consumer.setMessageListener(new MessageListener() {
 
                 @Override
@@ -117,10 +114,9 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 }
             });
             publisher = session.createProducer(topic);
-
             connection.start();
         } catch (Throwable ex) {
-            throw new IllegalStateException("Unable to initialize JMSFilter", ex);
+            throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
         }
     }
 
