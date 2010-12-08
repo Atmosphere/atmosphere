@@ -132,12 +132,20 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         if (jedisPublisher != null) {
             try {
                 jedisPublisher.disconnect();
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "", e);
+            }
+        }
+
+        if (jedisSubscriber != null) {
+            try {
                 jedisSubscriber.disconnect();
             } catch (IOException e) {
                 logger.log(Level.SEVERE, "", e);
             }
         }
-        setUp();        
+        setUp();
+        reconfigure();
     }
 
     /**

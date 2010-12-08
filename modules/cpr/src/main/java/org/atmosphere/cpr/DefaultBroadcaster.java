@@ -43,6 +43,7 @@ import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -86,13 +87,12 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
-    private Future<?> notifierFuture;
+    protected Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
-    private final ExecutorService finalizer = Executors.newCachedThreadPool();
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -130,7 +130,6 @@ public class DefaultBroadcaster implements Broadcaster {
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
-        finalizer.shutdown();
     }
 
     /**
@@ -342,7 +341,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object finalMsg = msg.message;
         if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
             Object message = msg.originalMessage;
-            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
+            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
             if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
                finalMsg = a.message();   
             }
@@ -448,12 +447,14 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        finalizer.execute(new Runnable(){
+        bc.getAsyncWriteService().execute( new Runnable()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 r.resume();
             }
-        });
+        } );
 
     }
 
