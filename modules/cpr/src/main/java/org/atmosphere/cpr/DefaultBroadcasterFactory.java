@@ -80,7 +80,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
             AbstractBroadcasterProxy.class.cast(b).configure(config);
         }
-        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
+        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setID(clazz.getSimpleName() + "-" + new Random().nextInt());
         store.put(b.getID(), b);
         return b;
@@ -99,7 +99,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
             AbstractBroadcasterProxy.class.cast(b).configure(config);
         }
-        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters));
+        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setID(id.toString());
 
         store.put(id, b);
