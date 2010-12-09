@@ -41,6 +41,7 @@ import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -69,15 +70,21 @@ public class BroadcasterConfig {
 
     private ExecutorService executorService;
 
+    private ExecutorService asyncWriteService;
+
     private ExecutorService defaultExecutorService;
+
+    private ExecutorService defaultAsyncWriteService;
 
     private ScheduledExecutorService scheduler;
 
     private final Object[] lock = new Object[0];
 
     private BroadcasterCache broadcasterCache;
+    private AtmosphereServlet.AtmosphereConfig config;
 
-    public BroadcasterConfig(String[] list) {
+    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+        this.config = config;
         configExecutors();
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
@@ -100,13 +107,15 @@ public class BroadcasterConfig {
 
     }
 
-    public BroadcasterConfig(ExecutorService executorService, ScheduledExecutorService scheduler) {
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService, ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
+        this.asyncWriteService = asyncWriteService;
+        this.config = config;
     }
 
     protected void configExecutors() {
-        executorService = Executors.newCachedThreadPool(new ThreadFactory() {
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
 
             private AtomicInteger count = new AtomicInteger();
 
@@ -116,12 +125,23 @@ public class BroadcasterConfig {
             }
         });
         defaultExecutorService = executorService;
+
+        asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
+
+            private AtomicInteger count = new AtomicInteger();
+
+            @Override
+            public Thread newThread(final Runnable runnable) {
+                return new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+            }
+        });
+        defaultAsyncWriteService = asyncWriteService;
     }
 
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
      * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * is used if that method is not invoked.
+     * of size 1 is used if that method is not invoked.
      *
      * @param executorService to be used when broadcasting.
      */
@@ -135,15 +155,37 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@Executors#newFixedThreadPool} of size 1.
-     *
-     * WARNING: If you can that API to execute asynchronous task, make sure the size of the pool
-     * is larger than 1 as your task may block the current execution of {@link Broadcaster#broadcast(Object)}}
+     * By default it returns {@link java.util.concurrent.Executors#newFixedThreadPool(int)} of size 1.
      *
      * @return An ExecutorService.
      */
     public ExecutorService getExecutorService() {
         return executorService;
+    }
+
+    /**
+     * Set an {@link ExecutorService} which can be used to write
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
+     * is used if that method is not invoked.
+     *
+     * @param asyncWriteService to be used when writing events .
+     */
+    public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService) {
+        if (this.asyncWriteService != null) {
+            this.asyncWriteService.shutdown();
+        }
+        this.asyncWriteService = asyncWriteService;
+        return this;
+    }
+
+    /**
+     * Return the {@link ExecutorService} this {@link Broadcaster} use for executing asynchronous write of events.
+     * By default it returns {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
+     *
+     * @return An ExecutorService.
+     */
+    public ExecutorService getAsyncWriteService() {
+        return asyncWriteService;
     }
 
     /**
@@ -153,7 +195,7 @@ public class BroadcasterConfig {
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
-        if (filters.contains(e)) return false;
+        if (filters.contains(e) || checkDuplicateFilter(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
             ((BroadcastFilterLifecycle) e).init();
@@ -166,6 +208,15 @@ public class BroadcasterConfig {
         return filters.offer(e);
     }
 
+    private boolean checkDuplicateFilter(BroadcastFilter e) {
+        for (BroadcastFilter f: filters) {
+            if (f.getClass().isAssignableFrom(e.getClass())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void destroy() {
         if (broadcasterCache != null) {
             broadcasterCache.stop();
@@ -174,8 +225,14 @@ public class BroadcasterConfig {
         if (executorService != null) {
             executorService.shutdown();
         }
+        if (asyncWriteService != null) {
+            asyncWriteService.shutdown();
+        }
         if (defaultExecutorService != null) {
             defaultExecutorService.shutdown();
+        }
+        if (defaultAsyncWriteService != null) {
+            defaultAsyncWriteService.shutdown();
         }
 
         if (scheduler != null) {
@@ -268,10 +325,10 @@ public class BroadcasterConfig {
      * @param object the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(HttpServletRequest request, Object object) {
+    protected BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
-            transformed = mf.filter(request, transformed.message());
+            transformed = mf.filter(request, response, transformed.message());
             if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                 return transformed;
             }
@@ -373,6 +430,23 @@ public class BroadcasterConfig {
                 logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
             }
         }
+    }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
+     * if the associated {@link Broadcaster} has been created manually.
+     * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     */
+    public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
+        return config;
+    }
+
+    /**
+     * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     */
+    public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
+        this.config = config;
     }
 
 }

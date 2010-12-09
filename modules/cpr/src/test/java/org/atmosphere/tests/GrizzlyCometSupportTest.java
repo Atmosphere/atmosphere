@@ -57,6 +57,7 @@ public class GrizzlyCometSupportTest extends BaseTest {
 
         ws = new GrizzlyWebServer(port);
         ServletAdapter sa = new ServletAdapter();
+        sa.setProperty("load-on-startup", 0);
         ws.addAsyncFilter(new CometAsyncFilter());
         
         atmoServlet = new AtmosphereServlet();

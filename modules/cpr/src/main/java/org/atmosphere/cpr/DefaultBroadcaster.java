@@ -42,6 +42,7 @@ import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.util.LoggerUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,8 +53,6 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -85,13 +84,12 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
-    private Future<?> notifierFuture;
+    protected Future<?> notifierFuture;
     protected BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
-    private final ExecutorService finalizer = Executors.newCachedThreadPool();
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -99,9 +97,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     public DefaultBroadcaster(String name) {
         this.name = name;
-        setID(name);
         broadcasterCache = new DefaultBroadcasterCache();
-        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters);
+        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, null);
+        setID(name);
     }
 
     /**
@@ -129,7 +127,6 @@ public class DefaultBroadcaster implements Broadcaster {
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
-        finalizer.shutdown();
     }
 
     /**
@@ -339,7 +336,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object finalMsg = msg.message;
         if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
             Object message = msg.originalMessage;
-            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), message);
+            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
             if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
                finalMsg = a.message();   
             }
@@ -360,15 +357,14 @@ public class DefaultBroadcaster implements Broadcaster {
         return msg;
     }
 
-    protected void push(AtmosphereResource<?, ?> r, Object msg) {
-        AtmosphereResourceEvent e = null;
-        synchronized (r) {
+    protected void push(final AtmosphereResource<?, ?> r, final Object msg) {
 
+        synchronized (r) {
             if (r.getAtmosphereResourceEvent().isCancelled()) {
                 return;
             }
 
-            e = r.getAtmosphereResourceEvent();
+            final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
             e.setMessage(msg);
 
             if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
@@ -384,14 +380,20 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
             }
-            broadcast(r, e);
-            if (r instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) r).notifyListeners();
-            }
+
+            bc.getAsyncWriteService().execute(new Runnable(){
+                @Override
+                public void run() {
+                    broadcast(r, e);
+                    if (r instanceof AtmosphereEventLifecycle) {
+                        ((AtmosphereEventLifecycle) r).notifyListeners();
+                    }
+                }
+            });
         }
     }
 
-    protected void checkCachedAndPush(AtmosphereResource<?, ?> r, AtmosphereResourceEvent e) {
+    protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
             broadcast(r, e);
@@ -440,12 +442,14 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        finalizer.execute(new Runnable(){
+        bc.getAsyncWriteService().execute( new Runnable()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 r.resume();
             }
-        });
+        } );
 
     }
 
