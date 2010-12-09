@@ -98,7 +98,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public DefaultBroadcaster(String name) {
         this.name = name;
         broadcasterCache = new DefaultBroadcasterCache();
-        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters);
+        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, null);
         setID(name);
     }
 

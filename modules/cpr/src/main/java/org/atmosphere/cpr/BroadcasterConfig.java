@@ -81,8 +81,10 @@ public class BroadcasterConfig {
     private final Object[] lock = new Object[0];
 
     private BroadcasterCache broadcasterCache;
+    private AtmosphereServlet.AtmosphereConfig config;
 
-    public BroadcasterConfig(String[] list) {
+    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+        this.config = config;
         configExecutors();
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
@@ -105,10 +107,11 @@ public class BroadcasterConfig {
 
     }
 
-    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService, ScheduledExecutorService scheduler) {
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService, ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
+        this.config = config;
     }
 
     protected void configExecutors() {
@@ -427,6 +430,23 @@ public class BroadcasterConfig {
                 logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
             }
         }
+    }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
+     * if the associated {@link Broadcaster} has been created manually.
+     * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     */
+    public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
+        return config;
+    }
+
+    /**
+     * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     */
+    public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
+        this.config = config;
     }
 
 }

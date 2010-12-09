@@ -597,7 +597,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         while (i.hasNext()) {
             e = i.next();
             w = e.getValue();
-            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters);
+            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
 
             if (w.broadcaster == null) {
                 w.broadcaster = broadcasterFactory.get();

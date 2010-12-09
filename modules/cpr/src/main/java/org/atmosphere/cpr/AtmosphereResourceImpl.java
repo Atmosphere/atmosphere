@@ -284,6 +284,7 @@ public class AtmosphereResourceImpl implements
      */
     public void setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
+        broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
     }
 
     /**
