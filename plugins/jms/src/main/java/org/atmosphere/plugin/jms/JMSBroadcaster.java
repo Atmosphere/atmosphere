@@ -1,9 +1,9 @@
 /*
- * 
+ *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- * 
+ *
  * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- * 
+ *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
@@ -11,7 +11,7 @@
  * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
  * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
  * language governing permissions and limitations under the License.
- * 
+ *
  * When distributing the software, include this License Header Notice in each
  * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
  * Sun designates this particular file as subject to the "Classpath" exception
@@ -20,9 +20,9 @@
  * Header, with the fields enclosed by brackets [] replaced by your own
  * identifying information: "Portions Copyrighted [year]
  * [name of copyright owner]"
- * 
+ *
  * Contributor(s):
- * 
+ *
  * If you wish your version of this file to be governed by only the CDDL or
  * only the GPL Version 2, indicate your decision by adding "[Contributor]
  * elects to include this software in this distribution under the [CDDL or GPL
@@ -59,16 +59,19 @@ import java.util.logging.Logger;
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JMS
  *
  * The {@link ConnectionFactory} name's is jms/atmosphereFactory
- * The {@link Topic} by appending jms/{@link org.atmosphere.cpr.Broadcaster#getID()}
+ * The {@link Topic} by constructing "BroadcasterId = {@link org.atmosphere.cpr.Broadcaster#getID}
  *
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
+    private static final String JMS_TOPIC = JMSBroadcaster.class.getName() + ".topic";
+
     private final Logger logger = LoggerUtils.getLogger();
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
     private MessageProducer publisher;
+    private String topicId = "atmosphere";
 
     /**
      * {@inheritDoc}
@@ -76,24 +79,30 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void incomingBroadcast() {
         try {
-            
+            if (bc.getAtmosphereConfig() != null) {
+                if (bc.getAtmosphereConfig().getInitParameter(JMS_TOPIC) != null) {
+                    topicId = bc.getAtmosphereConfig().getInitParameter(JMS_TOPIC);
+                }
+            }
+
             String id = getID();
-            if (id.startsWith("/*")){
+            if (id.startsWith("/*")) {
                 id = "atmosphere";
             }
-                        
+
             logger.info("Looking up: jms/atmosphereFactory");
             Context ctx = new InitialContext();
-            ConnectionFactory connectionFactory =
-                    (ConnectionFactory) ctx.lookup("jms/atmosphereFactory");
+            ConnectionFactory connectionFactory = (ConnectionFactory) ctx.lookup("jms/atmosphereFactory");
 
-            logger.info(String.format("Looking up topic: %s", id));
-            Topic topic = (Topic) ctx.lookup("jms/" + id);
+            logger.info(String.format("Looking up topic: %s", topicId));
+            Topic topic = (Topic) ctx.lookup("jms/" + topicId);
             connection = connectionFactory.createConnection();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
             logger.info(String.format("Create customer: %s", id));
-            consumer = session.createConsumer(topic, id);
+            String selector = String.format("BroadcasterId = '%s'", id);
+
+            consumer = session.createConsumer(topic, selector);
             consumer.setMessageListener(new MessageListener() {
 
                 @Override
@@ -115,6 +124,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             });
             publisher = session.createProducer(topic);
             connection.start();
+            logger.info(String.format("JMS created for topic %s, with filter % s", topicId, selector));
         } catch (Throwable ex) {
             throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
         }
@@ -126,7 +136,14 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void outgoingBroadcast(Object message) {
         try {
-            publisher.send(session.createTextMessage(message.toString()));
+            String id = getID();
+            if (id.startsWith("/*")) {
+                id = "atmosphere";
+            }
+
+            TextMessage textMessage = session.createTextMessage(message.toString());
+            textMessage.setStringProperty("BroadcasterId", id);
+            publisher.send(textMessage);
         } catch (JMSException ex) {
             logger.log(Level.WARNING, "", ex);
         }

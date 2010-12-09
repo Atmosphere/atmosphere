@@ -184,8 +184,9 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
         req.setAttribute(AtmosphereServlet.SUPPORT_SESSION, supportSession());
 
         AtmosphereHandlerWrapper g = map(req);
-        AtmosphereResourceImpl re = new AtmosphereResourceImpl(config,
-                g.broadcaster, req, res, this);
+        AtmosphereResourceImpl re = new AtmosphereResourceImpl(config,g.broadcaster, req, res, this);
+        g.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
+
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE, re);
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, g.atmosphereHandler);
 

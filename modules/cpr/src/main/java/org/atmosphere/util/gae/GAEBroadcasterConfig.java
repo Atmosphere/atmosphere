@@ -54,7 +54,7 @@ public class GAEBroadcasterConfig extends BroadcasterConfig {
     final static String NOT_SUPPORTED = "ExecutorService not supported with Google App Engine";
 
     public GAEBroadcasterConfig(String[] list) {
-        super(list);
+        super(list, null);
     }
 
     @Override

@@ -54,8 +54,6 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -100,9 +98,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     public DefaultBroadcaster(String name) {
         this.name = name;
-        setID(name);
         broadcasterCache = new DefaultBroadcasterCache();
-        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters);
+        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, null);
+        setID(name);
     }
 
     /**
