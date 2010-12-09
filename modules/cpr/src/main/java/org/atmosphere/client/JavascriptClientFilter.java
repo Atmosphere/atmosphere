@@ -39,6 +39,7 @@ package org.atmosphere.client;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -67,7 +68,7 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
     }
 
     @Override
-    public BroadcastAction filter(HttpServletRequest request, Object message) {
+    public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
 
         if (request.getHeader("User-Agent") != null) {
             String userAgent = request.getHeader("User-Agent").toLowerCase();

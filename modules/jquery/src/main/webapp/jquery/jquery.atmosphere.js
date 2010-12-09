@@ -14,10 +14,18 @@
 jQuery.atmosphere = function()
 {
     var activeRequest;
-    $(window).unload(function()
+    jQuery(window).unload(function()
     {
-        if (activeRequest)
+        if (activeRequest){
             activeRequest.abort();
+        }
+
+        if( !(typeof(transferDoc) == 'undefined') ){
+            if(transferDoc != null){
+                transferDoc = null;
+                CollectGarbage();
+            }
+        }
     });
 
     return {
@@ -106,6 +114,13 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.websocket = null;
             }
             abordingConnection = false;
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
         },
 
         executeRequest: function()
@@ -307,6 +322,14 @@ jQuery.atmosphere = function()
 
         ieStreaming : function()
         {
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
+
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function (url)
             {
@@ -348,15 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                var path = document.location;
-                var str = new String(path);
-                var len = str.length;
-                var end = str.lastIndexOf("/");
-
-                if ( url.indexOf("/") == 0 && ((end + 1) == len) ) {
-                    str = str.substring(0, end);
-                }
-                url = str + url;
+                url = jQuery.atmosphere.canonicalize("") + url;
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -570,7 +585,23 @@ jQuery.atmosphere = function()
             {
                 log('debug', arguments);
             }
+        }
+        ,
+
+        canonicalize: function(url)
+        {
+            var div = document.createElement('div');
+            div.innerHTML = "<a></a>";
+            div.firstChild.href = url;
+            div.innerHTML = div.innerHTML;
+            return div.firstChild.href;
         },
+
+        close : function()
+        {
+            jQuery.atmosphere.closeSuspendedConnection();
+        }
+
     }
 
 }();
