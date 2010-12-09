@@ -46,7 +46,7 @@ import org.atmosphere.util.LoggerUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -82,7 +82,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             AbstractBroadcasterProxy.class.cast(b).configure(config);
         }
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-        b.setID(clazz.getSimpleName() + "-" + new Random().nextInt());
+        b.setID(clazz.getSimpleName() + "-" + UUID.randomUUID());
         store.put(b.getID(), b);
         return b;
     }

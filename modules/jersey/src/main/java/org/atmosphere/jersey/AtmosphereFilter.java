@@ -75,7 +75,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -464,7 +463,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             } else if ((scope == Suspend.SCOPE.REQUEST) && (bc.getScope() != Broadcaster.SCOPE.REQUEST)) {
                 try {
                     String id = bc.getID();
-                    bc.setID(bc.getClass().getSimpleName() + "-" + new Random().nextInt());
+                    bc.setID(bc.getClass().getSimpleName() + "-" + UUID.randomUUID());
 
                     // Re-generate a new one with proper scope.
                     bc = bf.get();
