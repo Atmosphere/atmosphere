@@ -597,9 +597,9 @@ jQuery.atmosphere = function()
                 count += 1;
             }
 
-            basePath = document.location.toString();
+            var basePath = document.location.toString();
 
-            if (basedPath.endsWith("/")) {
+            if (basePath.endsWith("/")) {
                 basePath += basePath.substring(basePath.length - 1);
             }
 
