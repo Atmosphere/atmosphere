@@ -605,7 +605,7 @@ jQuery.atmosphere = function()
 
             for (i =0; i < count; i++) {
                 if (basePath.lastIndexOf("/") != -1) {
-                    basePath += basePath.substring(0, basePath.lastIndexOf("/"));
+                    basePath = basePath.substring(0, basePath.lastIndexOf("/"));
                 }
             }
 
