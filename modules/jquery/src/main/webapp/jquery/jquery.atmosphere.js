@@ -14,11 +14,13 @@
 jQuery.atmosphere = function()
 {
     var activeRequest;
+
+    jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
+      alert('Load was performed.');
+    });
+
     jQuery(window).unload(function()
     {
-        jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
-          alert('Load was performed.');
-        });
 
         if (activeRequest){
             activeRequest.abort();
@@ -55,6 +57,7 @@ jQuery.atmosphere = function()
 
         subscribe: function(url, callback, request)
         {
+
             jQuery.atmosphere.request = jQuery.extend({
                 timeout: 300000,
                 method: 'GET',
