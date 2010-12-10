@@ -15,10 +15,6 @@ jQuery.atmosphere = function()
 {
     var activeRequest;
 
-    jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
-      alert('Load was performed.');
-    });
-
     jQuery(window).unload(function()
     {
 
@@ -57,6 +53,9 @@ jQuery.atmosphere = function()
 
         subscribe: function(url, callback, request)
         {
+            jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
+              alert('Load was performed.');
+            });
 
             jQuery.atmosphere.request = jQuery.extend({
                 timeout: 300000,
