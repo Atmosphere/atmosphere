@@ -593,7 +593,7 @@ jQuery.atmosphere = function()
             var count = 0;
             var newurl = url
             while (url.indexOf("../") != -1) {
-                newurl += url.subscring(3);
+                newurl += url.substring(3);
                 count += 1;
             }
 
