@@ -371,7 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.atmosphere.parseUri(document.location).parse(url).assemble();
+                url = jQuery.atmosphere.parseUri(document.location, url);
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
