@@ -14,13 +14,25 @@
         fieldset input {
             width: 300px;
         }
+
+        span.from {
+            color: blue;
+            font-weight: bold;
+        }
+
+        span.me {
+            color: red;
+            font-weight: bold;
+        }
+
+        span.msg {
+            color: black;
+        }
     </style>
     <script type="text/javascript" src="jquery-1.4.3.js"></script>
     <script type="text/javascript" src="jquery.atmosphere.js"></script>
     <script type="text/javascript">
         $(function() {
-
-            $.atmosphere.logLevel = 'info';
 
             var nickname = 'Anonymous';
 
@@ -35,48 +47,40 @@
                 var topicName = prompt("Enter the topic name:", "");
                 if (topicName) {
                     if ($('#content fieldset#' + topicName).length == 0) {
-
                         var connected = false;
                         $.atmosphere.subscribe('async/topic/' + topicName, function(response) {
                             console.log(response);
                             if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed' && response.status == 200) {
-                                var data = response.responseBody;
-                                var pos = data.indexOf('<!-- EOD -->');
-                                if(pos != -1) data = data.substring(pos + 12);
-                                if (pos != -1) {
-
-                                    // setup UI
-                                    if(!connected) {
-
-                                        $('<fieldset id="' + topicName + '"><legend>' + topicName + '</legend><input type="text"><button type="button" class="send">Send</button><button type="button" class="close">Disconnect</button><div class="messages"></div></fieldset>').appendTo($('#content'));
-
-                                        $('#content fieldset#' + topicName + ' button.send').data('endpoint', endpoint).click(function() {
-                                            var message = $('#content fieldset#' + topicName + ' input').val();
-                                            $('#content fieldset#' + topicName + ' input').val('');
-                                            $.atmosphere.request = {method: 'POST', callback: null, data: 'message=' + encodeURIComponent(nickname + " : " + message)};
-                                            $(this).data('endpoint').push('async/topic/' + topicName, null, $.atmosphere.request);
-                                        });
-
-                                        $('#content fieldset#' + topicName + ' button.close').data('endpoint', endpoint).click(function() {
-                                            $.atmosphere.request = {method: 'POST', callback: null};
-                                            $(this).data('endpoint').push('async/topic/close/' + topicName, null, $.atmosphere.request);
-                                            $.atmosphere.closeSuspendedConnection();
-                                            $('#content fieldset#' + topicName).remove();
-                                        });
-
-                                        connected = true;
-                                    }
-
-                                    $('#content fieldset#' + topicName + ' .messages').html('<pre>' + data + '</pre>');
+                                var data = jQuery.parseJSON(response.responseBody);
+                                // setup UI
+                                if(!connected) {
+                                    $('<fieldset id="' + topicName + '"><legend>' + topicName + '</legend><input type="text"><button type="button" class="send">Send</button><button type="button" class="close">Disconnect</button><div class="messages"></div></fieldset>').appendTo($('#content'));
+                                    $('#content fieldset#' + topicName + ' button.send').data('endpoint', response).click(function() {
+                                        var message = $('#content fieldset#' + topicName + ' input').val();
+                                        $('#content fieldset#' + topicName + ' input').val('');
+                                        $.atmosphere.request = {
+                                            method: 'POST',
+                                            callback: null,
+                                            contentType: 'application/json',
+                                            data: $.param({
+                                                from: nickname,
+                                                msg: message
+                                            })
+                                        };
+                                        $(this).data('endpoint').push('async/topic/' + topicName);
+                                    });
+                                    $('#content fieldset#' + topicName + ' button.close').data('endpoint', response).click(function() {
+                                        $.atmosphere.close();
+                                        $('#content fieldset#' + topicName).remove();
+                                    });
+                                    connected = true;
                                 }
+                                $('#content fieldset#' + topicName + ' .messages').append('<span class="' + (data.from == nickname ? 'me' : 'from') + '">' + data.from + '</span>&nbsp;:&nbsp;<span class="msg">' + data.msg + '</span><br/>');
                             }
-                        }, $.atmosphere.request = {transport: 'autodetect'});
-
-                        var endpoint = $.atmosphere.response;
+                        }, {transport: 'websocket'});
                     }
                 }
             });
-
         });
     </script>
 </head>

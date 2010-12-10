@@ -5,7 +5,11 @@ import com.google.inject.Singleton;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.jersey.Broadcastable;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -20,6 +24,7 @@ import javax.ws.rs.Produces;
  */
 @Path("/topic")
 @Singleton
+@Produces("application/json")
 public class MessageResource {
 
     @Inject
@@ -27,33 +32,22 @@ public class MessageResource {
 
     @GET
     @Path("{name}")
-    @Produces("text/html;charset=UTF-8")
     @Suspend(outputComments = true, resumeOnBroadcast = false, listeners = EventsLogger.class)
-    public String listen(@PathParam("name") Broadcaster bc) {
-        System.out.println("[" + Thread.currentThread().getName() + "] LISTENING to '" + bc.getID() + "'");
+    public Broadcastable listen(@PathParam("name") String topic) throws JSONException {
+        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
+        System.out.println("[" + Thread.currentThread().getName() + "] LISTENING to '" + broadcaster.getID() + "'");
         if (service == null) throw new AssertionError();
-        return "Connected !\n";
+        return new Broadcastable(new JSONObject().put("from", "system").put("msg", "Connected !"), broadcaster);
     }
 
     @POST
     @Path("{name}")
-    @Broadcast(MessageFilter.class)
-    @Produces("text/html;charset=UTF-8")
-    public Broadcastable publish(@PathParam("name") Broadcaster bc, @FormParam("message") String message) {
-        System.out.println("[" + Thread.currentThread().getName() + "] PUBLISH to '" + bc.getID() + "' : '" + message.replace("\n", "\\n") + "'");
-        if (service == null) throw new AssertionError();
-        return new Broadcastable(message, bc);
-    }
-
-    @POST
     @Broadcast
-    @Path("close/{name}")
-    @Produces("text/html;charset=UTF-8")
-    public String close(@PathParam("name") Broadcaster bc) {
-        System.out.println("[" + Thread.currentThread().getName() + "] DISCONNECT from '" + bc.getID() + "'");
+    public Broadcastable publish(@PathParam("name") String topic, @FormParam("from") String from, @FormParam("msg") String message) throws JSONException {
+        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
+        System.out.println("[" + Thread.currentThread().getName() + "] PUBLISH to '" + broadcaster.getID() + "' from '" + from + "' : '" + message + "'");
         if (service == null) throw new AssertionError();
-        bc.destroy();
-        return "";
+        return new Broadcastable(new JSONObject().put("from", from).put("msg", message), broadcaster);
     }
 
 }
