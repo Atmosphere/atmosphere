@@ -14,10 +14,18 @@
 jQuery.atmosphere = function()
 {
     var activeRequest;
-    $(window).unload(function()
+    jQuery(window).unload(function()
     {
-        if (activeRequest)
+        if (activeRequest){
             activeRequest.abort();
+        }
+
+        if( !(typeof(transferDoc) == 'undefined') ){
+            if(transferDoc != null){
+                transferDoc = null;
+                CollectGarbage();
+            }
+        }
     });
 
     return {
@@ -106,6 +114,13 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.websocket = null;
             }
             abordingConnection = false;
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
         },
 
         executeRequest: function()
@@ -307,6 +322,14 @@ jQuery.atmosphere = function()
 
         ieStreaming : function()
         {
+
+            if (!(typeof(transferDoc) == 'undefined')) {
+                if (transferDoc != null) {
+                    transferDoc = null;
+                    CollectGarbage();
+                }
+            }
+
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function (url)
             {
@@ -348,7 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.atmosphere.canonicalize("") + url;
+                url = jQuery.atmosphere.parseUrl(url);
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -565,13 +588,33 @@ jQuery.atmosphere = function()
         }
         ,
 
-        canonicalize: function(url)
+        parseUrl: function(url)
         {
-            var div = document.createElement('div');
-            div.innerHTML = "<a></a>";
-            div.firstChild.href = url;
-            div.innerHTML = div.innerHTML;
-            return div.firstChild.href;
+            var count = 0;
+            var newurl = url
+            while (newurl.indexOf("../") != -1) {
+                newurl = url.substring(3, url.length);
+                count += 1;
+            }
+
+            var basePath = document.location.toString();
+
+            if (basePath.lastIndexOf("/") == basePath.length) {
+                basePath += basePath.substring(basePath.length - 1);
+            }
+
+            for (i =0; i < count; i++) {
+                if (basePath.lastIndexOf("/") != -1) {
+                    basePath = basePath.substring(0, basePath.lastIndexOf("/"));
+                }
+            }
+
+            return basePath + "/" + newurl;
+        },
+
+        close : function()
+        {
+            jQuery.atmosphere.closeSuspendedConnection();
         }
 
     }

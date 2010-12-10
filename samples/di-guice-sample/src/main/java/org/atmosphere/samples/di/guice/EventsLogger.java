@@ -55,30 +55,36 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         if (service == null)
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onSuspend: " + event.getResource().getRequest().getRemoteAddr() + event.getResource().getRequest().getRemotePort());
+        System.out.println("[" + Thread.currentThread().getName() + "] onSuspend: " + from(event));
     }
 
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         if (service == null)
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onResume: " + event.getResource().getRequest().getRemoteAddr());
+        System.out.println("[" + Thread.currentThread().getName() + "] onResume: " + from(event));
     }
 
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         if (service == null)
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onDisconnect: " + event.getResource().getRequest().getRemoteAddr() + event.getResource().getRequest().getRemotePort());
+        System.out.println("[" + Thread.currentThread().getName() + "] onDisconnect: " + from(event));
     }
 
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         if (service == null)
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onBroadcast: " + event.getMessage().toString().replace("\n", "\\n"));
+        System.out.println("[" + Thread.currentThread().getName() + "] onBroadcast: " + from(event));
     }
 
     public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         if (service == null)
             throw new AssertionError();
+        System.out.println("[" + Thread.currentThread().getName() + "] onThrowable: " + from(event));
         event.throwable().printStackTrace(System.err);
     }
+
+    private String from(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        return event.getResource().getRequest().getRemoteAddr() + ":" + event.getResource().getRequest().getRemotePort();
+    }
+
 }
