@@ -591,6 +591,104 @@ jQuery.atmosphere = function()
         close : function()
         {
             jQuery.atmosphere.closeSuspendedConnection();
+        },
+
+
+        parseUri : function( baseUrl , uri )
+        {
+            var protocol = window.location.protocol;
+            var host = window.location.host;
+            var path = window.location.pathname;
+            var parameters = {};
+            var anchor = '';
+            var pos;
+
+            if ( (pos = uri.search( /\:/ )) &gt;= 0 )
+            {
+                protocol = uri.substring( 0, pos + 1 );
+                uri = uri.substring( pos + 1 );
+            }
+
+            if ( (pos = uri.search( /\#/ )) &gt;= 0 )
+            {
+                anchor = uri.substring( pos + 1 );
+                uri = uri.substring( 0, pos );
+            }
+
+            if ( (pos = uri.search( /\?/ )) &gt;= 0 )
+            {
+                var paramsStr = uri.substring( pos + 1 ) + '&amp;';
+                uri = uri.substring( 0, pos );
+                while ( (pos = paramsStr.search( /\&amp;/ )) &gt;= 0 )
+                {
+                    var paramStr = paramsStr.substring( 0, pos );
+                    paramsStr = paramsStr.substring( pos + 1 );
+
+                    if ( paramStr.length )
+                    {
+                        var equPos = paramStr.search( /\=/ );
+                        if ( equPos &lt; 0 )
+                        {
+                            parameters[paramStr] = '';
+                        }
+                        else
+                        {
+                            parameters[paramStr.substring( 0, equPos )] =
+                                    decodeURIComponent( paramStr.substring( equPos + 1 ) );
+                        }
+                    }
+                }
+            }
+
+            if ( uri.search( /\/\// ) == 0 ) // absolute
+            {
+                uri = uri.substring( 2 );
+                if ( (pos = uri.search( /\// )) &gt;= 0 )
+                {
+                    host = uri.substring( 0, pos );
+                    path = uri.substring( pos );
+                }
+                else
+                {
+                    host = uri;
+                    path = '/';
+                }
+            } else if ( uri.search( /\// ) == 0 ) // relative to host
+            {
+                path = uri;
+            }
+
+            else // relative to directory
+            {
+                var p = path.lastIndexOf( '/' );
+                if ( p &lt; 0 )
+                {
+                    path = '/';
+                } else if ( p &lt; path.length - 1 )
+                {
+                    path = path.substring( 0, p + 1 );
+                }
+
+                while ( uri.search( /\.\.\// ) == 0 )
+                {
+                    var p = path.lastIndexOf( '/', path.lastIndexOf( '/' ) - 1 );
+                    if ( p &gt;= 0 )
+                    {
+                        path = path.substring( 0, p + 1 );
+                    }
+                    uri = uri.substring( 3 ); // removing '../' from begining
+                }
+                path = path + uri;
+            }
+
+            var uri = protocol + '//' + host + path;
+            var div = '?';
+            for ( var key in parameters )
+            {
+                uri += div + key + '=' + encodeURIComponent( parameters[key] );
+                div = '&amp;';
+            }
+            return uri;
         }
 
     }
