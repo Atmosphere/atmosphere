@@ -75,7 +75,8 @@
                                     });
                                     connected = true;
                                 }
-                                $('#content fieldset#' + topicName + ' .messages').append('<span class="' + (data.from == nickname ? 'me' : 'from') + '">' + data.from + '</span>&nbsp;:&nbsp;<span class="msg">' + data.msg + '</span><br/>');
+                                if(data)
+                                    $('#content fieldset#' + topicName + ' .messages').append('<span class="' + (data.from == nickname ? 'me' : 'from') + '">' + data.from + '</span>&nbsp;:&nbsp;<span class="msg">' + data.msg + '</span><br/>');
                             }
                         }, {transport: 'websocket'});
                     }
