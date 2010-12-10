@@ -603,23 +603,23 @@ jQuery.atmosphere = function()
             var anchor = '';
             var pos;
 
-            if ( (pos = uri.search( /\:/ )) &gt;= 0 )
+            if ( (pos = uri.search( /\:/ )) >= 0 )
             {
                 protocol = uri.substring( 0, pos + 1 );
                 uri = uri.substring( pos + 1 );
             }
 
-            if ( (pos = uri.search( /\#/ )) &gt;= 0 )
+            if ( (pos = uri.search( /\#/ )) >= 0 )
             {
                 anchor = uri.substring( pos + 1 );
                 uri = uri.substring( 0, pos );
             }
 
-            if ( (pos = uri.search( /\?/ )) &gt;= 0 )
+            if ( (pos = uri.search( /\?/ )) >= 0 )
             {
-                var paramsStr = uri.substring( pos + 1 ) + '&amp;';
+                var paramsStr = uri.substring( pos + 1 ) + '&;';
                 uri = uri.substring( 0, pos );
-                while ( (pos = paramsStr.search( /\&amp;/ )) &gt;= 0 )
+                while ( (pos = paramsStr.search( /\&/ )) >= 0 )
                 {
                     var paramStr = paramsStr.substring( 0, pos );
                     paramsStr = paramsStr.substring( pos + 1 );
@@ -627,7 +627,7 @@ jQuery.atmosphere = function()
                     if ( paramStr.length )
                     {
                         var equPos = paramStr.search( /\=/ );
-                        if ( equPos &lt; 0 )
+                        if ( equPos < 0 )
                         {
                             parameters[paramStr] = '';
                         }
@@ -643,7 +643,7 @@ jQuery.atmosphere = function()
             if ( uri.search( /\/\// ) == 0 ) // absolute
             {
                 uri = uri.substring( 2 );
-                if ( (pos = uri.search( /\// )) &gt;= 0 )
+                if ( (pos = uri.search( /\// )) >= 0 )
                 {
                     host = uri.substring( 0, pos );
                     path = uri.substring( pos );
@@ -661,10 +661,10 @@ jQuery.atmosphere = function()
             else // relative to directory
             {
                 var p = path.lastIndexOf( '/' );
-                if ( p &lt; 0 )
+                if ( p < 0 )
                 {
                     path = '/';
-                } else if ( p &lt; path.length - 1 )
+                } else if ( p < path.length - 1 )
                 {
                     path = path.substring( 0, p + 1 );
                 }
@@ -672,7 +672,7 @@ jQuery.atmosphere = function()
                 while ( uri.search( /\.\.\// ) == 0 )
                 {
                     var p = path.lastIndexOf( '/', path.lastIndexOf( '/' ) - 1 );
-                    if ( p &gt;= 0 )
+                    if ( p>= 0 )
                     {
                         path = path.substring( 0, p + 1 );
                     }
