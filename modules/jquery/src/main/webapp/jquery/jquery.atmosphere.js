@@ -14,10 +14,8 @@
 jQuery.atmosphere = function()
 {
     var activeRequest;
-
     jQuery(window).unload(function()
     {
-
         if (activeRequest){
             activeRequest.abort();
         }
@@ -53,10 +51,6 @@ jQuery.atmosphere = function()
 
         subscribe: function(url, callback, request)
         {
-            jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
-              alert('Load was performed.');
-            });
-
             jQuery.atmosphere.request = jQuery.extend({
                 timeout: 300000,
                 method: 'GET',
@@ -377,7 +371,9 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.urlParser.setBaseUrl(document.location).parse(url).assemble();
+                jQuery.getScript('jquery/jquery.urlParser-1.0.0.js', function() {
+                    url = urlParser.setBaseUrl(document.location).parse(url).assemble();
+                });
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
