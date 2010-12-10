@@ -371,7 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.atmosphere.canonicalize("") + url;
+                url = parseUrl(url);
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -588,13 +588,28 @@ jQuery.atmosphere = function()
         }
         ,
 
-        canonicalize: function(url)
+        parseUrl: function(url)
         {
-            var div = document.createElement('div');
-            div.innerHTML = "<a></a>";
-            div.firstChild.href = url;
-            div.innerHTML = div.innerHTML;
-            return div.firstChild.href;
+            var count = 0;
+            var newurl = url
+            while (url.indexOf("../") != -1) {
+                newurl += url.subscring(3);
+                count += 1;
+            }
+
+            basePath = document.location.toString();
+
+            if (basedPath.endsWith("/")) {
+                basePath += basePath.substring(basePath.lenght - 1);
+            }
+
+            for (i =0; i < count; i++) {
+                if (basePath.lastIndexOf("/") != -1) {
+                    basePath += basePath.substring(0, basePath.lastIndexOf("/"));
+                }
+            }
+
+            return basePath + "/" + newurl;
         },
 
         close : function()
@@ -604,4 +619,5 @@ jQuery.atmosphere = function()
 
     }
 
-}();
+}
+        ();
