@@ -47,7 +47,7 @@ public class MessageResource {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
         System.out.println("[" + Thread.currentThread().getName() + "] PUBLISH to '" + broadcaster.getID() + "' from '" + from + "' : '" + message + "'");
         if (service == null) throw new AssertionError();
-        return new Broadcastable(new JSONObject().put("from", from).put("msg", message), broadcaster);
+        return new Broadcastable(new JSONObject().put("from", from).put("msg", message), "", broadcaster);
     }
 
 }
