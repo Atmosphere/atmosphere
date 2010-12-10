@@ -615,30 +615,30 @@ jQuery.atmosphere = function()
                 uri = uri.substring( 0, pos );
             }
 
-//            if ( (pos = uri.search( /\?/ )) &gt;= 0 )
-//            {
-//                var paramsStr = uri.substring( pos + 1 ) + '&amp;';
-//                uri = uri.substring( 0, pos );
-//                while ( (pos = paramsStr.search( /\&amp;/ )) &gt;= 0 )
-//                {
-//                    var paramStr = paramsStr.substring( 0, pos );
-//                    paramsStr = paramsStr.substring( pos + 1 );
-//
-//                    if ( paramStr.length )
-//                    {
-//                        var equPos = paramStr.search( /\=/ );
-//                        if ( equPos &lt; 0 )
-//                        {
-//                            parameters[paramStr] = '';
-//                        }
-//                        else
-//                        {
-//                            parameters[paramStr.substring( 0, equPos )] =
-//                                    decodeURIComponent( paramStr.substring( equPos + 1 ) );
-//                        }
-//                    }
-//                }
-//            }
+            if ( (pos = uri.search( /\?/ )) &gt;= 0 )
+            {
+                var paramsStr = uri.substring( pos + 1 ) + '&amp;';
+                uri = uri.substring( 0, pos );
+                while ( (pos = paramsStr.search( /\&amp;/ )) &gt;= 0 )
+                {
+                    var paramStr = paramsStr.substring( 0, pos );
+                    paramsStr = paramsStr.substring( pos + 1 );
+
+                    if ( paramStr.length )
+                    {
+                        var equPos = paramStr.search( /\=/ );
+                        if ( equPos &lt; 0 )
+                        {
+                            parameters[paramStr] = '';
+                        }
+                        else
+                        {
+                            parameters[paramStr.substring( 0, equPos )] =
+                                    decodeURIComponent( paramStr.substring( equPos + 1 ) );
+                        }
+                    }
+                }
+            }
 
             if ( uri.search( /\/\// ) == 0 ) // absolute
             {
@@ -688,7 +688,6 @@ jQuery.atmosphere = function()
                 //uri += div + key + '=' + encodeURIComponent( parameters[key] );
                 div = '&amp;';
             }
-            return uri;
         }
 
     }
