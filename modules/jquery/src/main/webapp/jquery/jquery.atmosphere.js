@@ -685,9 +685,10 @@ jQuery.atmosphere = function()
             var div = '?';
             for ( var key in parameters )
             {
-                //uri += div + key + '=' + encodeURIComponent( parameters[key] );
+                uri += div + key + '=' + encodeURIComponent( parameters[key] );
                 div = '&amp;';
             }
+            return uri;
         }
 
     }
