@@ -371,9 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                jQuery.getScript('jquery/jquery.urlParser-1.0.0.js', function() {
-                    url = $.urlParser.setBaseUrl(document.location).parse(url).assemble();
-                });
+                url = jQuery.atmosphere.parseUri(document.location).parse(url).assemble();
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -593,6 +591,105 @@ jQuery.atmosphere = function()
         close : function()
         {
             jQuery.atmosphere.closeSuspendedConnection();
+        },
+
+
+        parseUri : function( baseUrl , ref )
+        {
+            var protocol = window.location.protocol;
+            var host = window.location.host;
+            var path = window.location.pathname;
+            var parameters = {};
+            var anchor = '';
+
+            var pos;
+
+            if ( (pos = ref.search( /\:/ )) &gt;= 0 )
+            {
+                protocol = ref.substring( 0, pos + 1 );
+                ref = ref.substring( pos + 1 );
+            }
+
+            if ( (pos = ref.search( /\#/ )) &gt;= 0 )
+            {
+                anchor = ref.substring( pos + 1 );
+                ref = ref.substring( 0, pos );
+            }
+
+            if ( (pos = ref.search( /\?/ )) &gt;= 0 )
+            {
+                var paramsStr = ref.substring( pos + 1 ) + '&amp;';
+                ref = ref.substring( 0, pos );
+                while ( (pos = paramsStr.search( /\&amp;/ )) &gt;= 0 )
+                {
+                    var paramStr = paramsStr.substring( 0, pos );
+                    paramsStr = paramsStr.substring( pos + 1 );
+
+                    if ( paramStr.length )
+                    {
+                        var equPos = paramStr.search( /\=/ );
+                        if ( equPos &lt; 0 )
+                        {
+                            parameters[paramStr] = '';
+                        }
+                        else
+                        {
+                            parameters[paramStr.substring( 0, equPos )] =
+                                    decodeURIComponent( paramStr.substring( equPos + 1 ) );
+                        }
+                    }
+                }
+            }
+
+            if ( ref.search( /\/\// ) == 0 ) // absolute
+            {
+                ref = ref.substring( 2 );
+                if ( (pos = ref.search( /\// )) &gt;= 0 )
+                {
+                    host = ref.substring( 0, pos );
+                    path = ref.substring( pos );
+                }
+                else
+                {
+                    host = ref;
+                    path = '/';
+                }
+            } else if ( ref.search( /\// ) == 0 ) // relative to host
+            {
+                path = ref;
+            }
+
+            else // relative to directory
+            {
+                var p = path.lastIndexOf( '/' );
+                if ( p &lt; 0 )
+                {
+                    path = '/';
+                } else if ( p &lt; path.length - 1 )
+                {
+                    path = path.substring( 0, p + 1 );
+                }
+
+                while ( ref.search( /\.\.\// ) == 0 )
+                {
+                    var p = path.lastIndexOf( '/', path.lastIndexOf( '/' ) - 1 );
+                    if ( p &gt;= 0 )
+                    {
+                        path = path.substring( 0, p + 1 );
+                    }
+                    ref = ref.substring( 3 ); // removing '../' from begining
+                }
+                path = path + ref;
+            }
+
+            var ref = protocol + '//' + host + path;
+            var div = '?';
+            for ( var key in parameters )
+            {
+                ref += div + key + '=' + encodeURIComponent( parameters[key] );
+                div = '&amp;';
+            }
+            return ref;
         }
 
     }
