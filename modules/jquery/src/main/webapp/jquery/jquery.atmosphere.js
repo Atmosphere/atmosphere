@@ -371,7 +371,10 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.urlParser.setBaseUrl().parse('../test/').assemble()
+                jQuery.getScript('jquery/jquery.urlParser-1.0.0.js', function() {
+                          alert('Load was performed.');
+                        });
+                url = jQuery.urlParser.setBaseUrl(document.location).parse(url).assemble()
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
