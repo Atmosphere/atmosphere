@@ -599,7 +599,7 @@ jQuery.atmosphere = function()
 
             var basePath = document.location.toString();
 
-            if (basePath.endsWith("/")) {
+            if (basePath.lastIndexOf("/") == basePath.length) {
                 basePath += basePath.substring(basePath.length - 1);
             }
 
