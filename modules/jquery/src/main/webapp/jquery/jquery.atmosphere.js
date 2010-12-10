@@ -371,7 +371,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.atmosphere.parseUrl(url);
+                url = $.urlParser.setBaseUrl().parse('../test/').assemble()
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -587,30 +587,6 @@ jQuery.atmosphere = function()
             }
         }
         ,
-
-        parseUrl: function(url)
-        {
-            var count = 0;
-            var newurl = url
-            while (newurl.indexOf("../") != -1) {
-                newurl = url.substring(3, url.length);
-                count += 1;
-            }
-
-            var basePath = document.location.toString();
-
-            if (basePath.lastIndexOf("/") == basePath.length) {
-                basePath += basePath.substring(basePath.length - 1);
-            }
-
-            for (i =0; i < count; i++) {
-                if (basePath.lastIndexOf("/") != -1) {
-                    basePath = basePath.substring(0, basePath.lastIndexOf("/"));
-                }
-            }
-
-            return basePath + "/" + newurl;
-        },
 
         close : function()
         {
