@@ -16,6 +16,10 @@ jQuery.atmosphere = function()
     var activeRequest;
     jQuery(window).unload(function()
     {
+        jQuery.getScript('jquery/jquery.urlParser-1.0.0.js',function() {
+          alert('Load was performed.');
+        });
+
         if (activeRequest){
             activeRequest.abort();
         }
@@ -371,9 +375,7 @@ jQuery.atmosphere = function()
             var callback = jQuery.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                jQuery.getScript('jquery/jquery.urlParser-1.0.0.js', function() {
-                    url = jQuery.urlParser.setBaseUrl(document.location).parse(url).assemble();
-                });
+                url = jQuery.urlParser.setBaseUrl(document.location).parse(url).assemble();
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
