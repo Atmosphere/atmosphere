@@ -600,7 +600,7 @@ jQuery.atmosphere = function()
             basePath = document.location.toString();
 
             if (basedPath.endsWith("/")) {
-                basePath += basePath.substring(basePath.lenght - 1);
+                basePath += basePath.substring(basePath.length - 1);
             }
 
             for (i =0; i < count; i++) {
