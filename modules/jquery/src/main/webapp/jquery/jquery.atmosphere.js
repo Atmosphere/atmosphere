@@ -3,7 +3,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -66,7 +66,7 @@ jQuery.atmosphere = function()
                 suspend : true,
                 maxRequest : 60,
                 lastIndex : 0,
-                logLevel :  'info',
+                logLevel : 'info',
                 requestCount : 0,
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
@@ -127,7 +127,7 @@ jQuery.atmosphere = function()
         {
 
             if (jQuery.atmosphere.request.transport == 'streaming') {
-                if ($.browser.msie) {
+                if (jQuery.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
                     return;
                 } else if ((typeof window.addEventStream) == 'function') {
@@ -151,7 +151,7 @@ jQuery.atmosphere = function()
 
                 var ajaxRequest;
                 var error = false;
-                if ($.browser.msie) {
+                if (jQuery.browser.msie) {
                     var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"];
                     for (var i = 0; i < activexmodes.length; i++) {
                         try {
@@ -181,7 +181,7 @@ jQuery.atmosphere = function()
                     ajaxRequest.setRequestHeader(x, request.headers[x]);
                 }
 
-                if (!$.browser.msie) {
+                if (!jQuery.browser.msie) {
                     ajaxRequest.onerror = function()
                     {
                         error = true;
@@ -211,10 +211,10 @@ jQuery.atmosphere = function()
                             jQuery.atmosphere.executeRequest();
                         }
 
-                        if ($.browser.msie) {
+                        if (jQuery.browser.msie) {
                             update = true;
                         }
-                    } else if (!$.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
+                    } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;
                     } else {
                         clearTimeout(request.id);
@@ -241,12 +241,6 @@ jQuery.atmosphere = function()
                             response.responseBody = ajaxRequest.responseText;
                         }
 
-                        if (response.responseBody.indexOf("parent.callback") != -1) {
-                            var start = response.responseBody.indexOf("('") + 2;
-                            var end = response.responseBody.indexOf("')");
-                            response.responseBody = response.responseBody.substring(start, end);
-                        }
-
                         try {
                             response.status = ajaxRequest.status;
                             response.headers = ajaxRequest.getAllResponseHeaders();
@@ -261,7 +255,17 @@ jQuery.atmosphere = function()
                             response.state = "messagePublished";
                         }
 
-                        jQuery.atmosphere.invokeCallback(response);
+                        if (response.responseBody.indexOf("parent.callback") != -1) {
+                            var index = 0;
+                            var responseBody = response.responseBody;
+                            while ( responseBody.indexOf("('", index) != -1) {
+                              var start = responseBody.indexOf("('", index) + 2;
+                              var end = responseBody.indexOf("')", index);
+                              response.responseBody = responseBody.substring(start, end);
+                              index = end + 2;
+                              jQuery.atmosphere.invokeCallback(response);
+                            }
+                        }
                     }
                 };
                 ajaxRequest.send(request.data);
@@ -498,7 +502,7 @@ jQuery.atmosphere = function()
                 data : '',
                 suspend : false,
                 maxRequest : 60,
-                logLevel :  'info',
+                logLevel : 'info',
                 requestCount : 0,
                 transport: 'polling'
             }, request);
