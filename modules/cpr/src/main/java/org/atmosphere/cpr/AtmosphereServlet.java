@@ -571,6 +571,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             pingForStats();
             doInitParams(scFacade);
             configureDefaultBroadcasterFactory();
+            doInitParamsForWebSocket(scFacade);
             detectGoogleAppEngine(scFacade);
             loadConfiguration(scFacade);
 
@@ -620,6 +621,20 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         logger.info("Using " + broadcasterClassName);
     }
 
+    protected void doInitParamsForWebSocket(ServletConfig sc) {
+        String s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
+        if (s != null) {
+            addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
+            webSocketEnabled = true;
+            sessionSupport(false);
+        }
+        s = sc.getInitParameter(WEBSOCKET_SUPPORT);
+        if (s != null) {
+            webSocketEnabled = true;
+            sessionSupport(false);
+        }
+    }
+
     /**
      * Read init param from web.xml and apply them.
      *
@@ -658,17 +673,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             config.supportSession = Boolean.valueOf(s);
             isSessionSupportSpecified = true;
-        }
-        s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
-        if (s != null) {
-            addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
-            webSocketEnabled = true;
-            sessionSupport(false);
-        }
-        s = sc.getInitParameter(WEBSOCKET_SUPPORT);
-        if (s != null) {
-            webSocketEnabled = true;
-            sessionSupport(false);
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
         if (s != null) {
