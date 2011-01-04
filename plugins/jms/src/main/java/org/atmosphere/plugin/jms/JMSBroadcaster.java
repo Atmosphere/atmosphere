@@ -124,7 +124,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             });
             publisher = session.createProducer(topic);
             connection.start();
-            logger.info(String.format("JMS created for topic %s, with filter % s", topicId, selector));
+            logger.info(String.format("JMS created for topic %s, with filter %s", topicId, selector));
         } catch (Throwable ex) {
             throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
         }
