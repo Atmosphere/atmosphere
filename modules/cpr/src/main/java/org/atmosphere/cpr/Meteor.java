@@ -301,4 +301,12 @@ public class Meteor {
     static void destroy() {
         cache.clear();
     }
+
+    /**
+     * Return the underlying {@link AtmosphereResource}
+     * @return  the underlying {@link AtmosphereResource}
+     */
+    public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
+        return r;
+    }
 }
