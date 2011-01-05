@@ -16,10 +16,6 @@
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <init-param>
-            <param-name>grizzly.application.path</param-name>
-            <param-value>/index.html</param-value>
-        </init-param>
-        <init-param>
             <param-name>org.atmosphere.websocket.WebSocketAtmosphereHandler</param-name>
             <param-value>true</param-value>
         </init-param>
