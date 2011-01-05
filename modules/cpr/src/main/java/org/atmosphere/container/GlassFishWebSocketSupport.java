@@ -37,6 +37,7 @@
  */
 package org.atmosphere.container;
 
+import com.sun.grizzly.tcp.Request;
 import com.sun.grizzly.websockets.BaseServerWebSocket;
 import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.WebSocket;
@@ -63,20 +64,14 @@ import java.util.logging.Level;
  */
 public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
-    private final GrizzlyApplication grizzlyApplication = new GrizzlyApplication();
-
-    // Workaround a Grizzly bug
-    private String servletPath = "";
-
     public GlassFishWebSocketSupport(AtmosphereConfig config) {
         super(config);
     }
 
-   @Override
+    @Override
     public void init(ServletConfig sc) throws ServletException {
         super.init(sc);
-        servletPath = sc.getInitParameter("grizzly.application.path") == null ? "" : sc.getInitParameter("grizzly.application.path");
-        WebSocketEngine.getEngine().register(sc.getServletContext().getContextPath() + servletPath, grizzlyApplication);
+        WebSocketEngine.getEngine().register(sc.getServletContext().getContextPath(), new GrizzlyApplication());
     }
 
     /**
@@ -128,14 +123,15 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
             webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocketSupport(webSocket));
             try {
-                webSocketProcessor.connect(new HttpServletRequestWrapper(webSocket.getRequest()){
-                      public String getServletPath() {
-                          return servletPath;
-                      }
-                });
+                webSocketProcessor.connect(new HttpServletRequestWrapper(webSocket.getRequest()));
             } catch (IOException e) {
                 LoggerUtils.getLogger().log(Level.WARNING, "", e);
             }
+        }
+
+        @Override
+        public boolean isApplicationRequest(Request request) {
+            return true;
         }
 
         public void onMessage(WebSocket webSocket, DataFrame dataFrame) {
@@ -149,7 +145,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     }
 
     @Override
-    public boolean supportWebSocket(){
+    public boolean supportWebSocket() {
         return true;
     }
 
