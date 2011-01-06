@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-commons</artifactId>
+    <artifactId>atmosphere-samples-commons</artifactId>
     <packaging>jar</packaging>
     <version>0.7-SNAPSHOT</version>
-    <name>atmosphere-commons</name>
+    <name>atmosphere-samples-commons</name>
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
