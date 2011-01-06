@@ -54,21 +54,28 @@ import javax.servlet.ServletException;
  */
 public class MeteorServlet extends AtmosphereServlet {
 
+    private final static String SERVLET_CLASS = "org.atmosphere.servlet";
+    private final static String FILTER_CLASS = "org.atmosphere.filter";
+    private final static String MAPPING = "org.atmosphere.mapping";
+    private final static String FILTER_NAME = "org.atmosphere.filter.name";
+
     /**
-     * Initialize a confugured instance of {@link ReflectorServletProcessor} and
+     * Initialize a configured instance of {@link ReflectorServletProcessor} and
      * follow the normal AtmosphereServlet processing.
      *
      * @param sc the {@link ServletContext}
      */
     @Override
     protected void loadConfiguration(ServletConfig sc) throws ServletException {
-        String servletClass = sc.getInitParameter("org.atmosphere.servlet");
-        String mapping = sc.getInitParameter("org.atmosphere.mapping");
-        String filterClass = sc.getInitParameter("org.atmosphere.filter");
+        String servletClass = sc.getInitParameter(SERVLET_CLASS);
+        String mapping = sc.getInitParameter(MAPPING);
+        String filterClass = sc.getInitParameter(FILTER_CLASS);
+        String filterName = sc.getInitParameter(FILTER_NAME);
 
         ReflectorServletProcessor r = new ReflectorServletProcessor();
         r.setServletClassName(servletClass);
         r.setFilterClassName(filterClass);
+        r.setFilterName(filterName);
 
         if (mapping == null) {
             mapping = "/*";

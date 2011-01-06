@@ -40,6 +40,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
+import org.atmosphere.cpr.MeteorServlet;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.atmosphere.util.LoggerUtils;
@@ -75,17 +76,22 @@ import java.util.logging.Level;
 public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandler
         implements AtmosphereServletProcessor {
 
+    // Wicket only.
+    private final static String APPLICATION_NAME = "applicationClassName";
+
     private String servletClassName;
     private final ArrayList<String> filtersClass = new ArrayList<String>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
+    private String filterName;
 
     public ReflectorServletProcessor() {
     }
 
     void loadWebApplication(ServletConfig sc) throws MalformedURLException,
             InstantiationException, IllegalAccessException, ClassNotFoundException {
+        
         URL url = sc.getServletContext().getResource("/WEB-INF/lib/");
         URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                 Thread.currentThread().getContextClassLoader());
@@ -102,17 +108,26 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         filterChain.setServlet(sc, servlet);
 
         Filter f;
-        for (String filterName : filtersClass) {
+        for (String fClass : filtersClass) {
             try {
-                f = (Filter) urlC.loadClass(filterName).newInstance();
+                f = (Filter) urlC.loadClass(fClass).newInstance();
             } catch (NullPointerException ex) {
-                // We failed to load the servlet, let's try directly.
+                // We failed to load the Filter, let's try directly.
                 f = (Filter) Thread.currentThread().getContextClassLoader()
-                        .loadClass(filterName).newInstance();
+                        .loadClass(fClass).newInstance();
             }
             FilterConfigImpl fc = new FilterConfigImpl(sc);
             fc.setFilter(f);
-            fc.setFilterName("/*");
+
+            if (filterName == null) {
+               if (sc.getInitParameter(APPLICATION_NAME) != null) {
+                   filterName = sc.getInitParameter(APPLICATION_NAME);
+               } else {
+                   filterName = f.getClass().getSimpleName();
+               }
+            }
+
+            fc.setFilterName(filterName);
             filterChain.addFilter(fc);
         }
 
@@ -196,6 +211,8 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * Add a FilterClass. Since we are using Reflection to call this method,
      * what we are really doing is addFilterClass.
      *
+     * TODO: MUST ALLOW MORE THAN ONE FILTER
+     *
      * @param filterClass
      */
     public void setFilterClassName(String filterClass) {
@@ -209,6 +226,10 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     public void setServlet(Servlet servlet) {
         this.servlet = servlet;
+    }
+
+    public void setFilterName(String filterName) {
+        this.filterName = filterName;
     }
 
     /**
