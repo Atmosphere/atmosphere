@@ -37,6 +37,7 @@
  */
 package org.atmosphere.plugin.jms;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.util.LoggerUtils;
@@ -59,16 +60,24 @@ import java.util.logging.Logger;
 
 /**
  * Clustering support based on JMS
- * 
+ *
  * @author Jean-francois Arcand
  */
-public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
-    private static Logger logger = LoggerUtils.getLogger();
+public class JMSFilter implements ClusterBroadcastFilter {
+    private static final String JMS_TOPIC = JMSBroadcaster.class.getName() + ".topic";
+    private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName() + ".JNDINamespace";
+    private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class.getName() + ".JNDIConnectionFactoryName";
+    private static final String JNDI_TOPIC = JMSBroadcaster.class.getName() + ".JNDITopic";
 
+    private final Logger logger = LoggerUtils.getLogger();
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
     private MessageProducer publisher;
+
+    private String topicId = "atmosphere";
+    private String factoryName = "atmosphereFactory";
+    private String namespace = "jms/";
 
     private String clusterName;
 
@@ -76,39 +85,31 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     private final ConcurrentLinkedQueue<String> receivedMessages =
             new ConcurrentLinkedQueue<String>();
 
-    public JMSFilter(){
+    public JMSFilter() {
         this(null);
     }
 
     /**
      * Create a JMSFilter based filter.
+     *
      * @param bc the Broadcaster to use when receiving update from the cluster.
      */
     public JMSFilter(Broadcaster bc) {
-        this(bc,"atmosphere-framework");
+        this(bc, "atmosphere-framework");
     }
 
     /**
      * Create a JMSFilter based filter.
-     * @param bc the Broadcaster to use when receiving update from the cluster.
-     * @param containerName the current WebServer'name.
+     *
+     * @param bc       the Broadcaster to use when receiving update from the cluster.
+     * @param topicId  the topic id
      */
-    public JMSFilter(Broadcaster bc, String containerName) {
-        this(bc,containerName,"cluster-atmosphere");
+    public JMSFilter(Broadcaster bc, String topicId) {
+        this.bc = bc;
+        this.topicId = topicId;
     }
 
-
-    /**
-     * Create a JMSFilter based filter.
-     * @param bc the Broadcaster to use when receiving update from the cluster.
-     * @param containerName the current WebServer'name.
-     * @param clusterName the cluster's group name.
-     */
-    public JMSFilter(Broadcaster bc, String containerName, String clusterName) {
-
-    }
-
-    public void setUri(String clusterName){
+    public void setUri(String clusterName) {
         this.clusterName = clusterName;
     }
 
@@ -116,65 +117,101 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
      * Preapre the cluter.
      */
     public void init() {
-        try{
+        try {
+            AtmosphereServlet.AtmosphereConfig config = bc.getBroadcasterConfig().getAtmosphereConfig();
+            if (config != null) {
 
+                // For backward compatibility.
+                if (config.getInitParameter(JMS_TOPIC) != null) {
+                    topicId = config.getInitParameter(JMS_TOPIC);
+                }
+
+                if (config.getInitParameter(JNDI_NAMESPACE) != null) {
+                    namespace = config.getInitParameter(JNDI_NAMESPACE);
+                }
+
+                if (config.getInitParameter(JNDI_FACTORY_NAME) != null) {
+                    factoryName = config.getInitParameter(JNDI_FACTORY_NAME);
+                }
+
+                if (config.getInitParameter(JNDI_TOPIC) != null) {
+                    topicId = config.getInitParameter(JNDI_TOPIC);
+                }
+            }
+
+            String id = bc.getID();
+            if (id.startsWith("/*")) {
+                id = "atmosphere";
+            }
+
+            logger.info(String.format("Looking up Connection Factory %s", namespace + factoryName));
             Context ctx = new InitialContext();
-            ConnectionFactory connectionFactory =
-                    (ConnectionFactory)ctx.lookup("jms/atmosphereFactory");
+            ConnectionFactory connectionFactory = (ConnectionFactory) ctx.lookup(namespace + factoryName);
 
-            Topic topic =  (Topic)ctx.lookup("jms/" + clusterName);
+            logger.info(String.format("Looking up topic: %s", topicId));
+            Topic topic = (Topic) ctx.lookup(namespace + topicId);
+
             connection = connectionFactory.createConnection();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            consumer = session.createConsumer(topic,clusterName);
-            consumer.setMessageListener(this);
+
+            logger.info(String.format("Create customer: %s", id));
+            String selector = String.format("BroadcasterId = '%s'", id);
+
+            consumer = session.createConsumer(topic, selector);
+            consumer.setMessageListener(new MessageListener() {
+
+                @Override
+                public void onMessage(Message msg) {
+                    try {
+                        TextMessage textMessage = (TextMessage) msg;
+                        String message = textMessage.getText();
+
+                        if (message != null && bc != null) {
+                            receivedMessages.offer(message);
+                            bc.broadcast(message);
+                        }
+                    } catch (JMSException ex) {
+                        if (logger.isLoggable(Level.WARNING)) {
+                            logger.log(Level.WARNING, "", ex);
+                        }
+
+                    }
+                }
+            });
             publisher = session.createProducer(topic);
-
             connection.start();
-        } catch(Throwable ex){
-            throw new IllegalStateException("Unable to initialize JMSFilter" ,ex);
+            logger.info(String.format("JMS created for topic %s, with filter %s", topicId, selector));
+        } catch (Throwable ex) {
+            throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
         }
     }
 
-    /**
-     * Shutown the cluster.
-     * TODO: Not sure we should close the cluster.
-     */
-    public void destroy(){
-
-    }
-
-    public void onMessage(Message msg) {
-        try {
-            TextMessage textMessage = (TextMessage) msg;
-            String message = textMessage.getText();
-            receivedMessages.offer(message);
-
-            if (message != null && bc != null){
-                bc.broadcast(message);
-            }
-        } catch (JMSException ex) {
-            if (logger.isLoggable(Level.WARNING)){
-                logger.log(Level.WARNING,"",ex);
-            }
-
-        }
+    public void destroy() {
     }
 
     /**
      * Every time a message gets broadcasted, make sure we update the cluster.
+     *
      * @param o the message to broadcast.
      * @return The same message.
      */
     public BroadcastAction filter(Object originalMessage, Object o) {
-        if (o instanceof String){
-            String message = (String)o;
-            try {
-                // Avoid re-broadcasting
-                if (!receivedMessages.remove(message)) {
-                    publisher.send(session.createTextMessage(message));
+        if (o instanceof String) {
+            String message = (String) o;
+            // Avoid re-broadcasting
+            if (!receivedMessages.remove(message)) {
+                try {
+                    String id = bc.getID();
+                    if (id.startsWith("/*")) {
+                        id = "atmosphere";
+                    }
+
+                    TextMessage textMessage = session.createTextMessage(message.toString());
+                    textMessage.setStringProperty("BroadcasterId", id);
+                    publisher.send(textMessage);
+                } catch (JMSException ex) {
+                    logger.log(Level.WARNING, "", ex);
                 }
-            } catch (JMSException ex) {
-                logger.log(Level.WARNING, "", ex);
             }
             return new BroadcastAction(message);
         } else {
@@ -185,15 +222,16 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     /**
      * Return the current {@link Broadcaster}
      */
-    public Broadcaster getBroadcaster(){
+    public Broadcaster getBroadcaster() {
         return bc;
     }
 
     /**
      * Set the current {@link Broadcaster} to use when a cluster event happens.
+     *
      * @param bc
      */
-    public void setBroadcaster(Broadcaster bc){
+    public void setBroadcaster(Broadcaster bc) {
         this.bc = bc;
     }
 }
