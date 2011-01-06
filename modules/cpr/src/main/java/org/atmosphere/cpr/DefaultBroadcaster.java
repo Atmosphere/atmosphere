@@ -378,9 +378,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Shield us from any corrupted Request
                     if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
                         LoggerUtils.getLogger().log(Level.FINE, "Preventing corruption of a recycled request", e);
-                        resources.remove(r);
-                        return;
                     }
+                    resources.remove(r);
+                    return;
                 }
             }
 
