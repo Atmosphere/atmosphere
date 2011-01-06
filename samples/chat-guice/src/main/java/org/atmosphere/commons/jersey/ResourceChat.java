@@ -48,7 +48,7 @@ import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.util.XSSHtmlFilter;
 
-@Path("/")
+@Path("/chat")
 @Produces("text/html;charset=ISO-8859-1")
 public class ResourceChat {
 
