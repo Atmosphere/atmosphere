@@ -113,8 +113,8 @@ public class BlockingIOCometSupport extends AsynchronousProcessor implements Com
                 if (nextAction.type == Action.TYPE.SUSPEND) {
                     if (logger.isLoggable(Level.FINE)) {
                         logger.fine("Suspending after Resuming" + res);
-                        suspend(action, req, res);
                     }
+                    suspend(action, req, res);                    
                 }
             }
         } finally {
