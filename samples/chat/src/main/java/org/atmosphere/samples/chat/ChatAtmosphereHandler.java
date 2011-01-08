@@ -37,15 +37,6 @@
  */
 package org.atmosphere.samples.chat;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -53,6 +44,16 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.plugin.jgroups.JGroupsFilter;
 import org.atmosphere.util.XSSHtmlFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple AtmosphereHandler that implement the logic to build a Chat application.
@@ -61,6 +62,8 @@ import org.atmosphere.util.XSSHtmlFilter;
  * @autor TAKAI Naoto (original author for the Comet based Chat).
  */
 public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
 
     private final static String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
     private final static String END_SCRIPT_TAG = "</script>\n";
@@ -114,9 +117,9 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
                 // is usually asynchronous, e.g executed using an {@link ExecuturService}
                 f.get(); 
             } catch (InterruptedException ex) {
-                Logger.getLogger(ChatAtmosphereHandler.class.getName()).log(Level.SEVERE, null, ex);
+                logger.error("", ex);
             } catch (ExecutionException ex) {
-                Logger.getLogger(ChatAtmosphereHandler.class.getName()).log(Level.SEVERE, null, ex);
+                logger.error("", ex);
             }
 
             // Ping the connection every 30 seconds

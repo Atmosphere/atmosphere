@@ -49,7 +49,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class HeaderBroadcasterCache extends SessionBroadcasterCache {
 
-    final public static String HEADER_CACHE = "X-Cache-Date";
+    public static final String HEADER_CACHE = "X-Cache-Date";
 
     /**
      * {@inheritDoc}

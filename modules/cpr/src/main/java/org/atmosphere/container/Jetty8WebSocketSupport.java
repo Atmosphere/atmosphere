@@ -40,12 +40,13 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * WebSocket Portable Runtime implementation on top of Jetty's Continuation.
@@ -53,6 +54,8 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class Jetty8WebSocketSupport extends Jetty7CometSupport{
+
+    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocketSupport.class);
 
     public Jetty8WebSocketSupport(AtmosphereConfig config) {
         super(config);
@@ -70,13 +73,9 @@ public class Jetty8WebSocketSupport extends Jetty7CometSupport{
         } else {
             Action action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
+                logger.debug("Suspending response: {}", res);
             } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resume " + res);
-                }
+                logger.debug("Resume response: {}", res);
                 req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
             }
 

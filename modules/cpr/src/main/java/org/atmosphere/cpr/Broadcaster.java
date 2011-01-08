@@ -39,7 +39,6 @@
 package org.atmosphere.cpr;
 
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -74,11 +73,11 @@ import java.util.concurrent.TimeUnit;
  */
 public interface Broadcaster {
 
-    public enum SCOPE {
+    enum SCOPE {
         REQUEST, APPLICATION, VM
     }
 
-    public enum POLICY {
+    enum POLICY {
         FIFO, REJECT
     }
 
@@ -92,7 +91,7 @@ public interface Broadcaster {
      * @param maxSuspended max suspended
      * @oaram policy the {@link org.atmosphere.cpr.Broadcaster.POLICY}
      */
-    public void setSuspendPolicy(long maxSuspended, POLICY policy);
+    void setSuspendPolicy(long maxSuspended, POLICY policy);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
@@ -101,7 +100,7 @@ public interface Broadcaster {
      * @param o and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> broadcast(T o);
+    <T> Future<T> broadcast(T o);
 
     /**
      * Delay the broadcast operation. The {@link Object} will be broadcasted
@@ -111,7 +110,7 @@ public interface Broadcaster {
      * @param o and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> delayBroadcast(T o);
+    <T> Future<T> delayBroadcast(T o);
 
     /**
      * Delay the broadcast operation. The {@link Object} will be broadcasted once the
@@ -122,7 +121,7 @@ public interface Broadcaster {
      * @param t     a {@link TimeUnit} of delay.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> delayBroadcast(T o, long delay, TimeUnit t);
+    <T> Future<T> delayBroadcast(T o, long delay, TimeUnit t);
 
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
@@ -135,7 +134,7 @@ public interface Broadcaster {
      * @param t      a {@link TimeUnit} of period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> scheduleFixedBroadcast(T o, long period, TimeUnit t);
+    <T> Future<T> scheduleFixedBroadcast(T o, long period, TimeUnit t);
 
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
@@ -148,7 +147,7 @@ public interface Broadcaster {
      * @param t       a {@link TimeUnit} of waitFor and period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> scheduleFixedBroadcast(T o, long waitFor, long period, TimeUnit t);
+    <T> Future<T> scheduleFixedBroadcast(T o, long waitFor, long period, TimeUnit t);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
@@ -159,7 +158,7 @@ public interface Broadcaster {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> broadcast(T o, AtmosphereResource<?,?> resource);
+    <T> Future<T> broadcast(T o, AtmosphereResource<?, ?> resource);
 
     /**
      * Broadcast the {@link Object} when an {@link AtmosphereResource} is resumed by a timeout or when using
@@ -168,7 +167,7 @@ public interface Broadcaster {
      * @param o        and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> broadcastOnResume(T o);
+    <T> Future<T> broadcastOnResume(T o);
 
     /**
      * Broadcast the {@link Object} to all suspended response, e.g. invoke
@@ -179,7 +178,7 @@ public interface Broadcaster {
      * @param subset a Set of {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    public <T> Future<T> broadcast(T o, Set<AtmosphereResource<?,?>> subset);
+    <T> Future<T> broadcast(T o, Set<AtmosphereResource<?, ?>> subset);
 
     /**
      * Add a {@link AtmosphereResource<?,?>} to the list of item to be notified when
@@ -188,7 +187,7 @@ public interface Broadcaster {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if added, or null if it was already there.
      */
-    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> resource);
+    AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?, ?> resource);
 
     /**
      * Remove a {@link AtmosphereResource<?,?>} from the list of item to be notified when
@@ -197,26 +196,26 @@ public interface Broadcaster {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if removed, or null if it was not.
      */
-    public AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource<?,?> resource);
+    AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource<?, ?> resource);
 
     /**
      * Set the {@link BroadcasterConfig} instance.
      *
      * @param bc Configuration to be set.
      */
-    public void setBroadcasterConfig(BroadcasterConfig bc);
+    void setBroadcasterConfig(BroadcasterConfig bc);
 
     /**
      * Return the current {@link BroadcasterConfig}
      *
      * @return the current {@link BroadcasterConfig}
      */
-    public BroadcasterConfig getBroadcasterConfig();
+    BroadcasterConfig getBroadcasterConfig();
 
     /**
      * Destroy this instance and shutdown it's associated {@link ExecutorService}
      */
-    public void destroy();
+    void destroy();
 
     /**
      * Return an {@link List} of {@link AtmosphereResource<?,?>}.
@@ -224,40 +223,40 @@ public interface Broadcaster {
      * @return {@link List} of {@link AtmosphereResource<?,?>} associated with this {@link Broadcaster}.
      * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource<?,?>)
      */
-    public Collection<AtmosphereResource<?,?>> getAtmosphereResources();
+    Collection<AtmosphereResource<?,?>> getAtmosphereResources();
 
     /**
      * Set the scope.
      *
      * @param scope {@link Broadcaster.SCOPE} to set.
      */
-    public void setScope(SCOPE scope);
+    void setScope(SCOPE scope);
 
     /**
      * Return the {@link Broadcaster.SCOPE}
      *
      * @return {@link Broadcaster.SCOPE} of {@link Broadcaster}.
      */
-    public SCOPE getScope();
+    SCOPE getScope();
 
     /**
      * Set the id of this {@link Broadcaster}
      *
      * @param name ID of this {@link Broadcaster}
      */
-    public void setID(String name);
+    void setID(String name);
 
     /**
      * Return the id of this {@link Broadcaster}
      *
      * @return the id of this {@link Broadcaster}
      */
-    public String getID();
+    String getID();
 
     /**
      * Resume all suspended responses ({@link AtmosphereResource<?,?>}) added via
      * {@link Broadcaster#addAtmosphereResource}.
      */
-    public void resumeAll();
+    void resumeAll();
 
 }

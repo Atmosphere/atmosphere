@@ -38,6 +38,8 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -49,8 +51,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * web.xml reader.
@@ -59,12 +59,11 @@ import java.util.logging.Logger;
  */
 public class WebDotXmlReader {
 
-    private final static String ATMOSPHERE_SERVLET
-            = AtmosphereServlet.class.getName();
+    private static final Logger logger = LoggerFactory.getLogger(WebDotXmlReader.class);
 
-    private final Logger logger = LoggerUtils.getLogger();
+    private static final String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
 
-    final ArrayList<String> mappings = new ArrayList<String>();
+    private final ArrayList<String> mappings = new ArrayList<String>();
 
     /**
      * Create a {@link DocumentBuilderFactory} element from WEB-INF/web.xml
@@ -75,14 +74,17 @@ public class WebDotXmlReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             parse(factory.newDocumentBuilder().parse(stream));
-        } catch (SAXException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (SAXException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (IOException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        } catch (ParserConfigurationException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (ParserConfigurationException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }

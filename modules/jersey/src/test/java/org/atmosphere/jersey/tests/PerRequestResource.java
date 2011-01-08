@@ -36,22 +36,22 @@
  */
 package org.atmosphere.jersey.tests;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
-
-import static org.testng.Assert.assertNotNull;
 
 /**
  * Simple PubSubTest resource that demonstrate many functionality supported by
@@ -63,18 +63,20 @@ import static org.testng.Assert.assertNotNull;
 @Produces("text/plain;charset=ISO-8859-1")
 public class PerRequestResource {
 
-    @Context Broadcaster b;
+    private static final Logger logger = LoggerFactory.getLogger(PerRequestResource.class);
 
-    @Context BroadcasterFactory bf;
+    @Context Broadcaster broadcaster;
 
-    @Context AtmosphereResource<HttpServletRequest, HttpServletResponse> ar;
+    @Context BroadcasterFactory broadcasterFactory;
+
+    @Context AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
     
     @GET
     @Suspend (period = 5000, outputComments = false)
     public String subscribe() {
-        System.out.println(b);
-        System.out.println(bf);
-        System.out.println(ar);
+        logger.info("broadcaster: {}", broadcaster);
+        logger.info("factory: {}", broadcasterFactory);
+        logger.info("resource: {}", resource);
         return "perrequest";
     }
 

@@ -52,13 +52,14 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
-import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketSupport;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import weblogic.servlet.http.AbstractAsyncServlet;
 import weblogic.servlet.http.RequestResponseKey;
 
@@ -88,8 +89,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -170,7 +169,8 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider {
-    public final static Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
     public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
     public final static String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
@@ -192,7 +192,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     public final static String PRIMEFACES_SERVLET = "org.primefaces.comet.PrimeFacesCometServlet";
     public final static String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
-    public final static String WEB_INF = "/WEB-INF/classes/";
+    public final static String WEB_INF_CLASSES = "/WEB-INF/classes/";
     public final static String RESUME_ON_BROADCAST = "org.atmosphere.resumeOnBroadcast";
     public final static String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
     public final static String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
@@ -205,8 +205,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
     public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
 
-    protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
-    protected final HashMap<String, String> initParams = new HashMap<String, String>();
+    private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
+    private final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config = new AtmosphereConfig();
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
@@ -251,6 +251,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, Broadcaster broadcaster) {
             this.atmosphereHandler = atmosphereHandler;
             this.broadcaster = broadcaster;
+        }
+
+        @Override
+        public String toString() {
+            return "AtmosphereHandlerWrapper{ atmosphereHandler=" + atmosphereHandler + ", broadcaster=" +
+                    broadcaster + " }";
         }
     }
 
@@ -409,14 +415,18 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     protected void configureDefaultBroadcasterFactory() {
         Class<? extends Broadcaster> b = null;
+        String defaultBroadcasterClassName = AtmosphereServlet.getDefaultBroadcasterClassName();
+
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            b = (Class<? extends Broadcaster>) cl.loadClass(AtmosphereServlet.getDefaultBroadcasterClassName());
-        } catch (ClassNotFoundException e) {
-            LoggerUtils.getLogger().log(Level.SEVERE,"",e);
+            b = (Class<? extends Broadcaster>) cl.loadClass(defaultBroadcasterClassName);
         }
+        catch (ClassNotFoundException e) {
+            logger.error("failed to load default broadcaster class name: " + defaultBroadcasterClassName, e);
+        }
+
         Class bc = (b == null ? DefaultBroadcaster.class : b);
-        logger.log(Level.INFO, "configureDefaultBroadcasterFactor using class: "+bc);
+        logger.info("using default broadcaster class: {}", bc);
         BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc), config);
     }
 
@@ -541,6 +551,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     @Override
     public void init(final ServletConfig sc) throws ServletException {
+        logger.info("initializing atmosphere framework: {}", Version.getRawVersion());
+
         try {
             super.init(sc);
 
@@ -579,11 +591,15 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             configureBroadcaster();
             cometSupport.init(scFacade);
             initAtmosphereServletProcessor(scFacade);
-            logger.log(Level.INFO, "Atmosphere Framework " + Version.getRawVersion() + " started.");
-        } catch (Throwable t) {
-            logger.log(Level.SEVERE, "", t);
-            if (t instanceof ServletException)
+
+            logger.info("started atmosphere framework: {}", Version.getRawVersion());
+        }
+        catch (Throwable t) {
+            logger.error("failed to initialize atmosphere framework", t);
+
+            if (t instanceof ServletException) {
                 throw (ServletException) t;
+            }
 
             throw new ServletException(t.getCause());
         }
@@ -592,7 +608,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void configureBroadcaster() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         if (broadcasterFactory == null) {
-            Class bc = (Class<Broadcaster>) Thread.currentThread().getContextClassLoader().loadClass(broadcasterClassName);
+            Class<? extends Broadcaster> bc =
+                    (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                            .loadClass(broadcasterClassName);
+            logger.info("using broadcaster class: {}", bc.getName());
+
             broadcasterFactory = new DefaultBroadcasterFactory(bc);
             config.broadcasterFactory = broadcasterFactory;
         }
@@ -610,15 +630,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             } else {
                 w.broadcaster.setBroadcasterConfig(broadcasterConfig);
                 if (broadcasterCacheClassName != null) {
-                    BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader().loadClass(broadcasterCacheClassName).newInstance();
+                    BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                            .loadClass(broadcasterCacheClassName).newInstance();
                     InjectorProvider.getInjector().inject(cache);
                     broadcasterConfig.setBroadcasterCache(cache);
                 }
             }
             w.broadcaster.setID(e.getKey());
         }
-
-        logger.info("Using " + broadcasterClassName);
     }
 
     protected void doInitParamsForWebSocket(ServletConfig sc) {
@@ -720,7 +739,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected boolean detectSupportedFramework(ServletConfig sc) throws ClassNotFoundException, IllegalAccessException,
             InstantiationException, NoSuchMethodException, InvocationTargetException {
 
-        // If Primefaces is detected, never starts Jersey.
+        // If Primefaces is detected, never start Jersey.
         // TODO: Remove this hack once properly implemented in PrimeFaces
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         try {
@@ -736,7 +755,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             return false;
         }
 
-        logger.warning("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+        logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
         if (!isBroadcasterSpecified) broadcasterClassName = lookupDefaultBroadcasterType();
         rsp.setServletClassName(JERSEY_CONTAINER);
@@ -843,27 +863,30 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         Map<String, String> atmosphereHandlerNames = reader.getAtmosphereHandlers();
         Set<Entry<String, String>> entries = atmosphereHandlerNames.entrySet();
         for (Entry<String, String> entry : entries) {
-            AtmosphereHandler g;
-            try {
-                if (!entry.getValue().equals(ReflectorServletProcessor.class.getName())) {
-                    g = (AtmosphereHandler) c.loadClass(entry.getValue()).newInstance();
-                    InjectorProvider.getInjector().inject(g);
-                } else {
-                    g = new ReflectorServletProcessor();
-                }
-                logger.info("Sucessfully loaded " + g
-                        + " mapped to context-path " + entry.getKey());
+            AtmosphereHandler handler;
+            String handlerClassName = entry.getValue();
+            String handlerPath = entry.getKey();
 
-                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(g);
-                atmosphereHandlers.put(entry.getKey(), wrapper);
+            try {
+                if (!handlerClassName.equals(ReflectorServletProcessor.class.getName())) {
+                    handler = (AtmosphereHandler) c.loadClass(handlerClassName).newInstance();
+                    InjectorProvider.getInjector().inject(handler);
+                } else {
+                    handler = new ReflectorServletProcessor();
+                }
+
+                logger.info("successfully loaded handler: {} mapped to context-path: {}", handler, handlerPath);
+
+                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler);
+                atmosphereHandlers.put(handlerPath, wrapper);
                 boolean isJersey = false;
-                for (Property p : reader.getProperty(entry.getKey())) {
+                for (Property p : reader.getProperty(handlerPath)) {
                     if (p.value != null && p.value.indexOf("jersey") != -1) {
                         isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                     }
-                    IntrospectionUtils.setProperty(g, p.name, p.value);
+                    IntrospectionUtils.setProperty(handler, p.name, p.value);
                 }
 
                 config.supportSession = !isJersey;
@@ -872,41 +895,41 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     sessionSupport(Boolean.valueOf(reader.supportSession()));
                 }
 
-                for (Property p : reader.getProperty(entry.getKey())) {
-                    IntrospectionUtils.addProperty(g, p.name, p.value);
+                for (Property p : reader.getProperty(handlerPath)) {
+                    IntrospectionUtils.addProperty(handler, p.name, p.value);
                 }
 
-                String broadcasterClass = reader.getBroadcasterClass(entry.getKey());
-                /**
-                 * If there is more than one AtmosphereHandler defined, their Broadcaster
-                 * may clash each other with the BroadcasterFactory. In that case we will use the
-                 * last one defined.
-                 */
+                String broadcasterClass = reader.getBroadcasterClass(handlerPath);
+              /**
+                         * If there is more than one AtmosphereHandler defined, their Broadcaster
+                         * may clash each other with the BroadcasterFactory. In that case we will use the
+                         * last one defined.
+                         */
                 if (broadcasterClass != null) {
                     broadcasterClassName = broadcasterClass;
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
                     Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
-                    wrapper.broadcaster = BroadcasterFactory.getDefault().get(bc, entry.getKey());
+                    wrapper.broadcaster = BroadcasterFactory.getDefault().get(bc, handlerPath);
                 }
 
-                String bc = reader.getBroadcasterCache(entry.getKey());
+                String bc = reader.getBroadcasterCache(handlerPath);
                 if (bc != null) {
                     broadcasterCacheClassName = bc;
                 }
 
                 if (reader.getCometSupportClass() != null) {
-                    cometSupport = (CometSupport)
-                            c.loadClass(reader.getCometSupportClass())
-                                    .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
+                    cometSupport = (CometSupport) c.loadClass(reader.getCometSupportClass())
+                            .getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
+                            .newInstance(new Object[]{config});
                 }
 
                 if (reader.getBroadcastFilterClasses() != null){
                     broadcasterFilters = reader.getBroadcastFilterClasses();
                 }
 
-            } catch (Throwable t) {
-                logger.log(Level.WARNING, "Unable to load AtmosphereHandler class: "
-                        + entry.getValue(), t);
+            }
+            catch (Throwable t) {
+                logger.warn("unable to load AtmosphereHandler class: " + handlerClassName, t);
                 throw new ServletException(t);
             }
         }
@@ -948,57 +971,69 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void autoDetectContainer() {
         // Was defined in atmosphere.xml
         if (getCometSupport() == null) {
-            setCometSupport(createCometSupportResolver().resolve(useNativeImplementation, useBlockingImplementation, webSocketEnabled));
+            setCometSupport(createCometSupportResolver()
+                    .resolve(useNativeImplementation, useBlockingImplementation, webSocketEnabled));
         }
-        logger.info("Atmosphere is using for CometSupport: "
-                + getCometSupport().getClass().getName() + " running under container "
-                + cometSupport.getContainerName());
+
+        logger.info("Atmosphere is using comet support: {} running under container: {}",
+                getCometSupport().getClass().getName(), cometSupport.getContainerName());
     }
 
     /**
      * Auto detect instance of {@link AtmosphereHandler} in case META-INF/atmosphere.xml
      * is missing.
      *
-     * @param sc {@link ServletContext}
-     * @param c  {@link URLClassLoader} to load the class.
+     * @param servletContext {@link ServletContext}
+     * @param classloader  {@link URLClassLoader} to load the class.
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    protected void autoDetectAtmosphereHandlers(ServletContext sc, URLClassLoader c)
+    protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
-        String s = sc.getRealPath(WEB_INF);
+        logger.info("auto detecting atmosphere handlers in WEB-INF/classes");
+
+        String realPath = servletContext.getRealPath(WEB_INF_CLASSES);
 
         // Weblogic bug
-        if (s == null) {
-            URL u = sc.getResource(WEB_INF);
+        if (realPath == null) {
+            URL u = servletContext.getResource(WEB_INF_CLASSES);
             if (u == null) return;
-            s = u.getPath();
+            realPath = u.getPath();
         }
 
-        File f = new File(s);
-        if (f.isDirectory()) {
-            getFiles(f);
+        loadAtmosphereHandlersFromPath(classloader, realPath);
+        
+        logger.info("Atmosphere using Broadcaster: {} ", broadcasterClassName);
+    }
+
+    protected void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
+        File file = new File(realPath);
+
+        if (file.isDirectory()) {
+            getFiles(file);
+
             for (String className : possibleAtmosphereHandlersCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.substring(className.indexOf(WEB_INF)
-                            + WEB_INF.length(), className.lastIndexOf(".")).replace('/', '.');
-                    Class<?> clazz = c.loadClass(className);
+                    className = className.substring(className.indexOf(WEB_INF_CLASSES)
+                            + WEB_INF_CLASSES.length(), className.lastIndexOf(".")).replace('/', '.');
+                    Class<?> clazz = classloader.loadClass(className);
+
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
-                        AtmosphereHandler g = (AtmosphereHandler) clazz.newInstance();
-                        InjectorProvider.getInjector().inject(g);
-                        logger.info("Successfully loaded " + g
-                                + " mapped to context-path " + g.getClass().getSimpleName());
-                        atmosphereHandlers.put("/" + g.getClass().getSimpleName(),
-                                new AtmosphereHandlerWrapper(g, null));
+                        AtmosphereHandler handler = (AtmosphereHandler) clazz.newInstance();
+                        InjectorProvider.getInjector().inject(handler);
+                        atmosphereHandlers.put("/" + handler.getClass().getSimpleName(),
+                                new AtmosphereHandlerWrapper(handler, null));
+                        logger.info("Successfully loaded handler: {}  mapped to context-path: {}", handler,
+                                handler.getClass().getSimpleName());
                     }
-                } catch (Throwable t) {
-                    logger.finest(className + " is not a AtmosphereHandler");
+                }
+                // TODO is there a reason to catch throwable here instead of exception?
+                catch (Throwable t) {
+                    logger.warn("failed to load class as an AtmosphereHandler: " + className, t);
                 }
             }
         }
-        
-        logger.info("Atmosphere using Broadcaster " + broadcasterClassName);
     }
 
     /**
@@ -1006,7 +1041,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @param f the real path {@link File}
      */
-    protected void getFiles(File f) {
+    private void getFiles(File f) {
         File[] files = f.listFiles();
         for (File test : files) {
             if (test.isDirectory()) {
@@ -1131,18 +1166,23 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             throws IOException, ServletException {
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
+
         try {
             return cometSupport.service(req, res);
-        } catch (IllegalStateException ex) {
+        }
+        catch (IllegalStateException ex) {
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
                 if (!isFilter) {
-                    logger.warning(ex.getMessage());
-                    logger.warning("Using the BlockingIOCometSupport.");
+                    logger.warn("failed using comet support: {}, error: {}", cometSupport.getClass().getName(),
+                            ex.getMessage());
+                    logger.warn("Using BlockingIOCometSupport.");
                 }
+
                 cometSupport = new BlockingIOCometSupport(config);
                 service(req, res);
-            } else {
-                logger.log(Level.SEVERE, "AtmosphereServlet exception", ex);
+            }
+            else {
+                logger.error("AtmosphereServlet exception", ex);
                 throw ex;
             }
         }
@@ -1166,7 +1206,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (!isCometSupportSpecified && !isCometSupportConfigured.getAndSet(true)) {
             synchronized (cometSupport) {
                 if (!cometSupport.getClass().equals(TomcatCometSupport.class)) {
-                    logger.warning("TomcatCometSupport is enabled, switching to it");
+                    logger.warn("TomcatCometSupport is enabled, switching to it");
                     cometSupport = new TomcatCometSupport(config);
                 }
             }
@@ -1188,10 +1228,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         HttpServletRequest req = httpEvent.getHttpServletRequest();
         HttpServletResponse res = httpEvent.getHttpServletResponse();
         req.setAttribute(JBossWebCometSupport.HTTP_EVENT, httpEvent);
+
         if (!isCometSupportSpecified && !isCometSupportConfigured.getAndSet(true)) {
             synchronized (cometSupport) {
                 if (!cometSupport.getClass().equals(JBossWebCometSupport.class)) {
-                    logger.warning("JBossWebCometSupport is enabled, switching to it");
+                    logger.warn("JBossWebCometSupport is enabled, switching to it");
                     cometSupport = new JBossWebCometSupport(config);
                 }
             }
@@ -1220,7 +1261,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
             return action.type == Action.TYPE.SUSPEND;
         } catch (IllegalStateException ex) {
-            logger.log(Level.SEVERE, "AtmosphereServlet.doRequest exception", ex);
+            logger.error("AtmosphereServlet.doRequest exception", ex);
             throw ex;
         }
     }
@@ -1376,9 +1417,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     @Override
     protected WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("WebSocket upgrade requested");
-        }
+        logger.info("WebSocket upgrade requested");
+
         return new WebSocket() {
             private WebSocketProcessor webSocketProcessor;
 
@@ -1387,7 +1427,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 try {
                     webSocketProcessor.connect(new JettyRequestFix(request));
                 } catch (IOException e) {
-                    logger.log(Level.WARNING, "", e);
+                    logger.warn("failed to connect to web socket", e);
                 }
             }
 

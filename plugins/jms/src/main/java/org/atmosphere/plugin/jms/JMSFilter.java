@@ -39,7 +39,8 @@ package org.atmosphere.plugin.jms;
 
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -54,8 +55,6 @@ import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Clustering support based on JMS
@@ -63,7 +62,8 @@ import java.util.logging.Logger;
  * @author Jean-francois Arcand
  */
 public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
-    private static Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(JMSFilter.class);
 
     private Connection connection;
     private Session session;
@@ -143,6 +143,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
 
     }
 
+    @Override
     public void onMessage(Message msg) {
         try {
             TextMessage textMessage = (TextMessage) msg;
@@ -152,11 +153,9 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
             if (message != null && bc != null){
                 bc.broadcast(message);
             }
-        } catch (JMSException ex) {
-            if (logger.isLoggable(Level.WARNING)){
-                logger.log(Level.WARNING,"",ex);
-            }
-
+        }
+        catch (JMSException ex) {
+            logger.warn("failed to broadcast message", ex);
         }
     }
 
@@ -165,6 +164,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
      * @param o the message to broadcast.
      * @return The same message.
      */
+    @Override
     public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String){
             String message = (String)o;
@@ -173,8 +173,9 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
                 if (!receivedMessages.remove(message)) {
                     publisher.send(session.createTextMessage(message));
                 }
-            } catch (JMSException ex) {
-                logger.log(Level.WARNING, "", ex);
+            }
+            catch (JMSException ex) {
+                logger.warn("failed to publish message", ex);
             }
             return new BroadcastAction(message);
         } else {
@@ -185,6 +186,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
     /**
      * Return the current {@link Broadcaster}
      */
+    @Override
     public Broadcaster getBroadcaster(){
         return bc;
     }
@@ -193,6 +195,7 @@ public class JMSFilter implements MessageListener,ClusterBroadcastFilter {
      * Set the current {@link Broadcaster} to use when a cluster event happens.
      * @param bc
      */
+    @Override
     public void setBroadcaster(Broadcaster bc){
         this.bc = bc;
     }

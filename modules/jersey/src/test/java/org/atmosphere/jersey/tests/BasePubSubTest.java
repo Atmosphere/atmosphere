@@ -45,6 +45,8 @@ import com.ning.http.client.HttpResponseStatus;
 import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -58,13 +60,16 @@ import static org.testng.Assert.fail;
 
 public abstract class BasePubSubTest extends BaseTest {
 
+    protected static final Logger logger = LoggerFactory.getLogger(BasePubSubTest.class);
+
     String getUrlTarget(int port) {
         return "http://127.0.0.1:" + port + "/invoke";
     }
 
     @Test(timeOut = 20000)
     public void testSuspendTimeout() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long t1 = System.currentTimeMillis();
@@ -76,16 +81,16 @@ public abstract class BasePubSubTest extends BaseTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(timeOut = 25000)
     public void testSuspendWithCommentsTimeout() {
-        System.out.println("Running testSuspendWithCommentsTimeout");
+        logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -98,16 +103,17 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(ct[1].trim(), "charset=iso-8859-1");
             assertEquals(resume, AtmosphereResourceImpl.createCompatibleStringJunk());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(enabled = false)
     public void testProgrammaticDisconnection() {
-        System.out.println("Running testProgrammaticDisconnection");
+        logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         long t1 = System.currentTimeMillis();
 
@@ -119,12 +125,12 @@ public abstract class BasePubSubTest extends BaseTest {
         long current = System.currentTimeMillis() - t1;
         assertTrue(current > 20000 && current < 25000);
         c.close();
-
     }
 
     @Test(timeOut = 25000)
     public void testProgrammaticResume() {
-        System.out.println("Running testProgrammaticResume");
+        logger.info("{}: running test: testProgrammaticResume", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         final AtomicReference<String> location = new AtomicReference<String>();
         final AtomicReference<String> response = new AtomicReference<String>("");
@@ -139,7 +145,7 @@ public abstract class BasePubSubTest extends BaseTest {
 
                 public STATE onBodyPartReceived(HttpResponseBodyPart bp) throws Exception {
 
-                    System.out.println("bp: " + new String(bp.getBodyPartBytes()));
+                    logger.info("body part byte string: {}", new String(bp.getBodyPartBytes()));
                     response.set(response.get() + new String(bp.getBodyPartBytes()));
                     locationLatch.countDown();
                     return STATE.CONTINUE;
@@ -169,16 +175,17 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(response.get(), "suspendresume");
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test
     public void testResumeOnBroadcastUsingBroadcasterFactory() {
-        System.out.println("Running testResumeOnBroadcast");
+        logger.info("{}: running test: testResumeOnBroadcast", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         long t1 = System.currentTimeMillis();
 
@@ -189,16 +196,17 @@ public abstract class BasePubSubTest extends BaseTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(timeOut = 25000)
     public void testDelayBroadcast() {
-        System.out.println("Running testDelayBroadcast");
+        logger.info("{}: running test: testDelayBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -233,18 +241,17 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foo\nbar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
-
         c.close();
-
     }
 
     @Test(timeOut = 25000)
     public void testDelayNextBroadcast() {
-        System.out.println("Running testDelayNextBroadcast");
+        logger.info("{}: running test: testDelayNextBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
 
@@ -283,18 +290,17 @@ public abstract class BasePubSubTest extends BaseTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
-
         c.close();
-
     }
 
     @Test(timeOut = 25000)
     public void testScheduleBroadcast() {
-        System.out.println("Running testScheduleBroadcast");
+        logger.info("{}: running test: testScheduleBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
         AsyncHttpClient c = new AsyncHttpClient();
@@ -330,16 +336,17 @@ public abstract class BasePubSubTest extends BaseTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(timeOut = 25000)
     public void testBroadcastFilter() {
-        System.out.println("Running testBroadcastFilter");
+        logger.info("{}: running test: testBroadcastFilter", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
         AsyncHttpClient c = new AsyncHttpClient();
@@ -373,16 +380,17 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(r.getStatusCode(), 200);
             assertEquals(r.getResponseBody(), "&lt;script&gt;foo&lt;/script&gt;<br />");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(enabled = false)
     public void testAggregateFilter() {
-        System.out.println("Running testAggregateFilter");
+        logger.info("{}: running test: testAggregateFilter", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
         AsyncHttpClient c = new AsyncHttpClient();
@@ -425,16 +433,17 @@ public abstract class BasePubSubTest extends BaseTest {
                     "==================================================\n" +
                     "==================================================\n");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
     @Test(timeOut = 25000)
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
-        System.out.println("Running testHeaderBroadcasterCache");
+        logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
+
         atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
@@ -469,7 +478,7 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(r.getStatusCode(), 200);
             assertEquals(r.getResponseBody(), "cacheme\ncachememe\n");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
@@ -478,7 +487,8 @@ public abstract class BasePubSubTest extends BaseTest {
 
     @Test(timeOut = 25000)
     public void testProgrammaticDelayBroadcast() {
-        System.out.println("Running testDelayBroadcast");
+        logger.info("{}: running test: testDelayBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -513,7 +523,7 @@ public abstract class BasePubSubTest extends BaseTest {
             assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foobar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();

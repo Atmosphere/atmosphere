@@ -15,6 +15,8 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,6 +36,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class MeteorTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(MeteorTest.class);
 
     protected MeteorServlet atmoServlet;
     protected final static String ROOT = "/*";
@@ -142,7 +146,8 @@ public class MeteorTest {
 
     @Test(timeOut = 60000)
     public void testSuspendTimeout() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("running test: testSuspendTimeout");
+
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long currentTime = System.currentTimeMillis();
@@ -159,7 +164,7 @@ public class MeteorTest {
             String resume = r.getResponseBody();
             assertEquals(resume, "resume");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -167,7 +172,8 @@ public class MeteorTest {
 
     @Test(timeOut = 60000)
     public void testResumeOnBroadcast() {
-        System.out.println("Running testResumeOnBroadcast");
+        logger.info("running test: testResumeOnBroadcast");
+
         final CountDownLatch latch = new CountDownLatch(1);
         servletLatch = new CountDownLatch(1);
         AsyncHttpClient c = new AsyncHttpClient();
@@ -208,7 +214,7 @@ public class MeteorTest {
             String resume = r.get().getResponseBody();
             assertEquals(resume, "resumeresume");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();

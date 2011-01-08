@@ -42,26 +42,28 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.IllegalStateException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Jetty's Continuation.
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty7CometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class Jetty7CometSupport extends AsynchronousProcessor {
 
-    private final ConcurrentLinkedQueue<Continuation> resumed      
-            = new ConcurrentLinkedQueue<Continuation>();
+    private static final Logger logger = LoggerFactory.getLogger(Jetty7CometSupport.class);
+
+    private final ConcurrentLinkedQueue<Continuation> resumed = new ConcurrentLinkedQueue<Continuation>();
 
     public Jetty7CometSupport(AtmosphereConfig config) {
         super(config);
@@ -70,8 +72,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
     /**
      * {@inheritDoc}
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+    public Action service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
         Action action = null;
 
         Continuation c = ContinuationSupport.getContinuation(req);
@@ -79,36 +80,36 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
         if (c.isInitial()) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
+                logger.debug("Suspending {}", res);
+
                 // Do nothing except setting the times out
                 if (action.timeout != -1) {
                     c.setTimeout(action.timeout);
-                } else {
+                }
+                else {
                     // Jetty 7 does something really weird if you set it to
                     // Long.MAX_VALUE, which is to resume automatically.
                     c.setTimeout(Integer.MAX_VALUE);
                 }
                 c.suspend();
-            } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resume " + res);
-                }
+            }
+            else if (action.type == Action.TYPE.RESUME) {
+                logger.debug("Resume {}", res);
 
                 if (!resumed.remove(c)) {
                     try {
                         c.complete();
-                    } catch (java.lang.IllegalStateException ex) {
-                        if (logger.isLoggable(Level.FINE)) {
-                            logger.fine("Continuation.complete() " + ex);
-                        }
-                    } finally {
+                    }
+                    catch (IllegalStateException ex) {
+                        logger.debug("Continuation.complete()", ex);
+                    }
+                    finally {
                         resumed(req, res);
                     }
                 }
             }
-        } else if (!c.isInitial() && c.isExpired()) {
+        }
+        else if (!c.isInitial() && c.isExpired()) {
             timedout(req, res);
         }
         return action;
@@ -120,23 +121,25 @@ public class Jetty7CometSupport extends AsynchronousProcessor implements CometSu
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME
-                && (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
+                (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
+                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             Continuation c = ContinuationSupport.getContinuation(actionEvent.getRequest());
             try {
                 c.complete();
-            } catch (java.lang.IllegalStateException ex) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Continuation.complete() " + ex);
-                }
-            } finally {
+            }
+            catch (IllegalStateException ex) {
+                logger.debug("Continuation.complete() failed", ex);
+            }
+            finally {
                 resumed.offer(c);
             }
-        } else {
+        }
+        else {
             try {
                 actionEvent.getResponse().flushBuffer();
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
             }
         }
     }

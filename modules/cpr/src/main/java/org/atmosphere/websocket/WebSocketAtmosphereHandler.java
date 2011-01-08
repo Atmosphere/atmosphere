@@ -42,24 +42,27 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * Simple {@link AtmosphereHandler} which redirect the first request to the web application welcome page.
  * Once the WebSocket upgrade happens, this class just invoke the {@link #upgrade(AtmosphereResource)} method.
  * <p/>
  * Application should override the {@link #upgrade(AtmosphereResource)}.
- * Application should override the {@link #onStateChange} if they do not want to reflect/send back all Websocket messages to all connections.
+ * Application should override the {@link #onStateChange} if they do not want to reflect/send back all Websocket
+ * messages to all connections.
  *
  * @author Jeanfrancois Arcand
  */
 public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketAtmosphereHandler.class);
 
     /**
      * This method redirect the request to the server main page (index.html, index.jsp, etc.) and then execute the
@@ -71,13 +74,17 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
     public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
         if (!r.getResponse().getClass().isAssignableFrom(WebSocketHttpServletResponse.class)) {
             try {
-            	r.getAtmosphereConfig().getServletContext().getNamedDispatcher(r.getAtmosphereConfig().getDispatcherName()).forward(r.getRequest(), r.getResponse());
-            } catch (ServletException e) {
+                r.getAtmosphereConfig().getServletContext()
+                        .getNamedDispatcher(r.getAtmosphereConfig().getDispatcherName())
+                        .forward(r.getRequest(), r.getResponse());
+            }
+            catch (ServletException e) {
                 IOException ie = new IOException();
                 ie.initCause(e);
                 throw ie;
             }
-        } else {
+        }
+        else {
             upgrade(r);
         }
     }
@@ -87,13 +94,11 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
      * needs to be suspended or not. Override this method for specific operations like configuring their own
      * {@link Broadcaster}, {@link BroadcastFilter} , {@link BroadcasterCache} etc.
      *
-     * @param r an {@link AtmosphereResource}
+     * @param resource an {@link AtmosphereResource}
      * @throws IOException
      */
-    public void upgrade(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
-        if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-            LoggerUtils.getLogger().fine("Suspending request: " + r.getRequest());
-        }
-        r.suspend(-1, false);
+    public void upgrade(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
+        logger.debug("Suspending request: {}", resource.getRequest());
+        resource.suspend(-1, false);
     }
 }

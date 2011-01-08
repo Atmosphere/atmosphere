@@ -332,6 +332,7 @@
             <url>http://download.java.net/maven/2/</url>
         </repository>
     </repositories>
+
     <distributionManagement>
         <repository>
             <id>sonatype-nexus-staging</id>
@@ -344,6 +345,7 @@
             <url>http://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -406,7 +408,45 @@
             <version>${ahc.version}</version>
             <scope>test</scope>
         </dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j-version}</version>
+		</dependency>
+
+        <!-- Move to individual modules / plugins / samples as appropriate -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jul-to-slf4j</artifactId>
+			<version>1.6.1</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jcl-over-slf4j</artifactId>
+			<version>1.6.1</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- runtime logging implementation, test only -->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-core</artifactId>
+			<version>${logback-version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>${logback-version}</version>
+			<scope>test</scope>
+		</dependency>
+
     </dependencies>
+
     <properties>
         <jetty-version>6.1.22</jetty-version>
         <atmosphere-version>0.6-SNAPSHOT</atmosphere-version>
@@ -432,8 +472,11 @@
         <felix-version>1.4.0</felix-version>
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
-        <wicket.version>1.4.12</wicket.version>        
+        <wicket.version>1.4.12</wicket.version>
         <ahc.version>1.3.0</ahc.version>
         <jedis.version>1.3.0</jedis.version>
+
+        <slf4j-version>1.6.1</slf4j-version>
+        <logback-version>0.9.24</logback-version>
     </properties>
 </project>

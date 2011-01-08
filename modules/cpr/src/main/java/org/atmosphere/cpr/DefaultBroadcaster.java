@@ -40,7 +40,8 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -59,7 +60,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 /**
  * {@link Broadcaster} implementation.
@@ -72,6 +72,8 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class DefaultBroadcaster implements Broadcaster {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
@@ -142,29 +144,32 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public void setScope(SCOPE scope) {
         this.scope = scope;
+        if (scope != SCOPE.REQUEST) {
+            return;
+        }
+
         try {
-            if (scope == SCOPE.REQUEST) {
-                for (AtmosphereResource<?, ?> r : resources) {
-                    Broadcaster b = BroadcasterFactory.getDefault().get(this.getClass(),
-                            this.getClass().getSimpleName() + "/" + UUID.randomUUID());
+            for (AtmosphereResource<?, ?> resource : resources) {
+                Broadcaster b = BroadcasterFactory.getDefault()
+                        .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
-                    if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
-                        BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
-                        InjectorProvider.getInjector().inject(cache);
-                        DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
-                    }
-                    r.setBroadcaster(b);
-                    if (r.getAtmosphereResourceEvent().isSuspended()) {
-                        b.addAtmosphereResource(r);
-                    }
+                if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
+                    BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
+                    InjectorProvider.getInjector().inject(cache);
+                    DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
                 }
-
-                if (!resources.isEmpty()) {
-                    this.destroy();
+                resource.setBroadcaster(b);
+                if (resource.getAtmosphereResourceEvent().isSuspended()) {
+                    b.addAtmosphereResource(resource);
                 }
             }
-        } catch (Exception e) {
-            LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+
+            if (!resources.isEmpty()) {
+                destroy();
+            }
+        }
+        catch (Exception e) {
+            logger.error("failed to set request scope for current resources", e);
         }
     }
 
@@ -247,14 +252,19 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Leader/follower
                     bc.getExecutorService().submit(this);
                     push(msg);
-                } catch (Throwable ex) {
+                }
+                catch (Throwable ex) {
                     // Catch all exception to avoid killing this thread.
-                    LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
-                } finally {
+                    // What if the Throwable is OOME?
+                    logger.error("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                }
+                finally {
                     if (msg != null) {
+                        // TODO dubious logic, future is always instance of Broadcaster future
                         if (msg.future instanceof BroadcasterFuture) {
-                            ((BroadcasterFuture) msg.future).done();
-                        } else {
+                            msg.future.done();
+                        }
+                        else {
                             msg.future.cancel(true);
                         }
                     }
@@ -280,6 +290,7 @@ public class DefaultBroadcaster implements Broadcaster {
             StringBuilder b = new StringBuilder();
             while (i.hasNext()) {
                 Entry e = i.next();
+                // TODO dubious logic, future is always instance of Broadcaster future
                 if (!(e.future instanceof BroadcasterFuture)) {
                     e.future.cancel(true);
                 }
@@ -293,8 +304,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 } finally {
                     i.remove();
+                    // TODO dubious logic, future is always instance of Broadcaster future
                     if (e.future instanceof BroadcasterFuture) {
-                        ((BroadcasterFuture) e.future).done();
+                        e.future.done();
                     }
                 }
             }
@@ -354,42 +366,42 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 return  Callable.class.cast(msg).call();
             } catch (Exception e) {
-                LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+                logger.error("failed to cast message: " + msg, e);
             }
         }
         return msg;
     }
 
-    protected void push(final AtmosphereResource<?, ?> r, final Object msg) {
+    protected void push(final AtmosphereResource<?, ?> resource, final Object msg) {
 
-        synchronized (r) {
-            if (r.getAtmosphereResourceEvent().isCancelled()) {
+        synchronized (resource) {
+            if (resource.getAtmosphereResourceEvent().isCancelled()) {
                 return;
             }
 
-            final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
-            e.setMessage(msg);
+            final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
+            event.setMessage(msg);
 
-            if (r.getAtmosphereResourceEvent() != null && !r.getAtmosphereResourceEvent().isCancelled()
-                    && HttpServletRequest.class.isAssignableFrom(r.getRequest().getClass())) {
+            if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                    && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
                 try {
-                    HttpServletRequest.class.cast(r.getRequest()).setAttribute(CometSupport.MAX_INACTIVE, (Long) System.currentTimeMillis());
-                } catch (Throwable t) {
+                    HttpServletRequest.class.cast(resource.getRequest())
+                            .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
+                }
+                catch (Exception t) {
                     // Shield us from any corrupted Request
-                    if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-                        LoggerUtils.getLogger().log(Level.FINE, "Preventing corruption of a recycled request", e);
-                        resources.remove(r);
-                        return;
-                    }
+                    logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
+                    resources.remove(resource);
+                    return;
                 }
             }
 
             bc.getAsyncWriteService().execute(new Runnable(){
                 @Override
                 public void run() {
-                    broadcast(r, e);
-                    if (r instanceof AtmosphereEventLifecycle) {
-                        ((AtmosphereEventLifecycle) r).notifyListeners();
+                    broadcast(resource, event);
+                    if (resource instanceof AtmosphereEventLifecycle) {
+                        ((AtmosphereEventLifecycle) resource).notifyListeners();
                     }
                 }
             });
@@ -433,12 +445,11 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void onException(Throwable t, final AtmosphereResource<?, ?> r) {
-        if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-            LoggerUtils.getLogger().log(Level.FINE, "", t);
-        }
-        
+        logger.debug("onException()", t);
+
         if (r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
+            ((AtmosphereEventLifecycle) r)
+                    .notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
             ((AtmosphereEventLifecycle) r).removeEventListeners();
         }
 
@@ -574,10 +585,13 @@ public class DefaultBroadcaster implements Broadcaster {
         if (maxSuspendResource > 0 && resources.size() == maxSuspendResource) {
             // Resume the first in.
             if (policy == POLICY.FIFO) {
+                // TODO handle null return from poll()
+                AtmosphereResource<?, ?> resource = resources.poll();
                 try {
-                    resources.poll().resume();
-                } catch (Throwable t) {
-                    LoggerUtils.getLogger().log(Level.WARNING, "addAtmosphereResource", t);
+                    resource.resume();
+                }
+                catch (Throwable t) {
+                    logger.warn("failed to resume resource: " + resource, t);
                 }
             } else if (policy == POLICY.REJECT) {
                 throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
@@ -669,7 +683,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             }
                             return (T) msg;
                         } catch (Exception e1) {
-                            LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+                            logger.error("", e);
                         }
                     }
                     
@@ -719,7 +733,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                         return;
                     } catch (Exception e) {
-                        LoggerUtils.getLogger().log(Level.SEVERE, "", e);
+                        logger.error("", e);
                     }
                 }
                 final Object msg = filter(o);

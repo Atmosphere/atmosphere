@@ -46,8 +46,9 @@ import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.WebSocketProcessor;
-import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.websocket.WebSocketSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -55,7 +56,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
@@ -63,6 +63,8 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
 
     public GlassFishWebSocketSupport(AtmosphereConfig config) {
         super(config);
@@ -78,22 +80,20 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
      * {@inheritDoc}
      */
     @Override
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public Action service(HttpServletRequest request, HttpServletResponse  response)
             throws IOException, ServletException {
 
-        String connection = req.getHeader("Connection");
+        String connection = request.getHeader("Connection");
         if (!"Upgrade".equalsIgnoreCase(connection)) {
-            return super.service(req, res);
-        } else {
-            Action action = suspended(req, res);
+            return super.service(request, response);
+        }
+        else {
+            Action action = suspended(request, response);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending" + res);
-                }
-            } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resuming" + res);
-                }
+                logger.debug("Suspending response: {}", response);
+            }
+            else if (action.type == Action.TYPE.RESUME) {
+                logger.debug("Resuming response: {}", response);
             }
             return action;
         }
@@ -125,7 +125,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             try {
                 webSocketProcessor.connect(new HttpServletRequestWrapper(webSocket.getRequest()));
             } catch (IOException e) {
-                LoggerUtils.getLogger().log(Level.WARNING, "", e);
+                logger.warn("failed to connect to web socket", e);
             }
         }
 

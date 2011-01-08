@@ -15,6 +15,8 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,6 +36,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class BroadcasterScopeTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(BroadcasterScopeTest.class);
 
     protected MeteorServlet atmoServlet;
     protected final static String ROOT = "/*";
@@ -146,7 +150,7 @@ public class BroadcasterScopeTest {
 
     @Test(timeOut = 60000)
     public void testBroadcasterScope() {
-        System.out.println("Running testBroadcasterScope");
+        logger.info("Running testBroadcasterScope");
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch latch2 = new CountDownLatch(1);
 
@@ -210,7 +214,7 @@ public class BroadcasterScopeTest {
 
             assertFalse(id.equals(broadcasterId.get()));
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();

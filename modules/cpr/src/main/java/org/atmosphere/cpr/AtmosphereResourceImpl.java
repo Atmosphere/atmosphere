@@ -40,7 +40,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -49,7 +50,6 @@ import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 /**
  * {@link AtmosphereResource} implementation for supporting {@link HttpServletRequest}
@@ -60,14 +60,15 @@ import java.util.logging.Level;
 public class AtmosphereResourceImpl implements
         AtmosphereResource<HttpServletRequest, HttpServletResponse>, AtmosphereEventLifecycle {
 
-    public final static String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceImpl.class);
 
+    public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
 
     // The {@link HttpServletRequest}
     private final HttpServletRequest req;
 
     // The {@link HttpServletResponse}
-    private final HttpServletResponse res;
+    private final HttpServletResponse response;
 
     // The upcoming Action.
     protected final AtmosphereServlet.Action action = new AtmosphereServlet.Action();
@@ -104,14 +105,14 @@ public class AtmosphereResourceImpl implements
      * @param config       The {@link AtmosphereConfig}
      * @param broadcaster  The {@link Broadcaster}.
      * @param req          The {@link HttpServletRequest}
-     * @param res          The {@link HttpServletResponse}
+     * @param response          The {@link HttpServletResponse}
      * @param cometSupport The {@link CometSupport}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
-                                  HttpServletRequest req, HttpServletResponse res,
+                                  HttpServletRequest req, HttpServletResponse response,
                                   CometSupport cometSupport) {
         this.req = req;
-        this.res = res;
+        this.response = response;
         this.broadcaster = broadcaster;
         this.config = config;
         this.cometSupport = cometSupport;
@@ -146,16 +147,14 @@ public class AtmosphereResourceImpl implements
             broadcaster.removeAtmosphereResource(this);
             try {
                 req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
-            } catch (Exception ex) {
-                if (LoggerUtils.getLogger().isLoggable(Level.FINE)){
-                    LoggerUtils.getLogger().fine("Cannot resume an already resumed/cancelled request ");
-                }
+            }
+            catch (Exception ex) {
+                logger.debug("Cannot resume an already resumed/cancelled request");
             }
             cometSupport.action(this);
-        } else {
-            if (LoggerUtils.getLogger().isLoggable(Level.FINE)){
-                LoggerUtils.getLogger().fine("Cannot resume an already resumed/cancelled request ");
-            }
+        }
+        else {
+            logger.debug("Cannot resume an already resumed/cancelled request");
         }
     }
 
@@ -185,7 +184,7 @@ public class AtmosphereResourceImpl implements
             String upgrade = req.getHeader("Connection");
             if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
                 if (!cometSupport.supportWebSocket()) {
-                    res.addHeader("X-Atmosphere-error","Websocket protocol not supported");
+                    response.addHeader("X-Atmosphere-error","Websocket protocol not supported");
                 } else {
                     flushComment = false;
                 }
@@ -193,11 +192,11 @@ public class AtmosphereResourceImpl implements
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
-                res.setHeader("Expires", "-1");
+                response.setHeader("Expires", "-1");
                 // Set standard HTTP/1.1 no-cache headers.
-                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
                 // Set standard HTTP/1.0 no-cache header.
-                res.setHeader("Pragma", "no-cache");
+                response.setHeader("Pragma", "no-cache");
             }
 
             if (flushComment) {
@@ -228,26 +227,26 @@ public class AtmosphereResourceImpl implements
         try {
             if (useWriter && !((Boolean) req.getAttribute(AtmosphereServlet.PROPERTY_USE_STREAM))) {
                 try {
-                    res.getWriter();
+                    response.getWriter();
                 } catch (IllegalStateException e) {
                     return;
                 }
 
-                res.getWriter().write(beginCompatibleData);
-                res.getWriter().flush();
+                response.getWriter().write(beginCompatibleData);
+                response.getWriter().flush();
             } else {
                 try {
-                    res.getOutputStream();
+                    response.getOutputStream();
                 } catch (IllegalStateException e) {
                     return;
                 }
 
-                res.getOutputStream().write(beginCompatibleData.getBytes());
-                res.getOutputStream().flush();
+                response.getOutputStream().write(beginCompatibleData.getBytes());
+                response.getOutputStream().flush();
             }
 
         } catch (Throwable ex) {
-            LoggerUtils.getLogger().log(Level.WARNING, "", ex);
+            logger.warn("failed to write to response", ex);
         }
     }
 
@@ -256,9 +255,9 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public HttpServletRequest getRequest() {
-        if (!isInScope)
-            throw new IllegalStateException("Request object no longer" +
-                    " valid. This object has been cancelled");
+        if (!isInScope) {
+            throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
+        }
         return req;
     }
 
@@ -266,10 +265,10 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public HttpServletResponse getResponse() {
-        if (!isInScope)
-            throw new IllegalStateException("Response object no longer" +
-                    " valid. This object has been cancelled");
-        return res;
+        if (!isInScope) {
+            throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
+        }
+        return response;
     }
 
     /**
@@ -346,7 +345,7 @@ public class AtmosphereResourceImpl implements
         if (serializer != null) {
             serializer.write(os, o);
         } else {
-            res.getOutputStream().write(o.toString().getBytes());
+            response.getOutputStream().write(o.toString().getBytes());
         }
     }
 

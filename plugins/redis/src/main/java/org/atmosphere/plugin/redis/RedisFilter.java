@@ -40,7 +40,8 @@ package org.atmosphere.plugin.redis;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
@@ -49,9 +50,6 @@ import java.net.URI;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Support for Redis
@@ -59,9 +57,10 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class RedisFilter implements ClusterBroadcastFilter {
-    private static final Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(RedisFilter.class);
+
     private Broadcaster bc;
-    private static final AtomicInteger count = new AtomicInteger();
     private final ExecutorService listener = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<String> receivedMessages = new ConcurrentLinkedQueue<String>();
     private Jedis jedisSubscriber;
@@ -88,7 +87,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
     public RedisFilter(Broadcaster bc, String address) {
 
         this.bc = bc;
-        this.uri = URI.create(address);
+        uri = URI.create(address);
 
         if (uri == null) return;
 
@@ -96,7 +95,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
+            logger.error("failed to connect to subscriber: " + jedisSubscriber, e);
         }
 
         jedisSubscriber.auth(auth);
@@ -106,7 +105,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
+            logger.error("failed to connect to publisher: " + jedisPublisher, e);
         }
         jedisPublisher.auth(auth);
         jedisPublisher.flushAll();
@@ -117,7 +116,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
      */
     @Override
     public void setUri(String address) {
-        this.uri = URI.create(address);
+        uri = URI.create(address);
     }
 
     /**
@@ -125,7 +124,8 @@ public class RedisFilter implements ClusterBroadcastFilter {
      */
     @Override
     public void init() {
-        logger.log(Level.INFO, "Starting Atmosphere Redis Clustering support");
+        logger.info("Starting Atmosphere Redis Clustering support");
+
         final Broadcaster broadcaster = bc;
         listener.submit(new Runnable() {
             public void run() {
@@ -136,30 +136,24 @@ public class RedisFilter implements ClusterBroadcastFilter {
                     }
 
                     public void onSubscribe(String channel, int subscribedChannels) {
-                        if (logger.isLoggable(Level.FINE))
-                            logger.fine("onSubscribe: " + channel);
+                        logger.debug("onSubscribe(): channel: {}", channel);
                     }
 
                     public void onUnsubscribe(String channel, int subscribedChannels) {
-                        if (logger.isLoggable(Level.FINE))
-                            logger.fine("onUnsubscribe: " + channel);
+                        logger.debug("onUnsubscribe(): channel: {}", channel);
                     }
 
                     public void onPSubscribe(String pattern, int subscribedChannels) {
-                        if (logger.isLoggable(Level.FINE))
-                            logger.fine("onPSubscribe: " + pattern);
-
+                        logger.debug("onPSubscribe(): pattern: {}", pattern);
                     }
 
                     public void onPUnsubscribe(String pattern, int subscribedChannels) {
-                        if (logger.isLoggable(Level.FINE))
-                            logger.fine("onPUnsubscribe: " + pattern);
-
+                        logger.debug("onPUnsubscribe(): pattern: {}", pattern);
                     }
 
                     public void onPMessage(String pattern, String channel, String message) {
-                        if (logger.isLoggable(Level.FINE))
-                            logger.fine("onPMessage: " + pattern + " " + channel + " " + message);
+                        logger.debug("onPMessage: pattern: {}, channel: {}, message: {}",
+                                new Object[]{pattern, channel, message});
 
                     }
                 }, bc.getID());
@@ -176,8 +170,9 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.disconnect();
             jedisSubscriber.disconnect();
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
+        }
+        catch (IOException e) {
+            logger.error("failure encountered during destroy", e);
         }
     }
 

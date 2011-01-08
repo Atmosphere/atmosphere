@@ -39,7 +39,8 @@ package org.atmosphere.cache;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -51,8 +52,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers or query parameters or
@@ -62,7 +61,7 @@ import java.util.logging.Logger;
  */
 public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse> {
 
-    protected final static Logger logger = LoggerUtils.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheBase.class);
 
     protected final List<CachedMessage> queue = new CopyOnWriteArrayList<CachedMessage>();
 
@@ -81,19 +80,16 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
 
             public void run() {
                 Iterator<CachedMessage> i = queue.iterator();
-                CachedMessage e;
+                CachedMessage message;
                 while (i.hasNext()) {
-                    e = i.next();
-                    if (logger.isLoggable(Level.FINE)) {
-                        logger.fine("Message: " + e.message());
-                    }
+                    message = i.next();
+                    logger.debug("Message: {}", message.message());
 
-                    if (System.currentTimeMillis() - e.currentTime() > maxCachedinMs) {
-                        if (logger.isLoggable(Level.FINE)) {
-                            logger.fine("Pruning: " + e.message());
-                        }
-                        queue.remove(e);
-                    } else {
+                    if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
+                        logger.debug("Pruning: {}", message.message());
+                        queue.remove(message);
+                    }
+                    else {
                         break;
                     }
                 }
@@ -111,13 +107,11 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
     /**
      * {@inheritDoc}
      */
-    public final synchronized void addToCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, final Object e) {
+    public final synchronized void addToCache(
+            final AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, final Object object) {
+        logger.debug("Adding message for resource: {}, object: {}", resource, object);
 
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Adding message for " + r + ": " + e);
-        }
-
-        CachedMessage cm = new CachedMessage(e, System.currentTimeMillis(), null);
+        CachedMessage cm = new CachedMessage(object, System.currentTimeMillis(), null);
         CachedMessage prev = null;
         if (!queue.isEmpty()) {
             prev = queue.get(queue.size() - 1);
@@ -136,8 +130,8 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
             cm = new CachedMessage(true);
         }
 
-        if (r != null) {
-            cache(r, cm);
+        if (resource != null) {
+            cache(resource, cm);
         }
     }
 
@@ -147,7 +141,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      * @param r  {@link org.atmosphere.cpr.AtmosphereResource}.
      * @param cm {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}
      */
-    abstract public void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm);
+    public abstract void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm);
 
     /**
      * Return the last message broadcasted to the {@link org.atmosphere.cpr.AtmosphereResource}.
@@ -155,7 +149,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      * @param r {@link org.atmosphere.cpr.AtmosphereResource}.
      * @return a {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}, or null if not matched.
      */
-    abstract public CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r);
+    public abstract CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r);
 
     /**
      * {@inheritDoc}

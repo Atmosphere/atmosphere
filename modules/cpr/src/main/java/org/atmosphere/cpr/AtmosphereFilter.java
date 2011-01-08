@@ -40,6 +40,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -63,6 +65,8 @@ import java.util.Enumeration;
  */
 public class AtmosphereFilter implements Filter {
 
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereFilter.class);
+
     private final AtmosphereServlet as;
 
     public AtmosphereFilter() {
@@ -76,7 +80,8 @@ public class AtmosphereFilter implements Filter {
      * @throws ServletException
      */
     public void init(final FilterConfig filterConfig) throws ServletException {
-        AtmosphereServlet.logger.info("AtmosphereServlet running as a Filter");
+        logger.info("AtmosphereServlet running as a Filter");
+
         as.init(new ServletConfig() {
 
             public String getServletName() {

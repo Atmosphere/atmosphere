@@ -60,75 +60,7 @@ public class AtmosphereAdapter extends ServletAdapter {
 
     private String resourcePackage = null;
 
-    private final AtmosphereServlet as = new AtmosphereServlet() {
-        /**
-         * Auto detect the underlying Servlet Container we are running on.
-         */
-        @Override
-        protected void autoDetectContainer() {
-            setUseStreamForFlushingComments(true);
-            cometSupport = new GrizzlyCometSupport(getAtmosphereConfig());
-        }
-
-        @Override
-        protected void autoDetectAtmosphereHandlers(ServletContext sc, URLClassLoader c)
-                throws MalformedURLException, URISyntaxException {
-
-            try {
-                Class.forName("org.atmosphere.spade.AtmosphereSpadeLauncher");
-            } catch (Exception ex) {
-                super.autoDetectAtmosphereHandlers(sc, c);
-                return;
-            }
-
-            String s = sc.getRealPath(WEB_INF);
-
-            // Weblogic bug
-            if (s == null) {
-                URL u = sc.getResource(WEB_INF);
-                if (u == null) return;
-                s = u.getPath();
-            }
-
-            File f = new File(s);
-            // There is a bug in Grizzly 1.9.18 which doesn't construct the URL properly.
-            if (!f.exists()){
-            	String ctxPath = sc.getContextPath();
-                if (System.getProperty("os.name").toLowerCase().startsWith("win")){
-                    ctxPath = ctxPath.replace("/","\\");
-                }
-
-                int index = s.indexOf(ctxPath);
-                if (index < 1) {
-                    index = s.length();
-                }
-                String trailer = s.substring(0,index);
-                f = new File(trailer + sc.getContextPath() + WEB_INF);
-            }
-
-            if (f.isDirectory()) {
-                getFiles(f);
-                for (String className : possibleAtmosphereHandlersCandidate) {
-                    try {
-                        className = className.replace('\\', '/');
-                        className = className.substring(className.indexOf(WEB_INF)
-                                + WEB_INF.length(), className.lastIndexOf(".")).replace('/', '.');
-                        Class<?> clazz = c.loadClass(className);
-                        if(AtmosphereHandler.class.isAssignableFrom(clazz)) {
-                            AtmosphereHandler g = (AtmosphereHandler) clazz.newInstance();
-
-                            logger.info("Successfully loaded " + g
-                                    + " mapped to context-path " + g.getClass().getSimpleName());
-                            addAtmosphereHandler("/" + g.getClass().getSimpleName(),g);
-                        }
-                    } catch (Throwable t) {
-                        logger.finest(className + " is not a AtmosphereHandler");
-                    }
-                }
-            }
-        }
-
-    };
+    private final AtmosphereServlet as = new GrizzlyAtmosphereServlet();
 
     @Override
     public void start() {
@@ -179,4 +111,54 @@ public class AtmosphereAdapter extends ServletAdapter {
         this.resourcePackage = resourcePackage;
     }
 
+    private static class GrizzlyAtmosphereServlet extends AtmosphereServlet {
+        /**
+         * Auto detect the underlying Servlet Container we are running on.
+         */
+        @Override
+        protected void autoDetectContainer() {
+            setUseStreamForFlushingComments(true);
+            cometSupport = new GrizzlyCometSupport(getAtmosphereConfig());
+        }
+
+        @Override
+        protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classLoader)
+                throws MalformedURLException, URISyntaxException {
+            try {
+                Class.forName("org.atmosphere.spade.AtmosphereSpadeLauncher");
+            }
+            catch (Exception ex) {
+                super.autoDetectAtmosphereHandlers(servletContext, classLoader);
+                return;
+            }
+
+            String realPath = servletContext.getRealPath(WEB_INF_CLASSES);
+
+            // Weblogic bug
+            if (realPath == null) {
+                URL u = servletContext.getResource(WEB_INF_CLASSES);
+                if (u == null) return;
+                realPath = u.getPath();
+            }
+
+            File f = new File(realPath);
+            // There is a bug in Grizzly 1.9.18 which doesn't construct the URL properly.
+            if (!f.exists()){
+            	String ctxPath = servletContext.getContextPath();
+                if (System.getProperty("os.name").toLowerCase().startsWith("win")){
+                    ctxPath = ctxPath.replace("/","\\");
+                }
+
+                int index = realPath.indexOf(ctxPath);
+                if (index < 1) {
+                    index = realPath.length();
+                }
+                String trailer = realPath.substring(0,index);
+                f = new File(trailer + servletContext.getContextPath() + WEB_INF_CLASSES);
+            }
+
+            loadAtmosphereHandlersFromPath(classLoader, realPath);
+        }
+
+    }
 }

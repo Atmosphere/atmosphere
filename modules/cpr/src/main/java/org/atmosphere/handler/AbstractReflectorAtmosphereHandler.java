@@ -41,13 +41,13 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
 
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
@@ -59,6 +59,8 @@ import java.util.logging.Level;
  */
 public abstract class AbstractReflectorAtmosphereHandler
         implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
 
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
@@ -74,14 +76,14 @@ public abstract class AbstractReflectorAtmosphereHandler
     public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event)
             throws IOException {
 
-        Object o = event.getMessage();
-        if (o == null || event.isCancelled()) return;
+        Object message = event.getMessage();
+        if (message == null || event.isCancelled()) return;
 
         if (event.getResource().getSerializer() != null) {
             try{
-                event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), o);
+                event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), message);
             } catch (Throwable ex){
-                LoggerUtils.getLogger().log(Level.WARNING,"Serializer exception",ex);
+                logger.warn("Serializer exception: message: " + message, ex);
                 throw new IOException(ex);
             }
         } else {
@@ -92,8 +94,8 @@ public abstract class AbstractReflectorAtmosphereHandler
                 isUsingStream = true;
             }
 
-            if (o instanceof List) {
-                for (String s : (List<String>) o) {
+            if (message instanceof List) {
+                for (String s : (List<String>) message) {
                     if (isUsingStream) {
                         event.getResource().getResponse().getOutputStream().write(s.getBytes());
                         event.getResource().getResponse().getOutputStream().flush();
@@ -104,15 +106,16 @@ public abstract class AbstractReflectorAtmosphereHandler
                 }
             } else {
                 if (isUsingStream) {
-                    event.getResource().getResponse().getOutputStream().write(o.toString().getBytes());
+                    event.getResource().getResponse().getOutputStream().write(message.toString().getBytes());
                     event.getResource().getResponse().getOutputStream().flush();
                 } else {
-                    event.getResource().getResponse().getWriter().write(o.toString());
+                    event.getResource().getResponse().getWriter().write(message.toString());
                     event.getResource().getResponse().getWriter().flush();
                 }
             }
 
-            Boolean resumeOnBroadcast = (Boolean) event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            Boolean resumeOnBroadcast =
+                    (Boolean) event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
                 event.getResource().resume();
             }

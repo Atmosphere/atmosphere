@@ -42,23 +42,25 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
 import org.mortbay.util.ajax.Continuation;
 import org.mortbay.util.ajax.ContinuationSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Jetty's Continuation.
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyCometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class JettyCometSupport extends AsynchronousProcessor {
+
+    private static final Logger logger = LoggerFactory.getLogger(JettyCometSupport.class);
 
     private final ConcurrentLinkedQueue<Continuation> resumed = new ConcurrentLinkedQueue<Continuation>();
 
@@ -69,18 +71,16 @@ public class JettyCometSupport extends AsynchronousProcessor implements CometSup
     /**
      * {@inheritDoc}
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public Action service(HttpServletRequest req, HttpServletResponse response)
             throws IOException, ServletException {
         Continuation c = ContinuationSupport.getContinuation(req, null);
         Action action = null;
 
         if (!c.isResumed() && !c.isPending()) {
             // This will throw an exception
-            action = suspended(req, res);
+            action = suspended(req, response);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
+                logger.debug("Suspending response: {}", response);
 
                 // Do nothing except setting the times out
                 if (action.timeout != -1) {
@@ -90,17 +90,15 @@ public class JettyCometSupport extends AsynchronousProcessor implements CometSup
                 }
             }
         } else {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resuming " + res);
-            }
+            logger.debug("Resuming response: {}", response);
 
             if (!resumed.remove(c)) {
                 c.reset();
 
                 if (req.getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) == null) {
-                    timedout(req, res);
+                    timedout(req, response);
                 } else {
-                    resumed(req, res);
+                    resumed(req, response);
                 }
             }
         }
