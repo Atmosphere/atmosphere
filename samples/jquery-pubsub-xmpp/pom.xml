@@ -4,8 +4,8 @@
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
         <version>0.7-SNAPSHOT</version>
-
     </parent>
+
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-pubsub-xmpp</artifactId>
@@ -30,5 +30,13 @@
             <artifactId>atmosphere-xmpp</artifactId>
             <version>${pom.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>0.9.24</version>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 </project>

@@ -8,7 +8,8 @@ import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.jersey.AtmosphereFilter;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.HttpHeaders;
@@ -17,7 +18,6 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 /**
  * Simple util class shared among Jersey's Broadcaster.
@@ -26,6 +26,8 @@ import java.util.logging.Level;
  */
 public final class JerseyBroadcasterUtil {
 
+    private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
+
     public final static void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
         HttpServletRequest res = (HttpServletRequest) r.getRequest();
 
@@ -33,7 +35,7 @@ public final class JerseyBroadcasterUtil {
             ContainerResponse cr = (ContainerResponse) res.getAttribute(AtmosphereFilter.CONTAINER_RESPONSE);
 
             if (cr == null) {
-                LoggerUtils.getLogger().log(Level.SEVERE, "Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
+                logger.error("Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
                 return;
             }
 
@@ -74,9 +76,8 @@ public final class JerseyBroadcasterUtil {
 
     final static void onException(Throwable t, AtmosphereResource<?,?> r) {
         try {
-            if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-                LoggerUtils.getLogger().log(Level.FINE, "", t);
-            }
+            logger.debug("onException()", t);
+
             if (t instanceof IOException && r instanceof AtmosphereEventLifecycle) {
                 ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
                 ((AtmosphereEventLifecycle) r).removeEventListeners();

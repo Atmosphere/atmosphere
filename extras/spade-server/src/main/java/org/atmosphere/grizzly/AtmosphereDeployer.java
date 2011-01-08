@@ -35,24 +35,22 @@
  */
 package org.atmosphere.grizzly;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.atmosphere.grizzly.conf.AtmosphereDeployerConfiguration;
-
 import com.sun.grizzly.http.servlet.deployer.GrizzlyWebServerDeployer;
 import com.sun.grizzly.http.servlet.deployer.WarDeployer;
 import com.sun.grizzly.http.servlet.deployer.conf.ConfigurationParser;
 import com.sun.grizzly.http.servlet.deployer.conf.DeployerServerConfiguration;
+import org.atmosphere.grizzly.conf.AtmosphereDeployerConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Sebastien Dionne
  */
 public class AtmosphereDeployer extends GrizzlyWebServerDeployer {
 
-    private static Logger logger = Logger.getLogger(AtmosphereDeployer.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereDeployer.class);
 
-    private WarDeployer deployer = new AtmosphereWarDeployer();
+    private final WarDeployer deployer = new AtmosphereWarDeployer();
 
     /**
      * @param args Command line parameters.
@@ -63,11 +61,10 @@ public class AtmosphereDeployer extends GrizzlyWebServerDeployer {
 
     public static AtmosphereDeployerConfiguration init(String args[]) {
     	AtmosphereDeployerConfiguration cfg = new AtmosphereDeployerConfiguration();
-    	
-        cfg = (AtmosphereDeployerConfiguration) ConfigurationParser.parseOptions(args, AtmosphereDeployer.class.getCanonicalName(), (DeployerServerConfiguration)cfg);
-        if (logger.isLoggable(Level.INFO)) {
-            logger.log(Level.INFO, cfg.toString());
-        }
+
+        cfg = (AtmosphereDeployerConfiguration) ConfigurationParser
+                .parseOptions(args, AtmosphereDeployer.class.getCanonicalName(), (DeployerServerConfiguration) cfg);
+        logger.info("{}", cfg.toString());
         return cfg;
     }
     

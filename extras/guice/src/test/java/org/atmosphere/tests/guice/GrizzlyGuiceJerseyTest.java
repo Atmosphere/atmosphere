@@ -44,13 +44,13 @@ import com.sun.grizzly.http.servlet.ServletAdapter;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.guice.AtmosphereGuiceServlet;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -59,15 +59,14 @@ import static org.testng.Assert.fail;
 
 public class GrizzlyGuiceJerseyTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(GrizzlyGuiceJerseyTest.class);
+
+    protected static final String ROOT = "/*";
+
     protected GrizzlyWebServer ws;
     protected ServletAdapter sa;
 
-    static {
-        LoggerUtils.getLogger().setLevel(Level.ALL);
-    }
-
     protected AtmosphereServlet atmoServlet;
-    protected final static String ROOT = "/*";
     public String urlTarget;
     public int port;
 
@@ -108,7 +107,7 @@ public class GrizzlyGuiceJerseyTest {
 
     @Test(timeOut = 20000)
     public void testSuspendTimeout() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("running test: testSuspendTimeout");
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long t1 = System.currentTimeMillis();
@@ -120,7 +119,7 @@ public class GrizzlyGuiceJerseyTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();

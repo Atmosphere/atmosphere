@@ -59,7 +59,8 @@ public class SingletonResourceTest extends BaseGrizzyTest {
 
     @Test(timeOut = 20000)
     public void testSingletonSuspendTimeout() {
-        System.out.println("Running testSingletonSuspendTimeout");
+        logger.info("{}: running test:  testSingletonSuspendTimeout", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long t1 = System.currentTimeMillis();
@@ -70,8 +71,9 @@ public class SingletonResourceTest extends BaseGrizzyTest {
             assertEquals(resume, "singleton");
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+        catch (Exception e) {
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();

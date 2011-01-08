@@ -37,12 +37,15 @@
  */
 package org.atmosphere.samples.flickr;
 
-import java.io.IOException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 
 /**
@@ -51,16 +54,16 @@ import org.atmosphere.cpr.AtmosphereResource;
  * @author Jeanfrancois Arcand
  */
 public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletRequest,HttpServletResponse> {
-    /**
-     * Simple counter
-     */
+
+    private static final Logger logger = LoggerFactory.getLogger(FlickrAtmosphereHandler.class);
+
     private int counter;
 
     public void onRequest(AtmosphereResource<HttpServletRequest,
             HttpServletResponse> event) throws IOException {
         HttpServletRequest req = event.getRequest();
         HttpServletResponse res = event.getResponse();
-        System.out.println("onEvent: " + req.getRequestURI());
+        logger.info("onEvent: {}", req.getRequestURI());
 
         String[] actionValues = req.getParameterValues("action");
         if (actionValues != null && actionValues[0] != null) {

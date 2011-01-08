@@ -39,6 +39,7 @@ package org.atmosphere.container;
 
 import com.sun.enterprise.web.connector.grizzly.comet.CometContext;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
+import com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -46,7 +47,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -54,7 +56,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Grizzly API included
@@ -62,9 +63,11 @@ import java.util.logging.Level;
  *
  * @author Jeanfrancois Arcand
  */
-public class GlassFishv2CometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class GlassFishv2CometSupport extends AsynchronousProcessor {
 
-    private final static String ATMOSPHERE = "/atmosphere";
+    private static final Logger logger = LoggerFactory.getLogger(GlassFishv2CometSupport.class);
+
+    private static final String ATMOSPHERE = "/atmosphere";
 
     private String atmosphereCtx = "";
 
@@ -87,9 +90,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
         CometEngine cometEngine = CometEngine.getEngine();
         CometContext context = cometEngine.register(atmosphereCtx);
         context.setExpirationDelay(-1);
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Created CometContext for " + atmosphereCtx);
-        }
+        logger.debug("Created CometContext for atmosphere context: {}", atmosphereCtx);
     }
 
     /**
@@ -100,15 +101,10 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         Action action = suspended(req, res);
         if (action.type == Action.TYPE.SUSPEND) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Suspending" + res);
-            }
+            logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
         } else if (action.type == Action.TYPE.RESUME) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resuming" + res);
-            }
-
+            logger.debug("Resuming response: {}", res);
             resume(req, ctx);
         }
         return action;
@@ -149,8 +145,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
             return;
         }
 
-        CometHandler handler = ctx
-                .getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
+        CometHandler handler = ctx.getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
 
         if (handler == null && supportSession() && req.getSession(false) != null) {
@@ -191,12 +186,12 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
      * Void {@link CometHandler}, which delegate the processing of the
      * {@link HttpServletResponse} to an {@link AtmosphereResource}.
      */
-    private class VoidCometHandler implements com.sun.enterprise.web.connector.grizzly.comet.CometHandler {
+    private class VoidCometHandler implements CometHandler {
 
-        HttpServletRequest req;
-        HttpServletResponse res;
+        private final HttpServletRequest req;
+        private final HttpServletResponse res;
 
-        public VoidCometHandler(HttpServletRequest req, HttpServletResponse res) {
+        private VoidCometHandler(HttpServletRequest req, HttpServletResponse res) {
             this.req = req;
             this.res = res;
         }
@@ -210,25 +205,25 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
         /**
          * {@inheritDoc}
          */
-        public void onEvent(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
+        public void onEvent(CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public void onInitialize(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
+        public void onInitialize(CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public void onTerminate(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
+        public void onTerminate(CometEvent ce) throws IOException {
         }
 
         /**
          * {@inheritDoc}
          */
-        public synchronized void onInterrupt(com.sun.enterprise.web.connector.grizzly.comet.CometEvent ce) throws IOException {
+        public synchronized void onInterrupt(CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {
                 if (ce.getCometContext().getExpirationDelay() > 0
@@ -238,7 +233,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor implements Co
                     cancelled(req, res);
                 }
             } catch (ServletException ex) {
-                logger.log(Level.WARNING, "", ex);
+                logger.warn("onInterrupt(): encountered exception", ex);
             }
         }
     }

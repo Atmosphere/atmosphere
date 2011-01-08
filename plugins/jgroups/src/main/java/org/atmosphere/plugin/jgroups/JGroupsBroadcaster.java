@@ -38,17 +38,13 @@
 package org.atmosphere.plugin.jgroups;
 
 import org.atmosphere.util.AbstractBroadcasterProxy;
-import org.atmosphere.util.LoggerUtils;
-import org.jgroups.ChannelClosedException;
-import org.jgroups.ChannelException;
-import org.jgroups.ChannelNotConnectedException;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JGroups
@@ -56,7 +52,9 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
-    private final Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(JGroupsBroadcaster.class);
+
     private JChannel jchannel;
     private String clusterName = "atmosphere-jgroups";
     private final CountDownLatch ready = new CountDownLatch(1);
@@ -77,7 +75,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void incomingBroadcast() {
         try {
-            logger.log(Level.INFO, "Starting Atmosphere JGroups Clustering support");
+            logger.info("Starting Atmosphere JGroups Clustering support");
 
             jchannel = new JChannel();
             jchannel.setReceiver(new ReceiverAdapter() {
@@ -91,9 +89,11 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
                 }
             });
             jchannel.connect(clusterName);
-        } catch (Throwable t) {
-            logger.log(Level.WARNING, "", t);
-        } finally {
+        }
+        catch (Throwable t) {
+            logger.warn("failed to connect to JGroups channel", t);
+        }
+        finally {
             ready.countDown();
         }
     }
@@ -108,8 +108,9 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
             ready.await();
 
             jchannel.send(new Message(null, null, message.toString()));
-        } catch (Throwable e) {
-            logger.severe(e.getMessage());
+        }
+        catch (Throwable e) {
+            logger.error("failed to send messge over Jgroups channel", e.getMessage());
         }
     }
 
@@ -120,6 +121,5 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     public void destroy() {
         super.destroy();
         jchannel.shutdown();
-
     }
 }

@@ -42,16 +42,15 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.logging.Logger;
 
 /**
  * Twitter like Comet application. This {@link AtmosphereHandler} implement the logic 
@@ -72,7 +71,9 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(TwitterAtmosphereHandler.class);
+
     // Simple transaction counter
     private int counter;
     
@@ -81,9 +82,6 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     
     //End script
     private static final String END_SCRIPT_TAG = "</script>\n";
-    
-    // Atmosphere Logger
-    private static final Logger logger = LoggerUtils.getLogger();
     
     // Unique id
     private static final long serialVersionUID = -2919167206889576860L;
@@ -135,7 +133,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 String name = request.getParameter("name"); 
                 
                 if (name == null) {
-                    logger.severe("Name cannot be null");
+                    logger.error("Name cannot be null");
                     return;
                 }
                 
@@ -153,7 +151,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 String callback = request.getParameter("callback");
                 
                 if (message == null) {
-                    logger.severe("Message cannot be null");
+                    logger.error("Message cannot be null");
                     return;
                 }
                 
@@ -201,12 +199,12 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 String name = (String)session.getAttribute("name");
                 
                 if (follow == null) {
-                    logger.severe("Message cannot be null");
+                    logger.error("Message cannot be null");
                     return;
                 }      
                 
                 if (name == null) {
-                    logger.severe("Name cannot be null");
+                    logger.error("Name cannot be null");
                     return;
                 }
                 
@@ -240,7 +238,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
      * @return a well formed String.
      */
     private String escape(String orig) {
-        StringBuffer buffer = new StringBuffer(orig.length());
+        StringBuilder buffer = new StringBuilder(orig.length());
 
         for (int i = 0; i < orig.length(); i++) {
             char c = orig.charAt(i);

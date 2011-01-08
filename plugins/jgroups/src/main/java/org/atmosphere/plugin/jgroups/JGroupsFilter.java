@@ -43,26 +43,24 @@ import org.jgroups.ChannelException;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Clustering support based on JGroupsFilter (http://jgroups.org)
  * 
  * @author Hubert Iwaniuk
  */
-public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFilter{
+public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFilter {
 
-    final static Logger logger = Logger.getLogger("JGroupsFilter");
+    private static final Logger logger = LoggerFactory.getLogger(JGroupsFilter.class);
+
     private JChannel jchannel;
     private String clusterName = "cluster-jgroups";
     private Broadcaster bc;
-    private final ConcurrentLinkedQueue<String> receivedMessages =
-            new ConcurrentLinkedQueue<String>();
+    private final ConcurrentLinkedQueue<String> receivedMessages = new ConcurrentLinkedQueue<String>();
 
     public JGroupsFilter() {
         this(null);
@@ -101,11 +99,11 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
     }
 
     /**
-     * Preapre the cluter.
+     * Prepare the cluster.
      */
     public void init() {
         try {
-            logger.log(Level.INFO, "Starting Atmosphere JGroups Clustering support");
+            logger.info("Starting Atmosphere JGroups Clustering support");
 
             //initialize jgroups channel
             jchannel = new JChannel();
@@ -114,12 +112,12 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
             //join group
             jchannel.connect(clusterName);
         } catch (Throwable t) {
-            logger.log(Level.WARNING, "", t);
+            logger.warn("failed to connect to cluser", t);
         }
     }
 
     /**
-     * Shutown the cluster.
+     * Shutdown the cluster.
      */
     public void destroy() {
         jchannel.shutdown();
@@ -152,7 +150,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
                 try {
                     jchannel.send(new Message(null, null, message));
                 } catch (ChannelException e) {
-                    logger.log(Level.WARNING, "", e);
+                    logger.warn("failed to send message", e);
                 }
             }
             return new BroadcastAction(message);

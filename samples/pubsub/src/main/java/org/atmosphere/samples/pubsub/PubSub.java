@@ -45,6 +45,8 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.util.StringFilterAggregator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.PreDestroy;
 import javax.ws.rs.FormParam;
@@ -66,9 +68,11 @@ import java.util.concurrent.TimeUnit;
 @Produces("text/plain;charset=ISO-8859-1")
 public class PubSub {
 
+    private static final Logger logger = LoggerFactory.getLogger(PubSub.class);
+
     @PreDestroy
     public void destroy() {
-        System.out.println("Testing the @PreDestroy");
+        logger.info("Testing the @PreDestroy");
     }
 
     /**

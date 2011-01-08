@@ -39,16 +39,19 @@
 package org.atmosphere.samples.rest.counter;
 
 import com.sun.jersey.spi.resource.Singleton;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Resume;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Resume;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.AtmosphereHandler;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple application that demonstrate how a Comet long poll request can be implemented.
@@ -60,6 +63,8 @@ import org.atmosphere.cpr.AtmosphereHandler;
 @Singleton
 public class RestLongPolling{
       
+    private static final Logger logger = LoggerFactory.getLogger(RestLongPolling.class);
+
     private final AtomicInteger counter = new AtomicInteger();
 
     @Suspend
@@ -74,7 +79,7 @@ public class RestLongPolling{
     @Path("{counter}")
     @Broadcast(resumeOnBroadcast=true)
     public String increment(@PathParam("counter") String count){
-        System.out.println("Broadcasting and resuming: " + count);
+        logger.info("Broadcasting and resuming: {}", count);
         counter.incrementAndGet();
         return counter.toString();
     }
@@ -83,7 +88,7 @@ public class RestLongPolling{
     @Path("/{uuid}")
     @Resume
     public String resume(){
-        System.out.println("Resuming");
+        logger.info("Resuming");
         return "Resumed";
     }
 

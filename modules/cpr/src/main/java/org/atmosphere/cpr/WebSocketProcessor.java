@@ -39,13 +39,14 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.atmosphere.websocket.WebSocketSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 /**
  * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -54,12 +55,16 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class WebSocketProcessor implements Serializable {
-    private final AtmosphereServlet atmosphereServlet;
 
-    private AtomicBoolean loggedMsg = new AtomicBoolean(false);
-    private AtmosphereResource r;
-    private AtmosphereHandler ah;
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessor.class);
+
+    private final AtmosphereServlet atmosphereServlet;
     private final WebSocketSupport webSocketSupport;
+
+    private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
+
+    private AtmosphereResource resource;
+    private AtmosphereHandler handler;
 
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
         this.webSocketSupport = webSocketSupport;
@@ -68,45 +73,56 @@ public class WebSocketProcessor implements Serializable {
 
     public void connect(final HttpServletRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
-            AtmosphereServlet.logger.info("Atmosphere detected WebSocketSupport: " + webSocketSupport.getClass().getName());
-        }
-        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
-        try {
-            atmosphereServlet.doCometSupport(request, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport));
-        } catch (IOException e) {
-            AtmosphereServlet.logger.log(Level.INFO, "", e);
-        } catch (ServletException e) {
-            AtmosphereServlet.logger.log(Level.INFO, "", e);
+            logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
         }
 
-        r = (AtmosphereResource) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-        ah = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
-        if (r == null || !r.getAtmosphereResourceEvent().isSuspended()) {
+        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
+        try {
+            atmosphereServlet
+                    .doCometSupport(request, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport));
+        }
+        catch (IOException e) {
+            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+        }
+        catch (ServletException e) {
+            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+        }
+
+        resource = (AtmosphereResource) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+        handler = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+        if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
             webSocketSupport.close();
         }
     }
 
     public void broadcast(byte frame, String data) {
-        r.getBroadcaster().broadcast(data);
+        resource.getBroadcaster().broadcast(data);
     }
 
     public void broadcast(byte frame, byte[] data, int offset, int length) {
 
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
-        r.getBroadcaster().broadcast(b);
+        resource.getBroadcaster().broadcast(b);
     }
 
     public void close() {
         try {
-            if (ah != null && r != null) {
-                ah.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, false, true));
+            if (handler != null && resource != null) {
+                handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, false, true));
             }
-        } catch (IOException e) {
-            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-                AtmosphereResourceImpl.class.cast(r).onThrowable(e);
-            }
-            AtmosphereServlet.logger.log(Level.INFO, "", e);
         }
+        catch (IOException e) {
+            if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
+                AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
+            }
+            logger.info("failed invoking atmosphere handler onStateChange()", e);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "WebSocketProcessor{ handler=" + handler + ", resource=" + resource + ", webSocketSupport=" +
+                webSocketSupport + " }";
     }
 }
