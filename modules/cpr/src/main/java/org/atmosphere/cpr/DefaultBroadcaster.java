@@ -611,6 +611,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // Will help preventing OOM.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
+            this.destroy();
         }
         return r;
     }
