@@ -52,6 +52,7 @@ import javax.jms.TextMessage;
 import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -167,6 +168,22 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             publisher.send(textMessage);
         } catch (JMSException ex) {
             logger.log(Level.WARNING, "", ex);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void destroy() {
+        super.destroy();
+        try {
+            connection.close();
+            session.close();            
+            consumer.close();
+            publisher.close();
+        } catch (Throwable ex) {
+            logger.log(Level.WARNING, "", ex);
+
         }
     }
 }
