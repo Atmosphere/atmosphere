@@ -95,6 +95,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (id == null) throw new NullPointerException("id is null");
         if (c == null) throw new NullPointerException("Class is null");
 
+        if (getBroadcaster(id) != null) throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
+
         Broadcaster b = c.newInstance();
         InjectorProvider.getInjector().inject(b);
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
