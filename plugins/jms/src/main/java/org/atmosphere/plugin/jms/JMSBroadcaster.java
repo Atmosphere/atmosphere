@@ -53,26 +53,22 @@ import javax.jms.TextMessage;
 import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
-import java.io.IOException;
-import java.util.logging.Level;
 
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JMS
- *
+ * <p/>
  * The {@link ConnectionFactory} name's is jms/atmosphereFactory
  * The {@link Topic} by constructing "BroadcasterId = {@link org.atmosphere.cpr.Broadcaster#getID}
  *
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
-
-    private static final Logger logger = LoggerFactory.getLogger(JMSBroadcaster.class);
-
     private static final String JMS_TOPIC = JMSBroadcaster.class.getName() + ".topic";
     private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName() + ".JNDINamespace";
     private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class.getName() + ".JNDIConnectionFactoryName";
     private static final String JNDI_TOPIC = JMSBroadcaster.class.getName() + ".JNDITopic";
+    private static final Logger logger = LoggerFactory.getLogger(JMSBroadcaster.class);
 
     private Connection connection;
     private Session session;
@@ -114,12 +110,12 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 id = "atmosphere";
             }
 
-            logger.info(String.format("Looking up Connection Factory %s", namespace + factoryName));
+            logger.info("Looking up Connection Factory {}", namespace + factoryName);
             Context ctx = new InitialContext();
             ConnectionFactory connectionFactory = (ConnectionFactory) ctx.lookup(namespace + factoryName);
 
             logger.info("Looking up topic: {}", topicId);
-            Topic topic = (Topic) ctx.lookup("jms/" + topicId);
+            Topic topic = (Topic) ctx.lookup(namespace + topicId);
 
             connection = connectionFactory.createConnection();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -139,18 +135,15 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                         if (message != null && bc != null) {
                             broadcastReceivedMessage(message);
                         }
-                    }
-                    catch (JMSException ex) {
+                    } catch (JMSException ex) {
                         logger.warn("failed to broadcast message", ex);
                     }
                 }
             });
             publisher = session.createProducer(topic);
             connection.start();
-
             logger.info("JMS created for topic {}, with filter {}", topicId, selector);
-        }
-        catch (Throwable ex) {
+        } catch (Throwable ex) {
             throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
         }
     }
@@ -169,9 +162,8 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             TextMessage textMessage = session.createTextMessage(message.toString());
             textMessage.setStringProperty("BroadcasterId", id);
             publisher.send(textMessage);
-        }
-        catch (JMSException ex) {
-            logger.warn("failed to send message over JMS", ex);
+        } catch (JMSException ex) {
+            logger.warn("Failed to send message over JMS", ex);
         }
     }
 
@@ -187,7 +179,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             consumer.close();
             publisher.close();
         } catch (Throwable ex) {
-            logger.warn("releaseExternalResources",ex);
+            logger.warn("releaseExternalResources", ex);
         }
     }
 }
