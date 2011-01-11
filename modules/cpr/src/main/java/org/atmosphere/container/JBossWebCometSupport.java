@@ -37,38 +37,36 @@
  */
 package org.atmosphere.container;
 
-import org.apache.catalina.CometEvent;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Tomcat AIO.
  *
  * @author Jeanfrancois Arcand
  */
-public class JBossWebCometSupport extends AsynchronousProcessor
-        implements CometSupport<AtmosphereResourceImpl> {
+public class JBossWebCometSupport extends AsynchronousProcessor {
 
-    public final static String HTTP_EVENT = "HttpEvent";
+    private static final Logger logger = LoggerFactory.getLogger(JBossWebCometSupport.class);
 
-    private final static IllegalStateException unableToDetectComet
-            = new IllegalStateException(unableToDetectComet());
+    public static final String HTTP_EVENT = "HttpEvent";
+
+    private static final IllegalStateException unableToDetectComet = new IllegalStateException(unableToDetectComet());
 
     // Client disconnection is broken on Tomcat.
-    private final ConcurrentLinkedQueue<HttpEvent> resumed
-            = new ConcurrentLinkedQueue<HttpEvent>();
+    private final ConcurrentLinkedQueue<HttpEvent> resumed = new ConcurrentLinkedQueue<HttpEvent>();
 
     public JBossWebCometSupport(AtmosphereConfig config) {
         super(config);
@@ -82,8 +80,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+    public Action service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
 
         HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
 
@@ -97,50 +94,48 @@ public class JBossWebCometSupport extends AsynchronousProcessor
         if (event.getType() == HttpEvent.EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
+                logger.debug("Suspending response: {}", res);
 
                 // Do nothing except setting the times out
                 try {
                     if (action.timeout != -1) {
                         event.setTimeout((int) action.timeout);
-                    } else {
+                    }
+                    else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
-                } catch (UnsupportedOperationException ex) {
+                }
+                catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
-                    // TODO: Must implement the same functionality using a
-                    // Scheduler
+                    // TODO: Must implement the same functionality using a Scheduler
                 }
-            } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resuming " + res);
-                }
-                event.close();
-            } else {
+            }
+            else if (action.type == Action.TYPE.RESUME) {
+                logger.debug("Resuming response: {}", res);
                 event.close();
             }
-        } else if (event.getType() == HttpEvent.EventType.READ) {
+            else {
+                event.close();
+            }
+        }
+        else if (event.getType() == HttpEvent.EventType.READ) {
             // Not implemente
-        } else if (event.getType() == HttpEvent.EventType.ERROR) {
+        }
+        else if (event.getType() == HttpEvent.EventType.ERROR) {
             event.close();
-        } else if (event.getType() == HttpEvent.EventType.END) {
+        }
+        else if (event.getType() == HttpEvent.EventType.END) {
             if (!resumed.remove(event)) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Client closed connection " + res);
-                }
+                logger.debug("Client closed connection response: {}", res);
                 action = cancelled(req, res);
-            } else {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Cancelling " + res);
-                }
+            }
+            else {
+                logger.debug("Cancelling response: {}", res);
             }
             event.close();
-        } else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Timing out " + res);
-            }
+        }
+        else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
+            logger.debug("Timing out {}", res);
             action = timedout(req, res);
             event.close();
         }
@@ -148,15 +143,16 @@ public class JBossWebCometSupport extends AsynchronousProcessor
     }
 
     @Override
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
 
-        Action action =  super.cancelled(req,res);
+        Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
-           HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
-           if (event == null) return action;
-           resumed.offer(event);
-           event.close();
+            HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
+            if (event == null) {
+                return action;
+            }
+            resumed.offer(event);
+            event.close();
         }
         return action;
     }
@@ -172,14 +168,13 @@ public class JBossWebCometSupport extends AsynchronousProcessor
                 HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
                 resumed.offer(event);
                 // Resume without closing the underlying suspended connection.
-                if (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                        || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
+                if (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
+                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
                     event.close();
                 }
-            } catch (IOException ex) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "", ex);
-                }
+            }
+            catch (IOException ex) {
+                logger.debug("", ex);
             }
         }
     }

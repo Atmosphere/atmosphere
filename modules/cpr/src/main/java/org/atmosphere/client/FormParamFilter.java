@@ -37,10 +37,8 @@
 package org.atmosphere.client;
 
 import org.atmosphere.cpr.BroadcastFilter;
-import org.atmosphere.util.LoggerUtils;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple Form param filter that remove the first part of the request body.
@@ -48,17 +46,18 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class FormParamFilter implements BroadcastFilter{
-    private static final Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(FormParamFilter.class);
 
     @Override
     public BroadcastAction filter(Object originalMessage, Object message) {
 
-        if ( (message instanceof String) && ((String) message).indexOf("=") != -1) {
+        if ( (message instanceof String) && ((String) message).contains("=")) {
             try {
                 message =  message.toString().split("=")[1];
             } catch (ArrayIndexOutOfBoundsException ex) {
                 // Don't fail, just log it.
-                logger.log(Level.WARNING,"",ex);
+                logger.warn("failed to split form param: " + message, ex);
             }
         }
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);

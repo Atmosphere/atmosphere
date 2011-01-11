@@ -36,8 +36,14 @@
  */
 package org.jersey.devoxx.samples.ee6.atmosphere;
 
-import java.util.Date;
-import java.util.concurrent.Semaphore;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.jersey.Broadcastable;
+import org.atmosphere.jersey.JerseyBroadcaster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.Stateless;
@@ -49,11 +55,8 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.jersey.Broadcastable;
-import org.atmosphere.jersey.JerseyBroadcaster;
+import java.util.Date;
+import java.util.concurrent.Semaphore;
 
 /**
  * curl -N -v http://localhost:8080/atmosphere-ee6-1.0-SNAPSHOT/resources/timer
@@ -68,6 +71,8 @@ import org.atmosphere.jersey.JerseyBroadcaster;
 @Path("timer")
 @Stateless
 public class TimerResource {
+
+    private static final Logger logger = LoggerFactory.getLogger(TimerResource.class);
 
     private @Resource TimerService ts;
 
@@ -107,7 +112,8 @@ public class TimerResource {
 
     @Timeout
     public void timeout(Timer timer) {
-        System.out.println(getClass().getName() + ": " + new Date());
+        logger.info("{}: {}", getClass().getName(), new Date());
+
         tb.broadcast(new Date().toString() + "\n");
     }
 

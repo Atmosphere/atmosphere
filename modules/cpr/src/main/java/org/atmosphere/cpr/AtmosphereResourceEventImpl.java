@@ -48,8 +48,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResourceEventImpl implements
-        AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> {
+public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<HttpServletRequest,
+        HttpServletResponse> {
 
     // Was the remote connection closed.
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
@@ -57,30 +57,32 @@ public class AtmosphereResourceEventImpl implements
     // Is Resumed on Timeout?
     private final AtomicBoolean isResumedOnTimeout = new AtomicBoolean(false);
 
-    //
     private final Throwable throwable;
 
     // The current message
-    protected Object message = null;
+    protected Object message;
 
-    protected final AtmosphereResourceImpl r;
+    protected final AtmosphereResourceImpl resource;
 
-    public AtmosphereResourceEventImpl(AtmosphereResourceImpl r) {
-        this.r = r;
+    public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
+        this.resource = resource;
         this.throwable = null;
     }
 
-    public AtmosphereResourceEventImpl(AtmosphereResourceImpl r, boolean isCancelled, boolean isResumedOnTimeout) {
+    public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
+            boolean isResumedOnTimeout) {
         this.isCancelled.set(isCancelled);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
-        this.r = r;
+        this.resource = resource;
         this.throwable = null;
     }
 
-    public AtmosphereResourceEventImpl(AtmosphereResourceImpl r, boolean isCancelled, boolean isResumedOnTimeout, Throwable throwable) {
+    public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
+            boolean isResumedOnTimeout,
+            Throwable throwable) {
         this.isCancelled.set(isCancelled);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
-        this.r = r;
+        this.resource = resource;
         this.throwable = throwable;
     }
 
@@ -88,14 +90,14 @@ public class AtmosphereResourceEventImpl implements
      * {@inheritDoc}
      */
     public boolean isResuming() {
-        return r.action().type == AtmosphereServlet.Action.TYPE.RESUME;
+        return resource.action().type == AtmosphereServlet.Action.TYPE.RESUME;
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isSuspended() {
-        return r.action().type == AtmosphereServlet.Action.TYPE.SUSPEND;
+        return resource.action().type == AtmosphereServlet.Action.TYPE.SUSPEND;
     }
 
     /**
@@ -149,23 +151,20 @@ public class AtmosphereResourceEventImpl implements
      * {@inheritDoc}
      */
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getResource() {
-        return r;
+        return resource;
     }
 
     /**
      * {@inheritDoc}
      */
     public void write(OutputStream os, Object o) throws IOException {
-        r.write(os, o);
+        resource.write(os, o);
     }
 
     @Override
     public String toString() {
-        return "AtmosphereResourceEventImpl{" +
-                "isCancelled=" + isCancelled +
-                ", isResumedOnTimeout=" + isResumedOnTimeout +
-                ", message=" + message +
-                ", r=" + r +
+        return "AtmosphereResourceEventImpl{" + "isCancelled=" + isCancelled + ", isResumedOnTimeout=" +
+                isResumedOnTimeout + ", message=" + message + ", resource=" + resource + ", throwable=" + throwable +
                 '}';
     }
 }

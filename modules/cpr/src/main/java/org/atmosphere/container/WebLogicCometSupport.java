@@ -42,7 +42,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import weblogic.servlet.http.AbstractAsyncServlet;
 import weblogic.servlet.http.RequestResponseKey;
 
@@ -50,16 +51,17 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * Weblogic support.
  *
  * @author Jeanfrancois Arcand
  */
-public class WebLogicCometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class WebLogicCometSupport extends AsynchronousProcessor {
 
-    public final static String RRK = "RequestResponseKey";
+    private static final Logger logger = LoggerFactory.getLogger(WebLogicCometSupport.class);
+
+    public static final String RRK = "RequestResponseKey";
 
     public WebLogicCometSupport(AtmosphereConfig config) {
         super(config);
@@ -72,19 +74,14 @@ public class WebLogicCometSupport extends AsynchronousProcessor implements Comet
             throws IOException, ServletException {
         Action action = suspended(req, res);
         if (action.type == Action.TYPE.SUSPEND) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Suspending" + res);
-            }
-        } else if (action.type == Action.TYPE.RESUME) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resuming" + res);
-            }
+            logger.debug("Suspending response: {}", res);
+        }
+        else if (action.type == Action.TYPE.RESUME) {
+            logger.debug("Resuming response: {}", res);
 
             Action nextAction = resumed(req, res);
             if (nextAction.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending after Resuming" + res);
-                }
+                logger.debug("Suspending after resuming response: {}", res);
             }
         }
         return action;
@@ -100,13 +97,12 @@ public class WebLogicCometSupport extends AsynchronousProcessor implements Comet
                 (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             try {
-                RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest()
-                        .getSession().getAttribute(RRK);
+                RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest().getSession().getAttribute(RRK)
+                        ;
                 AbstractAsyncServlet.notify(rrk, null);
-            } catch (IOException ex) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "", ex);
-                }
+            }
+            catch (IOException ex) {
+                logger.debug("action failed", ex);
             }
         }
     }

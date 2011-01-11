@@ -8,6 +8,8 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.SuspendResponse;
 import org.codehaus.jettison.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -19,6 +21,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @Produces("text/html;charset=ISO-8859-1")
 @Singleton
 public class TwitterFeed {
+
+    private static final Logger logger = LoggerFactory.getLogger(TwitterFeed.class);
 
     private final AsyncHttpClient asyncClient = new AsyncHttpClient();
     private final ConcurrentHashMap<String, Future<?>> futures = new ConcurrentHashMap<String, Future<?>>();
@@ -58,7 +62,7 @@ public class TwitterFeed {
                                     if (response.getStatusCode() != 200) {
                                         feed.resumeAll();
                                         feed.destroy();
-                                        System.out.println("Twitter Search API unavaileble\n" + s);
+                                        logger.info("Twitter Search API unavaileble\n{}", s);
                                         return null;
                                     }
 
@@ -79,15 +83,13 @@ public class TwitterFeed {
             futures.put(tagid, future);
         }
 
-        return new SuspendResponse.SuspendResponseBuilder<String>()
-                .broadcaster(feed)
-                .outputComments(true)
+        return new SuspendResponse.SuspendResponseBuilder<String>().broadcaster(feed).outputComments(true)
                 .addListener(new EventsLogger() {
 
                     @Override
-                    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-                        System.out.println("onSuspend: " + event.getResource().getRequest().getRemoteAddr()
-                                + event.getResource().getRequest().getRemotePort());
+                    public void onSuspend(
+                            final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                        super.onSuspend(event);
 
                         // OK, we can start polling Twitter!
                         suspendLatch.countDown();
@@ -101,7 +103,7 @@ public class TwitterFeed {
                              final @PathParam("tagid") String tagid) {
         feed.resumeAll();
         futures.get(tagid).cancel(true);
-        System.out.println("Stopping real time update for " + tagid);
+        logger.info("Stopping real time update for {}", tagid);
         return "DONE";
     }
 }

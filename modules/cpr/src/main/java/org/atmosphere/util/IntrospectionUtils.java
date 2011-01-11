@@ -54,10 +54,12 @@
 
 package org.atmosphere.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -66,15 +68,13 @@ import java.net.UnknownHostException;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.Vector;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Utils for introspection and reflection
  */
 public final class IntrospectionUtils {
 
-    private final static Logger logger = LoggerUtils.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(IntrospectionUtils.class);
 
     /**
      * Call execute() - any ant-like task should work
@@ -94,10 +94,10 @@ public final class IntrospectionUtils {
     /**
      * Call void setAttribute( String ,Object )
      */
-    public static void setAttribute(Object proxy, String n, Object v)
+    public static void setAttribute(Object proxy, String name, Object value)
             throws Exception {
         if (proxy instanceof AttributeHolder) {
-            ((AttributeHolder) proxy).setAttribute(n, v);
+            ((AttributeHolder) proxy).setAttribute(name, value);
             return;
         }
 
@@ -108,32 +108,28 @@ public final class IntrospectionUtils {
         params[1] = Object.class;
         executeM = findMethod(c, "setAttribute", params);
         if (executeM == null) {
-            if (logger.isLoggable(Level.FINE))
-                logger.fine("No setAttribute in " + proxy.getClass());
+            logger.debug("No setAttribute in {}", proxy.getClass());
             return;
         }
-        if (false)
-            if (logger.isLoggable(Level.FINE))
-                logger.fine("Setting " + n + "=" + v + "  in " + proxy);
-        executeM.invoke(proxy, new Object[]{n, v});
+
+        logger.debug("Setting {}={} in proxy: {}", new Object[]{name, value, proxy});
+        executeM.invoke(proxy, new Object[]{name, value});
         return;
     }
 
     /**
      * Call void getAttribute( String )
      */
-    public static Object getAttribute(Object proxy, String n) throws Exception {
-        Method executeM = null;
+    public static Object getAttribute(Object proxy, String name) throws Exception {
         Class<?> c = proxy.getClass();
         Class<?> params[] = new Class[1];
         params[0] = String.class;
-        executeM = findMethod(c, "getAttribute", params);
+        Method executeM = findMethod(c, "getAttribute", params);
         if (executeM == null) {
-            if (logger.isLoggable(Level.FINE))
-                logger.fine("No getAttribute in " + proxy.getClass());
+            logger.debug("No getAttribute in {}", proxy.getClass());
             return null;
         }
-        return executeM.invoke(proxy, new Object[]{n});
+        return executeM.invoke(proxy, new Object[]{name});
     }
 
     /**
@@ -146,17 +142,17 @@ public final class IntrospectionUtils {
             paramT[0] = urls.getClass();
             paramT[1] = ClassLoader.class;
             Method m = findMethod(urlCL, "newInstance", paramT);
-            if (m == null)
+            if (m == null) {
                 return null;
+            }
 
-            ClassLoader cl = (ClassLoader) m.invoke(urlCL, new Object[]{urls,
-                    parent});
+            ClassLoader cl = (ClassLoader) m.invoke(urlCL, new Object[]{urls, parent});
             return cl;
         } catch (ClassNotFoundException ex) {
             // jdk1.1
             return null;
         } catch (Exception ex) {
-            ex.printStackTrace();
+            logger.error("failed getting URLClassLoader", ex);
             return null;
         }
     }
@@ -177,9 +173,9 @@ public final class IntrospectionUtils {
         return invokeProperty(o, setter, name, value);
     }
 
-    final static public boolean invokeProperty(Object o, String setter, String name, String value) {
+    final static public boolean invokeProperty(Object object, String setter, String name, String value) {
         try {
-            Method methods[] = findMethods(o.getClass());
+            Method methods[] = findMethods(object.getClass());
             Method setPropertyMethodVoid = null;
             Method setPropertyMethodBool = null;
 
@@ -189,7 +185,7 @@ public final class IntrospectionUtils {
                 if (setter.equals(methods[i].getName()) && paramT.length == 1
                         && "java.lang.String".equals(paramT[0].getName())) {
 
-                    methods[i].invoke(o, new Object[]{value});
+                    methods[i].invoke(object, new Object[]{value});
                     return true;
                 }
             }
@@ -232,17 +228,17 @@ public final class IntrospectionUtils {
                         try {
                             params[0] = InetAddress.getByName(value);
                         } catch (UnknownHostException exc) {
-                            d("Unable to resolve host name:" + value);
+                            debug("Unable to resolve host name:" + value);
                             ok = false;
                         }
 
                         // Unknown type
                     } else {
-                        d("Unknown type " + paramType.getName());
+                        debug("Unknown type " + paramType.getName());
                     }
 
                     if (ok) {
-                        methods[i].invoke(o, params);
+                        methods[i].invoke(object, params);
                         return true;
                     }
                 }
@@ -265,63 +261,55 @@ public final class IntrospectionUtils {
                 params[1] = value;
                 if (setPropertyMethodBool != null) {
                     try {
-                        return (Boolean) setPropertyMethodBool.invoke(o, params);
+                        return (Boolean) setPropertyMethodBool.invoke(object, params);
                     } catch (IllegalArgumentException biae) {
                         //the boolean method had the wrong
                         //parameter types. lets try the other
                         if (setPropertyMethodVoid != null) {
-                            setPropertyMethodVoid.invoke(o, params);
+                            setPropertyMethodVoid.invoke(object, params);
                             return true;
                         } else {
                             throw biae;
                         }
                     }
                 } else {
-                    setPropertyMethodVoid.invoke(o, params);
+                    setPropertyMethodVoid.invoke(object, params);
                     return true;
                 }
             }
 
-        } catch (IllegalArgumentException ex2) {
-            logger.log(Level.INFO, "IAE " + o + " " + setter + " " + value, ex2);
-        } catch (SecurityException ex1) {
-            if (dbg > 0)
-                d("SecurityException for " + o.getClass() + " " + setter + "="
-                        + value + ")");
-            if (dbg > 1)
-                ex1.printStackTrace();
-        } catch (IllegalAccessException iae) {
-            if (dbg > 0)
-                d("IllegalAccessException for " + o.getClass() + " " + setter
-                        + "=" + value + ")");
-            if (dbg > 1)
-                iae.printStackTrace();
-        } catch (InvocationTargetException ie) {
-            if (dbg > 0)
-                d("InvocationTargetException for " + o.getClass() + " " + setter
-                        + "=" + value + ")");
-            if (dbg > 1)
-                ie.printStackTrace();
         }
+        catch (IllegalArgumentException e) {
+            logger.info("failed, object: " + object + ", setter: " + setter + ", value: " + value, e);
+        }
+        catch (Exception e) {
+            if (dbg > 0) {
+                debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + setter + "=" + value + ")");
+            }
+            if (dbg > 1) {
+                logger.debug("", e);
+            }
+        }
+
         return false;
     }
 
-    public static Object getProperty(Object o, String name) {
+    public static Object getProperty(Object object, String name) {
         String getter = "get" + capitalize(name);
         String isGetter = "is" + capitalize(name);
 
         try {
-            Method methods[] = findMethods(o.getClass());
+            Method methods[] = findMethods(object.getClass());
             Method getPropertyMethod = null;
 
             // First, the ideal case - a getFoo() method
             for (int i = 0; i < methods.length; i++) {
                 Class<?> paramT[] = methods[i].getParameterTypes();
                 if (getter.equals(methods[i].getName()) && paramT.length == 0) {
-                    return methods[i].invoke(o, (Object[]) null);
+                    return methods[i].invoke(object, (Object[]) null);
                 }
                 if (isGetter.equals(methods[i].getName()) && paramT.length == 0) {
-                    return methods[i].invoke(o, (Object[]) null);
+                    return methods[i].invoke(object, (Object[]) null);
                 }
 
                 if ("getProperty".equals(methods[i].getName())) {
@@ -333,52 +321,48 @@ public final class IntrospectionUtils {
             if (getPropertyMethod != null) {
                 Object params[] = new Object[1];
                 params[0] = name;
-                return getPropertyMethod.invoke(o, params);
+                return getPropertyMethod.invoke(object, params);
             }
 
-        } catch (IllegalArgumentException ex2) {
-            logger.log(Level.INFO, "IAE " + o + " " + name, ex2);
-        } catch (SecurityException ex1) {
-            if (dbg > 0)
-                d("SecurityException for " + o.getClass() + " " + name + ")");
-            if (dbg > 1)
-                ex1.printStackTrace();
-        } catch (IllegalAccessException iae) {
-            if (dbg > 0)
-                d("IllegalAccessException for " + o.getClass() + " " + name
-                        + ")");
-            if (dbg > 1)
-                iae.printStackTrace();
-        } catch (InvocationTargetException ie) {
-            if (dbg > 0)
-                d("InvocationTargetException for " + o.getClass() + " " + name
-                        + ")");
-            if (dbg > 1)
-                ie.printStackTrace();
         }
+        catch (IllegalArgumentException e) {
+            logger.info("failed, object: " + object + ", name: " + name, e);
+        }
+        catch (Exception e) {
+            if (dbg > 0) {
+                debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + name + ")");
+            }
+            if (dbg > 1) {
+                logger.debug("", e);
+            }
+        }
+
         return null;
     }
 
     /**
      */
-    public static void setProperty(Object o, String name) {
+    public static void setProperty(Object object, String name) {
         String setter = "set" + capitalize(name);
         try {
-            Method methods[] = findMethods(o.getClass());
+            Method methods[] = findMethods(object.getClass());
             Method setPropertyMethod = null;
             // find setFoo() method
             for (int i = 0; i < methods.length; i++) {
                 Class<?> paramT[] = methods[i].getParameterTypes();
                 if (setter.equals(methods[i].getName()) && paramT.length == 0) {
-                    methods[i].invoke(o, new Object[]{});
+                    methods[i].invoke(object, new Object[]{});
                     return;
                 }
             }
-        } catch (Exception ex1) {
-            if (dbg > 0)
-                d("Exception for " + o.getClass() + " " + name);
-            if (dbg > 1)
-                ex1.printStackTrace();
+        }
+        catch (Exception e) {
+            if (dbg > 0) {
+                debug("Exception for " + object.getClass() + " " + name);
+            }
+            if (dbg > 1) {
+                logger.debug("", e);
+            }
         }
     }
 
@@ -475,8 +459,9 @@ public final class IntrospectionUtils {
                         cpV.addElement(url);
                 }
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        }
+        catch (Exception ex) {
+            logger.debug("failed to add urls to classpath", ex);
         }
     }
 
@@ -492,17 +477,16 @@ public final class IntrospectionUtils {
                 // That's a bug, but we can work around and be nice.
                 f = new File(System.getProperty("java.home") + "/lib/tools.jar");
                 if (f.exists()) {
-                    if (logger.isLoggable(Level.FINE))
-                        logger.fine("Detected strange java.home value "
-                                + System.getProperty("java.home")
-                                + ", it should point to jre");
+                    logger.debug("Detected strange java.home value {}, it should point to jre",
+                            System.getProperty("java.home"));
                 }
             }
             URL url = new URL("file", "", f.getAbsolutePath());
 
             v.addElement(url);
-        } catch (MalformedURLException ex) {
-            ex.printStackTrace();
+        }
+        catch (MalformedURLException ex) {
+            logger.debug("failed to add tools jar url to vector", ex);
         }
     }
 
@@ -537,11 +521,13 @@ public final class IntrospectionUtils {
             if (f.isDirectory()) {
                 path += "/";
             }
-            if (!f.exists())
+            if (!f.exists()) {
                 return null;
+            }
             return new URL("file", "", path);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        }
+        catch (Exception ex) {
+            logger.debug("failed to get url, base: " + base + ", file: " + file, ex);
             return null;
         }
     }
@@ -801,8 +787,9 @@ public final class IntrospectionUtils {
                     }
                 }
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        }
+        catch (Exception ex) {
+            logger.debug("hasHook() failed", ex);
         }
         return false;
     }
@@ -818,38 +805,41 @@ public final class IntrospectionUtils {
     public static Object callMethod1(Object target, String methodN,
                                      Object param1, String typeParam1, ClassLoader cl) throws Exception {
         if (target == null || param1 == null) {
-            d("Assert: Illegal params " + target + " " + param1);
+            debug("Assert: Illegal params " + target + " " + param1);
         }
         if (dbg > 0)
-            d("callMethod1 " + target.getClass().getName() + " "
-                    + param1.getClass().getName() + " " + typeParam1);
+            debug("callMethod1 " + target.getClass().getName() + " " + param1.getClass().getName() + " " +
+                    typeParam1);
 
         Class<?> params[] = new Class[1];
-        if (typeParam1 == null)
+        if (typeParam1 == null) {
             params[0] = param1.getClass();
-        else
+        }
+        else {
             params[0] = cl.loadClass(typeParam1);
+        }
         Method m = findMethod(target.getClass(), methodN, params);
-        if (m == null)
-            throw new NoSuchMethodException(target.getClass().getName() + " "
-                    + methodN);
+        if (m == null) {
+            throw new NoSuchMethodException(target.getClass().getName() + " " + methodN);
+        }
         return m.invoke(target, new Object[]{param1});
     }
 
     public static Object callMethod0(Object target, String methodN)
             throws Exception {
         if (target == null) {
-            d("Assert: Illegal params " + target);
+            debug("Assert: Illegal params " + target);
             return null;
         }
-        if (dbg > 0)
-            d("callMethod0 " + target.getClass().getName() + "." + methodN);
+        if (dbg > 0) {
+            debug("callMethod0 " + target.getClass().getName() + "." + methodN);
+        }
 
         Class params[] = new Class[0];
         Method m = findMethod(target.getClass(), methodN, params);
-        if (m == null)
-            throw new NoSuchMethodException(target.getClass().getName() + " "
-                    + methodN);
+        if (m == null) {
+            throw new NoSuchMethodException(target.getClass().getName() + " " + methodN);
+        }
         return m.invoke(target, emptyArray);
     }
 
@@ -860,8 +850,7 @@ public final class IntrospectionUtils {
         Method m = null;
         m = findMethod(target.getClass(), methodN, typeParams);
         if (m == null) {
-            d("Can't find method " + methodN + " in " + target + " CLASS "
-                    + target.getClass());
+            debug("Can't find method " + methodN + " in " + target + " CLASS " + target.getClass());
             return null;
         }
         Object o = m.invoke(target, params);
@@ -876,7 +865,7 @@ public final class IntrospectionUtils {
                 sb.append(params[i]);
             }
             sb.append(")");
-            d(sb.toString());
+            debug(sb.toString());
         }
         return o;
     }
@@ -902,12 +891,12 @@ public final class IntrospectionUtils {
             try {
                 result = InetAddress.getByName(object);
             } catch (UnknownHostException exc) {
-                d("Unable to resolve host name:" + object);
+                debug("Unable to resolve host name:" + object);
             }
 
             // Unknown type
         } else {
-            d("Unknown type " + paramType.getName());
+            debug("Unknown type " + paramType.getName());
         }
         if (result == null) {
             throw new IllegalArgumentException("Can't convert argument: " + object);
@@ -933,8 +922,7 @@ public final class IntrospectionUtils {
     // debug --------------------
     static final int dbg = 0;
 
-    static void d(String s) {
-        if (logger.isLoggable(Level.FINE))
-            logger.fine("IntrospectionUtils: " + s);
+    static void debug(String s) {
+        logger.debug("IntrospectionUtils: {}", s);
     }
 }

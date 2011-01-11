@@ -42,13 +42,13 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 /**
@@ -57,7 +57,8 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
-    private static final Logger logger = LoggerUtils.getLogger();    
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterProxy.class);
+
     private Method jerseyBroadcast;
     protected AtmosphereServlet.AtmosphereConfig config;
 
@@ -138,7 +139,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             Object newMsg = filter(message);
             push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg), message));
         } catch (Throwable t) {
-            logger.log(Level.SEVERE, "", t);
+            logger.error("failed to push message: " + message, t);
         }
     }
 

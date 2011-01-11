@@ -30,5 +30,13 @@
             <artifactId>atmosphere-redis</artifactId>
             <version>${pom.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>0.9.24</version>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 </project>

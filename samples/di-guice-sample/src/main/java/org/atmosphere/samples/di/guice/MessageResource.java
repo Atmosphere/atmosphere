@@ -10,6 +10,8 @@ import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.jersey.Broadcastable;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -27,6 +29,8 @@ import javax.ws.rs.Produces;
 @Produces("application/json")
 public class MessageResource {
 
+    private static final Logger logger = LoggerFactory.getLogger(MessageResource.class);
+
     @Inject
     Service service;
 
@@ -35,18 +39,24 @@ public class MessageResource {
     @Suspend(outputComments = true, resumeOnBroadcast = false, listeners = EventsLogger.class)
     public Broadcastable listen(@PathParam("name") String topic) throws JSONException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
-        System.out.println("[" + Thread.currentThread().getName() + "] LISTENING to '" + broadcaster.getID() + "'");
-        if (service == null) throw new AssertionError();
+        logger.info("thread: {} LISTENING to '{}'", Thread.currentThread().getName(), broadcaster.getID());
+        if (service == null) {
+            throw new AssertionError();
+        }
         return new Broadcastable(new JSONObject().put("from", "system").put("msg", "Connected !"), broadcaster);
     }
 
     @POST
     @Path("{name}")
     @Broadcast
-    public Broadcastable publish(@PathParam("name") String topic, @FormParam("from") String from, @FormParam("msg") String message) throws JSONException {
+    public Broadcastable publish(@PathParam("name") String topic, @FormParam("from") String from,
+            @FormParam("msg") String message) throws JSONException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
-        System.out.println("[" + Thread.currentThread().getName() + "] PUBLISH to '" + broadcaster.getID() + "' from '" + from + "' : '" + message + "'");
-        if (service == null) throw new AssertionError();
+        logger.info("thread: {} PUBLISH to '{}' from {}: {}",
+                new Object[]{Thread.currentThread().getName(), broadcaster.getID(), from, message});
+        if (service == null) {
+            throw new AssertionError();
+        }
         return new Broadcastable(new JSONObject().put("from", from).put("msg", message), "", broadcaster);
     }
 

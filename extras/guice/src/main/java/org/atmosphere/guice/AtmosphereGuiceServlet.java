@@ -44,11 +44,11 @@ import com.google.inject.name.Names;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import java.util.Map;
-import java.util.logging.Level;
 
 /**
  * Google Guice Integration. To use it, just do in web.xml:
@@ -99,6 +99,8 @@ import java.util.logging.Level;
  */
 public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereGuiceServlet.class);
+
     public static final String JERSEY_PROPERTIES = AtmosphereGuiceServlet.class.getName() + ".properties";
 
     private static final String GUICE_FILTER = "com.google.inject.servlet.GuiceFilter";
@@ -140,10 +142,9 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
             }
         } catch (Exception ex) {
             // Do not fail
-            if (LoggerUtils.getLogger().isLoggable(Level.FINEST)) {
-                LoggerUtils.getLogger().log(Level.FINEST, "", ex);
-            }
+            logger.debug("failed to add Jersey init parameters to Atmosphere servlet", ex);
         }
+
         addAtmosphereHandler(mapping, rsp);
         return true;
     }

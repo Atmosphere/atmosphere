@@ -40,8 +40,9 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.util.LoggerUtils;
 import org.atmosphere.util.gae.GAEDefaultBroadcaster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -49,7 +50,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 /**
  * This class gets used when the {@link AtmosphereServlet} detected the
@@ -58,6 +58,8 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
+
+    private static final Logger logger = LoggerFactory.getLogger(GoogleAppEngineCometSupport.class);
 
     public GoogleAppEngineCometSupport(AtmosphereConfig config) {
         super(config);
@@ -83,20 +85,25 @@ public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
             // happens outside the AtmosphereHandler.onStateChange scope.
             req.getSession().setAttribute(LATCH, latch.hashCode());
         }
+
         try {
             // Google App Engine doesn't allow a thread to block more than 30 seconds
             if (action.timeout != -1 && action.timeout < 30000) {
                 latch.await(action.timeout, TimeUnit.MILLISECONDS);
-            } else {
+            }
+            else {
                 latch.await(20000, TimeUnit.MILLISECONDS);
             }
-        } catch (Throwable ex) {
-            LoggerUtils.getLogger().log(Level.WARNING, "Unable to resume the suspended connection", ex);
-        } finally {
+        }
+        catch (Throwable ex) {
+            logger.warn("Unable to resume the suspended connection", ex);
+        }
+        finally {
             try {
                 timedout(req, res);
-            } catch (Throwable e) {
-                LoggerUtils.getLogger().log(Level.WARNING, "Unable to timeout connection", e);
+            }
+            catch (Throwable e) {
+                logger.warn("Unable to timeout connection", e);
             }
         }
     }

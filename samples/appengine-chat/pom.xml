@@ -16,4 +16,16 @@
     <build>
         <finalName>atmosphere-appengine-chat</finalName>
     </build>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>0.9.24</version>
+            <scope>runtime</scope>
+        </dependency>
+
+    </dependencies>
+
 </project>

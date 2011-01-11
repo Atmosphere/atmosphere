@@ -3,7 +3,4 @@
     <application>atmosphere-chat</application>
     <version>1</version>
     <sessions-enabled>false</sessions-enabled>
-    <system-properties>
-        <property name="java.util.logging.config.file" value="WEB-INF/logging.properties" />
-    </system-properties>
 </appengine-web-app>

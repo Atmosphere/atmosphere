@@ -40,7 +40,8 @@ package org.atmosphere.samples.pubsub;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.jersey.JerseyBroadcaster;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -53,10 +54,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class PubSubBroadcaster extends JerseyBroadcaster{
 
+    private static final Logger logger = LoggerFactory.getLogger(PubSubBroadcaster.class);
+
     private final AtomicBoolean isSet = new AtomicBoolean(false);
 
     public PubSubBroadcaster() {
-        super();
     }
 
     public PubSubBroadcaster(String id) {
@@ -66,7 +68,7 @@ public class PubSubBroadcaster extends JerseyBroadcaster{
     @Override
     protected void broadcast( final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (!isSet.getAndSet(true)) {
-            LoggerUtils.getLogger().info("This is just an example that demonstrate " +
+            logger.info("This is just an example that demonstrate " +
                     "how a Broadcaster can be customized using atmosphere.xml or by " +
                     "defining it inside web.xml");
         }

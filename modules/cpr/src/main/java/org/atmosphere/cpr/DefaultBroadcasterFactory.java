@@ -41,14 +41,14 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.AbstractBroadcasterProxy;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
 /**
  * This class is responsible for creating {@link Broadcaster} instance. You can also add and remove {@link Broadcaster}
@@ -58,6 +58,8 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class DefaultBroadcasterFactory extends BroadcasterFactory {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
     private final ConcurrentHashMap<Object, Broadcaster> store
             = new ConcurrentHashMap<Object, Broadcaster>();
@@ -147,11 +149,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
         Broadcaster b = getBroadcaster(id);
         if (b != null && !c.isAssignableFrom(b.getClass())) {
-            String em = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
-            if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
-                LoggerUtils.getLogger().log(Level.FINE, em);
-            }
-            throw new IllegalStateException(em);
+            String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
+            logger.debug("{}", msg);
+            throw new IllegalStateException(msg);
         }
 
         if (b == null && createIfNull) {

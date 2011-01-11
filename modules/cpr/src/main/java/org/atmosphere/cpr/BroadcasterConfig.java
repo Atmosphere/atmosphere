@@ -39,7 +39,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -51,8 +52,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
@@ -61,7 +60,8 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterConfig {
-    public final static Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(BroadcasterConfig.class);
 
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters =
             new ConcurrentLinkedQueue<BroadcastFilter>();
@@ -94,21 +94,26 @@ public class BroadcasterConfig {
     private void configureBroadcasterCache() {
         try {
             if (AtmosphereServlet.broadcasterCacheClassName != null) {
-                BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader().loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance();
+                BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                        .loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance();
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
             }
-        } catch (InstantiationException e) {
+        }
+        catch (InstantiationException e) {
             throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+        }
+        catch (IllegalAccessException e) {
             throw new RuntimeException(e);
-        } catch (ClassNotFoundException e) {
+        }
+        catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
 
     }
 
-    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService, ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
+            ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -118,7 +123,7 @@ public class BroadcasterConfig {
     protected void configExecutors() {
         executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
 
-            private AtomicInteger count = new AtomicInteger();
+            private final AtomicInteger count = new AtomicInteger();
 
             @Override
             public Thread newThread(final Runnable runnable) {
@@ -129,7 +134,7 @@ public class BroadcasterConfig {
 
         asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
 
-            private AtomicInteger count = new AtomicInteger();
+            private final AtomicInteger count = new AtomicInteger();
 
             @Override
             public Thread newThread(final Runnable runnable) {
@@ -251,28 +256,28 @@ public class BroadcasterConfig {
     /**
      * Remove a {@link BroadcastFilter}
      *
-     * @param e {@link BroadcastFilter}
+     * @param filter {@link BroadcastFilter}
      * @return true if removed
      */
-    public boolean removeFilter(BroadcastFilter e) {
+    public boolean removeFilter(BroadcastFilter filter) {
 
-        if (e instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) e).destroy();
+        if (filter instanceof BroadcastFilterLifecycle) {
+            ((BroadcastFilterLifecycle) filter).destroy();
         }
 
-        if (e instanceof PerRequestBroadcastFilter) {
-            perRequestFilters.remove(e);
+        if (filter instanceof PerRequestBroadcastFilter) {
+            perRequestFilters.remove(filter);
         }
         
-        return filters.remove(e);
+        return filters.remove(filter);
     }
 
     /**
      * Remove all {@link BroadcastFilter}
      */
     public void removeAllFilters() {
-        for (BroadcastFilter e : filters) {
-            removeFilter(e);
+        for (BroadcastFilter filter : filters) {
+            removeFilter(filter);
         }
     }
     
@@ -421,15 +426,19 @@ public class BroadcasterConfig {
     void configureBroadcasterFilter(String[] list) {
         for (String broadcastFilter : list) {
             try {
-                BroadcastFilter bf = BroadcastFilter.class.cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
+                BroadcastFilter bf = BroadcastFilter.class
+                        .cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
                 InjectorProvider.getInjector().inject(bf);
                 addFilter(bf);
-            } catch (InstantiationException e) {
-                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
-            } catch (IllegalAccessException e) {
-                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
-            } catch (ClassNotFoundException e) {
-                logger.log(Level.WARNING, String.format("Error trying to instanciate BroadcastFilter %s", broadcastFilter), e);
+            }
+            catch (InstantiationException e) {
+                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+            }
+            catch (IllegalAccessException e) {
+                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+            }
+            catch (ClassNotFoundException e) {
+                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
             }
         }
     }

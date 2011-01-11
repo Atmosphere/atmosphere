@@ -41,7 +41,8 @@ import com.sun.grizzly.SSLConfig;
 import com.sun.grizzly.comet.CometAsyncFilter;
 import com.sun.grizzly.http.embed.GrizzlyWebServer;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -56,6 +57,8 @@ import java.net.URI;
  * @author Jean-francois Arcand
  */
 public final class AtmosphereSpadeServer {
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereSpadeServer.class);
 
     private final GrizzlyWebServer gws;
     private final AtmosphereAdapter aa = new AtmosphereAdapter();
@@ -189,8 +192,8 @@ public final class AtmosphereSpadeServer {
      * @throws IOException
      */
     public AtmosphereSpadeServer start() throws IOException {
-        LoggerUtils.getLogger().info("AtmosphereSpade Server Started on port: "
-                + gws.getSelectorThread().getPort());
+        logger.info("AtmosphereSpade Server Started on port: {}", gws.getSelectorThread().getPort());
+
         if (defaultToJersey){
             aa.setHandleStaticResources(true);
             gws.addGrizzlyAdapter(aa, new String[]{"*"});

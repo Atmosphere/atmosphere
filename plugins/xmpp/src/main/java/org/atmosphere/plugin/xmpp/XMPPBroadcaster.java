@@ -39,7 +39,6 @@ package org.atmosphere.plugin.xmpp;
 
 
 import org.atmosphere.util.AbstractBroadcasterProxy;
-import org.atmosphere.util.LoggerUtils;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.MessageListener;
@@ -47,9 +46,10 @@ import org.jivesoftware.smack.SASLAuthentication;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.logging.Logger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on Smack, and XMPP library.
@@ -57,7 +57,9 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class XMPPBroadcaster extends AbstractBroadcasterProxy {
-    private static final Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(XMPPBroadcaster.class);
+
     private static final String XMPP_AUTH = XMPPBroadcaster.class.getName() + ".authorization";
     private static final String XMPP_SERVER = XMPPBroadcaster.class.getName() + ".server";
     private static final String XMPP_DEBUG= XMPPBroadcaster.class.getName() + ".debug";
@@ -177,7 +179,7 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
             try {
                 channel.sendMessage(message.toString());
             } catch (XMPPException e) {
-                e.printStackTrace();
+                logger.debug("failed to send message on channel", e);
             }
         }
     }
