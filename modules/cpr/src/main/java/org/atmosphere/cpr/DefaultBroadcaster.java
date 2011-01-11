@@ -205,6 +205,13 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void releaseExternalResources() {
+    }
+
     public class Entry {
 
         public Object message;
@@ -608,10 +615,11 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         resources.remove(r);
 
-        // Will help preventing OOM.
+        // Will help preventing OOM. Here we do not call destroy() as application may still have reference to
+        // this broadcaster.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
-            this.destroy();
+            this.releaseExternalResources();
         }
         return r;
     }

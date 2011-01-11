@@ -172,9 +172,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     }
 
     /**
-     * {@inheritDoc}
+     * Close all related JMS factory, connection, etc.
      */
-    public void destroy() {
+    @Override
+    public void releaseExternalResources() {
         super.destroy();
         try {
             connection.close();

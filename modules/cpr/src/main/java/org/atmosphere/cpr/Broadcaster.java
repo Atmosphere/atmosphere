@@ -260,4 +260,11 @@ public interface Broadcaster {
      */
     public void resumeAll();
 
+    /**
+     * Release external resources associated with this Broadcaster. This is useful when a Broadcaster no longer have
+     * suspended {@link AtmosphereResource} and some resource (like database connections, JMS queue, etc.) needs to be
+     * closed.
+     */
+    public void releaseExternalResources();
+
 }
