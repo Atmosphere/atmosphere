@@ -40,10 +40,8 @@ package org.atmosphere.jersey;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.util.LoggerUtils;
-
-import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple placeholder that can be used to broadcast message using a specific
@@ -52,13 +50,16 @@ import java.util.logging.Level;
  * @author Jeanfrancois Arcand
  */
 public class Broadcastable {
+
+    private static final Logger logger = LoggerFactory.getLogger(Broadcastable.class);
+
     private final Object message;
     private final Broadcaster b;
     private final Object callerMessage;
 
     public Broadcastable(Broadcaster b) {
         this.b = b;
-        this.message = "";
+        message = "";
         callerMessage = "";
     }
     /**
@@ -71,7 +72,7 @@ public class Broadcastable {
     public Broadcastable(Object message, Broadcaster b) {
         this.b = b;
         this.message = message;
-        this.callerMessage = message;
+        callerMessage = message;
     }
 
     /**
@@ -95,11 +96,10 @@ public class Broadcastable {
      */
     public Object broadcast() {
         try {
-            return (Object) b.broadcast(message).get();
-        } catch (InterruptedException ex) {
-            LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
-        } catch (ExecutionException ex) {
-            LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
+            return b.broadcast(message).get();
+        }
+        catch (Exception ex) {
+            logger.error("failed to broadcast message: " + message, ex);
         }
         return null;
     }

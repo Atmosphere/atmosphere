@@ -35,6 +35,14 @@
  */
 package org.atmosphere.grizzly;
 
+import com.sun.grizzly.http.servlet.ServletAdapter;
+import com.sun.grizzly.http.servlet.deployer.WarDeployer;
+import com.sun.grizzly.http.servlet.deployer.WarDeploymentConfiguration;
+import com.sun.grizzly.http.servlet.deployer.WebAppAdapter;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.net.JarURLConnection;
@@ -47,21 +55,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.atmosphere.cpr.AtmosphereHandler;
-
-import com.sun.grizzly.http.servlet.ServletAdapter;
-import com.sun.grizzly.http.servlet.deployer.WarDeployer;
-import com.sun.grizzly.http.servlet.deployer.WarDeploymentConfiguration;
-import com.sun.grizzly.http.servlet.deployer.WebAppAdapter;
 
 public class AtmosphereWarDeployer extends WarDeployer {
-    private static Logger logger = Logger.getLogger(AtmosphereWarDeployer.class.getName());
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereWarDeployer.class);
 
     @SuppressWarnings("unchecked")
-    private List<AtmosphereHandler> atmosphereHandlerList = null;
+    private List<AtmosphereHandler> atmosphereHandlerList;
 
     @Override
     protected WebAppAdapter getWebAppAdapter(ClassLoader webAppCL) {
@@ -69,8 +69,9 @@ public class AtmosphereWarDeployer extends WarDeployer {
         // find AtmosphereHandlers
         try {
             atmosphereHandlerList = findAtmosphereHandlers((URLClassLoader) webAppCL);
-        } catch (Throwable t) {
-            logger.log(Level.WARNING, "Error in finding AtmosphereHandler", t);
+        }
+        catch (Throwable t) {
+            logger.warn("Error finding AtmosphereHandlers", t);
         }
 
         return new AtmosphereWebAppAdapter();
@@ -152,7 +153,8 @@ public class AtmosphereWarDeployer extends WarDeployer {
             }
 
         }
-        logger.finest("Number of classes to check for AtmosphereHandler : " + list.size());
+
+        logger.debug("Number of classes to check for AtmosphereHandler: {}", list.size());
 
         for (String classname : list) {
             try {
@@ -175,20 +177,14 @@ public class AtmosphereWarDeployer extends WarDeployer {
 
     }
 
-    public List<String> listFilesAndFolders
-            (String
-                    folder, int tabCounter) {
-
-
+    public List<String> listFilesAndFolders(String folder, int tabCounter) {
         List<String> list = new ArrayList<String>();
 
         File file = new File(folder);
 
         if (!file.exists() || !file.isDirectory()) {
-
-            logger.info("Parameter is not a directory : " + folder);
+            logger.info("Parameter is not a directory: {}", folder);
             return list;
-
         }
 
         File[] fileArray = file.listFiles(new FileFilter() {

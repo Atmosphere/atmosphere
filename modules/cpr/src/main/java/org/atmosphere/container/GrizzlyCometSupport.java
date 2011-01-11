@@ -46,7 +46,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -54,16 +55,17 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Grizzly 1.5 and up.
  *
  * @author Jeanfrancois Arcand
  */
-public class GrizzlyCometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class GrizzlyCometSupport extends AsynchronousProcessor {
 
-    private final static String ATMOSPHERE = "/atmosphere";
+    private static final Logger logger = LoggerFactory.getLogger(GrizzlyCometSupport.class);
+
+    private static final String ATMOSPHERE = "/atmosphere";
 
     private String atmosphereCtx = "";
 
@@ -87,9 +89,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
         CometEngine cometEngine = CometEngine.getEngine();
         CometContext context = cometEngine.register(atmosphereCtx);
         context.setExpirationDelay(-1);
-        if (logger.isLoggable(Level.FINE)) {
-            logger.fine("Created CometContext for " + atmosphereCtx);
-        }
+        logger.debug("Created CometContext for atmosphere context: {}", atmosphereCtx);
     }
 
     /**
@@ -101,14 +101,11 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         Action action = suspended(req, res);
         if (action.type == Action.TYPE.SUSPEND) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Suspending" + res);
-            }
+            logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
-        } else if (action.type == Action.TYPE.RESUME) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Resuming" + res);
-            }
+        }
+        else if (action.type == Action.TYPE.RESUME) {
+            logger.debug("Resuming response: {}", res);
 
             resume(req, ctx);
         }
@@ -238,7 +235,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor implements CometS
                     cancelled(req, res);
                 }
             } catch (ServletException ex) {
-                logger.log(Level.WARNING, "", ex);
+                logger.warn("onInterrupt() encountered exception", ex);
             }
         }
     }

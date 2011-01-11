@@ -39,6 +39,8 @@ package org.atmosphere.samples.di.guice;
 import com.google.inject.Inject;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -49,42 +51,53 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class EventsLogger implements AtmosphereResourceEventListener {
 
+    private static final Logger logger = LoggerFactory.getLogger(EventsLogger.class);
+
     @Inject
-    Service service;
+    private Service service;
 
     public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        if (service == null)
+        if (service == null) {
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onSuspend: " + from(event));
+        }
+        logger.info("[{}] onSuspend: {}:{}",
+                new Object[]{Thread.currentThread().getName(), event.getResource().getRequest().getRemoteAddr(),
+                        event.getResource().getRequest().getRemotePort()});
     }
 
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        if (service == null)
+        if (service == null) {
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onResume: " + from(event));
+        }
+        logger.info("[{}] onResume: {}:{}",
+                new Object[]{Thread.currentThread().getName(), event.getResource().getRequest().getRemoteAddr(),
+                        event.getResource().getRequest().getRemotePort()});
     }
 
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        if (service == null)
+        if (service == null) {
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onDisconnect: " + from(event));
+        }
+        logger.info("[{}] onDisconnect: {}:{}",
+                new Object[]{Thread.currentThread().getName(), event.getResource().getRequest().getRemoteAddr(),
+                        event.getResource().getRequest().getRemotePort()});
     }
 
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        if (service == null)
+        if (service == null) {
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onBroadcast: " + from(event));
+        }
+        logger.info("[{}] onBroadcast: {}:{}",
+                new Object[]{Thread.currentThread().getName(), event.getResource().getRequest().getRemoteAddr(),
+                        event.getResource().getRequest().getRemotePort()});
     }
 
     public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        if (service == null)
+        if (service == null) {
             throw new AssertionError();
-        System.out.println("[" + Thread.currentThread().getName() + "] onThrowable: " + from(event));
-        event.throwable().printStackTrace(System.err);
-    }
-
-    private String from(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        return event.getResource().getRequest().getRemoteAddr() + ":" + event.getResource().getRequest().getRemotePort();
+        }
+        logger.info("[{}] onThrowable: " + event.getResource().getRequest().getRemoteAddr() + ":" +
+                event.getResource().getRequest().getRemotePort(), event.throwable());
     }
 
 }

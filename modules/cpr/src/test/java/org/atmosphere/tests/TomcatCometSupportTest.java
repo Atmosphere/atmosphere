@@ -113,7 +113,7 @@ public class TomcatCometSupportTest extends BaseTest {
             embedded.stop();
         } catch (LifecycleException ignored) {
             // simply ignore the stop of the container, which may fail
-            ignored.printStackTrace(System.out);
+            logger.info("server stop failed", ignored);
         }
     }
 }

@@ -39,14 +39,13 @@ package org.atmosphere.plugin.redis;
 
 
 import org.atmosphere.util.AbstractBroadcasterProxy;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on Jedis
@@ -54,7 +53,9 @@ import java.util.logging.Logger;
  * @author Jeanfrancois Arcand
  */
 public class RedisBroadcaster extends AbstractBroadcasterProxy {
-    private static final Logger logger = LoggerUtils.getLogger();
+
+    private static final Logger logger = LoggerFactory.getLogger(RedisBroadcaster.class);
+
     private static final String REDIS_AUTH = RedisBroadcaster.class.getName() + ".authorization";
     private static final String REDIS_SERVER = RedisBroadcaster.class.getName() + ".server";
 
@@ -85,7 +86,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     }
 
     public void setAuth(String auth) {
-        this.authToken = auth;
+        authToken = auth;
     }
 
     @Override
@@ -110,7 +111,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
+            logger.error("failed to connect subscriber", e);
         }
 
         jedisSubscriber.auth(authToken);
@@ -120,7 +121,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
+            logger.error("failed to connect publisher", e);
         }
         jedisPublisher.auth(authToken);
         jedisPublisher.flushAll();
@@ -129,21 +130,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void setID(String id) {
         super.setID(id);
-        if (jedisPublisher != null) {
-            try {
-                jedisPublisher.disconnect();
-            } catch (IOException e) {
-                logger.log(Level.SEVERE, "", e);
-            }
-        }
-
-        if (jedisSubscriber != null) {
-            try {
-                jedisSubscriber.disconnect();
-            } catch (IOException e) {
-                logger.log(Level.SEVERE, "", e);
-            }
-        }
+        disconnectPublisher();
+        disconnectSubscriber();
         setUp();
         reconfigure();
     }
@@ -154,12 +142,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void destroy() {
         super.destroy();
-        try {
-            jedisPublisher.disconnect();
-            jedisSubscriber.disconnect();
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "", e);
-        }
+        disconnectPublisher();
+        disconnectSubscriber();
     }
 
     /**
@@ -167,38 +151,32 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override                                                                 
     public void incomingBroadcast() {
-        logger.info("Subscribing to: " + getID());
+        logger.info("Subscribing to: {}", getID());
+
         jedisSubscriber.subscribe(new JedisPubSub() {
+
             public void onMessage(String channel, String message) {
                 broadcastReceivedMessage(message);
             }
 
             public void onSubscribe(String channel, int subscribedChannels) {
-                if (logger.isLoggable(Level.FINE))
-                    logger.fine("onSubscribe: " + channel);
+                logger.debug("onSubscribe: {}", channel);
             }
 
             public void onUnsubscribe(String channel, int subscribedChannels) {
-                if (logger.isLoggable(Level.FINE))
-                    logger.fine("onUnsubscribe: " + channel);
+                logger.debug("onUnsubscribe: {}", channel);
             }
 
             public void onPSubscribe(String pattern, int subscribedChannels) {
-                if (logger.isLoggable(Level.FINE))
-                    logger.fine("onPSubscribe: " + pattern);
-
+                logger.debug("onPSubscribe: {}", pattern);
             }
 
             public void onPUnsubscribe(String pattern, int subscribedChannels) {
-                if (logger.isLoggable(Level.FINE))
-                    logger.fine("onPUnsubscribe: " + pattern);
-
+                logger.debug("onPUnsubscribe: {}", pattern);
             }
 
             public void onPMessage(String pattern, String channel, String message) {
-                if (logger.isLoggable(Level.FINE))
-                    logger.fine("onPMessage: " + pattern + " " + channel + " " + message);
-
+                logger.debug("onPMessage: {}", pattern + " " + channel + " " + message);
             }
         }, getID());
     }
@@ -209,6 +187,26 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void outgoingBroadcast(Object message) {
         jedisPublisher.publish(getID(), message.toString());
+    }
+
+    private void disconnectSubscriber() {
+        if (jedisSubscriber != null) {
+            try {
+                jedisSubscriber.disconnect();
+            } catch (IOException e) {
+                logger.error("failed to disconnect subscriber", e);
+            }
+        }
+    }
+
+    private void disconnectPublisher() {
+        if (jedisPublisher != null) {
+            try {
+                jedisPublisher.disconnect();
+            } catch (IOException e) {
+                logger.error("failed to disconnect publisher", e);
+            }
+        }
     }
 
 }

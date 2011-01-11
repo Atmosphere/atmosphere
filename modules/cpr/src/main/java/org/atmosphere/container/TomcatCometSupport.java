@@ -44,25 +44,27 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 
 /**
  * Comet Portable Runtime implementation on top of Tomcat AIO.
  *
  * @author Jeanfrancois Arcand
  */
-public class TomcatCometSupport extends AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public class TomcatCometSupport extends AsynchronousProcessor {
 
-    public final static String COMET_EVENT = "CometEvent";
+    private static final Logger logger = LoggerFactory.getLogger(TomcatCometSupport.class);
 
-    private final static IllegalStateException unableToDetectComet
+    public static final String COMET_EVENT = "CometEvent";
+
+    private static final IllegalStateException unableToDetectComet
             = new IllegalStateException(unableToDetectComet());
 
     // Client disconnection is broken on Tomcat.
@@ -96,9 +98,7 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
         if (event.getEventType() == EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Suspending " + res);
-                }
+                logger.debug("Suspending response: {}", res);
 
                 // Do nothing except setting the times out
                 try {
@@ -109,13 +109,10 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
                     }
                 } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
-                    // TODO: Must implement the same functionality using a
-                    // Scheduler
+                    // TODO: Must implement the same functionality using a Scheduler
                 }
             } else if (action.type == Action.TYPE.RESUME) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Resuming " + res);
-                }
+                logger.debug("Resuming response: {}", res);
                 event.close();
             } else {
                 event.close();
@@ -123,39 +120,29 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Client closed connection " + res);
-            }
+            logger.debug("Client closed connection: response: {}", res);
+
             if (!resumed.remove(event)) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Client closed connection " + res);
-                }
+                logger.debug("Client closed connection: response: {}", res);
                 action = cancelled(req, res);
             } else {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Cancelling " + res);
-                }
+                logger.debug("Cancelling response: {}", res);
             }
 
             event.close();
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Timing out " + res);
-            }
+            logger.debug("Timing out response: {}", res);
+
             action = timedout(req, res);
             event.close();
         } else if (event.getEventType() == EventType.ERROR) {
             event.close();
         } else if (event.getEventType() == EventType.END) {
             if (!resumed.remove(event)) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Client closed connection " + res);
-                }
+                logger.debug("Client closed connection: response: {}", res);
                 action = cancelled(req, res);
             } else {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine("Cancelling " + res);
-                }
+                logger.debug("Cancelling response: {}", res);
             }
 
             event.close();
@@ -181,9 +168,7 @@ public class TomcatCometSupport extends AsynchronousProcessor implements CometSu
                     event.close();
                 }
             } catch (IOException ex) {
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "", ex);
-                }
+                logger.debug("action failed", ex);
             }
         }
     }

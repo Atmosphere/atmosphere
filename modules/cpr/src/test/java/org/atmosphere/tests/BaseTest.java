@@ -40,8 +40,16 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.util.StringFilterAggregator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -66,6 +74,8 @@ import static org.testng.Assert.fail;
 
 
 public abstract class BaseTest {
+
+    protected static final Logger logger = LoggerFactory.getLogger(BaseTest.class);
 
     protected AtmosphereServlet atmoServlet;
     protected final static String ROOT = "/*";
@@ -114,7 +124,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testSuspendTimeout() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
 
@@ -156,7 +167,7 @@ public abstract class BaseTest {
             String resume = r.getResponseBody();
             assertEquals(resume, "resume");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -164,7 +175,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testSuspendWithCommentsTimeout() {
-        System.out.println("Running testSuspendWithCommentsTimeout");
+        logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
 
@@ -206,7 +218,7 @@ public abstract class BaseTest {
             String resume = r.getResponseBody();
             assertEquals(resume, AtmosphereResourceImpl.createCompatibleStringJunk());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -215,7 +227,8 @@ public abstract class BaseTest {
 
     @Test (enabled = false)
     public void testProgrammaticDisconnection() {
-        System.out.println("Running testProgrammaticDisconnection");
+        logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
 
@@ -250,7 +263,7 @@ public abstract class BaseTest {
             }
             assertNotNull(r);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
@@ -260,7 +273,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testProgrammaticResume() {
-        System.out.println("Running testProgrammaticResume");
+        logger.info("{}: running test: testProgrammaticResume", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
@@ -320,7 +334,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -328,7 +342,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testResumeOnBroadcast() {
-        System.out.println("Running testResumeOnBroadcast");
+        logger.info("{}: running test: testResumeOnBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
@@ -391,7 +406,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -400,7 +415,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testDelayBroadcast() {
-        System.out.println("Running testDelayBroadcast");
+        logger.info("{}: running test: testDelayBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -471,7 +487,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -479,7 +495,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testDelayNextBroadcast() {
-        System.out.println("Running testDelayNextBroadcast");
+        logger.info("{}: running test: testDelayNextBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
 
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
@@ -513,7 +530,7 @@ public abstract class BaseTest {
                     event.getResource().getResponse().flushBuffer();
                     event.getResource().resume();
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    logger.error("failure resuming resource", ex);
                 } finally {
                     latch.countDown();
                 }
@@ -539,7 +556,7 @@ public abstract class BaseTest {
             assertEquals(r.getResponseBody(), "message-0 message-1 message-2 message-3 message-final");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -548,7 +565,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testScheduleBroadcast() {
-        System.out.println("Running testScheduleBroadcast");
+        logger.info("{}: running test: testScheduleBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -613,7 +631,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
@@ -628,7 +646,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testDelayScheduleBroadcast() {
-        System.out.println("Running testDelayScheduleBroadcast");
+        logger.info("{}: running test: testDelayScheduleBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -700,7 +719,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -708,7 +727,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testBroadcastFilter() {
-        System.out.println("Running testBroadcastFilter");
+        logger.info("{}: running test: testBroadcastFilter", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -779,7 +799,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -788,7 +808,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testAggregateFilter() {
-        System.out.println("Running testAggregateFilter");
+        logger.info("{}: running test: testAggregateFilter", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -854,7 +875,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -862,7 +883,8 @@ public abstract class BaseTest {
 
     @Test
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
-        System.out.println("Running testHeaderBroadcasterCache");
+        logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
+
         atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -877,9 +899,9 @@ public abstract class BaseTest {
                     }
                     event.getBroadcaster().broadcast("12345678910").get();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.error("", e);
                 } catch (ExecutionException e) {
-                    e.printStackTrace();
+                    logger.error("", e);
                 }
                 event.getResponse().flushBuffer();
             }
@@ -932,7 +954,7 @@ public abstract class BaseTest {
             assertEquals(r.getStatusCode(), 200);
             assertEquals(r.getResponseBody(), "1234567891012345678910");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
@@ -941,7 +963,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testSuspendRejectPolicy() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.addAtmosphereHandler(ROOT, new AtmosphereHandler<HttpServletRequest, HttpServletResponse>() {
 
@@ -984,7 +1007,7 @@ public abstract class BaseTest {
             String resume = r.getResponseBody();
             assertEquals(resume, "resume");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -992,7 +1015,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testBroadcastOnResume() {
-        System.out.println("Running testScheduleBroadcast");
+        logger.info("{}: running test: testScheduleBroadcast", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -1049,7 +1073,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 
@@ -1064,7 +1088,8 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000)
     public void testBroadcastOnResumeMsg() {
-        System.out.println("Running testBroadcastOnResumeMsg");
+        logger.info("{}: running test: testBroadcastOnResumeMsg", getClass().getSimpleName());
+
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
@@ -1115,7 +1140,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
 

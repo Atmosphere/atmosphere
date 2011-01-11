@@ -50,11 +50,11 @@ import org.atmosphere.container.Servlet30Support;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Logger;
 
 /**
  * This is the default implementation of @link {CometSupportResolver}
@@ -62,6 +62,8 @@ import java.util.logging.Logger;
  * @author Viktor Klang
  */
 public class DefaultCometSupportResolver implements CometSupportResolver {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultCometSupportResolver.class);
 
     public final static String SERVLET_30 = "javax.servlet.AsyncListener";
     public final static String GLASSFISH_V2 = "com.sun.enterprise.web.PEWebContainer";
@@ -73,7 +75,6 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
     public final static String WEBLOGIC = "weblogic.servlet.http.FutureResponseModel";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
-    public final static Logger logger = LoggerUtils.getLogger();
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
 
     private final AtmosphereConfig config;
@@ -90,10 +91,13 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      */
     protected boolean testClassExists(final String testClass) {
         try {
-            return testClass != null && testClass.length() > 0 && Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
-        } catch (ClassNotFoundException ex) {
+            return testClass != null && testClass.length() > 0 &&
+                    Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
+        }
+        catch (ClassNotFoundException ex) {
             return false;
-        } catch (NoClassDefFoundError ex) {
+        }
+        catch (NoClassDefFoundError ex) {
             return false;
         }
     }
@@ -175,19 +179,24 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      */
     public CometSupport newCometSupport(final Class<? extends CometSupport> targetClass) {
         try {
-            return (CometSupport) targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
-        } catch (final Exception e) {
-            logger.warning(e.getMessage());
-            throw new IllegalArgumentException("Comet support class " + targetClass.getCanonicalName() + " has bad signature.", e);
+            return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
+                    .newInstance(config);
+        }
+        catch (final Exception e) {
+            logger.error("failed to create comet support class: {}, error: {}", targetClass, e.getMessage());
+            throw new IllegalArgumentException(
+                    "Comet support class " + targetClass.getCanonicalName() + " has bad signature.", e);
         }
     }
 
     public CometSupport newCometSupport(final String targetClassFQN) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            return (CometSupport) cl.loadClass(targetClassFQN).getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(new Object[]{config});
-        } catch (final Exception e) {
-            logger.warning(e.getMessage());
+            return (CometSupport) cl.loadClass(targetClassFQN)
+                    .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
+        }
+        catch (final Exception e) {
+            logger.error("failed to create comet support class: {}, error: {}", targetClassFQN, e.getMessage());
             throw new IllegalArgumentException("Comet support class " + targetClassFQN + " has bad signature.", e);
         }
     }
@@ -203,7 +212,8 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         final CometSupport servletAsyncSupport = defaultCometSupport(defaultToBlocking);
 
         final CometSupport nativeSupport;
-        if (!defaultToBlocking && (useNativeIfPossible || servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.class.getName()))) {
+        if (!defaultToBlocking && (useNativeIfPossible ||
+                servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.class.getName()))) {
             nativeSupport = resolveNativeCometSupport(detectContainersPresent());
             return nativeSupport == null ? servletAsyncSupport : nativeSupport;
         }
@@ -211,7 +221,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     public CometSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
-        CometSupport cs = null;
+        CometSupport cs;
         if (!useWebsocketIfPossible) {
             cs = resolve(useNativeIfPossible, defaultToBlocking);
         } else {
@@ -254,7 +264,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         }
 
         b.append(" until you do, Atmosphere will use:" + available.get(0));
-        logger.warning(b.toString());
+        logger.warn("{}", b.toString());
         return newCometSupport(available.get(0));
     }
 }

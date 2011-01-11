@@ -59,7 +59,8 @@ public class PerRequestResourceTest extends BaseGrizzyTest {
 
     @Test(timeOut = 20000)
     public void testPerRequestSuspendTimeout() {
-        System.out.println("Running testPerRequestSuspendTimeout");
+        logger.info("{}: running test:  testPerRequestSuspendTimeout", getClass().getSimpleName());
+
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long t1 = System.currentTimeMillis();
@@ -71,11 +72,11 @@ public class PerRequestResourceTest extends BaseGrizzyTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
-        c.close();
 
+        c.close();
     }
 
 }

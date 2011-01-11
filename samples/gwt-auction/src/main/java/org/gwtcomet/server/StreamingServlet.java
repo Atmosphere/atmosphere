@@ -41,6 +41,8 @@ import com.google.gwt.user.server.rpc.RemoteServiceServlet;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -49,10 +51,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class StreamingServlet extends RemoteServiceServlet {
+
+    private static final Logger logger = LoggerFactory.getLogger(StreamingServlet.class);
 
     private final static byte[] JUNK = ("<!-- Comet is a programming technique that enables web " +
             "servers to send data to the client without having any need " +
@@ -104,7 +106,7 @@ public class StreamingServlet extends RemoteServiceServlet {
         e.suspend();
     }
 
-    private final class GWTBroadcasterFilter implements BroadcastFilter {
+    private static final class GWTBroadcasterFilter implements BroadcastFilter {
 
         public BroadcastAction filter(Object originalMsg, Object message) {
             try {
@@ -117,7 +119,7 @@ public class StreamingServlet extends RemoteServiceServlet {
                 stream.append("</script>\n");
                 return new BroadcastAction(stream);
             } catch (UnsupportedEncodingException ex) {
-                Logger.getLogger(StreamingServlet.class.getName()).log(Level.SEVERE, null, ex);
+                logger.error("failed to encode message", ex);
             }
             return new BroadcastAction(message);
         }

@@ -40,7 +40,8 @@ package org.atmosphere.plugin.jms;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -56,7 +57,6 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Clustering support based on JMS
@@ -69,7 +69,8 @@ public class JMSFilter implements ClusterBroadcastFilter {
     private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class.getName() + ".JNDIConnectionFactoryName";
     private static final String JNDI_TOPIC = JMSBroadcaster.class.getName() + ".JNDITopic";
 
-    private final Logger logger = LoggerUtils.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(JMSFilter.class);
+
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -171,10 +172,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
                             bc.broadcast(message);
                         }
                     } catch (JMSException ex) {
-                        if (logger.isLoggable(Level.WARNING)) {
-                            logger.log(Level.WARNING, "", ex);
-                        }
-
+                        logger.warn("", ex);
                     }
                 }
             });
@@ -195,6 +193,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
      * @param o the message to broadcast.
      * @return The same message.
      */
+    @Override
     public BroadcastAction filter(Object originalMessage, Object o) {
         if (o instanceof String) {
             String message = (String) o;
@@ -210,7 +209,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
                     textMessage.setStringProperty("BroadcasterId", id);
                     publisher.send(textMessage);
                 } catch (JMSException ex) {
-                    logger.log(Level.WARNING, "", ex);
+                    logger.warn("failed to publish message", ex);
                 }
             }
             return new BroadcastAction(message);
@@ -222,7 +221,8 @@ public class JMSFilter implements ClusterBroadcastFilter {
     /**
      * Return the current {@link Broadcaster}
      */
-    public Broadcaster getBroadcaster() {
+    @Override
+    public Broadcaster getBroadcaster(){
         return bc;
     }
 
@@ -231,7 +231,8 @@ public class JMSFilter implements ClusterBroadcastFilter {
      *
      * @param bc
      */
-    public void setBroadcaster(Broadcaster bc) {
+    @Override
+    public void setBroadcaster(Broadcaster bc){
         this.bc = bc;
     }
 }

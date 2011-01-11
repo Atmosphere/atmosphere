@@ -37,6 +37,10 @@
  */
 package org.atmosphere.samples.twitter;
 
+import org.atmosphere.samples.twitter.UsersState.UserStateData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.FormParam;
@@ -45,9 +49,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
-import org.atmosphere.samples.twitter.UsersState.UserStateData;
 
 public class UserResource {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserResource.class);
 
     private final UsersState us;
 
@@ -74,7 +79,7 @@ public class UserResource {
     @Path("messages")
     @POST
     public void post(String message) {
-        System.out.println("MESSAGE: " + message);
+        logger.info("MESSAGE: {}", message);
     }
 
     @Path("follows")
@@ -83,15 +88,14 @@ public class UserResource {
     public void follow(@FormParam("follower") String follower) {
         UserStateData followerState = us.get(follower);
         // User does not exist
-        if (followerState == null)
+        if (followerState == null) {
             throw new WebApplicationException(404);
+        }
 
-        followerState.bc.addAtmosphereResource(us.get(user).
-                bc.getUserAtmosphereEvent().getResource());
-        followerState.bc
-                .broadcast(user + "is now follow you", followerState.
-                bc.getUserAtmosphereEvent().getResource());
-        System.out.println(user + " is following " + follower);
+        followerState.bc.addAtmosphereResource(us.get(user).bc.getUserAtmosphereEvent().getResource());
+        followerState.bc.broadcast(user + " is now follow you ",
+                followerState.bc.getUserAtmosphereEvent().getResource());
 
+        logger.info("{} is following {}", user, follower);
     }
 }

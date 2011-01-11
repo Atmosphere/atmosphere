@@ -40,6 +40,8 @@ package org.atmosphere.util;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CometSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -54,8 +56,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Descriptor for an Atmosphere configuraton file.
@@ -65,12 +65,13 @@ import java.util.logging.Logger;
  */
 public class AtmosphereConfigReader {
 
-    private Logger logger = LoggerUtils.getLogger();
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereConfigReader.class);
 
-    final Map<String, String> tuples = new HashMap<String, String>();
-    final Map<String, ArrayList<Property>> atmosphereHandlerProperties =  new HashMap<String, ArrayList<Property>>();
-    final Map<String, String> broadcasters = new HashMap<String, String>();
-    final Map<String, String> broadcasterCache = new HashMap<String, String>();
+    private final Map<String, String> tuples = new HashMap<String, String>();
+    private final Map<String, ArrayList<Property>> atmosphereHandlerProperties =  new HashMap<String, ArrayList<Property>>();
+    private final Map<String, String> broadcasters = new HashMap<String, String>();
+    private final Map<String, String> broadcasterCache = new HashMap<String, String>();
+
     private String cometSupportClass = null;
     private String supportSession = "";
     private String[] broadcastFilterClasses;
@@ -84,14 +85,17 @@ public class AtmosphereConfigReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             parse(factory.newDocumentBuilder().parse(stream));
-        } catch (SAXException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (SAXException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (IOException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        } catch (ParserConfigurationException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+        }
+        catch (ParserConfigurationException e) {
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
@@ -201,7 +205,7 @@ public class AtmosphereConfigReader {
     }
 
     /**
-     * Simple Structn representing a <property> element/value.
+     * Simple Struct representing a <property> element/value.
      */
     public class Property {
 

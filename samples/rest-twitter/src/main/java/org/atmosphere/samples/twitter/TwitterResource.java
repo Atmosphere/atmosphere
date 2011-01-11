@@ -38,7 +38,15 @@
 package org.atmosphere.samples.twitter;
 
 import com.sun.jersey.spi.resource.Singleton;
-import java.util.logging.Logger;
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.jersey.Broadcastable;
+import org.atmosphere.samples.twitter.UsersState.UserStateData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -49,13 +57,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import org.atmosphere.jersey.Broadcastable;
-import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.samples.twitter.UsersState.UserStateData;
-import org.atmosphere.util.LoggerUtils;
 
 /**
  * Twitter like Comet application. This rest based web application implements the logic
@@ -79,14 +80,14 @@ import org.atmosphere.util.LoggerUtils;
 @Singleton
 public class TwitterResource {
 
+    private static final Logger logger = LoggerFactory.getLogger(TwitterResource.class);
+
     // Simple transaction counter
     private int counter;
     // Begin Script
     private static final String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
     //End script
     private static final String END_SCRIPT_TAG = "</script>\n";
-    // Grizzly Logger
-    private static final Logger logger = LoggerUtils.getLogger();
     // Unique id
     private static final long serialVersionUID = -2919167206889576860L;
     // Before suspending message
@@ -135,7 +136,7 @@ public class TwitterResource {
             throw new WebApplicationException(400);
 
         if (name == null) {
-            logger.severe("Name cannot be null");
+            logger.error("Name cannot be null");
             throw new WebApplicationException(400);
         }
 
@@ -161,12 +162,12 @@ public class TwitterResource {
                                   @FormParam("followee") String followee) {
 
         if (followee == null) {
-            logger.severe("Message cannot be null");
+            logger.error("Message cannot be null");
             throw new WebApplicationException(400);
         }
 
         if (name == null) {
-            logger.severe("Name cannot be null");
+            logger.error("Name cannot be null");
             throw new WebApplicationException(400);
         }
 
@@ -207,7 +208,7 @@ public class TwitterResource {
                                 @FormParam("callback") String callback){
         
         if (message == null) {
-            logger.severe("Message cannot be null");
+            logger.error("Message cannot be null");
             throw new WebApplicationException(400);
         }
 
@@ -228,7 +229,7 @@ public class TwitterResource {
      * @return a well formed String.
      */
     private String escape(String orig) {
-        StringBuffer buffer = new StringBuffer(orig.length());
+        StringBuilder buffer = new StringBuilder(orig.length());
 
         for (int i = 0; i < orig.length(); i++) {
             char c = orig.charAt(i);

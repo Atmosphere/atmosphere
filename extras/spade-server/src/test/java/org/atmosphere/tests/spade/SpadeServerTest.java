@@ -40,7 +40,8 @@ import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import com.sun.grizzly.SSLConfig;
 import org.atmosphere.grizzly.AtmosphereSpadeServer;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,7 +49,6 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -57,13 +57,9 @@ import static org.testng.Assert.fail;
 
 public class SpadeServerTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(SpadeServerTest.class);
+
     protected AtmosphereSpadeServer spade;
-
-    static {
-        LoggerUtils.getLogger().setLevel(Level.ALL);
-    }
-
-    protected final static String ROOT = "/*";
     public String urlTarget;
     public int port;
 
@@ -100,7 +96,8 @@ public class SpadeServerTest {
 
     @Test(timeOut = 20000)
     public void testSuspendTimeout() {
-        System.out.println("Running testSuspendTimeout");
+        logger.info("Running testSuspendTimeout");
+
         AsyncHttpClient c = new AsyncHttpClient();
         try {
             long t1 = System.currentTimeMillis();
@@ -112,7 +109,7 @@ public class SpadeServerTest {
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("test failed", e);
             fail(e.getMessage());
         }
         c.close();
@@ -120,7 +117,7 @@ public class SpadeServerTest {
 
     @Test(timeOut = 20000)
     public void testSSLStartup() throws Exception{
-        System.out.println("Running testSSLStartup");
+        logger.info("Running testSSLStartup");
 
         SSLConfig cfg = new SSLConfig();
         ClassLoader cl = getClass().getClassLoader();

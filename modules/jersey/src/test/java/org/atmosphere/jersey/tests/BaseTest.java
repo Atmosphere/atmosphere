@@ -37,23 +37,21 @@
 package org.atmosphere.jersey.tests;
 
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.util.LoggerUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.util.logging.Level;
-
 
 public abstract class BaseTest {
 
-    static {
-        LoggerUtils.getLogger().setLevel(Level.ALL);
-    }
+    protected static final Logger logger = LoggerFactory.getLogger(BaseTest.class);
+
+    protected static final String ROOT = "/*";
 
     protected AtmosphereServlet atmoServlet;
-    protected final static String ROOT = "/*";
     public String urlTarget;
     public int port;
 
