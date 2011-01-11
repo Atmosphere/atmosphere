@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 /**
  * This class gets used when the {@link AtmosphereServlet} fails to autodetect
