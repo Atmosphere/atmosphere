@@ -101,4 +101,8 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
         logger.debug("Suspending request: {}", resource.getRequest());
         resource.suspend(-1, false);
     }
+
+    public void destroy() {
+    }
+
 }

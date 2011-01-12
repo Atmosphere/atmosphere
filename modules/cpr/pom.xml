@@ -158,11 +158,11 @@
             <version>${grizzly-version}</version>
             <scope>provided</scope>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-ping</artifactId>
             <version>${pom.version}</version>
-        </dependency>       
+        </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>
@@ -178,6 +178,15 @@
             <artifactId>atmosphere-compat-tomcat</artifactId>
             <version>${pom.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>1.8.5</version>
+            <type>jar</type>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>
     

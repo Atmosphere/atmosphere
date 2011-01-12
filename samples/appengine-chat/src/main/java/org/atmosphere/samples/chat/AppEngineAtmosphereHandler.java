@@ -153,7 +153,10 @@ public class AppEngineAtmosphereHandler implements AtmosphereHandler<HttpServlet
             res.getWriter().flush();
         }
     }
-    
+
+    public void destroy() {
+    }
+
     private String toJsonp(String name, String message) {
         return "window.parent.app.update({ name: \"" + name + "\", message: \"" + message + "\" });\n";
     }
