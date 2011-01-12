@@ -136,7 +136,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                             broadcastReceivedMessage(message);
                         }
                     } catch (JMSException ex) {
-                        logger.warn("failed to broadcast message", ex);
+                        logger.warn("Failed to broadcast message", ex);
                     }
                 }
             });
@@ -159,6 +159,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 id = "atmosphere";
             }
 
+            if (session == null) {
+                throw new IllegalStateException("JMS Session is null");
+            }
+
             TextMessage textMessage = session.createTextMessage(message.toString());
             textMessage.setStringProperty("BroadcasterId", id);
             publisher.send(textMessage);
@@ -172,7 +176,6 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void releaseExternalResources() {
-        super.destroy();
         try {
             connection.close();
             session.close();
