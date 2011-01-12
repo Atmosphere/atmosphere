@@ -113,4 +113,8 @@ public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletReq
         }
         res.getWriter().flush();
     }
+
+    public void destroy() {
+    }
+
 }

@@ -53,6 +53,7 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
+import org.atmosphere.util.gae.GAEDefaultBroadcaster;
 import org.atmosphere.websocket.JettyWebSocketSupport;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
@@ -179,7 +180,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
 
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
-    public final static String GAE_BROADCASTER = org.atmosphere.util.gae.GAEDefaultBroadcaster.class.getName();
+    public final static String GAE_BROADCASTER = GAEDefaultBroadcaster.class.getName();
     public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
     public final static String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     public final static String PROPERTY_NATIVE_COMETSUPPORT = "org.atmosphere.useNative";
@@ -206,6 +207,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
 
+
+    private static final AtmospherePingSupport ATMOSPHERE_PING_SUPPORT = new AtmospherePingSupport();
 
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     private final HashMap<String, String> initParams = new HashMap<String, String>();
@@ -236,7 +239,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
 
-    public final static class AtmosphereHandlerWrapper {
+    public static final class AtmosphereHandlerWrapper {
 
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
@@ -244,7 +247,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                this.broadcaster = BroadcasterFactory.getDefault().get();
+                broadcaster = BroadcasterFactory.getDefault().get();
             } catch (Exception t) {
                 throw new RuntimeException(t);
             }
@@ -485,7 +488,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @param h           implementation of an {@link AtmosphereHandler}
      * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.
      */
-    public void addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster) {
+    public void addAtmosphereHandler(String mapping, AtmosphereHandler<HttpServletRequest, HttpServletResponse> h, Broadcaster broadcaster) {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
@@ -833,16 +836,19 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
 
-        AtmosphereHandler a;
-        for (Entry<String, AtmosphereHandlerWrapper> h : atmosphereHandlers.entrySet()) {
-            a = h.getValue().atmosphereHandler;
-            if (a instanceof AtmosphereServletProcessor) {
-                ((AtmosphereServletProcessor) a).destroy();
+        for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
+            AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
+            handlerWrapper.atmosphereHandler.destroy();
+
+            Broadcaster broadcaster = handlerWrapper.broadcaster;
+            if ( broadcaster != null ) {
+                broadcaster.destroy();
             }
-            h.getValue().broadcaster.destroy();
         }
-        if (BroadcasterFactory.getDefault() != null) {
-            BroadcasterFactory.getDefault().destroy();
+
+        BroadcasterFactory factory = BroadcasterFactory.getDefault();
+        if (factory != null) {
+            factory.destroy();
             BroadcasterFactory.factory = null;
         }
     }
@@ -1384,12 +1390,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * See {@link org.atmosphere.ping.AtmospherePing}
      */
     protected void pingForStats() {
-        try {
-            Class ping  = Class.forName("org.atmosphere.ping.AtmospherePing");
-            Method pingM = ping.getMethod("ping", new Class[]{String.class});
-            pingM.invoke(null, new String[]{Version.getRawVersion()});
-        } catch (Throwable e) {
-        }  
+        ATMOSPHERE_PING_SUPPORT.invoke();
     }
 
     /**
@@ -1446,6 +1447,39 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
         };
     }
-        
 
+    private static class AtmospherePingSupport {
+
+        private final Method method;
+        private final String[] version;
+
+        private AtmospherePingSupport() {
+            Method method = null;
+            String[] version = null;
+            try {
+                Class ping = Class.forName("org.atmosphere.ping.AtmospherePing");
+                method = ping.getMethod("ping", new Class[]{String.class});
+                version = new String[]{Version.getRawVersion()};
+            }
+            catch (Exception e) {
+            }
+
+            this.method = method;
+            this.version = (version == null ? new String[]{"no version found"} : version);
+
+            invoke();
+        }
+
+        private void invoke() {
+            if ( method == null ) {
+                return;
+            }
+
+            try {
+                method.invoke(null, version);
+            }
+            catch (Exception ignore) {
+            }
+        }
+    }
 }
