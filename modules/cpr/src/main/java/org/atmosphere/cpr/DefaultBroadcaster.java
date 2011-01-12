@@ -109,6 +109,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
+        releaseExternalResources();
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
         }
@@ -624,7 +625,6 @@ public class DefaultBroadcaster implements Broadcaster {
         // this broadcaster.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
-            this.releaseExternalResources();
         }
         return r;
     }
