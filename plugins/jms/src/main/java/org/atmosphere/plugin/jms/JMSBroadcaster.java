@@ -136,7 +136,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                             broadcastReceivedMessage(message);
                         }
                     } catch (JMSException ex) {
-                        logger.warn("failed to broadcast message", ex);
+                        logger.warn("Failed to broadcast message", ex);
                     }
                 }
             });
@@ -157,6 +157,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             String id = getID();
             if (id.startsWith("/*")) {
                 id = "atmosphere";
+            }
+
+            if (session == null) {
+                throw new IllegalStateException("JMS Session is null");
             }
 
             TextMessage textMessage = session.createTextMessage(message.toString());
