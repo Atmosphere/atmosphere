@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class CounterLongPollingAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
-    private AtomicInteger currentCount = new AtomicInteger(0);
+    private final AtomicInteger currentCount = new AtomicInteger(0);
 
     /**
      * On GET, suspend the connection. On POST, resume the connection.
@@ -126,4 +126,8 @@ public class CounterLongPollingAtmosphereHandler implements AtmosphereHandler<Ht
         }
 
     }
+
+    public void destroy() {
+    }
+
 }
