@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Simple AtmosphereHandler that implement the logic to build a Chat application.
  *
  * @author Jeanfrancois Arcand
- * @autor TAKAI Naoto (original author for the Comet based Chat).
+ * @author TAKAI Naoto (original author for the Comet based Chat).
  */
 public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
@@ -188,7 +188,10 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
         }
         res.getWriter().flush();
     }
-    
+
+    public void destroy() {
+    }
+
     private String toJsonp(String name, String message) {
         return "window.parent.app.update({ name: \"" + name + "\", message: \""
                 + message + "\" });\n";

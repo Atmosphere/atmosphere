@@ -126,7 +126,7 @@ public interface AtmosphereHandler<F, G> {
      * @param resource an {@link AtmosphereResource}
      * @throws java.io.IOException
      */
-    public void onRequest(AtmosphereResource<F, G> resource) throws IOException;
+    void onRequest(AtmosphereResource<F, G> resource) throws IOException;
 
 
     /**
@@ -144,6 +144,11 @@ public interface AtmosphereHandler<F, G> {
      * @param event an {@link AtmosphereResourceEvent}
      * @throws java.io.IOException
      */
-    public void onStateChange(AtmosphereResourceEvent<F, G> event) throws IOException;
+    void onStateChange(AtmosphereResourceEvent<F, G> event) throws IOException;
 
+
+    /**
+     * Destroy this handler
+     */
+    void destroy();
 }
