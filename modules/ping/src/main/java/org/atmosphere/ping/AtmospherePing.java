@@ -37,11 +37,11 @@
  */
 package org.atmosphere.ping;
 
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *  This class ping the http://jfarcand.wordpress.com/ping-atmosphere-{atmosphere.version} page every time Atmosphere is
@@ -54,19 +54,19 @@ import java.util.logging.Logger;
  * 
  */
 public class AtmospherePing {
-    private static Logger logger = Logger.getLogger("Atmosphere");
 
-    public AtmospherePing(){}
+    private static final Logger logger = LoggerFactory.getLogger(AtmospherePing.class);
 
-    public final static void ping(final String version) {
+    public static void ping(final String version) {
         new Thread(){
             public void run() {
                 try {
                     HttpURLConnection urlConnection = (HttpURLConnection)
                             URI.create(String.format("http://jfarcand.wordpress.com/ping-atmosphere-%s", version)).toURL().openConnection();
-                    logger.log(Level.INFO, String.format("AtmospherePing sent for project statistics: %s. " +
-                            "Remove WEB-INF/lib/atmosphere-ping.jar to remove that message or exclude the jar in your pom.xml",urlConnection.getResponseCode()));
-                } catch (IOException e) {
+                    logger.info("AtmospherePing sent for project statistics: {}. " +
+                            "Remove WEB-INF/lib/atmosphere-ping.jar to remove that message or exclude the jar in your pom.xml",
+                            urlConnection.getResponseCode());
+                } catch (Exception e) {
                 }
             }
         }.start();
