@@ -60,6 +60,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * {@link Broadcaster} implementation.
@@ -94,7 +95,8 @@ public class DefaultBroadcaster implements Broadcaster {
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
     private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
-            .policy(BroadcasterLifeCyclePolicy.POLICY.NEVER).build();
+            .policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER).build();
+    private Future<?> currentLifecycleTask;
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -132,6 +134,10 @@ public class DefaultBroadcaster implements Broadcaster {
         destroyed.set(true);
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
+        }
+
+        if (currentLifecycleTask != null) {
+            currentLifecycleTask.cancel(true);
         }
     }
 
@@ -220,9 +226,55 @@ public class DefaultBroadcaster implements Broadcaster {
     public void releaseExternalResources() {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy) {
+    public void setBroadcasterLifeCyclePolicy(final BroadcasterLifeCyclePolicy lifeCyclePolicy) {
+        this.lifeCyclePolicy = lifeCyclePolicy;
+        if (currentLifecycleTask != null) {
+            currentLifecycleTask.cancel(false);
+        }
 
+        if ( lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE
+                || lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY ) {
+
+            int time = lifeCyclePolicy.getTimeout();
+            if (time == -1) {
+                throw new IllegalStateException("BroadcasterLifeCyclePolicy time is not set");
+            }
+
+            final AtomicReference<Future<?>> ref = new AtomicReference<Future<?>>();
+            currentLifecycleTask = bc.getScheduledExecutorService().scheduleAtFixedRate(new Runnable(){
+
+                @Override
+                public void run() {
+                    try {
+                        if (resources.isEmpty()) {
+                            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE) {
+                                releaseExternalResources();
+                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy");
+                            } else {
+                                destroy();
+                                /**
+                                 * The value may be null if the timeout is too low. Hopefully next execution will
+                                 * cancel the task properly.
+                                 */
+                                if (ref.get() != null) {
+                                    currentLifecycleTask.cancel(true);
+                                }
+
+                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy");
+                            }
+                        }
+                    } catch (Throwable t) {
+                        logger.warn("Scheduled BroadcasterLifeCyclePolicy exception", t);
+                    }
+                }
+
+            }, time, time, lifeCyclePolicy.getTimeUnit());
+            ref.set(currentLifecycleTask);
+        }
     }
 
     public class Entry {
@@ -545,7 +597,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void broadcastOnResume(AtmosphereResource<?,?> r){
-        // That's suck.
         Iterator<Entry> i = broadcastOnResume.iterator();
         while (i.hasNext()) {
             Entry e = i.next();
@@ -628,12 +679,13 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         resources.remove(r);
 
-        // Will help preventing OOM. Here we do not call destroy() as application may still have reference to
-        // this broadcaster.
+        // Will help preventing OOM.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
-            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.POLICY.EMPTY) {
+            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
                 releaseExternalResources();
+            } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
+                destroy();
             }
         }
         return r;

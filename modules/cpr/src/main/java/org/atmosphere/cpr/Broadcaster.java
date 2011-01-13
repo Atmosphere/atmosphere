@@ -267,7 +267,9 @@ public interface Broadcaster {
     public void releaseExternalResources();
 
     /**
-     * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}.
+     * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}. Make sure you are selecting the right policy
+     * to avoid unexpected situation.
+     * 
      * @param policy a {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      */
     public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
