@@ -37,17 +37,15 @@
  */
 package org.atmosphere.samples.tictactoe;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.Broadcaster;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 /**
  * Simple handler that listens for GET and POST requests, and responds appropriately.
@@ -61,7 +59,6 @@ import org.atmosphere.cpr.Broadcaster;
 public class TTTHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
     private static TTTGame game = new TTTGame();
-    private final AtomicInteger counter = new AtomicInteger();
 
     /**
      * On GET, suspend the conneciton. On POST, update game logic, send
@@ -141,6 +138,9 @@ public class TTTHandler implements AtmosphereHandler<HttpServletRequest, HttpSer
             writer.flush();
             event.getResource().resume();
         }
+    }
+
+    public void destroy() {
     }
 }
 

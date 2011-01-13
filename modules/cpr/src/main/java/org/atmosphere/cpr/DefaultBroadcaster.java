@@ -111,6 +111,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
+        releaseExternalResources();
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
         }
@@ -272,17 +273,6 @@ public class DefaultBroadcaster implements Broadcaster {
                     // What if the Throwable is OOME?
                     logger.error("failed to submit broadcast handler runnable to broadcast executor service", ex);
                 }
-                finally {
-                    if (msg != null) {
-                        // TODO dubious logic, future is always instance of Broadcaster future
-                        if (msg.future instanceof BroadcasterFuture) {
-                            msg.future.done();
-                        }
-                        else {
-                            msg.future.cancel(true);
-                        }
-                    }
-                }
             }
         };
     }
@@ -297,68 +287,64 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void push(Entry msg) {
-        String prevMessage = msg.message.toString();
+    protected void push(Entry entry) {
+        String prevMessage = entry.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
             StringBuilder b = new StringBuilder();
             while (i.hasNext()) {
                 Entry e = i.next();
-                // TODO dubious logic, future is always instance of Broadcaster future
-                if (!(e.future instanceof BroadcasterFuture)) {
-                    e.future.cancel(true);
-                }
+                e.future.cancel(true);
                 try {
                     // Append so we do a single flush
                     if (e.message instanceof String
-                            && msg.message instanceof String) {
+                            && entry.message instanceof String) {
                         b.append(e.message);
                     } else {
                         push(e);
                     }
                 } finally {
                     i.remove();
-                    // TODO dubious logic, future is always instance of Broadcaster future
-                    if (e.future instanceof BroadcasterFuture) {
-                        e.future.done();
-                    }
                 }
             }
+
             if (b.length() > 0) {
-                msg.message = b.append(msg.message).toString();
+                entry.message = b.append(entry.message).toString();
             }
         }
 
         if (resources.isEmpty()) {
-            trackBroadcastMessage(null, msg.message);
+            trackBroadcastMessage(null, entry.message);
+            entry.future.done();
+            return;
         }
 
-        Object finalMsg = translate(msg.message);
-        msg.message = finalMsg;
+        Object finalMsg = translate(entry.message);
+        entry.message = finalMsg;
 
-        if (msg.multipleAtmoResources == null) {
+        if (entry.multipleAtmoResources == null) {
             for (AtmosphereResource<?, ?> r : resources) {
-                finalMsg = perRequestFilter(r, msg);
-                if (msg.writeLocally) {
-                    push(r, finalMsg);
+                finalMsg = perRequestFilter(r, entry);
+                if (entry.writeLocally) {
+                    executeAsyncWrite(r, finalMsg, entry.future);
                 }
             }                                                                                                                                                                               
-        } else if (msg.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
-            finalMsg = perRequestFilter((AtmosphereResource<?, ?>) msg.multipleAtmoResources, msg);
+        } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
+            finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
 
-            if (msg.writeLocally) {
-                push((AtmosphereResource<?, ?>) msg.multipleAtmoResources, finalMsg);
+            if (entry.writeLocally) {
+                executeAsyncWrite((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry.future);
             }
-        } else if (msg.multipleAtmoResources instanceof Set) {
-            Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) msg.multipleAtmoResources;
+        } else if (entry.multipleAtmoResources instanceof Set) {
+            Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
             for (AtmosphereResource<?, ?> r : sub) {
-                finalMsg = perRequestFilter(r, msg);
-                if (msg.writeLocally) {
-                    push(r, finalMsg);
+                finalMsg = perRequestFilter(r, entry);
+                if (entry.writeLocally) {
+                    executeAsyncWrite(r, finalMsg, entry.future);
                 }
             }
         }
-        msg.message = prevMessage;
+        entry.message = prevMessage;
     }
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
@@ -386,7 +372,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return msg;
     }
 
-    protected void push(final AtmosphereResource<?, ?> resource, final Object msg) {
+    protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
 
         synchronized (resource) {
             if (resource.getAtmosphereResourceEvent().isCancelled()) {
@@ -406,6 +392,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Shield us from any corrupted Request
                     logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
                     resources.remove(resource);
+                    if (future != null) {
+                        future.cancel(true);
+                    }
                     return;
                 }
             }
@@ -416,6 +405,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     broadcast(resource, event);
                     if (resource instanceof AtmosphereEventLifecycle) {
                         ((AtmosphereEventLifecycle) resource).notifyListeners();
+                    }
+                    if (future != null) {
+                        future.done();
                     }
                 }
             });
@@ -640,9 +632,9 @@ public class DefaultBroadcaster implements Broadcaster {
         // this broadcaster.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
-
             if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.POLICY.EMPTY) {
                 releaseExternalResources();
+            }
         }
         return r;
     }

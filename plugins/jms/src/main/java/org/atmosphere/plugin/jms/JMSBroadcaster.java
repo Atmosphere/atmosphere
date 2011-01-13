@@ -176,7 +176,6 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void releaseExternalResources() {
-        super.destroy();
         try {
             connection.close();
             session.close();

@@ -232,6 +232,9 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
+    public void destroy() {
+    }
+
     /**
      * Escape any maliscious characters.
      * @param orig the String

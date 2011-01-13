@@ -92,9 +92,6 @@ import java.util.concurrent.TimeUnit;
 public class AtmosphereFilter implements ResourceFilterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereFilter.class);
-
-    public final static String CONTAINER_RESPONSE = "cr";
-
     public final static String SUSPENDED_RESOURCE = AtmosphereFilter.class.getName() + ".suspendedResource";
     public final static String RESUME_UUID = AtmosphereFilter.class.getName() + ".uuid";
     public final static String RESUME_CANDIDATES = AtmosphereFilter.class.getName() + ".resumeCandidates";
@@ -478,11 +475,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (sessionSupported) {
                 servletReq.getSession().setAttribute(SUSPENDED_RESOURCE, r);
-                servletReq.getSession().setAttribute(CONTAINER_RESPONSE, response);
+                servletReq.getSession().setAttribute(AtmosphereServlet.CONTAINER_RESPONSE, response);
             }
 
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
-            servletReq.setAttribute(CONTAINER_RESPONSE, response);
+            servletReq.setAttribute(AtmosphereServlet.CONTAINER_RESPONSE, response);
+
+            logger.debug("Linking HttpServletRequest {} with ContainerResponse {}", servletReq, response);
 
             if (resumeOnBroadcast) {
                 servletReq.setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, new Boolean(true));

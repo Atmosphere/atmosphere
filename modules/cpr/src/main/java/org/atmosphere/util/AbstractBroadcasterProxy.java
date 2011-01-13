@@ -118,7 +118,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     @Override
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         if (r.getRequest() instanceof HttpServletRequest) {
-            if (((HttpServletRequest) r.getRequest()).getAttribute("cr") != null) {
+            if (((HttpServletRequest) r.getRequest()).getAttribute(AtmosphereServlet.CONTAINER_RESPONSE) != null) {
                 try {
                     if (jerseyBroadcast == null) {
                         Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
