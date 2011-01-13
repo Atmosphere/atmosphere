@@ -50,6 +50,8 @@ import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.*;
+
 /**
  * This class is responsible for creating {@link Broadcaster} instance. You can also add and remove {@link Broadcaster}
  * and lookup using {@link BroadcasterFactory#getDefault()} ()}
@@ -66,11 +68,29 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private final Class<? extends Broadcaster> clazz;
 
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz) {
+    private BroadcasterLifeCyclePolicy policy =
+            new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
+
+    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy) {
         this.clazz = clazz;
 
         if (factory == null) {
             this.factory = this;
+        }
+        configure(broadcasterLifeCyclePolicy.toUpperCase());
+    }
+
+    private void configure(String broadcasterLifeCyclePolicy) {
+        if (EMPTY.equals(broadcasterLifeCyclePolicy)){
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY).build();
+        } else if (EMPTY_DESTROY.equals(broadcasterLifeCyclePolicy)){
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY_DESTROY).build();
+        } else if (IDLE.equals(broadcasterLifeCyclePolicy)){
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(5 * 60 * 100).build();
+        } else if (IDLE_DESTROY.equals(broadcasterLifeCyclePolicy)){
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(5 * 60 * 100).build();
+        } else {
+            logger.warn("Unsupported BroadcasterLifeCyclePolicy policy {}", broadcasterLifeCyclePolicy);
         }
     }
 
@@ -85,6 +105,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setID(clazz.getSimpleName() + "-" + UUID.randomUUID());
+        b.setBroadcasterLifeCyclePolicy(policy);
         store.put(b.getID(), b);
         return b;
     }
@@ -106,6 +127,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setID(id.toString());
+        b.setBroadcasterLifeCyclePolicy(policy);
 
         store.put(id, b);
         return b;
@@ -188,20 +210,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     /**
-     * Build a {@link BroadcasterFactory}
-     *
-     * @param clazz  A class implementing {@link Broadcaster}
-     * @param config An instance of {@link BroadcasterConfig}
-     * @return
-     * @throws InstantiationException
-     * @throws IllegalAccessException
-     */
-    public static BroadcasterFactory build(Class<? extends Broadcaster> clazz, BroadcasterConfig config)
-            throws InstantiationException, IllegalAccessException {
-        return new DefaultBroadcasterFactory(clazz);
-    }
-
-    /**
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz  A class implementing {@link Broadcaster}
@@ -213,7 +221,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereServlet.AtmosphereConfig c)
             throws InstantiationException, IllegalAccessException {
 
-        factory = new DefaultBroadcasterFactory(clazz);
+        factory = new DefaultBroadcasterFactory(clazz, "NEVER");
         config = c;
         return factory;
     }

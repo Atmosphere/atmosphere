@@ -681,10 +681,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // Will help preventing OOM.
         if (resources.isEmpty()) {
-            BroadcasterFactory.getDefault().remove(this, name);
             if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
                 releaseExternalResources();
             } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
+                BroadcasterFactory.getDefault().remove(this, name);                
                 destroy();
             }
         }

@@ -206,6 +206,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
     public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
+    public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
 
 
     private static final AtmospherePingSupport ATMOSPHERE_PING_SUPPORT = new AtmospherePingSupport();
@@ -238,6 +239,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private BroadcasterFactory broadcasterFactory;
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
+    private String broadcasterLifeCyclePolicy = "NEVER";
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -432,7 +434,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         Class bc = (b == null ? DefaultBroadcaster.class : b);
         logger.info("using default broadcaster class: {}", bc);
-        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc), config);
+        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy), config);
     }
 
 
@@ -618,7 +620,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                             .loadClass(broadcasterClassName);
             logger.info("using broadcaster class: {}", bc.getName());
 
-            broadcasterFactory = new DefaultBroadcasterFactory(bc);
+            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
             config.broadcasterFactory = broadcasterFactory;
         }
 
@@ -711,6 +713,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
         if (s != null) {
             broadcasterFilters = s.split(",");
+        }
+        s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
+        if (s != null) {
+            broadcasterLifeCyclePolicy = s;
         }
     }
 
