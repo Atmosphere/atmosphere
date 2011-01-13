@@ -72,7 +72,7 @@ import java.util.concurrent.TimeUnit;
  * @author Jeanfrancois Arcand
  */
 public interface Broadcaster {
-
+    
     enum SCOPE {
         REQUEST, APPLICATION, VM
     }
@@ -265,5 +265,11 @@ public interface Broadcaster {
      * closed.
      */
     public void releaseExternalResources();
+
+    /**
+     * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}.
+     * @param policy a {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
+     */
+    public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
 }
