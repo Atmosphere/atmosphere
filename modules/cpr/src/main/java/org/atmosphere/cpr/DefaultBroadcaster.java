@@ -37,7 +37,6 @@
  */
 package org.atmosphere.cpr;
 
-import com.sun.grizzly.util.LoggerUtils;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.di.InjectorProvider;
@@ -61,7 +60,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 /**
  * {@link Broadcaster} implementation.
@@ -95,6 +93,8 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private long maxSuspendResource = -1;
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
+    private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
+            .policy(BroadcasterLifeCyclePolicy.POLICY.NEVER).build();
 
     public DefaultBroadcaster() {
         this(DefaultBroadcaster.class.getSimpleName());
@@ -217,6 +217,11 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public void releaseExternalResources() {
+    }
+
+    @Override
+    public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy) {
+
     }
 
     public class Entry {
@@ -635,7 +640,9 @@ public class DefaultBroadcaster implements Broadcaster {
         // this broadcaster.
         if (resources.isEmpty()) {
             BroadcasterFactory.getDefault().remove(this, name);
-            this.releaseExternalResources();
+
+            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.POLICY.EMPTY) {
+                releaseExternalResources();
         }
         return r;
     }
