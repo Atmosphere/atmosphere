@@ -97,6 +97,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     public final static String RESUME_CANDIDATES = AtmosphereFilter.class.getName() + ".resumeCandidates";
     public final static String INJECTED_BROADCASTER = AtmosphereFilter.class.getName() + "injectedBroadcaster";
 
+    // For backward compatibility
+    public final static String CONTAINER_RESPONSE = AtmosphereServlet.CONTAINER_RESPONSE;
+    
+
     enum Action {
         SUSPEND, RESUME, BROADCAST, SUSPEND_RESUME,
         SCHEDULE_RESUME, RESUME_ON_BROADCAST, NONE, SCHEDULE, SUSPEND_RESPONSE
