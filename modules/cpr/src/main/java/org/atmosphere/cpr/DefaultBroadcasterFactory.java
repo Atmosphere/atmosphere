@@ -77,18 +77,20 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (factory == null) {
             this.factory = this;
         }
-        configure(broadcasterLifeCyclePolicy.toUpperCase());
+        configure(broadcasterLifeCyclePolicy);
     }
 
     private void configure(String broadcasterLifeCyclePolicy) {
-        if (EMPTY.equals(broadcasterLifeCyclePolicy)){
+        if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY).build();
-        } else if (EMPTY_DESTROY.equals(broadcasterLifeCyclePolicy)){
+        } else if (EMPTY_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY_DESTROY).build();
-        } else if (IDLE.equals(broadcasterLifeCyclePolicy)){
+        } else if (IDLE.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(5 * 60 * 100).build();
-        } else if (IDLE_DESTROY.equals(broadcasterLifeCyclePolicy)){
+        } else if (IDLE_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(5 * 60 * 100).build();
+        } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
         } else {
             logger.warn("Unsupported BroadcasterLifeCyclePolicy policy {}", broadcasterLifeCyclePolicy);
         }
