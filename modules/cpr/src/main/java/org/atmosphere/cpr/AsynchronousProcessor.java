@@ -236,8 +236,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             if (atmosphereHandlerWrapper == null) {
                 atmosphereHandlerWrapper = config.handlers().get("/*");
                 if (atmosphereHandlerWrapper == null) {
-                    // Try appending the pathInfo
-                    path = req.getServletPath() + req.getPathInfo();
+
+                    if (req.getPathInfo() != null) {
+                        // Try appending the pathInfo
+                        path = req.getServletPath() + req.getPathInfo();
+                    }
+
                     atmosphereHandlerWrapper = config.handlers().get(path);
                     if (atmosphereHandlerWrapper == null) {
                         // Last chance
