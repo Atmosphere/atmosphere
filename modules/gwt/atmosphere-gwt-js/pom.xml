@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-gwt</artifactId>
+        <version>0.7-SNAPSHOT</version>
+    </parent>
+    
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-gwt-js</artifactId>
+    <packaging>war</packaging>
+    <name>atmosphere-gwt-js</name>
+
+    <properties>
+        <gwtModule>org.atmosphere.gwt.JsClient</gwtModule>
+        <war.target>${basedir}/src/main/webapp</war.target>
+        <gwt.compiler.force>false</gwt.compiler.force>
+        <gwt.draftCompile>false</gwt.draftCompile>
+        <gwt.style>PRETTY</gwt.style>
+        <outputDir>${war.target}/WEB-INF/classes</outputDir>
+    </properties>
+ 
+    <build>
+<!--        <outputDirectory>${outputDir}</outputDirectory>-->
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>gwt-maven-plugin</artifactId>
+                <version>${gwt-version}</version>
+                <configuration>
+                    <module>${gwtModule}</module>
+                    <gwtVersion>${gwt.version}</gwtVersion>
+                    <runTarget>http://localhost:8888/index.html</runTarget>
+                    <noServer>false</noServer>
+                    <hostedWebapp>${war.target}</hostedWebapp>
+                </configuration>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <extraJvmArgs>-Xmx512m</extraJvmArgs>
+                            <sourcesOnPath>true</sourcesOnPath>
+
+                            <modules>
+                                <module>${gwtModule}</module>
+                            </modules>
+
+                            <gwtVersiom>${gwt-version}</gwtVersiom>
+                        </configuration>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+<!--            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>2.2</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${war.target}/gwtTest</directory>
+                        </fileset>
+                        <fileset>
+                            <directory>${war.target}/WEB-INF/lib</directory>
+                        </fileset>
+                        <fileset>
+                            <directory>${war.target}/WEB-INF/classes</directory>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>-->
+
+        </plugins>
+    </build>
+
+
+    <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-gwt-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.timepedia.exporter</groupId>
+            <artifactId>gwtexporter</artifactId>
+            <version>2.10.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>
+
+
+
+

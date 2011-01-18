@@ -21,6 +21,7 @@
         <module>compat-weblogic</module>
         <module>cpr</module>
         <module>annotations</module>
+        <module>gwt</module>
         <module>jersey</module>
         <module>jquery</module>
     </modules>
