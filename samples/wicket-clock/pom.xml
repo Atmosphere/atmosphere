@@ -59,5 +59,9 @@
             <artifactId>slf4j-log4j12</artifactId>
             <version>${slf4j-impl-version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-servlet_3.0_spec</artifactId>
+        </dependency>
     </dependencies>
 </project>

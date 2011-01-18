@@ -189,11 +189,11 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
         res.getWriter().flush();
     }
 
-    public void destroy() {
-    }
-
     private String toJsonp(String name, String message) {
         return "window.parent.app.update({ name: \"" + name + "\", message: \""
                 + message + "\" });\n";
+    }
+
+    public void destroy() {
     }
 }

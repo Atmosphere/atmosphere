@@ -29,5 +29,9 @@
             <artifactId>jersey-json</artifactId>
             <version>${jersey-version}</version>
         </dependency> 
+        <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-servlet_3.0_spec</artifactId>
+        </dependency>
     </dependencies>
 </project>
