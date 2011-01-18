@@ -2,8 +2,8 @@
 
 <atmosphere-handlers>
      <atmosphere-handler context-root="/gwtDemo/gwtComet"
-         class-name="org.atmosphere.handler.ReflectorServletProcessor">
-         <property name="servletClass" value="org.atmosphere.samples.server.AtmosphereServlet"/>
+         class-name="org.atmosphere.samples.server.AtmosphereHandler">
+         <property name="heartbeat" value="20000"/>
      </atmosphere-handler>
      <atmosphere-handler context-root="/gwtDemo/gwtPoll"
          class-name="org.atmosphere.gwt.poll.AtmospherePollHandler">

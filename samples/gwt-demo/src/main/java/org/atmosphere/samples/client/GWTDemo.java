@@ -57,7 +57,7 @@ public class GWTDemo implements EntryPoint {
         pollButton.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                polling.pollDelayed(5000, new AsyncCallback<Event>() {
+                polling.pollDelayed(3000, new AsyncCallback<Event>() {
 
                     @Override
                     public void onFailure(Throwable caught) {
