@@ -19,6 +19,11 @@
             <artifactId>atmosphere-spade-server</artifactId>
             <version>${pom.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.atmosphere.plugins</groupId>
+            <artifactId>atmosphere-grizzly-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
