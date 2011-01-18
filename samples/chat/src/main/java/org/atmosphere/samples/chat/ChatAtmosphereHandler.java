@@ -193,4 +193,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
         return "window.parent.app.update({ name: \"" + name + "\", message: \""
                 + message + "\" });\n";
     }
+
+    public void destroy() {
+    }
 }

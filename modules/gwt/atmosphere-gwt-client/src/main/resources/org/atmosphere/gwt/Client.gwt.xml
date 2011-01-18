@@ -1,0 +1,39 @@
+<!--                                                                        -->
+<!-- Copyright 2008 Richard Zschech.                                        -->
+<!-- Licensed under the Apache License, Version 2.0 (the "License"); you    -->
+<!-- may not use this file except in compliance with the License. You may   -->
+<!-- may obtain a copy of the License at                                    -->
+<!--                                                                        -->
+<!-- http://www.apache.org/licenses/LICENSE-2.0                             -->
+<!--                                                                        -->
+<!-- Unless required by applicable law or agreed to in writing, software    -->
+<!-- distributed under the License is distributed on an "AS IS" BASIS,      -->
+<!-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or        -->
+<!-- implied. License for the specific language governing permissions and   -->
+<!-- limitations under the License.                                         -->
+<module rename-to="atmosphere_gwt">
+	<inherits name="com.google.gwt.user.User" />
+	<inherits name="com.google.gwt.rpc.RPC" />
+    <inherits name="org.atmosphere.gwt.Common" />
+
+	<replace-with class="org.atmosphere.gwt.client.impl.HTTPRequestCometTransport">
+		<when-type-is class="org.atmosphere.gwt.client.impl.CometTransport"/>
+	</replace-with>
+	
+	<replace-with class="org.atmosphere.gwt.client.impl.IECometTransport">
+		<when-type-is class="org.atmosphere.gwt.client.impl.CometTransport"/>
+		<any>
+            <when-property-is name="user.agent" value="ie6"/>
+			<when-property-is name="user.agent" value="ie8"/>
+		</any>
+	</replace-with>
+	
+	<!--<replace-with class="org.atmosphere.gwt.client.impl.OperaEventSourceCometTransport">
+		<when-type-is class="org.atmosphere.gwt.client.impl.CometTransport"/>
+		<when-property-is name="user.agent" value="opera"/>
+	</replace-with>-->
+	
+	<generate-with class="org.atmosphere.gwt.rebind.SerializerGenerator">
+		<when-type-assignable class="org.atmosphere.gwt.client.AtmosphereGWTSerializer" />
+	</generate-with>	
+</module>

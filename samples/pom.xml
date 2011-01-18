@@ -25,6 +25,8 @@
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>gwt-auction</module>
+		<module>gwt-demo</module>
+		<module>gwt-jsdemo</module>
         <module>spade-chat</module>
         <module>meteor-chat</module>
         <module>pubsub</module>
@@ -70,6 +72,7 @@
             </plugin>
         </plugins>
     </build>
+    <dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
@@ -83,6 +86,7 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
+    </dependencyManagement>
     <profiles>
         <profile>
             <id>tomcat</id>
