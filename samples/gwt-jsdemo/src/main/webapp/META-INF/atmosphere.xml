@@ -2,7 +2,6 @@
 
 <atmosphere-handlers>
      <atmosphere-handler context-root="/comet"
-         class-name="org.atmosphere.handler.ReflectorServletProcessor">
-         <property name="servletClass" value="org.atmosphere.samples.server.CometServlet"/>
+         class-name="org.atmosphere.gwt.server.AtmosphereGwtHandler">
      </atmosphere-handler>
 </atmosphere-handlers>

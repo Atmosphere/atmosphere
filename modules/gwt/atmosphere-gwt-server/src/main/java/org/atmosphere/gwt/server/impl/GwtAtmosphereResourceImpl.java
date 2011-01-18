@@ -13,7 +13,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import org.atmosphere.gwt.server.GwtAtmosphereResource;
-import org.atmosphere.gwt.server.GwtAtmosphereServlet;
+import org.atmosphere.gwt.server.AtmosphereGwtHandler;
 import org.atmosphere.gwt.server.GwtResponseWriter;
 import java.util.Collection;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
@@ -32,8 +32,8 @@ import org.slf4j.LoggerFactory;
 public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     public GwtAtmosphereResourceImpl(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource,
-            GwtAtmosphereServlet servlet, int heartBeatInterval) throws IOException {
-        this.servlet = servlet;
+            AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
+        this.atmosphereHandler = servlet;
         this.atmResource = resource;
         this.heartBeatInterval = heartBeatInterval;
         this.writer = createResponseWriter();
@@ -144,7 +144,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
      * 1 or more seperate threads
      */
     void resumeAfterDeath() {
-        servlet.execute(new Runnable() {
+        atmosphereHandler.execute(new Runnable() {
             @Override
             public void run() {
                 atmResource.resume();
@@ -172,9 +172,9 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 	}
 
     void terminate(boolean serverInitiated) {
-        GwtAtmosphereServlet s = servlet;
+        AtmosphereGwtHandler s = atmosphereHandler;
         if (s != null) {
-            servlet = null;
+            atmosphereHandler = null;
             if (suspended) {
                 atmResource.resume();
             }
@@ -184,7 +184,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
 	private GwtResponseWriterImpl createResponseWriter() throws IOException {
 
-		ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), servlet.getServletContext());
+		ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
 		SerializationPolicy serializationPolicy = clientOracle == null ? RPCUtil.createSimpleSerializationPolicy() : null;
 
         String transport = atmResource.getRequest().getParameter("tr");
@@ -217,7 +217,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> atmResource;
     private final int heartBeatInterval;
     private Heartbeat heartBeatMessage = new Heartbeat();
-    private GwtAtmosphereServlet servlet;
+    private AtmosphereGwtHandler atmosphereHandler;
     private boolean suspended = false;
     private Logger logger = LoggerFactory.getLogger(getClass());
 

@@ -7,6 +7,7 @@ import com.google.gwt.user.server.rpc.SerializationPolicyProvider;
 import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamReader;
 import java.io.Serializable;
 import java.util.List;
+import java.util.logging.Level;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -16,17 +17,20 @@ import org.atmosphere.gwt.server.impl.GwtAtmosphereResourceImpl;
 import org.atmosphere.gwt.server.impl.RPCUtil;
 import java.io.BufferedReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.http.HttpServlet;
+import javax.servlet.ServletContext;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +38,11 @@ import org.slf4j.LoggerFactory;
  *
  * @author p.havelaar
  */
-public class GwtAtmosphereServlet extends HttpServlet
-    implements Executor {
+public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
+    implements Executor, AtmosphereServletProcessor {
 
     public static final int NO_TIMEOUT = -1;
+    public static final String GWT_BROADCASTER_ID = "GWT_BROADCASTER";
     
     private static final int DEFAULT_HEARTBEAT = 15 * 1000; // 15 seconds by default
     private ExecutorService executorService;
@@ -51,6 +56,17 @@ public class GwtAtmosphereServlet extends HttpServlet
     };
 
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
+        Broadcaster broadcaster = getBroadcaster();
+        if (broadcaster == null) {
+            try {
+                broadcaster = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, GWT_BROADCASTER_ID);
+            } catch (IllegalAccessException ex) {
+                logger.error("Failed to get broadcaster", ex);
+            } catch (InstantiationException ex) {
+                logger.error("Failed to get broadcaster", ex);
+            }
+        }
+        resource.getAtmosphereResource().setBroadcaster(broadcaster);
         return NO_TIMEOUT;
     }
 
@@ -72,14 +88,7 @@ public class GwtAtmosphereServlet extends HttpServlet
     }
     
     protected Broadcaster getBroadcaster() {
-        try {
-            return BroadcasterFactory.getDefault().get();
-        } catch (IllegalAccessException ex) {
-            logger.error("Failed to get broadcaster", ex);
-        } catch (InstantiationException ex) {
-            logger.error("Failed to get broadcaster", ex);
-        }
-        return null;
+        return BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
     }
     
     /**
@@ -103,21 +112,33 @@ public class GwtAtmosphereServlet extends HttpServlet
     // -------------- you most likely don't need to override the functions below -----------------
 
     private Map<Integer, GwtAtmosphereResource> resources;
-    
+    private ServletContext context;
+
     @Override
-    public void init() throws ServletException {
+    public void init(ServletConfig servletConfig) throws ServletException {
         executorService = Executors.newCachedThreadPool();
-        ServletConfig servletConfig = getServletConfig();
 		String heartbeat = servletConfig.getInitParameter("heartbeat");
+        context = servletConfig.getServletContext();
 		if (heartbeat != null) {
 			this.heartbeat = Integer.parseInt(heartbeat);
 		}
     }
-
+    
     @Override
     public void destroy() {
         executorService.shutdown();
-        super.destroy();
+    }
+
+    public int getHeartbeat() {
+        return heartbeat;
+    }
+
+    public void setHeartbeat(int heartbeat) {
+        this.heartbeat = heartbeat;
+    }
+
+    public ServletContext getServletContext() {
+        return context;
     }
 
     protected void reapResources() {
@@ -129,8 +150,10 @@ public class GwtAtmosphereServlet extends HttpServlet
     }
 
     @Override
-    protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-
+    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
+        
+        HttpServletRequest request = resource.getRequest();
+    
         String servertransport = request.getParameter("servertransport");
         if ("rpcprotocol".equals(servertransport)){
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
@@ -138,14 +161,6 @@ public class GwtAtmosphereServlet extends HttpServlet
             return;
         }
         
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> atm
-                = (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-        
-        if (atm == null) {
-            throw new ServletException("Failed to get atmosphere resource. " +
-                    "Did you setup atmosphere.xml correctly?");
-        }
         try {
 			int requestHeartbeat = heartbeat;
 			String requestedHeartbeat = request.getParameter("heartbeat");
@@ -162,8 +177,8 @@ public class GwtAtmosphereServlet extends HttpServlet
 				}
 			}
 
-            GwtAtmosphereResourceImpl resource = new GwtAtmosphereResourceImpl(atm, this, requestHeartbeat);
-			doCometImpl(resource);
+            GwtAtmosphereResourceImpl resourceWrapper = new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat);
+			doCometImpl(resourceWrapper);
 		}
 		catch (IOException e) {
 //            GwtAtmosphereResourceImpl resource = new GwtAtmosphereResourceImpl(atm, this, -1);
