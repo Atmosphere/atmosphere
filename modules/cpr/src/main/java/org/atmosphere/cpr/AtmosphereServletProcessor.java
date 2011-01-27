@@ -61,9 +61,4 @@ public interface AtmosphereServletProcessor extends
     void init(ServletConfig sc) throws ServletException;
 
 
-    /**
-     * Destroy the {@link AtmosphereServletProcessor}
-     */
-    void destroy();
-
 }
