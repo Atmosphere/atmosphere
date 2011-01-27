@@ -130,7 +130,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
             fc.setFilterName(filterName);
             filterChain.addFilter(fc);
-            logger.info("Installing Filter {}", servletClassName);
+            logger.info("Installing Filter {}", filterName);
         }
 
     }
