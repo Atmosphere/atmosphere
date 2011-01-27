@@ -105,6 +105,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
                         .loadClass(servletClassName).newInstance();
             }
         }
+        logger.info("Installing Servlet {}", servletClassName);
         filterChain.setServlet(sc, servlet);
 
         Filter f;
@@ -129,6 +130,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
             fc.setFilterName(filterName);
             filterChain.addFilter(fc);
+            logger.info("Installing Filter {}", servletClassName);
         }
 
     }
@@ -157,7 +159,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     public void init(ServletConfig sc) throws ServletException {
         try {
             loadWebApplication(sc);
-        } catch (Exception ex) {
+        } catch (Exception ex) {                                                      
             throw new ServletException(ex);
         }
         wrapper.init(sc);
