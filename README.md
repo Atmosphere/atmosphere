@@ -28,7 +28,7 @@ If you are using Maven, just add the following dependency:
     <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module]</artifactId>
-         <version>0.6.3</version>
+         <version>0.6.4</version>
      </dependency>
 
 Where atmosphere-module can be: jersey, runtime, guice, bayeux, cluster or spade-server. Our official release are available from Maven Central. For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds:
