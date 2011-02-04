@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.6.4-SNAPSHOT</version>
+        <version>0.6.4</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-jquery-pubsub</artifactId>
     <packaging>war</packaging>
-    <version>0.6.4-SNAPSHOT</version>
+    <version>0.6.4</version>
     <name>atmosphere-jquery-pubsub</name>
     <url>http://maven.apache.org</url>
     <dependencies>
