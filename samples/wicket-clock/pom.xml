@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.6.4</version>
+        <version>0.6.4-SNAPSHOT</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-wicket-clock</artifactId>
     <packaging>war</packaging>
-    <version>0.6.4</version>
+    <version>0.6.4-SNAPSHOT</version>
     <name>atmosphere-wicket-clock</name>
     <url>http://maven.apache.org</url>
     <build>
