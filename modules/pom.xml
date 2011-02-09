@@ -16,7 +16,6 @@
 
     <modules>
         <module>ping</module>
-        <module>socket.io</module>
         <module>compat-tomcat</module>
         <module>compat-jbossweb</module>
         <module>compat-weblogic</module>
