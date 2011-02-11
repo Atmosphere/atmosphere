@@ -52,6 +52,8 @@ public interface WebSocket {
 
     void onMessage(byte frame, byte[] data, int offset, int length);
 
+    void onFragment(boolean more, byte opcode, byte[] data, int offset, int length);
+
     void onDisconnect();
 
     public interface Outbound {
