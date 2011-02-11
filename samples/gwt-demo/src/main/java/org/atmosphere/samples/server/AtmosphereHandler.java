@@ -43,8 +43,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpSession;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.gwt.server.GwtAtmosphereResource;
 import org.atmosphere.gwt.server.AtmosphereGwtHandler;
 
@@ -63,11 +61,6 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
     }
 
     @Override
-    protected Broadcaster getBroadcaster() {
-        return BroadcasterFactory.getDefault().lookup(Broadcaster.class, "GWT_COMET");
-    }    
-
-    @Override
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         resource.getBroadcaster().setID("GWT_COMET");
         HttpSession session = resource.getAtmosphereResource().getRequest().getSession(false);
@@ -81,7 +74,7 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
             logger.debug("Url: " + resource.getAtmosphereResource().getRequest().getRequestURL()
                     + "?" + resource.getAtmosphereResource().getRequest().getQueryString());
         }
-        return super.doComet(resource);
+        return NO_TIMEOUT;
     }
 
     @Override
