@@ -164,7 +164,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     
     @Override
     public void destroy() {
-        executorService.shutdown();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
     }
 
     public int getHeartbeat() {

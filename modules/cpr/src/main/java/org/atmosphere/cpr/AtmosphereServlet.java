@@ -1431,6 +1431,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         return new WebSocket() {
             private WebSocketProcessor webSocketProcessor;
 
+            @Override
             public void onConnect(WebSocket.Outbound outbound) {
                 webSocketProcessor = new WebSocketProcessor(AtmosphereServlet.this, new JettyWebSocketSupport(outbound));
                 try {
@@ -1440,14 +1441,22 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
             }
 
+            @Override            
             public void onMessage(byte frame, String data) {
                 webSocketProcessor.broadcast(frame, data);
             }
 
+            @Override
             public void onMessage(byte frame, byte[] data, int offset, int length) {
                 webSocketProcessor.broadcast(frame, new String(data, offset, length));
             }
 
+            @Override
+            public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
+                webSocketProcessor.broadcast(opcode, new String(data, offset, length));
+            }
+            
+            @Override
             public void onDisconnect() {
                 webSocketProcessor.close();
             }

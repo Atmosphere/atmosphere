@@ -13,4 +13,11 @@
     <version>0.7-SNAPSHOT</version>
     <name>atmosphere-websocket-chat</name>
     <url>http://maven.apache.org</url>
+		<dependencies>
+		<dependency>
+			<groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-runtime</artifactId>
+			<version>${pom.version}</version>
+		</dependency>
+    </dependencies>
 </project>
