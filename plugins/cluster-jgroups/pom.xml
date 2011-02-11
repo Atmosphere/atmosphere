@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.6.5-SNAPSHOT</version>
+        <version>0.6.5</version>
         <relativePath>../../pom.xml</relativePath>        
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-jgroups</artifactId>
     <packaging>bundle</packaging>
-    <version>0.6.5-SNAPSHOT</version>
+    <version>0.6.5</version>
     <name>atmosphere-jgroups</name>
     <url>https://atmosphere.dev.java.net</url>
     <build>

@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.6.5-SNAPSHOT</version>
+        <version>0.6.5</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-tictactoe</artifactId>
     <packaging>war</packaging>
-    <version>0.6.5-SNAPSHOT</version>
+    <version>0.6.5</version>
     <name>atmosphere-tictactoe</name>
     <url>http://maven.apache.org</url>
 </project>

@@ -9,7 +9,7 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>0.6.5-SNAPSHOT</version>
+    <version>0.6.5</version>
     <url>http://github.com/jfarcand/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
