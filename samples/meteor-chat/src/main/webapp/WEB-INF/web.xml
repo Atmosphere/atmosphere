@@ -15,6 +15,7 @@
         <description>MeteorServlet</description>
         <servlet-name>MeteorServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.MeteorServlet</servlet-class>
+        <async-supported>true</async-supported>
         <init-param>
             <param-name>org.atmosphere.servlet</param-name>
             <param-value>org.atmosphere.samples.chat.MeteorChat</param-value>
