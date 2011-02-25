@@ -40,12 +40,12 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.7</version>
+        <version>0.8-SNAPSHOT</version>
 
     </parent>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-scala-chat</artifactId>
-    <version>0.7</version>
+    <version>0.8-SNAPSHOT</version>
     <name>atmosphere-scala-chat</name>
     <packaging>war</packaging>
     <profiles>
