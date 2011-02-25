@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.7</version>
+        <version>0.7-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-samples</artifactId>
     <packaging>pom</packaging>
-    <version>0.7</version>
+    <version>0.7-SNAPSHOT</version>
     <name>atmosphere-samples</name>
     <modules>
         <module>commons</module>

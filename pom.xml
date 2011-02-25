@@ -9,7 +9,7 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>0.7</version>
+    <version>0.7-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -455,7 +455,7 @@
     <properties>
         <jetty-version>6.1.22</jetty-version>
         <jersey-version>1.5</jersey-version>
-        <atmosphere-version>0.7-SNAPSHOT</atmosphere-version>
+        <atmosphere-version>0.7-SNAPSHOT-SNAPSHOT</atmosphere-version>
         <jackson-version>1.3.1</jackson-version>
         <jaxb-version>2.1</jaxb-version>
         <jackson-version>1.3.1</jackson-version>

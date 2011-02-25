@@ -3,7 +3,7 @@
 
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  
- Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
+ Copyright 1997-20.7-SNAPSHOT Sun Microsystems, Inc. All rights reserved.
  
  The contents of this file are subject to the terms of either the GNU
  General Public License Version 2 only ("GPL") or the Common Development
@@ -40,12 +40,12 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.7</version>
+        <version>0.7-SNAPSHOT</version>
 
     </parent>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-scala-chat</artifactId>
-    <version>0.7</version>
+    <version>0.7-SNAPSHOT</version>
     <name>atmosphere-scala-chat</name>
     <packaging>war</packaging>
     <profiles>
