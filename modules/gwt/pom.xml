@@ -55,12 +55,12 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-gwt-common</artifactId>
-                <version>${atmosphere-version}</version>
+                <version>0.7-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-gwt-client</artifactId>
-                <version>${atmosphere-version}</version>
+                <version>0.7-SNAPSHOT</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -84,7 +84,7 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-runtime</artifactId>
-                <version>${atmosphere-version}</version>
+                <version>0.7-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
