@@ -14,7 +14,7 @@
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
         <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
-        <url>http://github.com/Atmosphere/atmosphere</url>
+        <url>scm:git:git@github.com:Atmosphere/atmosphere.git</url>
     </scm>
     <prerequisites>
         <maven>2.2.0</maven>
