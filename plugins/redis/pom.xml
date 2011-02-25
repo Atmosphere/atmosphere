@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.7.1-SNAPSHOT</version>
+        <version>0.7-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>        
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-redis</artifactId>
     <packaging>bundle</packaging>
-    <version>0.7.1-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
     <name>atmosphere-redis</name>
     <url>https://atmosphere.dev.java.net</url>
     <build>
