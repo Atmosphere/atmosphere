@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.7</version>
+        <version>0.7.1-SNAPSHOT</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-flickr</artifactId>
     <packaging>war</packaging>
-    <version>0.7</version>
+    <version>0.7.1-SNAPSHOT</version>
     <name>atmosphere-flickr</name>
     <url>http://maven.apache.org</url>
     <dependencies>
