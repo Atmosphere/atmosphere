@@ -41,6 +41,7 @@
         <module>jquery-pubsub-xmpp</module>
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
+        <module>atmosphere-gwt-test</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>

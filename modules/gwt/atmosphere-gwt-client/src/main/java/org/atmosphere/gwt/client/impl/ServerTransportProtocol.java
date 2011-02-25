@@ -97,7 +97,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
                 try {
                     packet.append("o\nb").append(serialize(message)).append("\n\n");
                 } catch (SerializationException ex) {
-                    logger.log(Level.SEVERE, null, ex);
+                    logger.log(Level.SEVERE, "Failed to serialize message", ex);
                 }
             }
         }
@@ -114,7 +114,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
             try {
                 send("o\np"+serialize(message)+"\n\n", callback);
             } catch (SerializationException ex) {
-                logger.log(Level.SEVERE, null, ex);
+                logger.log(Level.SEVERE, "Failed to serialize message", ex);
             }
         }
     }
@@ -129,7 +129,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
                 try {
                     packet.append("o\np").append(serialize(message)).append("\n\n");
                 } catch (SerializationException ex) {
-                    logger.log(Level.SEVERE, null, ex);
+                    logger.log(Level.SEVERE, "Failed to serialize message", ex);
                 }
             }
         }
