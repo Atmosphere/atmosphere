@@ -54,6 +54,7 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
 
     @Override
     public void init(ServletConfig servletConfig) throws ServletException {
+        super.init(servletConfig);
         Logger.getLogger("").setLevel(Level.INFO);
         Logger.getLogger("gwtcomettest").setLevel(Level.ALL);
         Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
