@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <version>0.7-SNAPSHOT</version>
-    <url>http://github.com/jfarcand/atmosphere</url>
+    <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
         <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
