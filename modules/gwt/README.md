@@ -10,9 +10,9 @@ FAQ
 ---
 1.  Question: Why do I get a serialization exception?  
     Answer: The most common causes are:
-   - You didn't include your object in the SerialTypes your Serializer class
-   - Your object to be serialized is not serializable
-   - Your object has references to types that are too generic or are pulling in references to generic types.
+		- You didn't include your object in the SerialTypes your Serializer class
+		- Your object to be serialized is not serializable
+		- Your object has references to types that are too generic or are pulling in references to generic types.
  
 2.	Question: Can you have multiple windows open to one session?  
 	Short answer: Yes  
