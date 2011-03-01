@@ -52,7 +52,6 @@
  */
 package org.atmosphere.gwt.rebind;
 
-import com.google.gwt.core.ext.GeneratorContextExt;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -62,7 +61,8 @@ import java.util.List;
 import org.atmosphere.gwt.client.SerialMode;
 import org.atmosphere.gwt.client.SerialTypes;
 
-import com.google.gwt.core.ext.GeneratorExt;
+import com.google.gwt.core.ext.Generator;
+import com.google.gwt.core.ext.GeneratorContext;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.core.ext.typeinfo.JClassType;
@@ -71,8 +71,6 @@ import com.google.gwt.core.ext.typeinfo.JType;
 import com.google.gwt.core.ext.typeinfo.NotFoundException;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
 import com.google.gwt.dev.javac.TypeOracleMediator;
-import com.google.gwt.dev.javac.rebind.RebindResult;
-import com.google.gwt.dev.javac.rebind.RebindStatus;
 import com.google.gwt.dev.util.collect.Lists;
 import com.google.gwt.rpc.linker.RpcDataArtifact;
 import com.google.gwt.user.client.rpc.impl.Serializer;
@@ -83,10 +81,10 @@ import com.google.gwt.user.rebind.rpc.SerializableTypeOracleBuilder;
 import com.google.gwt.user.rebind.rpc.SerializationUtils;
 import com.google.gwt.user.rebind.rpc.TypeSerializerCreator;
 
-public class SerializerGenerator extends GeneratorExt {
+public class SerializerGenerator extends Generator {
 	
 	@Override
-	public RebindResult generateIncrementally(TreeLogger logger, GeneratorContextExt context, String typeName) throws UnableToCompleteException {
+	public String generate(TreeLogger logger, GeneratorContext context, String typeName) throws UnableToCompleteException {
 		
 		TypeOracle typeOracle = context.getTypeOracle();
 		
@@ -186,7 +184,7 @@ public class SerializerGenerator extends GeneratorExt {
 							names = Lists.add(names, serializableFields[i].getName());
 						}
 						
-						data.setFields(SerializationUtils.getRpcTypeName(t), names);
+						data.setFields(TypeOracleMediator.computeBinaryClassName(t), names);
 					}
 					
 					context.commitArtifact(logger, data);
@@ -198,6 +196,6 @@ public class SerializerGenerator extends GeneratorExt {
 			}
 		}
 		
-		return new RebindResult(RebindStatus.USE_PARTIAL_CACHED, packageName + '.' + className);
+		return packageName + '.' + className;
 	}
 }
