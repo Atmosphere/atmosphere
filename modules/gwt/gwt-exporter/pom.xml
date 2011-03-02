@@ -1,0 +1,113 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.timepedia.exporter</groupId>
+    <artifactId>gwtexporter</artifactId>
+    <packaging>jar</packaging>
+    <version>2.10.0-SNAPSHOT</version>
+    <name>GWT Javascript API Exporter</name>
+    <url>http://timepedia.org</url>
+
+    <parent>
+      <groupId>org.sonatype.oss</groupId>
+      <artifactId>oss-parent</artifactId>
+      <version>3</version>
+    </parent>
+
+    <properties>
+     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>3.8.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-user</artifactId>
+            <version>2.2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-dev</artifactId>
+            <version>2.2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.sun</groupId>
+          <artifactId>tools</artifactId>
+          <version>1.6</version>
+          <scope>system</scope>
+          <optional>true</optional>
+          <systemPath>${java.home}/../lib/tools.jar</systemPath>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>${basedir}/src/main/java</directory>
+            </resource>
+            <resource>
+                <directory>${basedir}/src/main/resources</directory>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.5</source>
+                    <target>1.5</target>
+                </configuration>
+            </plugin>
+        </plugins>
+        <extensions>
+            <extension>
+                <groupId>org.jvnet.wagon-svn</groupId>
+                <artifactId>wagon-svn</artifactId>
+                <version>1.9</version>
+            </extension>
+        </extensions>
+    </build>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>gwt-maven</id>
+            <url>http://gwt-maven.googlecode.com/svn/trunk/mavenrepo/</url>
+        </pluginRepository>
+    </pluginRepositories>
+    <repositories>
+        <repository>
+            <id>gwt-maven</id>
+            <url>http://gwt-maven.googlecode.com/svn/trunk/mavenrepo/</url>
+        </repository>
+        <repository>
+            <id>maven2-repository.dev.java.net</id>
+            <name>Java.net Repository for Maven</name>
+            <url>http://download.java.net/maven/2/</url>
+        </repository>
+        <repository>
+            <id>timefire</id>
+            <url>http://timefire-repository.googlecode.com/svn/mavenrepo/</url>
+        </repository>
+
+    </repositories>
+  
+
+</project>

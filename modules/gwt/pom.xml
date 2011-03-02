@@ -19,6 +19,7 @@
     <description>A fork of gwt-comet project to integrate with Atmosphere</description>
     
 	<modules>
+        <module>gwt-exporter</module>
 		<module>atmosphere-gwt-client</module>
 		<module>atmosphere-gwt-common</module>
 		<module>atmosphere-gwt-js</module>
