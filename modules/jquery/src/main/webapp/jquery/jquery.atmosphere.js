@@ -265,6 +265,8 @@ jQuery.atmosphere = function()
                               index = end + 2;
                               jQuery.atmosphere.invokeCallback(response);
                             }
+                        } else {
+                            jQuery.atmosphere.invokeCallback(response);
                         }
                     }
                 };
