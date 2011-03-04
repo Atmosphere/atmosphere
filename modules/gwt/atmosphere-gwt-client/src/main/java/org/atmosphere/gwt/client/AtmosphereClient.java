@@ -113,6 +113,8 @@ public class AtmosphereClient {
 	
 	private int connectionTimeout = 10000;
 	private int reconnectionTimeout = 1000;
+
+    private boolean webSocketsEnabled = false;
     
     private Logger logger = Logger.getLogger(getClass().getName());
     
@@ -130,13 +132,18 @@ public class AtmosphereClient {
     };
 	
 	public AtmosphereClient(String url, AtmosphereListener listener) {
-		this(url, null, listener);
+            this(url, null, listener);
 	}
+
+    public AtmosphereClient(String url, AtmosphereGWTSerializer serializer, AtmosphereListener listener) {
+            this(url, serializer, listener, false);
+    }
 	
-	public AtmosphereClient(String url, AtmosphereGWTSerializer serializer, AtmosphereListener listener) {
+    public AtmosphereClient(String url, AtmosphereGWTSerializer serializer, AtmosphereListener listener, boolean webSocketsEnabled) {
 		this.url = url;
 		this.serializer = serializer;
 		this.listener = listener;
+        this.webSocketsEnabled = webSocketsEnabled;
         
 		primaryTransport = new CometClientTransportWrapper();
         
@@ -443,12 +450,13 @@ public class AtmosphereClient {
 		
 		public CometClientTransportWrapper() {
             // Websocket support not enabled yet
-//            if (WebSocketTransport.hasWebSocketSupport()) {
-//                transport = new WebSocketTransport();
-//            } else {
+
+            if (webSocketsEnabled && WebSocketCometTransport.hasWebSocketSupport()) {
+                transport = new WebSocketCometTransport();
+            } else {
                 transport = GWT.create(CometTransport.class);
-                GWT.log("Created transport: " + transport.getClass().getName()); 
-//            }
+            }
+            GWT.log("Created transport: " + transport.getClass().getName()); 
 			transport.initiate(AtmosphereClient.this, this);
 		}
 
