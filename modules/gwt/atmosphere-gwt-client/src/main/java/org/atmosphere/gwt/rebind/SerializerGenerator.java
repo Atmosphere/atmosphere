@@ -52,7 +52,6 @@
  */
 package org.atmosphere.gwt.rebind;
 
-import com.google.gwt.core.ext.GeneratorContextExt;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -63,6 +62,7 @@ import org.atmosphere.gwt.client.SerialMode;
 import org.atmosphere.gwt.client.SerialTypes;
 
 import com.google.gwt.core.ext.GeneratorExt;
+import com.google.gwt.core.ext.GeneratorContextExt;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.core.ext.typeinfo.JClassType;
@@ -70,7 +70,6 @@ import com.google.gwt.core.ext.typeinfo.JField;
 import com.google.gwt.core.ext.typeinfo.JType;
 import com.google.gwt.core.ext.typeinfo.NotFoundException;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
-import com.google.gwt.dev.javac.TypeOracleMediator;
 import com.google.gwt.dev.javac.rebind.RebindResult;
 import com.google.gwt.dev.javac.rebind.RebindStatus;
 import com.google.gwt.dev.util.collect.Lists;
