@@ -97,7 +97,7 @@ public class WebSocket extends JavaScriptObject {
         this.onerror = $entry(function() {
             listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onError(Lorg/atmosphere/gwt/client/impl/WebSocket;)(self);
         });
-        this.message = $entry(function(event) {
+        this.onmessage = $entry(function(event) {
             listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onMessage(Lorg/atmosphere/gwt/client/impl/WebSocket;Ljava/lang/String;)(self,event.data);
         });
     }-*/;
@@ -110,7 +110,7 @@ public class WebSocket extends JavaScriptObject {
           self.onopen = new Function();
           self.onclose = new Function();
           self.onerror = new Function();
-          self.message = new Function();
+          self.onmessage = new Function();
         }, 0);
     }-*/;
 
