@@ -143,7 +143,7 @@ public class AtmosphereClient {
 		this.url = url;
 		this.serializer = serializer;
 		this.listener = listener;
-                this.webSocketsEnabled = webSocketsEnabled;
+        this.webSocketsEnabled = webSocketsEnabled;
         
 		primaryTransport = new CometClientTransportWrapper();
         
@@ -456,7 +456,7 @@ public class AtmosphereClient {
             } else {
                 transport = GWT.create(CometTransport.class);
             }
-                GWT.log("Created transport: " + transport.getClass().getName()); 
+            GWT.log("Created transport: " + transport.getClass().getName()); 
 			transport.initiate(AtmosphereClient.this, this);
 		}
 
