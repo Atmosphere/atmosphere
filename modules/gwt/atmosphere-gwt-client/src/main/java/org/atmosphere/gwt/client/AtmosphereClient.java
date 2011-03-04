@@ -63,6 +63,7 @@ import org.atmosphere.gwt.client.impl.CometTransport;
 import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JsArrayString;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.rpc.AsyncCallback;
@@ -221,26 +222,32 @@ public class AtmosphereClient {
     
     
 	public void start() {
-		if (!running) {
-			running = true;
-            
-            if (unloadHandlerReg != null) {
-                unloadHandlerReg.removeHandler();
-            }
-            
-            UnloadHandler handler = new UnloadHandler();
-            final HandlerRegistration reg1 = LoadRegister.addBeforeUnloadHandler(handler);
-            final HandlerRegistration reg2 = LoadRegister.addUnloadHandler(handler);
-            unloadHandlerReg = new HandlerRegistration() {
-                @Override
-                public void removeHandler() {
-                    reg1.removeHandler();
-                    reg2.removeHandler();
+        // avoid spinning mouse cursor in chrome by starting as a deferred command
+        Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+            @Override
+            public void execute() {
+                if (!running) {
+                    running = true;
+
+                    if (unloadHandlerReg != null) {
+                        unloadHandlerReg.removeHandler();
+                    }
+
+                    UnloadHandler handler = new UnloadHandler();
+                    final HandlerRegistration reg1 = LoadRegister.addBeforeUnloadHandler(handler);
+                    final HandlerRegistration reg2 = LoadRegister.addUnloadHandler(handler);
+                    unloadHandlerReg = new HandlerRegistration() {
+                        @Override
+                        public void removeHandler() {
+                            reg1.removeHandler();
+                            reg2.removeHandler();
+                        }
+                    };
+
+                    doConnect();
                 }
-            };
-            
-			doConnect();
-		}
+            }
+        });
 	}
 
     private class UnloadHandler implements LoadRegister.BeforeUnloadHandler, LoadRegister.UnloadHandler {
