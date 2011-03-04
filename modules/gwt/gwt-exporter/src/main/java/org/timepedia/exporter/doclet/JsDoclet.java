@@ -1,5 +1,5 @@
 package org.timepedia.exporter.doclet;
-
+/*
 import com.sun.javadoc.AnnotationDesc;
 import com.sun.javadoc.ClassDoc;
 import com.sun.javadoc.ConstructorDoc;
@@ -15,15 +15,15 @@ import com.sun.tools.doclets.internal.toolkit.util.ClassTree;
 import com.sun.tools.doclets.internal.toolkit.util.DocletConstants;
 import com.sun.tools.doclets.internal.toolkit.util.PackageListWriter;
 import com.sun.tools.doclets.internal.toolkit.util.Util;
-
+*/
 import java.io.File;
 import java.util.StringTokenizer;
 
 /**
  * Doclet to generate documentation for exported Javascript methods.
  */
-public class JsDoclet extends HtmlDoclet {
-
+public class JsDoclet /*extends HtmlDoclet*/ {
+/*
   public static boolean start(RootDoc rootDoc) {
     JsDoclet jsDoclet = new JsDoclet();
 
@@ -339,5 +339,5 @@ public class JsDoclet extends HtmlDoclet {
       }
     }
     return false;
-  }
+  }*/
 }
