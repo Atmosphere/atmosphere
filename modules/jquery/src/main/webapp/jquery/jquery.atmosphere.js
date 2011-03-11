@@ -130,7 +130,7 @@ jQuery.atmosphere = function()
                 if (jQuery.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
                     return;
-                } else if ((typeof window.addEventStream) == 'function') {
+                } else if (jQuery.browser.opera) {
                     jQuery.atmosphere.operaStreaming();
                     return;
                 }
