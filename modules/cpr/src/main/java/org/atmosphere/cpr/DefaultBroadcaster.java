@@ -367,7 +367,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (resources.isEmpty()) {
             trackBroadcastMessage(null, entry.message);
-            entry.future.done();
+            if (entry.future != null) {
+                entry.future.done();
+            }
             return;
         }
 
