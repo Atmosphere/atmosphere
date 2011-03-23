@@ -275,6 +275,9 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public Broadcaster getBroadcaster() {
+        if (broadcaster == null) {
+            throw new IllegalStateException("No Broadcaster associated with this AtmosphereResource.");
+        }
         return broadcaster;
     }
 

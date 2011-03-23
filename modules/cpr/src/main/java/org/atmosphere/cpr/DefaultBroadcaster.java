@@ -690,6 +690,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 destroy();
             }
         }
+
+        if (r.getBroadcaster().equals(this)) {
+            r.setBroadcaster(null);
+        }
+              
         return r;
     }
 
