@@ -689,12 +689,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 BroadcasterFactory.getDefault().remove(this, name);                
                 destroy();
             }
-        }
-
-        if (r.getBroadcaster().equals(this)) {
-            r.setBroadcaster(null);
-        }
-              
+        }      
         return r;
     }
 
