@@ -85,11 +85,6 @@
                 <artifactId>atmosphere-runtime</artifactId>
                 <version>0.8-SNAPSHOT</version>
             </dependency>
-              <dependency>
-                <groupId>org.atmosphere.org.timepedia.exporter</groupId>
-                <artifactId>gwtexporter</artifactId>
-                <version>0.8-SNAPSHOT</version>
-            </dependency>          
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
