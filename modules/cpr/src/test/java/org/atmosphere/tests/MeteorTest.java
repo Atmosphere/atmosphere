@@ -86,7 +86,7 @@ public class MeteorTest {
             req.getSession().setAttribute("meteor", m);
             m.suspend(5000, false);
             
-            res.getOutputStream().write("resume".getBytes());
+            m.broadcast("resume");
             m.addListener(new AtmosphereResourceEventListener(){
 
                 @Override
