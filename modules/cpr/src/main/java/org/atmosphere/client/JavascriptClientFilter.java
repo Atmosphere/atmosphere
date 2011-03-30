@@ -70,7 +70,8 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
     @Override
     public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
 
-        if (request.getHeader("User-Agent") != null && request.getAttribute("X-Atmosphere-Transport") == null || ((String)request.getAttribute("X-Atmosphere-Transport")).equalsIgnoreCase("long-polling")) {
+        if (request.getHeader("User-Agent") != null && request.getAttribute("X-Atmosphere-Transport") == null
+                || request.getAttribute("X-Atmosphere-Transport") != null && ((String)request.getAttribute("X-Atmosphere-Transport")).equalsIgnoreCase("long-polling")) {
             String userAgent = request.getHeader("User-Agent").toLowerCase();
             if (userAgent != null && userAgent.startsWith("opera") && message instanceof String) {
                 StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
