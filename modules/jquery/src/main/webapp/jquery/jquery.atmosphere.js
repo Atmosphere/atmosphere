@@ -104,7 +104,7 @@ jQuery.atmosphere = function()
          * Always make sure one transport is used, not two at the same time except for Websocket.
          */
         closeSuspendedConnection : function () {
-            abordingConnection = true;
+            jQuery.atmosphere.abordingConnection = true;
             if (activeRequest != null) {
                 activeRequest.abort();
             }
@@ -113,7 +113,7 @@ jQuery.atmosphere = function()
                 jQuery.atmosphere.websocket.close();
                 jQuery.atmosphere.websocket = null;
             }
-            abordingConnection = false;
+            jQuery.atmosphere.abordingConnection = false;
 
             if (!(typeof(transferDoc) == 'undefined')) {
                 if (transferDoc != null) {
