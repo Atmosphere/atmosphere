@@ -428,34 +428,34 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
 
-        synchronized (resource) {
-            if (resource.getAtmosphereResourceEvent().isCancelled()) {
-                return;
-            }
-
-            final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
-            event.setMessage(msg);
-
-            if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
-                    && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                try {
-                    HttpServletRequest.class.cast(resource.getRequest())
-                            .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
-                }
-                catch (Exception t) {
-                    // Shield us from any corrupted Request
-                    logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
-                    resources.remove(resource);
-                    if (future != null) {
-                        future.cancel(true);
+        bc.getAsyncWriteService().execute(new Runnable(){
+            @Override
+            public void run() {
+                synchronized (resource) {
+                    if (resource.getAtmosphereResourceEvent().isCancelled()) {
+                        return;
                     }
-                    return;
-                }
-            }
+        
+                    final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
+                    event.setMessage(msg);
+        
+                    if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                            && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                        try {
+                            HttpServletRequest.class.cast(resource.getRequest())
+                                    .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
+                        }
+                        catch (Exception t) {
+                            // Shield us from any corrupted Request
+                            logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
+                            resources.remove(resource);
+                            if (future != null) {
+                                future.cancel(true);
+                            }
+                            return;
+                        }
+                    }
 
-            bc.getAsyncWriteService().execute(new Runnable(){
-                @Override
-                public void run() {
                     broadcast(resource, event);
                     if (resource instanceof AtmosphereEventLifecycle) {
                         ((AtmosphereEventLifecycle) resource).notifyListeners();
@@ -464,8 +464,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         future.done();
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
