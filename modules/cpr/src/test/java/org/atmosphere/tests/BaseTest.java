@@ -46,6 +46,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.util.StringFilterAggregator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1151,5 +1153,68 @@ public abstract class BaseTest {
         c.close();
 
     }
+    
+    @Test(timeOut = 60000)
+    public void testBroadcastFactoryNewBroadcasterTimeout() {
+        logger.info("{}: running test: testBroadcastFactoryTimeout", getClass().getSimpleName());
 
+        final CountDownLatch latch = new CountDownLatch(2);
+        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                currentTime = System.currentTimeMillis();
+                event.suspend(5000, false);
+                try {
+                Broadcaster b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "ExternalBroadcaster", true);
+                b.addAtmosphereResource(event);
+                b.broadcast("Outer broadcast").get();
+
+
+                    event.getBroadcaster().broadcast("Inner broadcast").get();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+
+                if (event.isResuming()) {
+                    return;
+                }
+
+                try {
+                    event.getResource().getResponse().getWriter().write(event.getMessage().toString());
+                } finally {
+                    latch.countDown();
+                    if (latch.getCount() == 0) {
+                        event.getResource().resume();
+                    }
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            Future<Response> f = c.prepareGet(urlTarget).execute();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+            Response r = f.get();
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "Outer broadcastInner broadcast");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
+    }
 }

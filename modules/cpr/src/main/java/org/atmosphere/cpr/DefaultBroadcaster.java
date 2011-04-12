@@ -490,7 +490,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                                                                                              
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         try {
-            r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
+            r.getAtmosphereHandler().onStateChange(e);
         } catch (IOException ex) {
             if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
                 AtmosphereResourceImpl.class.cast(r).notifyListeners(e);

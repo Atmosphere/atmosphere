@@ -98,24 +98,28 @@ public class AtmosphereResourceImpl implements
 
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
 
+    private final AtmosphereHandler atmosphereHandler;
+
 
     /**
      * Create an {@link AtmosphereResource}.
      *
-     * @param config       The {@link AtmosphereConfig}
-     * @param broadcaster  The {@link Broadcaster}.
-     * @param req          The {@link HttpServletRequest}
-     * @param response          The {@link HttpServletResponse}
-     * @param cometSupport The {@link CometSupport}
+     * @param config            The {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
+     * @param req               The {@link javax.servlet.http.HttpServletRequest}
+     * @param response          The {@link javax.servlet.http.HttpServletResponse}
+     * @param cometSupport      The {@link org.atmosphere.cpr.CometSupport}
+     * @param atmosphereHandler The {@link AtmosphereHandler}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
                                   HttpServletRequest req, HttpServletResponse response,
-                                  CometSupport cometSupport) {
+                                  CometSupport cometSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
         this.broadcaster = broadcaster;
         this.config = config;
         this.cometSupport = cometSupport;
+        this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
         String nocache = config.getInitParameter(AtmosphereServlet.NO_CACHE_HEADERS);
@@ -132,6 +136,14 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
+    @Override
+    public AtmosphereHandler getAtmosphereHandler() {
+        return atmosphereHandler;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public void resume() {
         if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
             action.type = AtmosphereServlet.Action.TYPE.RESUME;
@@ -139,7 +151,7 @@ public class AtmosphereResourceImpl implements
             // We need it as Jetty doesn't support timeout
             Broadcaster b = getBroadcaster();
             if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster)b).broadcastOnResume(this);
+                ((DefaultBroadcaster) b).broadcastOnResume(this);
             }
 
             notifyListeners();
@@ -152,8 +164,7 @@ public class AtmosphereResourceImpl implements
                 logger.debug("Cannot resume an already resumed/cancelled request");
             }
             cometSupport.action(this);
-        }
-        else {
+        } else {
             logger.debug("Cannot resume an already resumed/cancelled request");
         }
     }
@@ -178,13 +189,13 @@ public class AtmosphereResourceImpl implements
             throw new IllegalStateException("Cannot suspend a " +
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
-                
+
         if (!event.isResumedOnTimeout()) {
 
             String upgrade = req.getHeader("Connection");
             if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
                 if (!cometSupport.supportWebSocket()) {
-                    response.addHeader("X-Atmosphere-error","Websocket protocol not supported");
+                    response.addHeader("X-Atmosphere-error", "Websocket protocol not supported");
                 } else {
                     flushComment = false;
                 }
@@ -210,7 +221,7 @@ public class AtmosphereResourceImpl implements
             // is unique.
             if (broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) {
                 String id = broadcaster.getID();
-                Class<? extends Broadcaster> clazz = broadcaster.getClass(); 
+                Class<? extends Broadcaster> clazz = broadcaster.getClass();
                 broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
                 if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
                     broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id + "/" + UUID.randomUUID(), true);
@@ -319,9 +330,10 @@ public class AtmosphereResourceImpl implements
 
     /**
      * Is the {@link HttpServletRequest} still valid.
+     *
      * @return true if the {@link HttpServletRequest} still vali
      */
-    public boolean isInScope(){
+    public boolean isInScope() {
         return isInScope;
     }
 
@@ -341,7 +353,7 @@ public class AtmosphereResourceImpl implements
      * Object.toString.getBytes()
      *
      * @param os an {@link OutputStream}
-     * @param o an Object
+     * @param o  an Object
      * @throws IOException
      */
     public void write(OutputStream os, Object o) throws IOException {
@@ -425,9 +437,9 @@ public class AtmosphereResourceImpl implements
             onResume(event);
         } else if (event.isCancelled()) {
             onDisconnect(event);
-        } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()){
+        } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
             onSuspend(event);
-        } else if ( event.throwable() != null ){
+        } else if (event.throwable() != null) {
             onThrowable(event);
         } else {
             onBroadcast(event);
@@ -436,16 +448,17 @@ public class AtmosphereResourceImpl implements
 
     /**
      * Notify {@link AtmosphereResourceEventListener} an unexpected exception occured.\
+     *
      * @pram a {@link Throwable}
      */
     public void onThrowable(Throwable t) {
-        onThrowable(new AtmosphereResourceEventImpl(this,false, false, t));
+        onThrowable(new AtmosphereResourceEventImpl(this, false, false, t));
     }
-    
+
     void onThrowable(AtmosphereResourceEvent e) {
-        AtmosphereHandler<HttpServletRequest,HttpServletResponse> atmosphereHandler  =
-                        (AtmosphereHandler<HttpServletRequest,HttpServletResponse>)
-                            req.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+        AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
+                (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
         }
@@ -474,7 +487,7 @@ public class AtmosphereResourceImpl implements
             r.onBroadcast(e);
         }
     }
-    
+
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
