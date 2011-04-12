@@ -185,4 +185,10 @@ public interface AtmosphereResource<E, F> {
      */
     public AtmosphereResourceEvent getAtmosphereResourceEvent();
 
+    /**
+     * Return the associated {@link AtmosphereHandler} associated with this resource.
+     * @return the associated {@link AtmosphereHandler} associated with this resource.
+     */
+    public AtmosphereHandler getAtmosphereHandler();
+
 }

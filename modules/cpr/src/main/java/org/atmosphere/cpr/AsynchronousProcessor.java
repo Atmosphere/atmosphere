@@ -181,12 +181,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         req.setAttribute(AtmosphereServlet.SUPPORT_SESSION, supportSession());
 
         AtmosphereHandlerWrapper handlerWrapper = map(req);
-        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config,handlerWrapper.broadcaster, req, res, this);
+        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config,handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
         handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
 
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
-
+        
         try {
             handlerWrapper.atmosphereHandler.onRequest(resource);
         } catch (IOException t) {
@@ -194,9 +194,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throw t;
         }
 
-        // User may have changed it.
-        config.mapBroadcasterToAtmosphereHandler(resource.getBroadcaster(), handlerWrapper);
-                
         if (resource.getAtmosphereResourceEvent().isSuspended()) {
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, resource);

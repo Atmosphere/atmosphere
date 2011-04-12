@@ -402,7 +402,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void resume(AtmosphereResource resource) {
-            resource.getAtmosphereConfig().getAtmosphereHandler(resource.getBroadcaster());
             resource.resume();
         }
 

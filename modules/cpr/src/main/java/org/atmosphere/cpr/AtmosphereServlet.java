@@ -320,35 +320,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             return AtmosphereServlet.this.cometSupport.getContainerName();
         }
 
-        public boolean mapBroadcasterToAtmosphereHandler(Broadcaster bc, AtmosphereHandlerWrapper ahw) {
-            if (atmosphereHandlers.get(bc.getID()) == null) {
-                atmosphereHandlers.put(bc.getID(), ahw);
-                return true;
-            }
-            return false;
-        }
-
-        /**
-         * Return the {@link AtmosphereHandler} associated with this {@link Broadcaster}.
-         *
-         * @param bc The {@link Broadcaster}
-         * @return the {@link AtmosphereHandler} associated with this {@link Broadcaster}.
-         */
-        public AtmosphereHandler getAtmosphereHandler(Broadcaster bc) {
-            AtmosphereHandler h = atmosphereHandlers.get(bc.getID()).atmosphereHandler;
-            if (h == null) {
-                for (AtmosphereHandlerWrapper ah : atmosphereHandlers.values()) {
-                    if (ah.broadcaster == bc) {
-                        atmosphereHandlers.put(bc.getID(), ah);
-                        return ah.atmosphereHandler;
-                    }
-                }
-                throw new IllegalStateException("Unable to find associated AtmosphereHandler");
-            } else {
-                return h;
-            }
-        }
-
         /**
          * Return an instance of a {@link DefaultBroadcasterFactory}
          *
