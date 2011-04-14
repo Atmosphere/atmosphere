@@ -403,15 +403,23 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
         Object finalMsg = msg.message;
-        if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
-            Object message = msg.originalMessage;
-            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
-            if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
-               finalMsg = a.message();   
+
+        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass()))  {
+            if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
+                    Object message = msg.originalMessage;
+                    BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                    if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
+                       finalMsg = a.message();
+                    }
+                }
+                trackBroadcastMessage(r, finalMsg);
+            } else {
+                // The resource is no longer valid.
+                removeAtmosphereResource(r);
             }
+
         }
-               
-        trackBroadcastMessage(r, finalMsg);
         return finalMsg;
     }
 
@@ -438,22 +446,18 @@ public class DefaultBroadcaster implements Broadcaster {
         
                     final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
                     event.setMessage(msg);
-        
-                    if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
-                            && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                        try {
+
+                    try {
+                        if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                                && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
                             HttpServletRequest.class.cast(resource.getRequest())
                                     .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
                         }
-                        catch (Exception t) {
-                            // Shield us from any corrupted Request
-                            logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
-                            resources.remove(resource);
-                            if (future != null) {
-                                future.cancel(true);
-                            }
-                            return;
-                        }
+                    } catch (Exception t) {
+                        // Shield us from any corrupted Request
+                        logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
+                        removeAtmosphereResource(resource);
+                        return;
                     }
 
                     broadcast(resource, event);
