@@ -540,6 +540,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
         }
 
+        if (am.getMethod() == null) {
+            return null;
+        }
+
         if (SuspendResponse.class.isAssignableFrom(am.getMethod().getReturnType())) {
             list.addLast(new Filter(Action.SUSPEND_RESPONSE));
             return list;

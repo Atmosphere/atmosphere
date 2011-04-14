@@ -193,6 +193,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void setID(String id) {
+        if(id == null) {
+            id = getClass().getSimpleName() + "/" + UUID.randomUUID();
+        }
+                
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
