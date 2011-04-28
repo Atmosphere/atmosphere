@@ -1012,9 +1012,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                                 handler.getClass().getSimpleName());
                     }
                 }
-                // TODO is there a reason to catch throwable here instead of exception?
                 catch (Throwable t) {
-                    logger.warn("failed to load class as an AtmosphereHandler: " + className, t);
+                    logger.trace("failed to load class as an AtmosphereHandler: " + className, t);
                 }
             }
         }
