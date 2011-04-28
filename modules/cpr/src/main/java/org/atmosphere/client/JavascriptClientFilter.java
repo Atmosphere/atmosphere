@@ -65,7 +65,7 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
             }
         }
-        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, null);
+        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
 }
 
