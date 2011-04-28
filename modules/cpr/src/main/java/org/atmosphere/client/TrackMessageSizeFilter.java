@@ -31,7 +31,7 @@ public class TrackMessageSizeFilter implements PerRequestBroadcastFilter{
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
 
         }
-        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, null);
+        return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
 
     @Override
