@@ -1000,7 +1000,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             for (String className : possibleAtmosphereHandlersCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/",".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
