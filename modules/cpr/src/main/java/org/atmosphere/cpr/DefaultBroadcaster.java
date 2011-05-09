@@ -193,6 +193,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void setID(String id) {
+        if(id == null) {
+            id = getClass().getSimpleName() + "/" + UUID.randomUUID();
+        }
+                
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
@@ -367,7 +371,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (resources.isEmpty()) {
             trackBroadcastMessage(null, entry.message);
-            entry.future.done();
+            if (entry.future != null) {
+                entry.future.done();
+            }
             return;
         }
 
@@ -401,15 +407,23 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
         Object finalMsg = msg.message;
-        if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
-            Object message = msg.originalMessage;
-            BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
-            if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
-               finalMsg = a.message();   
+
+        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass()))  {
+            if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
+                    Object message = msg.originalMessage;
+                    BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                    if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
+                       finalMsg = a.message();
+                    }
+                }
+                trackBroadcastMessage(r, finalMsg);
+            } else {
+                // The resource is no longer valid.
+                removeAtmosphereResource(r);
             }
+
         }
-               
-        trackBroadcastMessage(r, finalMsg);
         return finalMsg;
     }
 
@@ -426,34 +440,30 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
 
-        synchronized (resource) {
-            if (resource.getAtmosphereResourceEvent().isCancelled()) {
-                return;
-            }
-
-            final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
-            event.setMessage(msg);
-
-            if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
-                    && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                try {
-                    HttpServletRequest.class.cast(resource.getRequest())
-                            .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
-                }
-                catch (Exception t) {
-                    // Shield us from any corrupted Request
-                    logger.warn("Preventing corruption of a recycled request: resource" + resource, event);
-                    resources.remove(resource);
-                    if (future != null) {
-                        future.cancel(true);
+        bc.getAsyncWriteService().execute(new Runnable(){
+            @Override
+            public void run() {
+                synchronized (resource) {
+                    if (resource.getAtmosphereResourceEvent().isCancelled()) {
+                        return;
                     }
-                    return;
-                }
-            }
+        
+                    final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
+                    event.setMessage(msg);
 
-            bc.getAsyncWriteService().execute(new Runnable(){
-                @Override
-                public void run() {
+                    try {
+                        if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                                && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                            HttpServletRequest.class.cast(resource.getRequest())
+                                    .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
+                        }
+                    } catch (Exception t) {
+                        // Shield us from any corrupted Request
+                        logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
+                        removeAtmosphereResource(resource);
+                        return;
+                    }
+
                     broadcast(resource, event);
                     if (resource instanceof AtmosphereEventLifecycle) {
                         ((AtmosphereEventLifecycle) resource).notifyListeners();
@@ -462,8 +472,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         future.done();
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
@@ -488,7 +498,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                                                                                              
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         try {
-            r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
+            r.getAtmosphereHandler().onStateChange(e);
         } catch (IOException ex) {
             if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
                 AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
@@ -687,7 +697,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 BroadcasterFactory.getDefault().remove(this, name);                
                 destroy();
             }
-        }
+        }      
         return r;
     }
 

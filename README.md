@@ -27,13 +27,13 @@ If you are using Maven, just add the following dependency:
     <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module]</artifactId>
-         <version>0.7.0</version>
+         <version>0.7.1</version>
      </dependency>
 
 Where atmosphere-module can be: jersey, runtime, guice, bayeux, cluster or spade-server. Our official release are available from Maven Central. For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds:
 
     http://oss.sonatype.org/service/local/repositories/snapshots/content
 
-Atmosphere 0.7.0 is our official release, and our work in progress version is 0.8, targeted for end of April
+Atmosphere 0.7.1 is our official release, and our work in progress version is 0.8, targeted for end of April
 
 If you are interested, subscribe to our mailing lists (user@atmosphere.dev.java.net or dev@atmosphere.dev.java.net) for more info!  We are on irc.freenode.net under #atmosphere-comet

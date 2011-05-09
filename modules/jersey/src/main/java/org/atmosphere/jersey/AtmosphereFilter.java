@@ -402,7 +402,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void resume(AtmosphereResource resource) {
-            resource.getAtmosphereConfig().getAtmosphereHandler(resource.getBroadcaster());
             resource.resume();
         }
 
@@ -539,6 +538,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             for (Annotation annotation : am.getAnnotations()) {
                 logger.debug("AtmosphereFilter processing annotation: {}", annotation);
             }
+        }
+
+        if (am.getMethod() == null) {
+            return null;
         }
 
         if (SuspendResponse.class.isAssignableFrom(am.getMethod().getReturnType())) {

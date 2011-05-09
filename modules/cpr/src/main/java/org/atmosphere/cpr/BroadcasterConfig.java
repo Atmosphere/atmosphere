@@ -425,21 +425,29 @@ public class BroadcasterConfig {
 
     void configureBroadcasterFilter(String[] list) {
         for (String broadcastFilter : list) {
+            BroadcastFilter bf = null;
             try {
-                BroadcastFilter bf = BroadcastFilter.class
+                bf = BroadcastFilter.class
                         .cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
+            } catch (InstantiationException e) {
+                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+            } catch (IllegalAccessException e) {
+                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+            } catch (ClassNotFoundException e) {
+                try {
+                    bf = BroadcastFilter.class
+                            .cast(BroadcastFilter.class.getClassLoader().loadClass(broadcastFilter).newInstance());
+                } catch (InstantiationException e1) {
+                } catch (IllegalAccessException e1) {
+                } catch (ClassNotFoundException e1) {
+                    logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+                }
+            }
+            if (bf != null) {
                 InjectorProvider.getInjector().inject(bf);
                 addFilter(bf);
             }
-            catch (InstantiationException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
-            }
-            catch (IllegalAccessException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
-            }
-            catch (ClassNotFoundException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
-            }
+
         }
     }
 
