@@ -38,6 +38,7 @@
 package org.atmosphere.samples.server;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
 import javax.servlet.ServletException;
 import java.util.logging.Level;
 import java.util.logging.Logger;

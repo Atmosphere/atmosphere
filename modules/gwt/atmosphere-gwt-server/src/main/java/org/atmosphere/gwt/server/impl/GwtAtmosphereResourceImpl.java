@@ -111,6 +111,16 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
+    public void post(Serializable message) {
+        getBroadcaster().broadcast(message, atmResource);
+    }
+
+    @Override
+    public void post(List<Serializable> messages) {
+        getBroadcaster().broadcast(messages, atmResource);
+    }
+
+    @Override
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
         return atmResource;
     }
