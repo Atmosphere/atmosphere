@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-gwt</artifactId>
-        <version>0.8-SNAPSHOT</version>
+        <version>0.7.2-SNAPSHOT</version>
     </parent>
     
     <groupId>org.atmosphere</groupId>
@@ -86,9 +86,9 @@
             <artifactId>gwt-user</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.timepedia.exporter</groupId>
+            <groupId>org.atmosphere.org.timepedia.exporter</groupId>
             <artifactId>gwtexporter</artifactId>
-            <version>2.10.0-SNAPSHOT</version>
+            <version>0.7.2-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

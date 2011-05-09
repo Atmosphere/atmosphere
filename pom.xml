@@ -1,15 +1,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.sonatype.oss</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>2</version>
+        <groupId>org.sonatype.forge</groupId>
+        <artifactId>forge-parent</artifactId>
+        <version>6</version>
     </parent>
+
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.7.2-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -337,20 +338,6 @@
             <url>http://download.java.net/maven/glassfish/</url>
         </repository>
     </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Sonatype Release</name>
-            <url>http://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>sonatype-nexus-snapshots</name>
-            <url>http://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <dependencies>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -454,7 +441,7 @@
 
     <properties>
         <jetty-version>6.1.22</jetty-version>
-        <jersey-version>1.5</jersey-version>
+        <jersey-version>1.6</jersey-version>
         <atmosphere-version>0.7-SNAPSHOT-SNAPSHOT</atmosphere-version>
         <jackson-version>1.3.1</jackson-version>
         <jaxb-version>2.1</jaxb-version>
@@ -464,7 +451,7 @@
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b74b</servlet-version>
         <bayeux-version>1.1.3</bayeux-version>
-        <grizzly-version>1.9.20</grizzly-version>
+        <grizzly-version>1.9.34</grizzly-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.2.1.v20101111</jetty7-version>
