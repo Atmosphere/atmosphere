@@ -216,7 +216,7 @@ jQuery.atmosphere = function()
                         }
                     } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;
-                    } else {
+                    } else if (ajaxRequest.status == 200) {
                         clearTimeout(request.id);
                     }
 
