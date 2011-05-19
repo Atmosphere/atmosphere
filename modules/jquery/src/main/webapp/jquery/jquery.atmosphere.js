@@ -10,14 +10,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Authors :
+ *  Jean François Arcand (jfarcand@apache.org - initial author)
+ *  Vincent Barrier      (vbarrier@kagilum.com - refactor to callback only on complete message, based on work of Nik Armstrong, nikolasarmstrong@gmail.com)
+ *
+ *
  */
 jQuery.atmosphere = function()
 {
     var activeRequest;
+    var ajaxRequests = new Array();
     jQuery(window).unload(function()
     {
-        if (activeRequest){
-            activeRequest.abort();
+        for ( var i=0, len=ajaxRequests.length; i<len; ++i ){
+            var request=ajaxRequests[i];
+            request.onreadystatechange = function () {};
+            request.abort();
         }
 
         if( !(typeof(transferDoc) == 'undefined') ){
@@ -30,6 +39,7 @@ jQuery.atmosphere = function()
 
     return {
         version : 0.7,
+        junkSize:2113,
         response : {
             status: 200,
             responseBody : '',
@@ -43,7 +53,7 @@ jQuery.atmosphere = function()
 
         request : {},
         abordingConnection: false,
-        logLevel : 'info',
+        logLevel : 'debug',
         callbacks: [],
         activeTransport : null,
         websocket : null,
@@ -59,12 +69,15 @@ jQuery.atmosphere = function()
                 cache: true,
                 async: true,
                 ifModified: false,
+                junkParsed:false,
                 callback: null,
+                trackMessageSize:false,
                 dataType: '',
                 url : url,
                 data : '',
                 suspend : true,
                 maxRequest : 60,
+                expectedMessageSize:jQuery.atmosphere.junkSize,
                 lastIndex : 0,
                 logLevel : 'info',
                 requestCount : 0,
@@ -125,7 +138,6 @@ jQuery.atmosphere = function()
 
         executeRequest: function()
         {
-
             if (jQuery.atmosphere.request.transport == 'streaming') {
                 if (jQuery.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
@@ -163,7 +175,9 @@ jQuery.atmosphere = function()
                 } else if (window.XMLHttpRequest) {
                     ajaxRequest = new XMLHttpRequest();
                 }
-
+                
+                ajaxRequests.push(ajaxRequest);
+                
                 if (request.suspend) {
                     activeRequest = ajaxRequest;
                 }
@@ -172,6 +186,7 @@ jQuery.atmosphere = function()
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+                ajaxRequest.setRequestHeader("X-Atmosphere-TrackMessageSize",request.trackMessageSize);
 
                 if (jQuery.atmosphere.request.contentType != '') {
                     ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);
@@ -201,9 +216,9 @@ jQuery.atmosphere = function()
 
                 ajaxRequest.onreadystatechange = function()
                 {
+                    var junkSize = jQuery.atmosphere.junkSize;
                     if (jQuery.atmosphere.abordingConnection) return;
 
-                    var junkForWebkit = false;
                     var update = false;
                     if (ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.request = request;
@@ -219,54 +234,64 @@ jQuery.atmosphere = function()
                     } else if (ajaxRequest.status == 200) {
                         clearTimeout(request.id);
                     }
-
                     if (update) {
-                        if (request.transport == 'streaming') {
-                            response.responseBody = ajaxRequest.responseText.substring(request.lastIndex, ajaxRequest.responseText.length);
+                        //do we have junk code ?
+                        if (request.lastIndex == 0 && ajaxRequest.responseText.indexOf('<!-- EOD -->') == -1){
+                            response.junkParsed = true;
+                            request.expectedMessageSize = -1;
+                            junkSize = 0;
+                        }
 
-                            if (request.lastIndex == 0 && response.responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
-                                var endOfJunk = "<!-- EOD -->";
-                                var endOfJunkLenght = "<!-- EOD -->".length;
-                                var junkEnd = response.responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+                        //is it junk code ?
+                        if(ajaxRequest.responseText.length >= junkSize && !request.junkParsed){
+                            request.junkParsed = true;
+                            request.lastIndex += junkSize;
+                            request.expectedMessageSize = -1;
+                        }
 
-                                if (junkEnd != ajaxRequest.responseText.length) {
-                                    response.responseBody = response.responseBody.substring(junkEnd);
-                                } else {
-                                    junkForWebkit = true;
+                        //If we care about integrity of the message
+                        if (request.trackMessageSize){
+                            //new message ? yes get the size of the next message
+                            response.responseBody = ajaxRequest.responseText;
+
+                            if (request.expectedMessageSize == -1){
+                                var reg = /\d+|/;
+                                var match = reg.exec(response.responseBody.substr(request.lastIndex));
+                                if (match[0]){
+                                    request.expectedMessageSize = parseInt(match[0]);
                                 }
                             }
-                            request.lastIndex = ajaxRequest.responseText.length;
-                            if (junkForWebkit) return;
-                        } else {
-                            response.responseBody = ajaxRequest.responseText;
-                        }
 
-                        try {
-                            response.status = ajaxRequest.status;
-                            response.headers = ajaxRequest.getAllResponseHeaders();
-                        }
-                        catch(e) {
-                            response.status = 404;
-                        }
+                            //loop until we have the entire message
+                            while(response.responseBody.length >= request.expectedMessageSize+request.lastIndex){
+                                if (request.lastIndex > 0){
+                                    var message = response.responseBody.substr(request.lastIndex+(request.expectedMessageSize+"").length+1, request.expectedMessageSize);
+                                    if (message.length == request.expectedMessageSize && request.junkParsed){
+                                        response.responseBody = message;
+                                        jQuery.atmosphere.processMessage(response,request);
+                                        request.lastIndex += request.expectedMessageSize + (request.expectedMessageSize+"").length+1;
+                                    }
+                                }
 
-                        if (request.suspend) {
-                            response.state = "messageReceived";
-                        } else {
-                            response.state = "messagePublished";
-                        }
-
-                        if (response.responseBody.indexOf("parent.callback") != -1) {
-                            var index = 0;
-                            var responseBody = response.responseBody;
-                            while ( responseBody.indexOf("('", index) != -1) {
-                              var start = responseBody.indexOf("('", index) + 2;
-                              var end = responseBody.indexOf("')", index);
-                              response.responseBody = responseBody.substring(start, end);
-                              index = end + 2;
-                              jQuery.atmosphere.invokeCallback(response);
+                                //Another message (partial or full)
+                                response.responseBody = ajaxRequest.responseText;
+                                match = reg.exec(response.responseBody.substr(request.lastIndex));
+                                if (match[0]){
+                                    request.expectedMessageSize = parseInt(match[0]);
+                                }
+                                else {
+                                    request.expectedMessageSize = -1;
+                                    break;
+                                }
                             }
-                        } else {
-                            jQuery.atmosphere.invokeCallback(response);
+                        }else{
+                            if(request.transport == 'streaming'){
+                                response.responseBody = ajaxRequest.responseText.substring(request.lastIndex);
+                                request.lastIndex += response.responseBody.length;
+                            }else{
+                                response.responseBody = ajaxRequest.responseText.substring(junkSize);
+                            }
+                            jQuery.atmosphere.processMessage(response,request);
                         }
                     }
                 };
@@ -282,6 +307,30 @@ jQuery.atmosphere = function()
                 }
             } else {
                 jQuery.atmosphere.log(logLevel, ["Max re-connection reached."]);
+            }
+        },
+
+        processMessage:function(response,request){
+            response.state = (request.suspend) ? "messageReceived" : "messagePublished";
+            try {
+                response.status = activeRequest.status;
+                response.headers = activeRequest.getAllResponseHeaders();
+            }
+            catch(e) {
+                response.status = 404;
+            }
+            if (response.responseBody.indexOf("parent.callback") != -1) {
+                var index = 0;
+                var responseBody = response.responseBody;
+                while ( responseBody.indexOf("('", index) != -1) {
+                  var start = responseBody.indexOf("('", index) + 2;
+                  var end = responseBody.indexOf("')", index);
+                  response.responseBody = responseBody.substring(start, end);
+                  index = end + 2;
+                  jQuery.atmosphere.invokeCallback(response);
+                }
+            } else {
+                jQuery.atmosphere.invokeCallback(response);
             }
         },
 
@@ -362,7 +411,6 @@ jQuery.atmosphere = function()
             response.status = 200;
             response.responseBody = args;
             response.state = "messageReceived";
-
             jQuery.atmosphere.invokeCallback(response);
         }
         ,
@@ -698,6 +746,4 @@ jQuery.atmosphere = function()
         }
 
     }
-
-}
-        ();
+}();
