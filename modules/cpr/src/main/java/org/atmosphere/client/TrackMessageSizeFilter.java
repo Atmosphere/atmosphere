@@ -27,7 +27,7 @@ public class TrackMessageSizeFilter implements PerRequestBroadcastFilter{
 
         if (request.getHeader("X-Atmosphere-TrackMessageSize").equalsIgnoreCase("true") && String.class.isAssignableFrom(message.getClass())) {
             String msg = message.toString();
-            msg = "!?" + msg.length() + "!?" + msg;
+            msg = msg.length() + "|" + msg;
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
 
         }
