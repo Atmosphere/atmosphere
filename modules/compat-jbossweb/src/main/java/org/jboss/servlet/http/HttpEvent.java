@@ -83,7 +83,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 public interface HttpEvent {
 
-    public enum EventType {BEGIN, READ, END, ERROR, TIMEOUT}
+    public enum EventType {BEGIN, READ, END, ERROR, TIMEOUT, EOF}
     
         
     /**

@@ -120,8 +120,18 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         }
         else if (event.getType() == HttpEvent.EventType.READ) {
             // Not implemente
-        }
-        else if (event.getType() == HttpEvent.EventType.ERROR) {
+        } else if (event.getType() == HttpEvent.EventType.EOF) {
+            logger.debug("Client closed connection: response: {}", res);
+
+            if (!resumed.remove(event)) {
+                logger.debug("Client closed connection: response: {}", res);
+                action = cancelled(req, res);
+            } else {
+                logger.debug("Cancelling response: {}", res);
+            }
+
+            event.close();
+        } else if (event.getType() == HttpEvent.EventType.ERROR) {
             event.close();
         }
         else if (event.getType() == HttpEvent.EventType.END) {
