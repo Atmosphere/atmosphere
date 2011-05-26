@@ -122,11 +122,13 @@ public class BroadcasterLifeCyclePolicy {
 
         public Builder idleTimeInMS(int time) {
             timeUnit = TimeUnit.MILLISECONDS;
+            this.time = time;
             return this;
         }
 
         public Builder idleTime(int time, TimeUnit timeUnit) {
             this.timeUnit = timeUnit;
+            this.time = time;
             return this;
         }
 
