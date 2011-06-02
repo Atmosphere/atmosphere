@@ -195,6 +195,25 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
+    public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
+        // Remove inside all Broadcaster as well.
+        try {
+            synchronized(r) {
+                if (store.size() > 0) {
+                    for (Broadcaster b: lookupAll()){
+                        b.removeAtmosphereResource(r);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            logger.warn(ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Collection<Broadcaster> lookupAll() {
         return Collections.unmodifiableCollection(store.values());
     }

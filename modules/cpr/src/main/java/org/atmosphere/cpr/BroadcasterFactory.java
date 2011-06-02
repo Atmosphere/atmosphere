@@ -110,6 +110,12 @@ public abstract class BroadcasterFactory {
     abstract public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull);
 
     /**
+     * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}
+     * @param r an void {@link AtmosphereResource}
+     */
+    abstract public void removeAllAtmosphereResource(AtmosphereResource<?,?> r);
+
+    /**
      * Return an immutable Collection of {@link Broadcaster} this factory contains.
      * @return an immutable Collection of {@link Broadcaster} this factory contains.
      */

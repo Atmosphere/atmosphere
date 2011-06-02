@@ -7,6 +7,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.jersey.AtmosphereFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,7 @@ public final class JerseyBroadcasterUtil {
             }
         } finally {
             r.getBroadcaster().removeAtmosphereResource(r);
+            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
         }
     }
 }
