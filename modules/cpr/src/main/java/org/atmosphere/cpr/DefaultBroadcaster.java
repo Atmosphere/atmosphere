@@ -115,6 +115,8 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
+        started.set(false);
+        destroyed.set(true);
         releaseExternalResources();
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
@@ -137,8 +139,7 @@ public class DefaultBroadcaster implements Broadcaster {
         asyncWriteQueue.clear();
         delayedBroadcast.clear();
         broadcasterCache = null;
-        started.set(false);
-        destroyed.set(true);
+
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
         }
@@ -330,11 +331,12 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Leader/follower
                     bc.getExecutorService().submit(this);
                     push(msg);
-                }
-                catch (Throwable ex) {
-                    // Catch all exception to avoid killing this thread.
-                    // What if the Throwable is OOME?
-                    logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                } catch (Throwable ex) {
+                    if (!started.get()) {
+                        logger.trace("failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
+                    } else {
+                        logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                    }
                 }
             }
         };
@@ -412,7 +414,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             entry.message = prevMessage;
         } catch(InterruptedException ex) {
-            logger.warn(ex.getMessage(), ex);
+            logger.debug(ex.getMessage(), ex);
         }
     }
 
@@ -424,7 +426,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
                     Object message = msg.originalMessage;
                     BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
-                    if (a.action() == BroadcastAction.ACTION.ABORT || a.message() != null) {
+                    if (a.action() == BroadcastAction.ACTION.ABORT
+                            || a.message() != msg.originalMessage) {
                        finalMsg = a.message();
                     }
                 }
@@ -490,11 +493,12 @@ public class DefaultBroadcaster implements Broadcaster {
                         bc.getAsyncWriteService().submit(this);
                         executeAsyncWrite(token.resource, token.msg, token.future);
                     }
-                }
-                catch (Throwable ex) {
-                    // Catch all exception to avoid killing this thread.
-                    // What if the Throwable is OOME?
-                    logger.debug("failed to submit async write task", ex);
+                } catch (Throwable ex) {
+                    if (!started.get()) {
+                        logger.trace("failed to submit async write task on shutdown", ex);
+                    } else {
+                        logger.debug("failed to submit async write task", ex);
+                    }
                 }
             }
         };
