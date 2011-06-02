@@ -326,16 +326,16 @@ public class DefaultBroadcaster implements Broadcaster {
         return new Runnable() {
             public void run() {
                 Entry msg;
-                try {
-                    msg = messages.take();
-                    // Leader/follower
-                    bc.getExecutorService().submit(this);
-                    push(msg);
-                } catch (Throwable ex) {
-                    if (!started.get()) {
-                        logger.trace("failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
-                    } else {
-                        logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                while (started.get()) {
+                    try {
+                        msg = messages.take();
+                        push(msg);
+                    } catch (Throwable ex) {
+                        if (!started.get()) {
+                            logger.trace("failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
+                        } else {
+                            logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                        }
                     }
                 }
             }
@@ -435,6 +435,7 @@ public class DefaultBroadcaster implements Broadcaster {
             } else {
                 // The resource is no longer valid.
                 removeAtmosphereResource(r);
+                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
             }
 
         }
@@ -470,6 +471,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Shield us from any corrupted Request
             logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
             removeAtmosphereResource(resource);
+            BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
             return;
         }
 
@@ -477,6 +479,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (resource instanceof AtmosphereEventLifecycle) {
             ((AtmosphereEventLifecycle) resource).notifyListeners();
         }
+
         if (future != null) {
             future.done();
         }
