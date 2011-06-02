@@ -80,6 +80,7 @@ public class DefaultBroadcaster implements Broadcaster {
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
+    protected final BlockingQueue<AsyncWriteToken> asyncWriteQueue = new LinkedBlockingQueue<AsyncWriteToken>();
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
 
@@ -89,6 +90,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
 
     protected Future<?> notifierFuture;
+    protected Future<?> asyncWriteFuture;
     protected BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
@@ -118,6 +120,10 @@ public class DefaultBroadcaster implements Broadcaster {
             notifierFuture.cancel(true);
         }
 
+        if (asyncWriteFuture != null) {
+            asyncWriteFuture.cancel(true);
+        }
+
         if (bc != null) {
             bc.destroy();
         }
@@ -128,6 +134,7 @@ public class DefaultBroadcaster implements Broadcaster {
         resources.clear();
         broadcastOnResume.clear();
         messages.clear();
+        asyncWriteQueue.clear();
         delayedBroadcast.clear();
         broadcasterCache = null;
         started.set(false);
@@ -317,7 +324,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected Runnable getBroadcastHandler() {
         return new Runnable() {
             public void run() {
-                Entry msg = null;
+                Entry msg;
                 try {
                     msg = messages.take();
                     // Leader/follower
@@ -327,7 +334,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 catch (Throwable ex) {
                     // Catch all exception to avoid killing this thread.
                     // What if the Throwable is OOME?
-                    logger.error("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                    logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
                 }
             }
         };
@@ -340,6 +347,7 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterCache.start();
 
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
+            asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
         }
     }
 
@@ -379,30 +387,33 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object finalMsg = translate(entry.message);
         entry.message = finalMsg;
-
-        if (entry.multipleAtmoResources == null) {
-            for (AtmosphereResource<?, ?> r : resources) {
-                finalMsg = perRequestFilter(r, entry);
-                if (entry.writeLocally) {
-                    executeAsyncWrite(r, finalMsg, entry.future);
+        try {
+            if (entry.multipleAtmoResources == null) {
+                for (AtmosphereResource<?, ?> r : resources) {
+                    finalMsg = perRequestFilter(r, entry);
+                    if (entry.writeLocally) {
+                        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
+                    }
                 }
-            }                                                                                                                                                                               
-        } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
-            finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
+            } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
+                finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
 
-            if (entry.writeLocally) {
-                executeAsyncWrite((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry.future);
-            }
-        } else if (entry.multipleAtmoResources instanceof Set) {
-            Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
-            for (AtmosphereResource<?, ?> r : sub) {
-                finalMsg = perRequestFilter(r, entry);
                 if (entry.writeLocally) {
-                    executeAsyncWrite(r, finalMsg, entry.future);
+                    asyncWriteQueue.put(new AsyncWriteToken((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry.future));
+                }
+            } else if (entry.multipleAtmoResources instanceof Set) {
+                Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
+                for (AtmosphereResource<?, ?> r : sub) {
+                    finalMsg = perRequestFilter(r, entry);
+                    if (entry.writeLocally) {
+                        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
+                    }
                 }
             }
+            entry.message = prevMessage;
+        } catch(InterruptedException ex) {
+            logger.warn(ex.getMessage(), ex);
         }
-        entry.message = prevMessage;
     }
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
@@ -439,41 +450,54 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
+        if (resource.getAtmosphereResourceEvent().isCancelled()) {
+            return;
+        }
 
-        bc.getAsyncWriteService().execute(new Runnable(){
-            @Override
+        final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
+        event.setMessage(msg);
+
+        try {
+            if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                    && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                HttpServletRequest.class.cast(resource.getRequest())
+                        .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
+            }
+        } catch (Exception t) {
+            // Shield us from any corrupted Request
+            logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
+            removeAtmosphereResource(resource);
+            return;
+        }
+
+        broadcast(resource, event);
+        if (resource instanceof AtmosphereEventLifecycle) {
+            ((AtmosphereEventLifecycle) resource).notifyListeners();
+        }
+        if (future != null) {
+            future.done();
+        }
+    }
+
+    protected Runnable getAsyncWriteHandler() {
+        return new Runnable() {
             public void run() {
-                synchronized (resource) {
-                    if (resource.getAtmosphereResourceEvent().isCancelled()) {
-                        return;
-                    }
-        
-                    final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
-                    event.setMessage(msg);
-
-                    try {
-                        if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
-                                && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                            HttpServletRequest.class.cast(resource.getRequest())
-                                    .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
-                        }
-                    } catch (Exception t) {
-                        // Shield us from any corrupted Request
-                        logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
-                        removeAtmosphereResource(resource);
-                        return;
-                    }
-
-                    broadcast(resource, event);
-                    if (resource instanceof AtmosphereEventLifecycle) {
-                        ((AtmosphereEventLifecycle) resource).notifyListeners();
-                    }
-                    if (future != null) {
-                        future.done();
+                AsyncWriteToken token;
+                try {
+                    token = asyncWriteQueue.take();
+                    // Leader/follower
+                    synchronized(token.resource) {
+                        bc.getAsyncWriteService().submit(this);
+                        executeAsyncWrite(token.resource, token.msg, token.future);
                     }
                 }
+                catch (Throwable ex) {
+                    // Catch all exception to avoid killing this thread.
+                    // What if the Throwable is OOME?
+                    logger.debug("failed to submit async write task", ex);
+                }
             }
-        });
+        };
     }
 
     protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
@@ -823,4 +847,18 @@ public class DefaultBroadcaster implements Broadcaster {
                 .append("\tAtmosphereResource: ").append(resources.size()).append("\n")
                 .toString();
     }
+
+    private static class AsyncWriteToken {
+
+        final AtmosphereResource<?, ?> resource;
+        final Object msg;
+        final BroadcasterFuture future;
+
+        public AsyncWriteToken(AtmosphereResource<?, ?> resource, Object msg, BroadcasterFuture future) {
+            this.resource = resource;
+            this.msg = msg;
+            this.future = future;
+        }
+    }
+
 }

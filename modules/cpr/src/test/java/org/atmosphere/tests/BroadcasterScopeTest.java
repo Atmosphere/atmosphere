@@ -156,6 +156,7 @@ public class BroadcasterScopeTest {
 
         servletLatch = new CountDownLatch(1);
         AsyncHttpClient c = new AsyncHttpClient();
+        Broadcaster b = null;
         try {
             long currentTime = System.currentTimeMillis();
             final AtomicReference<Response> r = new AtomicReference();
@@ -173,7 +174,7 @@ public class BroadcasterScopeTest {
 
             String id = broadcasterId.get();
 
-            Broadcaster b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, id);
+            b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, id);
             assertNotNull(b);
             b.broadcast("resume").get();
 
@@ -216,6 +217,8 @@ public class BroadcasterScopeTest {
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
+        } finally {
+           if (b != null) b.destroy();
         }
         c.close();
     }
