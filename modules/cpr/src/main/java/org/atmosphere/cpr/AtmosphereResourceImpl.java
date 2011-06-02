@@ -157,6 +157,10 @@ public class AtmosphereResourceImpl implements
             notifyListeners();
             listeners.clear();
             broadcaster.removeAtmosphereResource(this);
+
+            // Resuming here means we need to pull away from all other Broadcaster, if they exists.
+            BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+
             try {
                 req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
             }
@@ -173,6 +177,7 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public void suspend() {
+
         suspend(-1);
     }
 
