@@ -58,6 +58,7 @@ import org.testng.annotations.Test;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -66,6 +67,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -1153,7 +1155,7 @@ public abstract class BaseTest {
         c.close();
 
     }
-    
+
     @Test(timeOut = 60000)
     public void testBroadcastFactoryNewBroadcasterTimeout() {
         logger.info("{}: running test: testBroadcastFactoryTimeout", getClass().getSimpleName());
@@ -1217,4 +1219,73 @@ public abstract class BaseTest {
         }
         c.close();
     }
+
+    @Test(timeOut = 60000)
+    public void testConcurrentBroadcast() {
+        logger.info("{}: running test: testConcurrentBroadcast", getClass().getSimpleName());
+
+        final AtomicInteger broadcastCount = new AtomicInteger(0);
+        final AtomicReference<Response> response = new AtomicReference<Response>();
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            AtomicBoolean b = new AtomicBoolean(false);
+
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (!b.getAndSet(true)) {
+                    try {
+                        event.suspend(-1, false);
+                    } finally {
+                    }
+                } else {
+                    event.getBroadcaster().broadcast("Message-1 ");
+                    event.getBroadcaster().broadcast("Message-2 ");
+                    event.getBroadcaster().broadcast("Message-3 ");
+                    event.getBroadcaster().broadcast("Message-4");
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+                if (event.isResuming()) {
+                    return;
+                }
+                PrintWriter writer = event.getResource().getResponse().getWriter();
+                writer.write(event.getMessage().toString());
+                writer.flush();
+                try {
+                     broadcastCount.incrementAndGet();
+                } finally {
+                    if (broadcastCount.get() == 4) {
+                        event.getResource().resume();
+                    }
+                }
+            }
+        }, new RecyclableBroadcaster("suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            c.prepareGet(urlTarget).execute(new AsyncCompletionHandler<Object>() {
+                @Override
+                public Object onCompleted(Response r) throws Exception {
+                    response.set(r);
+                    latch.countDown();
+                    return null;
+                }
+            });
+
+            c.prepareGet(urlTarget).execute();
+            latch.await(10, TimeUnit.SECONDS);
+
+            assertNotNull(response.get());
+            assertEquals(response.get().getStatusCode(), 200);
+            assertEquals(response.get().getResponseBody(),"Message-1 Message-2 Message-3 Message-4");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        } finally {
+            c.close();
+        }
+    }
+
 }
