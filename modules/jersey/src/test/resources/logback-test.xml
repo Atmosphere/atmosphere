@@ -15,7 +15,8 @@
 	</appender>
 
 	<logger name="org" level="DEBUG"/>
-	<logger name="com.ning" level="INFO"/>
+    <logger name="com" level="INFO"/>
+    <logger name="org" level="INFO"/>
 
 	<root>
 		<level value="debug"/>

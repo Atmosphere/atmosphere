@@ -114,8 +114,12 @@ public abstract class AbstractReflectorAtmosphereHandler
                 }
             }
 
-            Boolean resumeOnBroadcast =
-                    (Boolean) event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            Boolean resumeOnBroadcast = false;
+            Object o = event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+                resumeOnBroadcast = Boolean.class.cast(o);
+            }
+
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
                 event.getResource().resume();
             }

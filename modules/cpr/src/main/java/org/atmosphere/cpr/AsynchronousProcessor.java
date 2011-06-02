@@ -365,9 +365,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 r.notifyListeners();
             }
             finally {
-                r.removeEventListeners();
-                r.getBroadcaster().removeAtmosphereResource(r);
+                destroyResource(r);
             }
+        }
+    }
+
+    private void destroyResource(AtmosphereResourceImpl r) {
+        r.removeEventListeners();
+        r.getBroadcaster().removeAtmosphereResource(r);
+        if (BroadcasterFactory.getDefault() != null) {
+            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
         }
     }
 
@@ -414,8 +421,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
             finally {
                 if (re != null) {
-                    re.removeEventListeners();
-                    re.getBroadcaster().removeAtmosphereResource(re);
+                    destroyResource(re);
                 }
             }
         }
