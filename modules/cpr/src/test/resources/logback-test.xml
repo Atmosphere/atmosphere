@@ -15,6 +15,7 @@
 	</appender>
 
 	<logger name="org.atmosphere" level="DEBUG"/>
+    <logger name="com.ning" level="INFO"/>
 
 	<root>
 		<level value="debug"/>
