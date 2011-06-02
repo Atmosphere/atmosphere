@@ -118,7 +118,7 @@ public class DefaultBroadcaster implements Broadcaster {
             notifierFuture.cancel(true);
         }
 
-        if (bc != null && scope != SCOPE.REQUEST) {
+        if (bc != null) {
             bc.destroy();
         }
 

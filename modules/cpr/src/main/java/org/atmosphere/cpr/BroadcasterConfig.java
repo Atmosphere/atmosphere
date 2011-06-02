@@ -127,7 +127,9 @@ public class BroadcasterConfig {
 
             @Override
             public Thread newThread(final Runnable runnable) {
-                return new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                t.setDaemon(true);
+                return t;
             }
         });
         defaultExecutorService = executorService;
@@ -138,7 +140,9 @@ public class BroadcasterConfig {
 
             @Override
             public Thread newThread(final Runnable runnable) {
-                return new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                t.setDaemon(true);
+                return t;
             }
         });
         defaultAsyncWriteService = asyncWriteService;
@@ -229,20 +233,20 @@ public class BroadcasterConfig {
         }
 
         if (executorService != null) {
-            executorService.shutdown();
+            executorService.shutdownNow();
         }
         if (asyncWriteService != null) {
-            asyncWriteService.shutdown();
+            asyncWriteService.shutdownNow();
         }
         if (defaultExecutorService != null) {
-            defaultExecutorService.shutdown();
+            defaultExecutorService.shutdownNow();
         }
         if (defaultAsyncWriteService != null) {
-            defaultAsyncWriteService.shutdown();
+            defaultAsyncWriteService.shutdownNow();
         }
 
         if (scheduler != null) {
-            scheduler.shutdown();
+            scheduler.shutdownNow();
         }
 
         for (BroadcastFilter f : filters) {
