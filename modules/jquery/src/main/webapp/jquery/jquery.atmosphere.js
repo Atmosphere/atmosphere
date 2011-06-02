@@ -446,7 +446,7 @@ jQuery.atmosphere = function() {
 
         removeCallback: function(func) {
             var index = jQuery.inArray(func, jQuery.atmosphere.callbacks);
-            if (index != -1) { jQuery.atmosphere.callbacks.splice(index); } }
+            if (index != -1) { jQuery.atmosphere.callbacks.splice(index); }
         }
         ,
 
