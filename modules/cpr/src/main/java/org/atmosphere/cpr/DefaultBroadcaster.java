@@ -81,6 +81,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
     protected final BlockingQueue<AsyncWriteToken> asyncWriteQueue = new LinkedBlockingQueue<AsyncWriteToken>();
+
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
 
@@ -88,6 +89,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected String name = DefaultBroadcaster.class.getSimpleName();
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
+    protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener>();
 
     protected Future<?> notifierFuture;
     protected Future<?> asyncWriteFuture;
@@ -263,10 +265,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 public void run() {
                     try {
                         if (resources.isEmpty()) {
+                            notifyEmptyListener();
+                            notifyIdleListener();
+
                             if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE) {
                                 releaseExternalResources();
                                 logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy");
                             } else {
+                                notifyDestroyListener();
+
                                 destroy();
                                 /**
                                  * The value may be null if the timeout is too low. Hopefully next execution will
@@ -287,6 +294,16 @@ public class DefaultBroadcaster implements Broadcaster {
             }, time, time, lifeCyclePolicy.getTimeUnit());
             ref.set(currentLifecycleTask);
         }
+    }
+
+    @Override
+    public void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
+        lifeCycleListeners.add(b);
+    }
+
+    @Override
+    public void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
+         lifeCycleListeners.remove(b);
     }
 
     public class Entry {
@@ -722,9 +739,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // Will help preventing OOM.
         if (resources.isEmpty()) {
+            notifyEmptyListener();
             if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
                 releaseExternalResources();
             } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
+                notifyDestroyListener();
                 BroadcasterFactory.getDefault().remove(this, name);                
                 destroy();
             }
@@ -732,6 +751,23 @@ public class DefaultBroadcaster implements Broadcaster {
         return r;
     }
 
+    private void notifyIdleListener() {
+        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+            b.onIdle();
+        }
+    }
+
+    private void notifyDestroyListener() {
+        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+            b.onDestroy();
+        }
+    }
+
+    private void notifyEmptyListener() {
+        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+            b.onEmpty();
+        }
+    }
     /**
      * Set the {@link BroadcasterConfig} instance.
      *
