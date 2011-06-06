@@ -765,6 +765,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
+        start();
         final Object msg = filter(o);
         if (msg == null) return null;
 
@@ -817,6 +818,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
 
+        start();
         if (period == 0 || t == null) {
             return null;
         }
