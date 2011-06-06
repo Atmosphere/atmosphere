@@ -274,4 +274,16 @@ public interface Broadcaster {
      */
     public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
+    /**
+     * Add a {@link BroadcasterLifeCyclePolicyListener}
+     * @param b a {@link BroadcasterLifeCyclePolicyListener}
+     */
+    void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
+
+    /**
+     * Remove a {@link BroadcasterLifeCyclePolicyListener}
+     * @param b a {@link BroadcasterLifeCyclePolicyListener}
+     */
+    void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
+
 }
