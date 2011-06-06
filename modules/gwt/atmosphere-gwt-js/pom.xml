@@ -15,11 +15,11 @@
 
     <properties>
         <gwtModule>org.atmosphere.gwt.JsClient</gwtModule>
-        <war.target>${basedir}/src/main/webapp</war.target>
-        <gwt.compiler.force>false</gwt.compiler.force>
+        <war.target>${project.build.directory}/war</war.target>
+        <gwt.compiler.force>true</gwt.compiler.force>
         <gwt.draftCompile>false</gwt.draftCompile>
-        <gwt.style>PRETTY</gwt.style>
-        <outputDir>${war.target}/WEB-INF/classes</outputDir>
+        <gwt.style>OBF</gwt.style>
+        <outputDir>${war.target}/war/WEB-INF/classes</outputDir>
     </properties>
  
     <!-- temporary until gwt-maven-plugin:2.3.0 is released -->
@@ -32,7 +32,7 @@
     </pluginRepositories>
     
     <build>
-<!--        <outputDirectory>${outputDir}</outputDirectory>-->
+        <outputDirectory>${outputDir}</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -65,6 +65,17 @@
                     </execution>
                 </executions>
             </plugin>
+            
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
+
 <!--            <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>2.2</version>
