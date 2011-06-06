@@ -96,6 +96,8 @@ public class AtmosphereResourceImpl implements
 
     private final boolean injectCacheHeaders;
 
+    private final boolean enableAccessControl;
+
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
 
     private final AtmosphereHandler atmosphereHandler;
@@ -124,6 +126,9 @@ public class AtmosphereResourceImpl implements
 
         String nocache = config.getInitParameter(AtmosphereServlet.NO_CACHE_HEADERS);
         injectCacheHeaders = nocache != null ? false : true;
+
+        String ac = config.getInitParameter(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+        enableAccessControl =  ac != null ? false : true;
     }
 
     /**
@@ -213,6 +218,10 @@ public class AtmosphereResourceImpl implements
                 response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
                 // Set standard HTTP/1.0 no-cache header.
                 response.setHeader("Pragma", "no-cache");
+            }
+
+            if (enableAccessControl) {
+                response.setHeader("Access-Control-Allow-Origin", "*");
             }
 
             if (flushComment) {

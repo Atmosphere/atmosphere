@@ -205,6 +205,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String DEFAULT_NAMED_DISPATCHER = "default";
     public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
     public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
+    public final static String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
 
