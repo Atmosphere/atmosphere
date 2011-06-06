@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Context>
-    <!-- <Loader className="org.atmosphere.util.AtmosphereClassloader"/> -->
-    <Loader delegate="true"/>
+<Context path="/atmosphere-gwt-jsdemo">
+  <!-- <Loader className="org.atmosphere.util.AtmosphereClassloader"/> -->
+  <Loader delegate="true"/>
 </Context>
