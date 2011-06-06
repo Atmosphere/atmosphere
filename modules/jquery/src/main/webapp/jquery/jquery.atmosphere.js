@@ -277,19 +277,21 @@ jQuery.atmosphere = function() {
             }
         },
 
-        operaStreaming: function() {
-
+        operaStreaming : function()
+        {
             jQuery.atmosphere.closeSuspendedConnection();
 
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
-            jQuery.atmosphere.response.push = function (url) {
+            jQuery.atmosphere.response.push = function (url)
+            {
                 jQuery.atmosphere.request.transport = 'polling';
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
-            function init() {
+            function init()
+            {
                 var iframe = document.createElement("iframe");
                 iframe.style.width = "0px";
                 iframe.style.height = "0px";
