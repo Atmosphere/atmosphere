@@ -39,13 +39,13 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import java.util.Collection;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 
 import javax.ws.rs.core.Context;
 import java.lang.reflect.Type;
+import java.util.Collection;
 
 /**
  * Allow {@link org.atmosphere.cpr.BroadcasterFactory} injection via the {@link Context} annotation supported
@@ -137,6 +137,11 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             @Override
             public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
                 return _get().lookup(c, id, createIfNull);
+            }
+
+            @Override
+            public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
+                _get().removeAllAtmosphereResource(r);
             }
 
             @Override
