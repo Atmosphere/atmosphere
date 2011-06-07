@@ -362,7 +362,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             String returnMsg = null;
             // Something went wrong if null.
             if (o instanceof Broadcastable) {
-                b = ((Broadcastable) o).getBroadcaster();
+                if (((Broadcastable) o).getBroadcaster() != null) {
+                    b = ((Broadcastable) o).getBroadcaster();
+                }
                 msg = ((Broadcastable) o).getMessage();
                 returnMsg = ((Broadcastable) o).getResponseMessage().toString();
             }
