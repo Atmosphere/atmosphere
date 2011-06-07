@@ -703,10 +703,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 // TODO handle null return from poll()
                 AtmosphereResource<?, ?> resource = resources.poll();
                 try {
+                    logger.warn("Too many resource. Forcing resume of {} ", resource);
                     resource.resume();
                 }
                 catch (Throwable t) {
-                    logger.warn("failed to resume resource: " + resource, t);
+                    logger.warn("failed to resume resource {} ", resource, t);
                 }
             } else if (policy == POLICY.REJECT) {
                 throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
