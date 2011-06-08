@@ -594,6 +594,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
             config.broadcasterFactory = broadcasterFactory;
+            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         }
 
         Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
