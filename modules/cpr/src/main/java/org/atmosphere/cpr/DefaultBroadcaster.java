@@ -354,6 +354,11 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void push(Entry entry) {
+
+        if (destroyed.get()) {
+            return;
+        }
+
         String prevMessage = entry.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
@@ -715,6 +720,9 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
+
+        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+
         if (!resources.contains(r)) {
             return null;
         }
