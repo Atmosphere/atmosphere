@@ -100,7 +100,6 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void broadcast(byte frame, byte[] data, int offset, int length) {
-
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
         resource.getBroadcaster().broadcast(b);
