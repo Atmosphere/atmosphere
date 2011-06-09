@@ -3,7 +3,7 @@
     <groupId>org.atmosphere.org.timepedia.exporter</groupId>
     <artifactId>gwtexporter</artifactId>
     <packaging>jar</packaging>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.7.2-SNAPSHOT</version>
     <name>GWT Javascript API Exporter</name>
     <url>http://timepedia.org</url>
 
