@@ -140,6 +140,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
+    public HttpServletResponse getResponse() {
+        return atmResource.getResponse();
+    }
+
+    @Override
     public int getConnectionID() {
         return writer.connectionID;
     }

@@ -41,11 +41,9 @@
                         <configuration>
                             <extraJvmArgs>-Xmx512m</extraJvmArgs>
                             <sourcesOnPath>true</sourcesOnPath>
-
                             <modules>
                                 <module>${gwtModule}</module>
                             </modules>
-
                             <gwtVersiom>${gwt-version}</gwtVersiom>
                         </configuration>
                         <goals>
