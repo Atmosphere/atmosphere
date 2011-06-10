@@ -51,6 +51,7 @@ public interface GwtAtmosphereResource {
     public void post(List<Serializable> messages);
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource();
     public HttpServletRequest getRequest();
+    public HttpServletResponse getResponse();
     public boolean isAlive();
     public <T> void setAttribute(String name, T value);
     public <T> T getAttribute(String name);

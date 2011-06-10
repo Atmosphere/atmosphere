@@ -36,6 +36,7 @@
                     <runTarget>http://localhost:8888/gwtDemo/gwtDemo.jsp</runTarget>
                     <noServer>false</noServer>
                     <sourcesOnPath>true</sourcesOnPath>
+                    <hostedWebapp>${war.target}</hostedWebapp>
                 </configuration>
                 <executions>
                     <execution>
@@ -56,6 +57,26 @@
                     <encoding>UTF-8</encoding>
                     <source>1.6</source>
                     <target>1.6</target>
+                </configuration>
+            </plugin>
+            
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${outputDir}</directory>
+                        </fileset>
+                        <fileset>
+                            <directory>${war.target}/gwtDemo</directory>
+                        </fileset>
+                        <fileset>
+                            <directory>${war.target}/WEB-INF/lib</directory>
+                        </fileset>
+                        <fileset>
+                            <directory>${war.target}/WEB-INF/deploy</directory>
+                        </fileset>
+                    </filesets>
                 </configuration>
             </plugin>
 
