@@ -20,12 +20,14 @@ import org.atmosphere.cpr.PerRequestBroadcastFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class TrackMessageSizeFilter implements PerRequestBroadcastFilter{
+public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 
     @Override
     public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
 
-        if (request.getHeader("X-Atmosphere-TrackMessageSize").equalsIgnoreCase("true") && String.class.isAssignableFrom(message.getClass())) {
+        if ("true".equalsIgnoreCase(request.getHeader("X-Atmosphere-TrackMessageSize"))
+                && message != null && String.class.isAssignableFrom(message.getClass())) {
+
             String msg = message.toString();
             msg = msg.length() + "|" + msg;
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
