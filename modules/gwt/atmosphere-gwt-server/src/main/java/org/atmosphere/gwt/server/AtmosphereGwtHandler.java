@@ -95,18 +95,15 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      */
     public void doPost(List<Serializable> messages, GwtAtmosphereResource r) {
         if (messages.size() == 1) {
-            r.broadcast(messages.get(0));
+            r.post(messages.get(0));
         } else {
-            r.broadcast((List)messages);
+            r.post((List)messages);
         }
     }
     
+    @Deprecated
     protected Broadcaster getBroadcaster(GwtAtmosphereResource resource) {
-        if (resource == null) {
-            return BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
-        } else {
-            return resource.getBroadcaster();
-        }
+        return resource.getBroadcaster();
     }
     
     /**
@@ -305,14 +302,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (message == null) {
             return;
         }
-        getBroadcaster(resource).broadcast(message);
+        resource.getBroadcaster().broadcast(message);
     }
 
     public void broadcast(List<Serializable> messages, GwtAtmosphereResource resource) {
         if (messages == null) {
             return;
         }
-        getBroadcaster(resource).broadcast(messages);
+        resource.getBroadcaster().broadcast(messages);
     }
 
     public void disconnect(GwtAtmosphereResource resource) {
