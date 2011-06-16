@@ -1155,6 +1155,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         try {
             return cometSupport.service(req, res);
         } catch (IllegalStateException ex) {
+            logger.warn(ex.getMessage(),ex);
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
                 if (!isFilter) {
                     logger.warn("failed using comet support: {}, error: {}", cometSupport.getClass().getName(),
