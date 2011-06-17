@@ -98,7 +98,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * the class's name.
  * <p/>
  * This {@link Servlet} can be defined inside an application's web.xml using the following:
- * <p><pre><code>
+ * <blockquote><pre>
  *  &lt;servlet&gt;
  *      &lt;description&gt;AtmosphereServlet&lt;/description&gt;
  *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
@@ -109,58 +109,58 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
  *      &lt;url-pattern&gt;/Atmosphere &lt;/url-pattern&gt;
  *  &lt;/servlet-mapping&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can force this Servlet to use native API of the Web Server instead of
  * the Servlet 3.0 Async API you are deploying on by adding
- * <p><pre><code>
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.useNative&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can force this Servlet to use one Thread per connection instead of
  * native API of the Web Server you are deploying on by adding
- * <p><pre><code>
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.useBlocking&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can also define {@link Broadcaster}by adding:
- * <p><pre><code>
+ * <blockquote><pre> 
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
  *      &lt;param-value&gt;class-name&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
- * <p><pre><code>
+ * <blockquote><pre> 
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
- * <p><pre><code>
+ * <blockquote><pre> 
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
  *      &lt;param-value&gt;class-name&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can also configure Atmosphere to use http session or not
- * <p><pre><code>
+ * <blockquote><pre> 
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport&lt;/param-name&gt;
  *      &lt;param-value&gt;false&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * You can also configure {@link BroadcastFilter} that will be applied at all newly created {@link Broadcaster}
- * <p><pre><code>
+ * <blockquote><pre> 
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcastFilterClasses&lt;/param-name&gt;
  *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- * </code></pre></p>
+ *</pre></blockquote>
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
  * <p/>
  * If you are planning to use JSP, Servlet or JSF, you can instead use the
