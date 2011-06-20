@@ -140,11 +140,11 @@ public class Client implements Exportable {
     }
 
     private native String encodeJSON(JavaScriptObject obj) /*-{
-        return JSON.encode(obj);
+        return atmosphere_JSON.encode(obj);
     }-*/;
 
     private native JavaScriptObject decodeJSON(String json) /*-{
-        return JSON.decode(json);
+        return atmosphere_JSON.decode(json);
     }-*/;
 
     

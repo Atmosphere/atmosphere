@@ -53,17 +53,17 @@ License:
 */
 
 /*
-Object: JSON
+Object: atmosphere_JSON
 	Stand alone or prototyped encode, decode or toDate public methods.
 
 Example:
-	>alert(JSON.encode([0,1,false,true,null,[2,3],{"some":"value"}]));
+	>alert(atmosphere_JSON.encode([0,1,false,true,null,[2,3],{"some":"value"}]));
 	>// [0,1,false,true,null,[2,3],{"some":"value"}]
 	>
-	>alert(JSON.decode('[0,1,false,true,null,[2,3],{"some":"value"}]'))
+	>alert(atmosphere_JSON.decode('[0,1,false,true,null,[2,3],{"some":"value"}]'))
 	>// 0,1,false,true,,2,3,[object Object]
 */
-JSON = new function(){
+atmosphere_JSON = new function(){
 
 	/* Section: Methods - Public */
 	
@@ -79,14 +79,14 @@ JSON = new function(){
 		Object - Generic JavaScript variable or undefined
 	
 	Example [Basic]:
-		>var	arr = JSON.decode('[1,2,3]');
+		>var	arr = atmosphere_JSON.decode('[1,2,3]');
 		>alert(arr);	// 1,2,3
 		>
-		>arr = JSON.decode('[1,2,3]', function(key, value){return key * value});
+		>arr = atmosphere_JSON.decode('[1,2,3]', function(key, value){return key * value});
 		>alert(arr);	// 0,2,6
 	
 	Example [Prototype]:
-		>String.prototype.parseJSON = JSON.decode;
+		>String.prototype.parseJSON = atmosphere_JSON.decode;
 		>
 		>alert('[1,2,3]'.parseJSON());	// 1,2,3
 		>
@@ -150,11 +150,11 @@ JSON = new function(){
 		String - Valid JSON string or undefined
 	
 	Example [Basic]:
-		>var	s = JSON.encode([1,2,3]);
+		>var	s = atmosphere_JSON.encode([1,2,3]);
 		>alert(s);	// [1,2,3]
 	
 	Example [Prototype]:
-		>Object.prototype.toJSONString = JSON.encode;
+		>Object.prototype.toJSONString = atmosphere_JSON.encode;
 		>
 		>alert([1,2,3].toJSONString());	// [1,2,3]
 	*/
@@ -168,7 +168,7 @@ JSON = new function(){
 				case	Array:
 					result = [];
 					for(var	i = 0, j = 0, k = self.length; j < k; j++) {
-						if(self[j] !== undefined && (tmp = JSON.encode(self[j])))
+						if(self[j] !== undefined && (tmp = atmosphere_JSON.encode(self[j])))
 							result[i++] = tmp;
 					};
 					result = "[".concat(result.join(","), "]");
@@ -191,7 +191,7 @@ JSON = new function(){
 					var	i = 0, key;
 					result = [];
 					for(key in self) {
-						if(self[key] !== undefined && (tmp = JSON.encode(self[key])))
+						if(self[key] !== undefined && (tmp = atmosphere_JSON.encode(self[key])))
 							result[i++] = '"'.concat(key.replace(rs, s).replace(ru, u), '":', tmp);
 					};
 					result = "{".concat(result.join(","), "}");
@@ -212,20 +212,20 @@ JSON = new function(){
 		Date - Date object or undefined if string is not a valid Date
 	
 	Example [Basic]:
-		>var	serverDate = JSON.toDate("2007-04-05T08:36:46");
+		>var	serverDate = atmosphere_JSON.toDate("2007-04-05T08:36:46");
 		>alert(serverDate.getMonth());	// 3 (months start from 0)
 	
 	Example [Prototype]:
-		>String.prototype.parseDate = JSON.toDate;
+		>String.prototype.parseDate = atmosphere_JSON.toDate;
 		>
 		>alert("2007-04-05T08:36:46".parseDate().getDate());	// 5
 	
 	Example [Server Time]:
-		>var	phpServerDate = JSON.toDate(<?php echo time(); ?>);
-		>var	csServerDate = JSON.toDate(<%=(DateTime.Now.Ticks/10000-62135596800000)%>/1000);
+		>var	phpServerDate = atmosphere_JSON.toDate(<?php echo time(); ?>);
+		>var	csServerDate = atmosphere_JSON.toDate(<%=(DateTime.Now.Ticks/10000-62135596800000)%>/1000);
 	
 	Example [Server Time Prototype]:
-		>Number.prototype.parseDate = JSON.toDate;
+		>Number.prototype.parseDate = atmosphere_JSON.toDate;
 		>var	phpServerDate = (<?php echo time(); ?>).parseDate();
 		>var	csServerDate = (<%=(DateTime.Now.Ticks/10000-62135596800000)%>/1000).parseDate();
 	
