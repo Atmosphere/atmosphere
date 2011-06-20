@@ -450,7 +450,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
                 bc = cached.getBroadcaster();
                 // Just in case something went wrong.
-                bc.removeAtmosphereResource(cached);
+                try {
+                    bc.removeAtmosphereResource(cached);
+                } catch (IllegalStateException ex) {
+                    logger.trace(ex.getMessage(), ex);
+                }
             }
 
             if (response.getEntity() instanceof Broadcastable) {

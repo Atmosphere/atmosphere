@@ -372,7 +372,11 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     private void destroyResource(AtmosphereResourceImpl r) {
         r.removeEventListeners();
-        r.getBroadcaster().removeAtmosphereResource(r);
+        try {
+            r.getBroadcaster().removeAtmosphereResource(r);
+        } catch (IllegalStateException ex) {
+            logger.trace(ex.getMessage(), ex);
+        }
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
         }

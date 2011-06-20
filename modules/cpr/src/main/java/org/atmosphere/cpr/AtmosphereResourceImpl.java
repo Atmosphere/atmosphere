@@ -161,7 +161,11 @@ public class AtmosphereResourceImpl implements
 
             notifyListeners();
             listeners.clear();
-            broadcaster.removeAtmosphereResource(this);
+            try {
+                broadcaster.removeAtmosphereResource(this);
+            } catch (IllegalStateException ex) {
+                logger.trace(ex.getMessage(), ex);
+            }
 
             // Resuming here means we need to pull away from all other Broadcaster, if they exists.
             BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);

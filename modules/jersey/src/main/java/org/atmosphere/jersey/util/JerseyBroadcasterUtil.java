@@ -85,7 +85,11 @@ public final class JerseyBroadcasterUtil {
                 ((AtmosphereEventLifecycle) r).removeEventListeners();
             }
         } finally {
-            r.getBroadcaster().removeAtmosphereResource(r);
+            try {
+                r.getBroadcaster().removeAtmosphereResource(r);
+            } catch (IllegalStateException ex) {
+                logger.trace(ex.getMessage(), ex);
+            }
             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
         }
     }

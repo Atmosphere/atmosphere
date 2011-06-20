@@ -201,7 +201,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             synchronized(r) {
                 if (store.size() > 0) {
                     for (Broadcaster b: lookupAll()){
-                        b.removeAtmosphereResource(r);
+                        try {
+                            b.removeAtmosphereResource(r);
+                        } catch (IllegalStateException ex) {
+                            logger.trace(ex.getMessage(), ex);
+                        }
                     }
                 }
             }
