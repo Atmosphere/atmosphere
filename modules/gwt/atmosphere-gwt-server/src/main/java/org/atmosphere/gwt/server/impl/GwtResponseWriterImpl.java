@@ -212,7 +212,8 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
 			throw new IOException("CometServletResponse terminated");
 		}
 		try {
-            if (messages.size() == 1 && messages.get(0) instanceof Heartbeat) {
+            if (messages.size() == 1 && messages.get(0) instanceof String 
+                    && messages.get(0).equals(GwtAtmosphereResourceImpl.HEARTBEAT_MESSAGE)) {
                 heartbeat();
             } else {
                 if (logger.isTraceEnabled()) {

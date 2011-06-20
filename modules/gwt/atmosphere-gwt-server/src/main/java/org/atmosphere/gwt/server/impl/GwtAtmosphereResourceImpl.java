@@ -44,6 +44,8 @@ import org.slf4j.LoggerFactory;
  * @author p.havelaar
  */
 public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
+    
+    public static final String HEARTBEAT_MESSAGE = "4dc5bdb9-edc8-4edf-8833-ab478326d8c9";
 
     public GwtAtmosphereResourceImpl(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource,
             AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
@@ -245,7 +247,6 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private final GwtResponseWriterImpl writer;
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> atmResource;
     private final int heartBeatInterval;
-    private Heartbeat heartBeatMessage = new Heartbeat();
     private AtmosphereGwtHandler atmosphereHandler;
     private boolean suspended = false;
     private Logger logger = LoggerFactory.getLogger(getClass());
@@ -254,7 +255,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         @Override
         public void run() {
             if (isAlive()) {
-                broadcast(heartBeatMessage);
+                broadcast(HEARTBEAT_MESSAGE);
             }
         }
     };
