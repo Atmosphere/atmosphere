@@ -169,7 +169,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider {
+public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
@@ -208,7 +208,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
-
 
     private static final AtmospherePingSupport ATMOSPHERE_PING_SUPPORT = new AtmospherePingSupport();
 
