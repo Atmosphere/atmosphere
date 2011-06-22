@@ -70,11 +70,9 @@
 
 package org.jboss.servlet.http;
 
-import org.apache.catalina.*;
-import java.io.IOException;
-
-import javax.servlet.ServletException;
 import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import java.io.IOException;
 
 /**
  * This interface should be implemented by servlets which would like to handle
@@ -92,7 +90,7 @@ public interface HttpEventServlet extends Servlet{
      * @throws IOException
      * @throws ServletException
      */
-    public void event(CometEvent event)
+    public void event(HttpEvent event)
         throws IOException, ServletException;
 
 }

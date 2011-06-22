@@ -38,11 +38,13 @@
 
 package org.atmosphere.cpr;
 
-import org.apache.catalina.CometEvent;
+
 import org.apache.catalina.CometProcessor;
+import org.apache.catalina.CometEvent;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.GoogleAppEngineCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.di.InjectorProvider;
@@ -1191,6 +1193,26 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 if (!cometSupport.getClass().equals(TomcatCometSupport.class)) {
                     logger.warn("TomcatCometSupport is enabled, switching to it");
                     cometSupport = new TomcatCometSupport(config);
+                }
+            }
+        }
+
+        doCometSupport(req, res);
+    }
+
+    /**
+     * Hack to support Tomcat 7 AIO
+     */
+    public void event(org.apache.catalina.comet.CometEvent cometEvent) throws IOException, ServletException {
+        HttpServletRequest req = cometEvent.getHttpServletRequest();
+        HttpServletResponse res = cometEvent.getHttpServletResponse();
+        req.setAttribute(Tomcat7CometSupport.COMET_EVENT, cometEvent);
+
+        if (!isCometSupportSpecified && !isCometSupportConfigured.getAndSet(true)) {
+            synchronized (cometSupport) {
+                if (!cometSupport.getClass().equals(Tomcat7CometSupport.class)) {
+                    logger.warn("TomcatCometSupport is enabled, switching to it");
+                    cometSupport = new Tomcat7CometSupport(config);
                 }
             }
         }
