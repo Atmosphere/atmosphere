@@ -70,8 +70,6 @@
 
 package org.apache.catalina.comet;
 
-import org.apache.catalina.CometEvent;
-
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import java.io.IOException;
