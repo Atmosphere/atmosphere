@@ -43,9 +43,11 @@ import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.WebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.WebSocketProcessor;
+import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,19 +82,17 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
      * {@inheritDoc}
      */
     @Override
-    public Action service(HttpServletRequest request, HttpServletResponse  response)
+    public Action service(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
 
         String connection = request.getHeader("Connection");
         if (!"Upgrade".equalsIgnoreCase(connection)) {
             return super.service(request, response);
-        }
-        else {
+        } else {
             Action action = suspended(request, response);
             if (action.type == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", response);
-            }
-            else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", response);
             }
             return action;
@@ -120,11 +120,15 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             }
 
             BaseServerWebSocket webSocket = BaseServerWebSocket.class.cast(w);
-
-            webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocketSupport(webSocket));
             try {
+
+                webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
+                        .loadClass(config.getServlet().getWebSocketProcessorClassName())
+                        .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
+                        .newInstance(new Object[]{config.getServlet(), new GrizzlyWebSocketSupport(webSocket)});
+                
                 webSocketProcessor.connect(new HttpServletRequestWrapper(webSocket.getRequest()));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
             }
         }
@@ -135,7 +139,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         }
 
         public void onMessage(WebSocket webSocket, DataFrame dataFrame) {
-            webSocketProcessor.broadcast((byte) 0x00, dataFrame.getTextPayload());
+            webSocketProcessor.broadcast(dataFrame.getTextPayload());
         }
 
         public void onClose(WebSocket webSocket) {

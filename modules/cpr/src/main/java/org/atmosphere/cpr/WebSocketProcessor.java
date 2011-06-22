@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,7 +64,7 @@ public abstract class WebSocketProcessor implements Serializable {
 
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
-    private AtmosphereResource resource;
+    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
     private AtmosphereHandler handler;
 
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
@@ -97,6 +98,18 @@ public abstract class WebSocketProcessor implements Serializable {
 
     public AtmosphereResource resource(){
         return resource;
+    }
+
+    public AtmosphereServlet atmosphereServlet(){
+        return atmosphereServlet;
+    }
+    
+    public HttpServletRequest request(){
+        return resource.getRequest();
+    }
+
+    public WebSocketSupport webSocketSupport(){
+        return webSocketSupport;
     }
     
     abstract public void broadcast(String data) ;
