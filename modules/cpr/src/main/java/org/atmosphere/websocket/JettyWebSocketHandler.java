@@ -50,7 +50,8 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     public void onConnect(WebSocket.Outbound outbound)
     {
         try {
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader().loadClass(webSocketProcessorClassName)
+            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
+                    .loadClass(webSocketProcessorClassName)
                     .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
                     .newInstance(new Object[]{atmosphereServlet, new JettyWebSocketSupport(outbound)});
 
@@ -122,7 +123,8 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     public void onOpen(WebSocket.Connection connection)
     {
         try {        
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader().loadClass(webSocketProcessorClassName)
+            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
+                    .loadClass(webSocketProcessorClassName)
                     .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
                     .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocketSupport(connection)});
             webSocketProcessor.connect(new JettyRequestFix(request));

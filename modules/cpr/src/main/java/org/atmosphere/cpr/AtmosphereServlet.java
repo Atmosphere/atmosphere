@@ -56,7 +56,6 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.gae.GAEDefaultBroadcaster;
-import org.atmosphere.websocket.EchoWebSocketProcessor;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
@@ -1395,6 +1394,15 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void pingForStats() {
         ATMOSPHERE_PING_SUPPORT.invoke();
     }
+
+    public String getWebSocketProcessorClassName() {
+        return webSocketProcessorClassName;
+    }
+
+    public void setWebSocketProcessorClassName(String webSocketProcessorClassName) {
+        this.webSocketProcessorClassName = webSocketProcessorClassName;
+    }
+
 
     /**
      * Jetty 7.2 & 8.0.0-M1/M2and up WebSocket support.
