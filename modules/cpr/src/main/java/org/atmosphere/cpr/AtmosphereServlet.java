@@ -39,8 +39,8 @@
 package org.atmosphere.cpr;
 
 
-import org.apache.catalina.CometProcessor;
 import org.apache.catalina.CometEvent;
+import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.GoogleAppEngineCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
@@ -56,7 +56,7 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.gae.GAEDefaultBroadcaster;
-import org.atmosphere.websocket.JettyWebSocketSupport;
+import org.atmosphere.websocket.JettyWebSocketListener;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
@@ -71,7 +71,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
@@ -1391,72 +1390,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * https://issues.apache.org/jira/browse/WICKET-3190
-     */
-    private static class JettyRequestFix extends HttpServletRequestWrapper {
-
-        public JettyRequestFix(HttpServletRequest request) {
-            super(request);
-        }
-
-        /**
-         * Jetty's Websocket doesn't computer the ContextPath properly for WebSocket.
-         * @return
-         */
-        public String getContextPath() {
-            String uri = getRequestURI();
-            String path = super.getContextPath();
-            if (path == null) {
-                path = uri.substring(0, uri.indexOf("/", 1));
-            }
-            return path;
-        }
-    }
-
-    /**
-     * Jetty 7 and up WebSocket support.
+     * Jetty 7.2 & 8.0.0-M1/M2and up WebSocket support.
      *
      * @param request
      * @param protocol
      * @return a {@link WebSocket}}
      */
-    @Override
-    protected WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
+    public WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.info("WebSocket upgrade requested");
 
-        return new WebSocket() {
-            private WebSocketProcessor webSocketProcessor;
-
-            @Override
-            public void onConnect(WebSocket.Outbound outbound) {
-                webSocketProcessor = new WebSocketProcessor(AtmosphereServlet.this, new JettyWebSocketSupport(outbound));
-                try {
-                    webSocketProcessor.connect(new JettyRequestFix(request));
-                } catch (IOException e) {
-                    logger.warn("failed to connect to web socket", e);
-                }
-            }
-
-            @Override
-            public void onMessage(byte frame, String data) {
-                webSocketProcessor.broadcast(frame, data);
-            }
-
-            @Override
-            public void onMessage(byte frame, byte[] data, int offset, int length) {
-                webSocketProcessor.broadcast(frame, new String(data, offset, length));
-            }
-
-            @Override
-            public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
-                webSocketProcessor.broadcast(opcode, new String(data, offset, length));
-            }
-
-            @Override
-            public void onDisconnect() {
-                webSocketProcessor.close();
-            }
-        };
+        return new JettyWebSocketListener(request,this);
     }
 
     private static class AtmospherePingSupport {
