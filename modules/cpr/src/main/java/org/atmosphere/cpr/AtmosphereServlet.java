@@ -56,7 +56,8 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.gae.GAEDefaultBroadcaster;
-import org.atmosphere.websocket.JettyWebSocketListener;
+import org.atmosphere.websocket.EchoWebSocketProcessor;
+import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
@@ -209,6 +210,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
+    public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
 
     private static final AtmospherePingSupport ATMOSPHERE_PING_SUPPORT = new AtmospherePingSupport();
 
@@ -241,6 +243,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
     private String broadcasterLifeCyclePolicy = "NEVER";
+    private String webSocketProcessorClassName = EchoWebSocketProcessor.class.getName();
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -631,6 +634,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             webSocketEnabled = true;
             sessionSupport(false);
+        }
+        s = sc.getInitParameter(WEBSOCKET_PROCESSOR);
+        if (s != null) {
+            webSocketProcessorClassName = s;
         }
     }
 
@@ -1399,7 +1406,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.info("WebSocket upgrade requested");
 
-        return new JettyWebSocketListener(request,this);
+        return new JettyWebSocketHandler(request,this, webSocketProcessorClassName);
     }
 
     private static class AtmospherePingSupport {
