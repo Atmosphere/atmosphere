@@ -34,8 +34,9 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.websocket.container;
 
+import org.atmosphere.websocket.WebSocketSupport;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 
 import java.io.IOException;
@@ -46,7 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyWebSocketSupport implements WebSocketSupport {
+public class JettyWebSocketSupport implements WebSocketSupport
+{
 
     private final Outbound outbound;
 

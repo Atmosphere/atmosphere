@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class WebSocketProcessor implements Serializable {
+public abstract class WebSocketProcessor implements Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessor.class);
 
@@ -71,7 +71,7 @@ public class WebSocketProcessor implements Serializable {
         this.atmosphereServlet = atmosphereServlet;
     }
 
-    public void connect(final HttpServletRequest request) throws IOException {
+    public final void connect(final HttpServletRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
         }
@@ -95,15 +95,13 @@ public class WebSocketProcessor implements Serializable {
         }
     }
 
-    public void broadcast(byte frame, String data) {
-        resource.getBroadcaster().broadcast(data);
+    public AtmosphereResource resource(){
+        return resource;
     }
+    
+    abstract public void broadcast(String data) ;
 
-    public void broadcast(byte frame, byte[] data, int offset, int length) {
-        byte[] b = new byte[length];
-        System.arraycopy(data, offset, b, 0, length);
-        resource.getBroadcaster().broadcast(b);
-    }
+    abstract public void broadcast(byte[] data, int offset, int length);
 
     public void close() {
         try {
