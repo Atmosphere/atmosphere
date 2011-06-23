@@ -12,6 +12,7 @@ session.setAttribute("time", new Long(current));
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=8" /> 
     <!--                                           -->
     <!-- Any title is fine                         -->
     <!--                                           -->
