@@ -102,7 +102,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
                 if (clusterType.equals("jgroups")){
                     event.getAtmosphereConfig().getServletContext().log("JGroupsFilter enabled");
                     bc.getBroadcasterConfig().addFilter(
-                            new JGroupsFilter(bc, event.getAtmosphereConfig().getWebServerName()));
+                            new JGroupsFilter(bc));
                 }
             }
 
