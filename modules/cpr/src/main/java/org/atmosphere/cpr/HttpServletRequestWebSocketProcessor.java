@@ -179,7 +179,6 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
     public static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
-        private int pos = 0;
 
         public ByteInputStream(byte[] data, int offset, int length) {
             this.bis = new ByteArrayInputStream(data, offset, length);
