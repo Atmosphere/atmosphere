@@ -20,7 +20,10 @@
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
         </init-param>
-
+        <init-param>
+            <param-name>org.atmosphere.cpr.broadcasterClass</param-name>
+            <param-value>org.atmosphere.plugin.jgroups.JGroupsBroadcaster</param-value>
+        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

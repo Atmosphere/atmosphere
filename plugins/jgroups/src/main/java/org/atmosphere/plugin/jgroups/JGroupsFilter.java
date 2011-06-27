@@ -38,7 +38,9 @@
 package org.atmosphere.plugin.jgroups;
 
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.jgroups.ChannelException;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
@@ -46,6 +48,7 @@ import org.jgroups.ReceiverAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -58,12 +61,11 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
     private static final Logger logger = LoggerFactory.getLogger(JGroupsFilter.class);
 
     private JChannel jchannel;
-    private String clusterName = "cluster-jgroups";
     private Broadcaster bc;
-    private final ConcurrentLinkedQueue<String> receivedMessages = new ConcurrentLinkedQueue<String>();
+    private final ConcurrentLinkedQueue<Object> receivedMessages = new ConcurrentLinkedQueue<Object>();
 
-    public JGroupsFilter() {
-        this(null);
+    public JGroupsFilter() throws InstantiationException, IllegalAccessException {
+        this(BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "JGroupFilter"));
     }
 
     /**
@@ -71,31 +73,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      * @param bc the Broadcaster to use when receiving update from the cluster.
      */
     public JGroupsFilter(Broadcaster bc) {
-        this(bc, "atmosphere-framework");
-    }
-
-    /**
-     * Create a JGroupsFilter based filter.
-     * @param bc the Broadcaster to use when receiving update from the cluster.
-     * @param containerName the current WebServer'name.
-     */
-    public JGroupsFilter(Broadcaster bc, String containerName) {
-        this(bc, containerName, "cluster-atmosphere");
-    }
-
-    /**
-     * Create a JGroupsFilter based filter.
-     * @param bc the Broadcaster to use when receiving update from the cluster.
-     * @param containerName the current WebServer'name.
-     * @param clusterName the cluster's group name.
-     */
-    public JGroupsFilter(Broadcaster bc, String containerName, String clusterName) {
         this.bc = bc;
-        this.clusterName = clusterName;
-    }
-
-    public void setUri(String clusterName) {
-        this.clusterName = clusterName;
     }
 
     /**
@@ -103,14 +81,14 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      */
     public void init() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support");
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", bc.getID());
 
             //initialize jgroups channel
             jchannel = new JChannel();
             //register for Group Events
             jchannel.setReceiver(this);
             //join group
-            jchannel.connect(clusterName);
+            jchannel.connect(bc.getID());
         } catch (Throwable t) {
             logger.warn("failed to connect to cluser", t);
         }
@@ -126,7 +104,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
     /** {@inheritDoc} */
     @Override
     public void receive(final Message message) {
-        final String msg = (String) message.getObject();
+        final Object msg = message.getObject();
         if (message.getSrc() != jchannel.getLocalAddress()){
             if (msg != null) {
                 receivedMessages.offer(msg);
@@ -139,24 +117,19 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
 
     /**
      * Every time a message gets broadcasted, make sure we update the cluster.
-     * @param o the message to broadcast.
+     * @param message the message to broadcast.
      * @return The same message.
      */
-    public BroadcastAction filter(Object originalMessage, Object o) {
-        if (o instanceof String){
-            String message = (String)o;
-            // Avoid re-broadcasting
-            if (!receivedMessages.remove(message)) {
-                try {
-                    jchannel.send(new Message(null, null, message));
-                } catch (ChannelException e) {
-                    logger.warn("failed to send message", e);
-                }
+    public BroadcastAction filter(Object originalMessage, Object message) {
+        // Avoid re-broadcasting
+        if (!receivedMessages.remove(message)) {
+            try {
+                jchannel.send(new Message(null, null, (Serializable)message));
+            } catch (ChannelException e) {
+                logger.warn("failed to send message", e);
             }
-            return new BroadcastAction(message);
-        } else {
-            return new BroadcastAction(o);
         }
+        return new BroadcastAction(message);
     }
 
     /**
@@ -164,6 +137,11 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      */
     public Broadcaster getBroadcaster() {
         return bc;
+    }
+
+    @Override
+    public void setUri(String name) {
+        bc.setID(name);
     }
 
     /**
