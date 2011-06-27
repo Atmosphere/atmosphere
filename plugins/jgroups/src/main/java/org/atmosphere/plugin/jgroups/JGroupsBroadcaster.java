@@ -56,7 +56,6 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     private static final Logger logger = LoggerFactory.getLogger(JGroupsBroadcaster.class);
 
     private JChannel jchannel;
-    private String clusterName = "atmosphere-jgroups";
     private final CountDownLatch ready = new CountDownLatch(1);
 
     public JGroupsBroadcaster() {
@@ -64,31 +63,26 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     }
 
     public JGroupsBroadcaster(String id) {
-        this(id, "atmosphere-jgroups");
-    }
-
-    public JGroupsBroadcaster(String id, String clusterName) {
         super(id);
-        this.clusterName = clusterName + "-id";
     }
 
     @Override
     public void incomingBroadcast() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support");
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", getID());
 
             jchannel = new JChannel();
             jchannel.setReceiver(new ReceiverAdapter() {
                 /** {@inheritDoc} */
                 @Override
                 public void receive(final Message message) {
-                    final String msg = (String) message.getObject();
+                    final Object msg = message.getObject();
                     if (msg != null) {
                         broadcastReceivedMessage(msg);
                     }
                 }
             });
-            jchannel.connect(clusterName);
+            jchannel.connect(getID());
         }
         catch (Throwable t) {
             logger.warn("failed to connect to JGroups channel", t);
