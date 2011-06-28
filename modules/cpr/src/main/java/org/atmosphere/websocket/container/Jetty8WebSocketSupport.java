@@ -55,7 +55,8 @@ public class Jetty8WebSocketSupport implements WebSocketSupport
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection closed");
-        connection.sendMessage(data, offset, length);
+        // That sucks, but there is a bug in Jetty that add junk in front of the request
+        connection.sendMessage(new String(data,offset,length, "UTF-8"));
     }
 
     public void close() throws IOException {
