@@ -625,10 +625,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void doInitParamsForWebSocket(ServletConfig sc) {
         String s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
         if (s != null) {
-            addAtmosphereHandler("/*", new WebSocketAtmosphereHandler());
-            webSocketEnabled = true;
-            sessionSupport(false);
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            try {
+                addAtmosphereHandler("/*", (AtmosphereHandler<?,?>)cl.loadClass(s).newInstance());
+                webSocketEnabled = true;
+                sessionSupport(false);
+            } catch (Exception ex) {
+                logger.warn("Unable to load WebSocketHandle instance", ex);
+            }
         }
+
         s = sc.getInitParameter(WEBSOCKET_SUPPORT);
         if (s != null) {
             webSocketEnabled = true;

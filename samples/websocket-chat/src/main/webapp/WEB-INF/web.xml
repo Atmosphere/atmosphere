@@ -17,7 +17,7 @@
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <init-param>
             <param-name>org.atmosphere.websocket.WebSocketAtmosphereHandler</param-name>
-            <param-value>true</param-value>
+            <param-value>org.atmosphere.websocket.WebSocketAtmosphereHandler</param-value>
         </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
