@@ -110,7 +110,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
                     receivedMessages.offer(msg);
                     JGroupsBroadcaster.BroadcastMessage b = JGroupsBroadcaster.BroadcastMessage.class.cast(msg);
                     if (b.getTopicId().equalsIgnoreCase(bc.getID())) {
-                        bc.broadcast(b.getTopicId());
+                        bc.broadcast(b.getMessage());
                     }
                 }
             }
