@@ -168,9 +168,11 @@ jQuery.atmosphere = function() {
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
 
-                if (jQuery.atmosphere.request.contentType != '') {
-                    ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);
-                }
+                if (jQuery.atmosphere.request.dataType) 
+                    ajaxRequest.setRequestHeader("Accept", "application/" + jQuery.atmosphere.request.dataType);
+                
+                if (jQuery.atmosphere.request.contentType) 
+                    ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);                
 
                 for (var x in request.headers) {
                     ajaxRequest.setRequestHeader(x, request.headers[x]);
