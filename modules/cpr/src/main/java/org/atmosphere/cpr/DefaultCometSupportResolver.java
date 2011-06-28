@@ -44,7 +44,7 @@ import org.atmosphere.container.GlassFishv2CometSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
-import org.atmosphere.container.Jetty8WebSocketSupport;
+import org.atmosphere.container.JettyWebSocketSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.Servlet30Support;
 import org.atmosphere.container.Tomcat7CometSupport;
@@ -146,7 +146,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         List l =  new LinkedList<Class<? extends CometSupport>>() {
             {
                 if (testClassExists(JETTY_8))
-                    add(Jetty8WebSocketSupport.class);
+                    add(JettyWebSocketSupport.class);
 
                 if (testClassExists(GRIZZLY_WEBSOCKET))
                     add(GlassFishWebSocketSupport.class);

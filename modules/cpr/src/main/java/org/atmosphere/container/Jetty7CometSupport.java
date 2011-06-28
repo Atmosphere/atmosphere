@@ -63,7 +63,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty7CometSupport.class);
 
-    private final ConcurrentLinkedQueue<Continuation> resumed = new ConcurrentLinkedQueue<Continuation>();
+    protected final ConcurrentLinkedQueue<Continuation> resumed = new ConcurrentLinkedQueue<Continuation>();
 
     public Jetty7CometSupport(AtmosphereConfig config) {
         super(config);
