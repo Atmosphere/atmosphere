@@ -48,7 +48,6 @@ import org.jgroups.ReceiverAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -81,14 +80,14 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      */
     public void init() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", bc.getID());
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", JGroupsBroadcaster.CLUSTER_NAME);
 
             //initialize jgroups channel
             jchannel = new JChannel();
             //register for Group Events
             jchannel.setReceiver(this);
             //join group
-            jchannel.connect(bc.getID());
+            jchannel.connect(JGroupsBroadcaster.CLUSTER_NAME);
         } catch (Throwable t) {
             logger.warn("failed to connect to cluser", t);
         }
@@ -107,9 +106,12 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
         final Object msg = message.getObject();
         if (message.getSrc() != jchannel.getLocalAddress()){
             if (msg != null) {
-                receivedMessages.offer(msg);
-                if (bc != null) {
-                    bc.broadcast(msg);
+                if (msg != null && JGroupsBroadcaster.BroadcastMessage.class.isAssignableFrom(msg.getClass())) {
+                    receivedMessages.offer(msg);
+                    JGroupsBroadcaster.BroadcastMessage b = JGroupsBroadcaster.BroadcastMessage.class.cast(msg);
+                    if (b.getTopicId().equalsIgnoreCase(bc.getID())) {
+                        bc.broadcast(b.getTopicId());
+                    }
                 }
             }
         }
@@ -124,7 +126,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
         // Avoid re-broadcasting
         if (!receivedMessages.remove(message)) {
             try {
-                jchannel.send(new Message(null, null, (Serializable)message));
+                jchannel.send(new Message(null, null, new JGroupsBroadcaster.BroadcastMessage(bc.getID(), message)));
             } catch (ChannelException e) {
                 logger.warn("failed to send message", e);
             }

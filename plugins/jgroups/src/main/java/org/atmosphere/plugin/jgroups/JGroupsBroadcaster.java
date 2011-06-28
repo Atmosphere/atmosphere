@@ -44,6 +44,7 @@ import org.jgroups.ReceiverAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -54,6 +55,7 @@ import java.util.concurrent.CountDownLatch;
 public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
 
     private static final Logger logger = LoggerFactory.getLogger(JGroupsBroadcaster.class);
+    public static final String CLUSTER_NAME = "atmosphere-cluster";
 
     private JChannel jchannel;
     private final CountDownLatch ready = new CountDownLatch(1);
@@ -69,7 +71,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void incomingBroadcast() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", getID());
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", CLUSTER_NAME);
 
             jchannel = new JChannel();
             jchannel.setReceiver(new ReceiverAdapter() {
@@ -77,12 +79,15 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
                 @Override
                 public void receive(final Message message) {
                     final Object msg = message.getObject();
-                    if (msg != null) {
-                        broadcastReceivedMessage(msg);
+                    if (msg != null && BroadcastMessage.class.isAssignableFrom(msg.getClass())) {
+                        BroadcastMessage b = BroadcastMessage.class.cast(msg);
+                        if (b.getTopicId().equalsIgnoreCase(getID())) {
+                            broadcastReceivedMessage(b.getMessage());
+                        }
                     }
                 }
             });
-            jchannel.connect(getID());
+            jchannel.connect(CLUSTER_NAME);
         }
         catch (Throwable t) {
             logger.warn("failed to connect to JGroups channel", t);
@@ -100,8 +105,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
 
         try {
             ready.await();
-
-            jchannel.send(new Message(null, null, message.toString()));
+            jchannel.send(new Message(null, null, new BroadcastMessage(getID(), message)));
         }
         catch (Throwable e) {
             logger.error("failed to send messge over Jgroups channel", e.getMessage());
@@ -115,5 +119,25 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     public void destroy() {
         super.destroy();
         jchannel.shutdown();
+    }
+
+    public static class BroadcastMessage implements Serializable {
+
+        private final String topicId;
+        private final Object message;
+
+        public BroadcastMessage(String topicId, Object message) {
+            this.topicId = topicId;
+            this.message = message;
+        }
+
+        public String getTopicId() {
+            return topicId;
+        }
+
+        public Object getMessage() {
+            return message;
+        }
+
     }
 }
