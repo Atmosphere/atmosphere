@@ -43,12 +43,11 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Jetty 7 & 8 WebSocket support.
+ * Jetty 7.1/2 & 8 < M3 WebSocket support.
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyWebSocketSupport implements WebSocketSupport
-{
+public class JettyWebSocketSupport implements WebSocketSupport {
 
     private final Outbound outbound;
 
@@ -77,7 +76,7 @@ public class JettyWebSocketSupport implements WebSocketSupport
     }
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
-        checkWebSocketLatencyCheck();        
+        checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data, offset, length);
     }
@@ -100,6 +99,4 @@ public class JettyWebSocketSupport implements WebSocketSupport
             }
         }
     }
-
-
 }

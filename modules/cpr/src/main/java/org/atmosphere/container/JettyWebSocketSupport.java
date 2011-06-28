@@ -37,6 +37,8 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketSupport;
@@ -49,27 +51,28 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * WebSocket Portable Runtime implementation on top of Jetty's Continuation.
+ * WebSocket Portable Runtime implementation on top of Jetty's.
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty8WebSocketSupport extends Jetty7CometSupport{
+public class JettyWebSocketSupport extends Jetty7CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocketSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketSupport.class);
 
-    public Jetty8WebSocketSupport(AtmosphereConfig config) {
+    public JettyWebSocketSupport(AtmosphereConfig config) {
         super(config);
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
         String connection = req.getHeader("Connection");
-        if (connection == null || !connection.equalsIgnoreCase("Upgrade")){
-           return super.service(req,res);
+        if (connection == null || !connection.equalsIgnoreCase("Upgrade")) {
+            return super.service(req, res);
         } else {
             Action action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
@@ -84,6 +87,25 @@ public class Jetty8WebSocketSupport extends Jetty7CometSupport{
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void action(AtmosphereResourceImpl r) {
+        aliveRequests.remove(r.getRequest());
+        if (r.isInScope() && r.action().type == Action.TYPE.RESUME &&
+                (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
+                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+            // Do nothing because it is a websocket.
+        } else {
+            try {
+                r.getResponse().flushBuffer();
+            } catch (IOException e) {
+                logger.trace(e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
      * Return the container's name.
      */
     public String getContainerName() {
@@ -91,7 +113,7 @@ public class Jetty8WebSocketSupport extends Jetty7CometSupport{
     }
 
     @Override
-    public boolean supportWebSocket(){
+    public boolean supportWebSocket() {
         return true;
     }
 }
