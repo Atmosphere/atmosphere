@@ -73,6 +73,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         this.bc = bc;
         bc.setScheduledExecutorService(scheduler);
         bc.setExecutorService(null);
+        bc.setAsyncWriteService(null);
     }
 
     /**
@@ -92,7 +93,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?,?> r) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -105,7 +106,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?,?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
@@ -113,5 +114,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         f.done();
         push(new Entry(newMsg, subset, f, msg));
         return f;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
+        synchronized (r) {
+            executeAsyncWrite(r, finalMsg, entry.future);
+        }
     }
 }
