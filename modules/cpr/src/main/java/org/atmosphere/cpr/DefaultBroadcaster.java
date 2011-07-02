@@ -416,21 +416,21 @@ public class DefaultBroadcaster implements Broadcaster {
                 for (AtmosphereResource<?, ?> r : resources) {
                     finalMsg = perRequestFilter(r, entry);
                     if (entry.writeLocally) {
-                        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
+                        queueWriteIO(r, finalMsg, entry);
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
                 finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
 
                 if (entry.writeLocally) {
-                    asyncWriteQueue.put(new AsyncWriteToken((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry.future));
+                    queueWriteIO( (AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
                 Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
                 for (AtmosphereResource<?, ?> r : sub) {
                     finalMsg = perRequestFilter(r, entry);
                     if (entry.writeLocally) {
-                        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
+                        queueWriteIO(r, finalMsg, entry);
                     }
                 }
             }
@@ -438,6 +438,10 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch(InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
+    }
+
+    protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
+        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
     }
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
