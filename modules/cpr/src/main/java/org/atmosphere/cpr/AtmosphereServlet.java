@@ -223,7 +223,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     /**
      * The list of {@link AtmosphereHandler} and their associated mapping.
      */
-    private final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers =
+    protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers =
             new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
 
     private final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
