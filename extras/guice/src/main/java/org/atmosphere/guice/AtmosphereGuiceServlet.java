@@ -68,7 +68,7 @@ import java.util.Map;
 /**
  * Google Guice Integration. To use it, just do in web.xml:
  *
- * {@code
+ * <blockquote><code>
      &lt;web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee"
         xmlns:j2ee = "http://java.sun.com/xml/ns/j2ee"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -107,7 +107,7 @@ import java.util.Map;
             });
         }
     }
- }
+ </code></blockquote>
  *
  * @author Jeanfrancois Arcand
  * @author Richard Wallace
