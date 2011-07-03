@@ -44,9 +44,7 @@ import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
 
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -55,10 +53,9 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 public class SimpleBroadcaster extends DefaultBroadcaster {
 
-    private final static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public SimpleBroadcaster() {
-        setID(SimpleBroadcaster.class.getSimpleName());
+        this(SimpleBroadcaster.class.getSimpleName());
     }
 
     public SimpleBroadcaster(String id) {
@@ -71,7 +68,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
-        bc.setScheduledExecutorService(scheduler);
         bc.setExecutorService(null);
         bc.setAsyncWriteService(null);
     }
