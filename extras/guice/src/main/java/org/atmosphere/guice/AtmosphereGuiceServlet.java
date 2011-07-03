@@ -63,6 +63,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
 import java.util.Map;
 
 /**
@@ -115,10 +116,24 @@ import java.util.Map;
 public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereGuiceServlet.class);
-
     public static final String JERSEY_PROPERTIES = AtmosphereGuiceServlet.class.getName() + ".properties";
-
     private static final String GUICE_FILTER = "com.google.inject.servlet.GuiceFilter";
+
+    private boolean guiceInstalled = false;
+
+    /**
+     * Install Guice event if other extension has been already installed.
+     * @param sc {@link javax.servlet.ServletConfig}
+     * @throws ServletException
+     */
+    @Override
+    protected void loadConfiguration(ServletConfig sc) throws ServletException {
+        super.loadConfiguration(sc);
+
+        if (!guiceInstalled) {
+            detectSupportedFramework(sc);
+        }
+    }
 
     /**
      * Auto-detect Jersey when no atmosphere.xml file are specified.
@@ -161,6 +176,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
         }
 
         addAtmosphereHandler(mapping, rsp);
+        guiceInstalled = true;
         return true;
     }
 }
