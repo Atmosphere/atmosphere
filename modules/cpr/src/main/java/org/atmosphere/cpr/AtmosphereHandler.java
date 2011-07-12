@@ -51,7 +51,7 @@ import java.io.IOException;
  * will allow a suspended response to write the content of the message
  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}.
  * <p/>
- * <striong>A class implementing {@link AtmosphereHandler} must be thread safe</strong>
+ * <strong>A class implementing {@link AtmosphereHandler} must be thread safe</strong>
  * <p/>
  * For example, a simple Chat based AtmosphereHandler will take the form of
  * <p/>
