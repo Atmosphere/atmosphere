@@ -37,6 +37,7 @@
  */
 package org.atmosphere.plugin.jms;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,24 +55,30 @@ import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 
-
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JMS
  * <p/>
- * The {@link ConnectionFactory} name's is jms/atmosphereFactory
- * The {@link Topic} by constructing "BroadcasterId = {@link org.atmosphere.cpr.Broadcaster#getID}
- *
+ * The {@link ConnectionFactory} name's is jms/atmosphereFactory The
+ * {@link Topic} by constructing "BroadcasterId =
+ * {@link org.atmosphere.cpr.Broadcaster#getID}
+ * 
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
-    private static final String JMS_TOPIC = JMSBroadcaster.class.getName() + ".topic";
-    private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName() + ".JNDINamespace";
-    private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class.getName() + ".JNDIConnectionFactoryName";
-    private static final String JNDI_TOPIC = JMSBroadcaster.class.getName() + ".JNDITopic";
-    private static final Logger logger = LoggerFactory.getLogger(JMSBroadcaster.class);
+    private static final String JMS_TOPIC = JMSBroadcaster.class.getName()
+            + ".topic";
+    private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName()
+            + ".JNDINamespace";
+    private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class
+            .getName() + ".JNDIConnectionFactoryName";
+    private static final String JNDI_TOPIC = JMSBroadcaster.class.getName()
+            + ".JNDITopic";
+    private static final Logger logger = LoggerFactory
+            .getLogger(JMSBroadcaster.class);
 
     private Connection connection;
     private Session session;
+    private Topic topic;
     private MessageConsumer consumer;
     private MessageProducer publisher;
 
@@ -79,35 +86,26 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private String factoryName = "atmosphereFactory";
     private String namespace = "jms/";
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void incomingBroadcast() {
+    public synchronized void configure(AtmosphereServlet.AtmosphereConfig config) {
         try {
-            if (bc.getAtmosphereConfig() != null) {
+            if (config != null) {
 
                 // For backward compatibility.
-                if (bc.getAtmosphereConfig().getInitParameter(JMS_TOPIC) != null) {
-                    topicId = bc.getAtmosphereConfig().getInitParameter(JMS_TOPIC);
+                if (config.getInitParameter(JMS_TOPIC) != null) {
+                    topicId = config.getInitParameter(JMS_TOPIC);
                 }
 
-                if (bc.getAtmosphereConfig().getInitParameter(JNDI_NAMESPACE) != null) {
-                    namespace = bc.getAtmosphereConfig().getInitParameter(JNDI_NAMESPACE);
+                if (config.getInitParameter(JNDI_NAMESPACE) != null) {
+                    namespace = config.getInitParameter(JNDI_NAMESPACE);
                 }
 
-                if (bc.getAtmosphereConfig().getInitParameter(JNDI_FACTORY_NAME) != null) {
-                    factoryName = bc.getAtmosphereConfig().getInitParameter(JNDI_FACTORY_NAME);
+                if (config.getInitParameter(JNDI_FACTORY_NAME) != null) {
+                    factoryName = config.getInitParameter(JNDI_FACTORY_NAME);
                 }
 
-                if (bc.getAtmosphereConfig().getInitParameter(JNDI_TOPIC) != null) {
-                    topicId = bc.getAtmosphereConfig().getInitParameter(JNDI_TOPIC);
+                if (config.getInitParameter(JNDI_TOPIC) != null) {
+                    topicId = config.getInitParameter(JNDI_TOPIC);
                 }
-            }
-
-            String id = getID();
-            if (id.startsWith("/*")) {
-                id = "atmosphere";
             }
 
             logger.info("Looking up Connection Factory {}", namespace + factoryName);
@@ -115,17 +113,55 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             ConnectionFactory connectionFactory = (ConnectionFactory) ctx.lookup(namespace + factoryName);
 
             logger.info("Looking up topic: {}", topicId);
-            Topic topic = (Topic) ctx.lookup(namespace + topicId);
+            topic = (Topic) ctx.lookup(namespace + topicId);
 
             connection = connectionFactory.createConnection();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+            publisher = session.createProducer(topic);
+            connection.start();
+            logger.info("JMS created for topic {}", topicId);
+            // Unfortunately we need the getID() to complete the configuration
+            // But setID() is called after configure(), therefore we do the
+            // rest of the configuration in incomingBroadcast() (which is called
+            // once during configuration). We cannot do all the configuration in
+            // incomingBroadcast() though, as using bc.getAtmosphereConfig() would
+            // introduce a race condition (the configuration is loaded in a different
+            // thread).
+
+            // Notify the async running thread on incomingBroadcast()
+            this.notify();
+        } catch (Exception e) {
+            String msg = "Unable to configure JMSBroadcaster";
+            logger.error(msg, e);
+            throw new RuntimeException(msg, e);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void incomingBroadcast() {
+        try {
+            // This method is called by a task runner in an asynchronous fashion before the
+            // call to configure(). Wait for the configure() method to finish
+            synchronized(this) {
+                while(session == null)
+                    this.wait(1000);
+            }
+            String id = getID();
+            if (id.startsWith("/*")) {
+                id = "atmosphere";
+            }
+            if (consumer != null)
+                consumer.close();
 
             logger.info("Create customer: {}", id);
             String selector = String.format("BroadcasterId = '%s'", id);
 
             consumer = session.createConsumer(topic, selector);
             consumer.setMessageListener(new MessageListener() {
-
                 @Override
                 public void onMessage(Message msg) {
                     try {
@@ -140,11 +176,12 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                     }
                 }
             });
-            publisher = session.createProducer(topic);
-            connection.start();
-            logger.info("JMS created for topic {}, with filter {}", topicId, selector);
+            logger.info("Consumer created for topic {}, with filter {}",
+                    topicId, selector);
         } catch (Throwable ex) {
-            throw new IllegalStateException("Unable to initialize JMSBroadcaster", ex);
+            String msg = "Unable to initialize JMSBroadcaster";
+            logger.error(msg, ex);
+            throw new IllegalStateException(msg, ex);
         }
     }
 
@@ -163,7 +200,8 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 throw new IllegalStateException("JMS Session is null");
             }
 
-            TextMessage textMessage = session.createTextMessage(message.toString());
+            TextMessage textMessage = session.createTextMessage(message
+                    .toString());
             textMessage.setStringProperty("BroadcasterId", id);
             publisher.send(textMessage);
         } catch (JMSException ex) {
