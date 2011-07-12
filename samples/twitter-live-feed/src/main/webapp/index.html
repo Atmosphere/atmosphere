@@ -4,24 +4,21 @@
     <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
     <script type="text/javascript">
-        $(document).ready(function()
-        {
+        $(document).ready(function() {
             var connectedEndpoint;
             var callbackAdded = false;
             var incompleteMessage = "";
-            function getKeyCode(ev)
-            {
+
+            function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
                 return ev.keyCode;
             }
 
-            function getElementById()
-            {
+            function getElementById() {
                 return document.getElementById(arguments[0]);
             }
 
-            function getTransport(t)
-            {
+            function getTransport(t) {
                 transport = t.options[t.selectedIndex].value;
                 if (transport == 'autodetect') {
                     transport = 'websocket';
@@ -30,15 +27,12 @@
                 return false;
             }
 
-            function getElementByIdValue()
-            {
+            function getElementByIdValue() {
                 return document.getElementById(arguments[0]).value;
             }
 
-            function subscribe()
-            {
-                function callback(response)
-                {
+            function subscribe() {
+                function callback(response) {
                     $.atmosphere.log('info', ["response.state: " + response.state]);
                     $.atmosphere.log('info', ["response.transport: " + response.transport]);
                     if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
@@ -47,11 +41,11 @@
                             var data = response.responseBody;
 
                             try {
-                                var result =  $.parseJSON(incompleteMessage + data);
+                                var result = $.parseJSON(incompleteMessage + data);
                                 incompleteMessage = "";
 
                                 var i = 0;
-                                for (i = result.results.length -1 ; i > -1; i--){
+                                for (i = result.results.length - 1; i > -1; i--) {
                                     $('ul').prepend($('<li></li>').text("[" + response.transport + "] " + result.results[i].from_user + " "
                                             + result.results[i].text));
                                 }
@@ -64,25 +58,22 @@
 
                 /* transport can be : long-polling, streaming or websocket */
                 $.atmosphere.subscribe(document.location.toString() + 'search/' + getElementByIdValue('topic'),
-                        !callbackAdded? callback : null,
+                        !callbackAdded ? callback : null,
                         $.atmosphere.request = {transport: getElementByIdValue('transport')});
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 
-            function connect()
-            {
+            function connect() {
                 subscribe();
-                getElementById('connect').value="Switch transport";
+                getElementById('connect').value = "Switch transport";
             }
 
-            function stop()
-            {
+            function stop() {
                 $.atmosphere.publish(document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop");
             }
 
-            getElementById('connect').onclick = function(event)
-            {
+            getElementById('connect').onclick = function(event) {
                 if (getElementById('topic').value == '') {
                     alert("Please enter a PubSub topic to subscribe");
                     return;
@@ -90,8 +81,7 @@
                 connect();
             }
 
-            getElementById('topic').onkeyup = function(event)
-            {
+            getElementById('topic').onkeyup = function(event) {
                 var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
                     connect();
@@ -101,7 +91,7 @@
             getElementById('topic').focus();
         });
     </script>
-        <style type='text/css'>
+    <style type='text/css'>
         div {
             border: 0px solid black;
         }
@@ -126,12 +116,16 @@
 </head>
 <body>
 <h1>Twitter Search using Atmosphere's JQuery Plug In</h1>
+
 <h2>Enter an hashtag</h2>
+
 <div id='pubsub'>
     <input id='topic' type='text'/>
 </div>
 <h2>Select transport to use for subscribing</h2>
+
 <h3>You can change the transport any time.</h3>
+
 <div id='select_transport'>
     <select id="transport">
         <option id="autodetect" value="websocket">autodetect</option>
