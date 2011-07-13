@@ -11,9 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-jQuery.atmosphere = function() {
+
+var atmosphereFrameworkNameJQuery = "jQuery";
+var atmosphereFrameworkNamePrototype = "Prototype";
+if(atmosphereFrameworkName == false) {
+	var atmosphereFrameworkName = atmosphereFrameworkNameJQuery;
+}
+if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+	atmJsFrmwrk = jQuery;
+}else {
+	atmJsFrmwrk = Prototype;
+}
+atmJsFrmwrk.atmosphere = function() {
     var activeRequest;
-    jQuery(window).unload(function() {
+    var unloadFunction = function() {
         if (activeRequest) {
             activeRequest.abort();
         }
@@ -24,8 +35,14 @@ jQuery.atmosphere = function() {
                 CollectGarbage();
             }
         }
-    });
-
+    };
+    if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+        jQuery(window).unload(unloadFunction);
+    }else {
+        // XXX Not sure if that works properly
+        Event.observe(window, 'beforeunload', unloadFunction);
+    }
+    
     return {
         version : 0.7,
         response : {
@@ -47,52 +64,92 @@ jQuery.atmosphere = function() {
         websocket : null,
         killHiddenIFrame : null,
 
+        /** A few functions to abstract between jQuery and Prototype */
+        isIE: function() {
+            if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+                return jQuery.browser.msie;
+            }else {
+                return Prototype.Browser.IE;
+            }
+        },
+        isOpera: function() {
+            if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+                return jQuery.browser.opera;
+            }else {
+                return Prototype.Browser.Opera;
+            }
+        },
+        extend: function(target, src) {
+            if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+                return jQuery.extend(target, src);
+            }else {
+                return Object.extend(target, src);
+            }
+        },
+        inArray: function(needle, haystack) {
+            if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+                return jQuery.inArray(neddle, haystack) != -1;
+            }else {
+                return haystack.indexOf(needle) != -1;
+            }
+        },
+        each: function(arrayObj, callback) {
+        	if(atmosphereFrameworkName == atmosphereFrameworkNameJQuery) {
+                return jQuery.each(arrayObj, callback);
+            }else {
+                var cbWrapper = function(cb, index) {
+                    callback(index, cb);
+                };
+                return arrayObj.each(cbWrapper);
+            }
+        },
+        
         subscribe: function(url, callback, request) {
-            jQuery.atmosphere.request = jQuery.extend({
-                        timeout: 300000,
-                        method: 'GET',
-                        headers: {},
-                        contentType : '',
-                        cache: true,
-                        async: true,
-                        ifModified: false,
-                        callback: null,
-                        dataType: '',
-                        url : url,
-                        data : '',
-                        suspend : true,
-                        maxRequest : 60,
-                        lastIndex : 0,
-                        logLevel : 'info',
-                        requestCount : 0,
-                        fallbackTransport : 'streaming',
-                        transport : 'long-polling',
-                        webSocketImpl: null
+            var reqExtend = {
+                timeout: 300000,
+                method: 'GET',
+                headers: {},
+                contentType : '',
+                cache: true,
+                async: true,
+                ifModified: false,
+                callback: null,
+                dataType: '',
+                url : url,
+                data : '',
+                suspend : true,
+                maxRequest : 60,
+                lastIndex : 0,
+                logLevel : 'info',
+                requestCount : 0,
+                fallbackTransport : 'streaming',
+                transport : 'long-polling',
+                webSocketImpl: null
+            };
+            atmJsFrmwrk.atmosphere.request = atmJsFrmwrk.atmosphere.extend(reqExtend, request);
 
-                    }, request);
-
-            logLevel = jQuery.atmosphere.request.logLevel || 'info';
+            logLevel = atmJsFrmwrk.atmosphere.request.logLevel || 'info';
             if (callback != null) {
-                jQuery.atmosphere.addCallback(callback);
-                jQuery.atmosphere.request.callback = callback;
+                atmJsFrmwrk.atmosphere.addCallback(callback);
+                atmJsFrmwrk.atmosphere.request.callback = callback;
             }
 
-            if (jQuery.atmosphere.request.transport != jQuery.atmosphere.activeTransport) {
-                jQuery.atmosphere.closeSuspendedConnection();
+            if (atmJsFrmwrk.atmosphere.request.transport != atmJsFrmwrk.atmosphere.activeTransport) {
+                atmJsFrmwrk.atmosphere.closeSuspendedConnection();
             }
-            jQuery.atmosphere.activeTransport = jQuery.atmosphere.request.transport;
+            atmJsFrmwrk.atmosphere.activeTransport = atmJsFrmwrk.atmosphere.request.transport;
 
-            if (jQuery.atmosphere.request.transport != 'websocket') {
-                jQuery.atmosphere.executeRequest();
-            } else if (jQuery.atmosphere.request.transport == 'websocket') {
-                if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
-                    jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport"]);
-                    jQuery.atmosphere.request.transport = jQuery.atmosphere.request.fallbackTransport;
-                    jQuery.atmosphere.response.transport = jQuery.atmosphere.request.fallbackTransport;
-                    jQuery.atmosphere.executeRequest();
+            if (atmJsFrmwrk.atmosphere.request.transport != 'websocket') {
+                atmJsFrmwrk.atmosphere.executeRequest();
+            } else if (atmJsFrmwrk.atmosphere.request.transport == 'websocket') {
+                if (atmJsFrmwrk.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
+                    atmJsFrmwrk.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport"]);
+                    atmJsFrmwrk.atmosphere.request.transport = atmJsFrmwrk.atmosphere.request.fallbackTransport;
+                    atmJsFrmwrk.atmosphere.response.transport = atmJsFrmwrk.atmosphere.request.fallbackTransport;
+                    atmJsFrmwrk.atmosphere.executeRequest();
                 }
                 else {
-                    jQuery.atmosphere.executeWebSocket();
+                    atmJsFrmwrk.atmosphere.executeWebSocket();
                 }
             }
         },
@@ -101,16 +158,16 @@ jQuery.atmosphere = function() {
          * Always make sure one transport is used, not two at the same time except for Websocket.
          */
         closeSuspendedConnection : function () {
-            jQuery.atmosphere.abordingConnection = true;
+            atmJsFrmwrk.atmosphere.abordingConnection = true;
             if (activeRequest != null) {
                 activeRequest.abort();
             }
 
-            if (jQuery.atmosphere.websocket != null) {
-                jQuery.atmosphere.websocket.close();
-                jQuery.atmosphere.websocket = null;
+            if (atmJsFrmwrk.atmosphere.websocket != null) {
+                atmJsFrmwrk.atmosphere.websocket.close();
+                atmJsFrmwrk.atmosphere.websocket = null;
             }
-            jQuery.atmosphere.abordingConnection = false;
+            atmJsFrmwrk.atmosphere.abordingConnection = false;
 
             if (!(typeof(transferDoc) == 'undefined')) {
                 if (transferDoc != null) {
@@ -122,31 +179,31 @@ jQuery.atmosphere = function() {
 
         executeRequest: function() {
 
-            if (jQuery.atmosphere.request.transport == 'streaming') {
-                if (jQuery.browser.msie) {
-                    jQuery.atmosphere.ieStreaming();
+            if (atmJsFrmwrk.atmosphere.request.transport == 'streaming') {
+                if (atmJsFrmwrk.atmosphere.isIE()) {
+                    atmJsFrmwrk.atmosphere.ieStreaming();
                     return;
-                } else if (jQuery.browser.opera) {
-                    jQuery.atmosphere.operaStreaming();
+                } else if (atmJsFrmwrk.atmosphere.isOpera()) {
+                    atmJsFrmwrk.atmosphere.operaStreaming();
                     return;
                 }
             }
 
-            if (jQuery.atmosphere.request.requestCount++ < jQuery.atmosphere.request.maxRequest) {
-                jQuery.atmosphere.response.push = function (url) {
-                    jQuery.atmosphere.request.callback = null;
-                    jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+            if (atmJsFrmwrk.atmosphere.request.requestCount++ < atmJsFrmwrk.atmosphere.request.maxRequest) {
+                atmJsFrmwrk.atmosphere.response.push = function (url) {
+                    atmJsFrmwrk.atmosphere.request.callback = null;
+                    atmJsFrmwrk.atmosphere.publish(url, null, atmJsFrmwrk.atmosphere.request);
                 };
 
-                var request = jQuery.atmosphere.request;
-                var response = jQuery.atmosphere.response;
+                var request = atmJsFrmwrk.atmosphere.request;
+                var response = atmJsFrmwrk.atmosphere.response;
                 if (request.transport != 'polling') {
                     response.transport = request.transport;
                 }
 
                 var ajaxRequest;
                 var error = false;
-                if (jQuery.browser.msie) {
+                if (atmJsFrmwrk.atmosphere.isIE()) {
                     var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"];
                     for (var i = 0; i < activexmodes.length; i++) {
                         try {
@@ -164,21 +221,21 @@ jQuery.atmosphere = function() {
                 }
 
                 ajaxRequest.open(request.method, request.url, true);
-                ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
+                ajaxRequest.setRequestHeader("X-Atmosphere-Framework", atmJsFrmwrk.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
 
-                if (jQuery.atmosphere.request.dataType) 
-                    ajaxRequest.setRequestHeader("Accept", "application/" + jQuery.atmosphere.request.dataType);
+                if (atmJsFrmwrk.atmosphere.request.dataType) 
+                    ajaxRequest.setRequestHeader("Accept", "application/" + atmJsFrmwrk.atmosphere.request.dataType);
                 
-                if (jQuery.atmosphere.request.contentType) 
-                    ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);                
-
+                if (atmJsFrmwrk.atmosphere.request.contentType) 
+                    ajaxRequest.setRequestHeader("Content-Type", atmJsFrmwrk.atmosphere.request.contentType);
+                
                 for (var x in request.headers) {
                     ajaxRequest.setRequestHeader(x, request.headers[x]);
                 }
 
-                if (!jQuery.browser.msie) {
+                if (!atmJsFrmwrk.atmosphere.isIE()) {
                     ajaxRequest.onerror = function() {
                         error = true;
                         try {
@@ -189,27 +246,27 @@ jQuery.atmosphere = function() {
                         }
 
                         response.state = "error";
-                        jQuery.atmosphere.invokeCallback(response);
+                        atmJsFrmwrk.atmosphere.invokeCallback(response);
                         ajaxRequest.abort();
                         activeRequest = null;
                     }
                 }
 
                 ajaxRequest.onreadystatechange = function() {
-                    if (jQuery.atmosphere.abordingConnection) return;
+                    if (atmJsFrmwrk.atmosphere.abordingConnection) return;
 
                     var junkForWebkit = false;
                     var update = false;
                     if (ajaxRequest.readyState == 4) {
-                        jQuery.atmosphere.request = request;
+                        atmJsFrmwrk.atmosphere.request = request;
                         if (request.suspend && ajaxRequest.status == 200) {
-                            jQuery.atmosphere.executeRequest();
+                            atmJsFrmwrk.atmosphere.executeRequest();
                         }
 
-                        if (jQuery.browser.msie) {
+                        if (atmJsFrmwrk.atmosphere.isIE()) {
                             update = true;
                         }
-                    } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
+                    } else if (!atmJsFrmwrk.atmosphere.isIE() && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;
                     } else {
                         clearTimeout(request.id);
@@ -258,10 +315,10 @@ jQuery.atmosphere = function() {
                                 var end = responseBody.indexOf("')", index);
                                 response.responseBody = responseBody.substring(start, end);
                                 index = end + 2;
-                                jQuery.atmosphere.invokeCallback(response);
+                                atmJsFrmwrk.atmosphere.invokeCallback(response);
                             }
                         } else {
-                            jQuery.atmosphere.invokeCallback(response);
+                            atmJsFrmwrk.atmosphere.invokeCallback(response);
                         }
                     }
                 };
@@ -270,26 +327,27 @@ jQuery.atmosphere = function() {
                 if (request.suspend) {
                     request.id = setTimeout(function() {
                         ajaxRequest.abort();
-                        jQuery.atmosphere.subscribe(request.url, null, request);
+                        atmJsFrmwrk.atmosphere.subscribe(request.url, null, request);
 
                     }, request.timeout);
                 }
             } else {
-                jQuery.atmosphere.log(logLevel, ["Max re-connection reached."]);
+                atmJsFrmwrk.atmosphere.log(logLevel, ["Max re-connection reached."]);
             }
         },
 
-        operaStreaming : function()
+        operaStreaming : function() 
         {
-            jQuery.atmosphere.closeSuspendedConnection();
 
-            var url = jQuery.atmosphere.request.url;
-            var callback = jQuery.atmosphere.request.callback;
-            jQuery.atmosphere.response.push = function (url)
+            atmJsFrmwrk.atmosphere.closeSuspendedConnection();
+
+            var url = atmJsFrmwrk.atmosphere.request.url;
+            var callback = atmJsFrmwrk.atmosphere.request.callback;
+            atmJsFrmwrk.atmosphere.response.push = function (url)
             {
-                jQuery.atmosphere.request.transport = 'polling';
-                jQuery.atmosphere.request.callback = null;
-                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+                atmJsFrmwrk.atmosphere.request.transport = 'polling';
+                atmJsFrmwrk.atmosphere.request.callback = null;
+                atmJsFrmwrk.atmosphere.publish(url, null, atmJsFrmwrk.atmosphere.request);
             };
 
             function init()
@@ -311,7 +369,7 @@ jQuery.atmosphere = function() {
 
                 if (/\?/i.test(url)) url += "&";
                 else url += "?";
-                url += "callback=jquery.atmosphere.streamingCallback";
+                url += "callback=atmJsFrmwrk.atmosphere.streamingCallback";
                 iframe.src = url;
             }
 
@@ -328,11 +386,11 @@ jQuery.atmosphere = function() {
                 }
             }
 
-            var url = jQuery.atmosphere.request.url;
-            jQuery.atmosphere.response.push = function (url) {
-                jQuery.atmosphere.request.transport = 'polling';
-                jQuery.atmosphere.request.callback = null;
-                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+            var url = atmJsFrmwrk.atmosphere.request.url;
+            atmJsFrmwrk.atmosphere.response.push = function (url) {
+                atmJsFrmwrk.atmosphere.request.transport = 'polling';
+                atmJsFrmwrk.atmosphere.request.callback = null;
+                atmJsFrmwrk.atmosphere.publish(url, null, atmJsFrmwrk.atmosphere.request);
             };
 
             //Must not use var here to avoid IE from disconnecting
@@ -342,56 +400,56 @@ jQuery.atmosphere = function() {
             var ifrDiv = transferDoc.createElement("div");
             transferDoc.body.appendChild(ifrDiv);
             ifrDiv.innerHTML = "<iframe src='" + url + "'></iframe>";
-            transferDoc.parentWindow.callback = jQuery.atmosphere.streamingCallback;
+            transferDoc.parentWindow.callback = atmJsFrmwrk.atmosphere.streamingCallback;
         }
         ,
 
         streamingCallback : function(args) {
-            var response = jQuery.atmosphere.response;
+            var response = atmJsFrmwrk.atmosphere.response;
             response.transport = "streaming";
             response.status = 200;
             response.responseBody = args;
             response.state = "messageReceived";
 
-            jQuery.atmosphere.invokeCallback(response);
+            atmJsFrmwrk.atmosphere.invokeCallback(response);
         }
         ,
 
         executeWebSocket : function() {
-            var request = jQuery.atmosphere.request;
+            var request = atmJsFrmwrk.atmosphere.request;
             var success = false;
-            jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
-            jQuery.atmosphere.response.transport = "websocket";
-            var url = jQuery.atmosphere.request.url;
-            var callback = jQuery.atmosphere.request.callback;
+            atmJsFrmwrk.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
+            atmJsFrmwrk.atmosphere.response.transport = "websocket";
+            var url = atmJsFrmwrk.atmosphere.request.url;
+            var callback = atmJsFrmwrk.atmosphere.request.callback;
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                url = jQuery.atmosphere.parseUri(document.location, url);
+                url = atmJsFrmwrk.atmosphere.parseUri(document.location, url);
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
             var websocket = null;
-            if (jQuery.atmosphere.request.webSocketImpl != null) {
-                websocket = jQuery.atmosphere.request.webSocketImpl;
+            if (atmJsFrmwrk.atmosphere.request.webSocketImpl != null) {
+                websocket = atmJsFrmwrk.atmosphere.request.webSocketImpl;
             } else {
                 websocket = new WebSocket(location);
             }
 
-            jQuery.atmosphere.websocket = websocket;
+            atmJsFrmwrk.atmosphere.websocket = websocket;
 
-            jQuery.atmosphere.response.push = function (url) {
+            atmJsFrmwrk.atmosphere.response.push = function (url) {
                 var data;
-                var ws = jQuery.atmosphere.websocket;
+                var ws = atmJsFrmwrk.atmosphere.websocket;
                 try {
-                    data = jQuery.atmosphere.request.data;
-                    ws.send(jQuery.atmosphere.request.data);
+                    data = atmJsFrmwrk.atmosphere.request.data;
+                    ws.send(atmJsFrmwrk.atmosphere.request.data);
                 } catch (e) {
-                    jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
+                    atmJsFrmwrk.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
-                    jQuery.atmosphere.response.transport = request.fallbackTransport;
-                    jQuery.atmosphere.request = request;
-                    jQuery.atmosphere.executeRequest();
+                    atmJsFrmwrk.atmosphere.response.transport = request.fallbackTransport;
+                    atmJsFrmwrk.atmosphere.request = request;
+                    atmJsFrmwrk.atmosphere.executeRequest();
 
                     ws.onclose = function(message) {
                     };
@@ -401,8 +459,8 @@ jQuery.atmosphere = function() {
 
             websocket.onopen = function(message) {
                 success = true;
-                jQuery.atmosphere.response.state = 'openning';
-                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                atmJsFrmwrk.atmosphere.response.state = 'openning';
+                atmJsFrmwrk.atmosphere.invokeCallback(atmJsFrmwrk.atmosphere.response);
             };
 
             websocket.onmessage = function(message) {
@@ -410,47 +468,48 @@ jQuery.atmosphere = function() {
                 if (data.indexOf("parent.callback") != -1) {
                     var start = data.indexOf("('") + 2;
                     var end = data.indexOf("')");
-                    jQuery.atmosphere.response.responseBody = data.substring(start, end);
+                    atmJsFrmwrk.atmosphere.response.responseBody = data.substring(start, end);
                 }
                 else {
-                    jQuery.atmosphere.response.responseBody = data;
+                    atmJsFrmwrk.atmosphere.response.responseBody = data;
                 }
-                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                atmJsFrmwrk.atmosphere.invokeCallback(atmJsFrmwrk.atmosphere.response);
             };
 
             websocket.onerror = function(message) {
-                jQuery.atmosphere.response.state = 'error';
-                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                atmJsFrmwrk.atmosphere.response.state = 'error';
+                atmJsFrmwrk.atmosphere.invokeCallback(atmJsFrmwrk.atmosphere.response);
             };
 
             websocket.onclose = function(message) {
                 if (!success) {
-                    var data = jQuery.atmosphere.request.data;
-                    jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
+                    var data = atmJsFrmwrk.atmosphere.request.data;
+                    atmJsFrmwrk.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
-                    jQuery.atmosphere.response.transport = request.fallbackTransport;
+                    atmJsFrmwrk.atmosphere.response.transport = request.fallbackTransport;
 
-                    jQuery.atmosphere.request = request;
-                    jQuery.atmosphere.executeRequest();
+                    atmJsFrmwrk.atmosphere.request = request;
+                    atmJsFrmwrk.atmosphere.executeRequest();
                 } else {
-                    jQuery.atmosphere.response.state = 'closed';
-                    jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                    atmJsFrmwrk.atmosphere.response.state = 'closed';
+                    atmJsFrmwrk.atmosphere.invokeCallback(atmJsFrmwrk.atmosphere.response);
                 }
             };
         }
         ,
 
         addCallback: function(func) {
-            if (jQuery.inArray(func, jQuery.atmosphere.callbacks) == -1) {
-                jQuery.atmosphere.callbacks.push(func);
+            if (!atmJsFrmwrk.atmosphere.inArray(func, atmJsFrmwrk.atmosphere.callbacks)) {
+                atmJsFrmwrk.atmosphere.callbacks.push(func);
             }
         }
         ,
 
         removeCallback: function(func) {
-            var index = jQuery.inArray(func, jQuery.atmosphere.callbacks);
-            if (index != -1) { jQuery.atmosphere.callbacks.splice(index); }
+            if (atmJsFrmwrk.atmosphere.inArray(func, atmJsFrmwrk.atmosphere.callbacks)) {
+                atmJsFrmwrk.atmosphere.callbacks.splice(index);
+            }
         }
         ,
 
@@ -459,15 +518,15 @@ jQuery.atmosphere = function() {
                 func(response);
             };
 
-            jQuery.atmosphere.log(logLevel, ["Invoking " + jQuery.atmosphere.callbacks.length + " callbacks"]);
-            if (jQuery.atmosphere.callbacks.length > 0) {
-                jQuery.each(jQuery.atmosphere.callbacks, call);
+            atmJsFrmwrk.atmosphere.log(logLevel, ["Invoking " + atmJsFrmwrk.atmosphere.callbacks.length + " callbacks"]);
+            if (atmJsFrmwrk.atmosphere.callbacks.length > 0) {
+            	atmJsFrmwrk.atmosphere.each(atmJsFrmwrk.atmosphere.callbacks, call);
             }
         }
         ,
 
         publish: function(url, callback, request) {
-            jQuery.atmosphere.request = jQuery.extend({
+            atmJsFrmwrk.atmosphere.request = jQuery.extend({
                         connected: false,
                         timeout: 60000,
                         method: 'POST',
@@ -488,17 +547,17 @@ jQuery.atmosphere = function() {
                     }, request);
 
             if (callback != null) {
-                jQuery.atmosphere.addCallback(callback);
+                atmJsFrmwrk.atmosphere.addCallback(callback);
             }
-            jQuery.atmosphere.request.transport = 'polling';
-            if (jQuery.atmosphere.request.transport != 'websocket') {
-                jQuery.atmosphere.executeRequest();
-            } else if (jQuery.atmosphere.request.transport == 'websocket') {
+            atmJsFrmwrk.atmosphere.request.transport = 'polling';
+            if (atmJsFrmwrk.atmosphere.request.transport != 'websocket') {
+                atmJsFrmwrk.atmosphere.executeRequest();
+            } else if (atmJsFrmwrk.atmosphere.request.transport == 'websocket') {
                 if (!window.WebSocket) {
                     alert("WebSocket not supported by this browser");
                 }
                 else {
-                    jQuery.atmosphere.executeWebSocket();
+                    atmJsFrmwrk.atmosphere.executeWebSocket();
                 }
             }
         }
@@ -516,9 +575,9 @@ jQuery.atmosphere = function() {
         ,
 
         kill_load_bar : function() {
-            if (jQuery.atmosphere.killHiddenIFrame == null) {
-                jQuery.atmosphere.killHiddenIFrame = document.createElement('iframe');
-                var ifr = jQuery.atmosphere.killHiddenIFrame;
+            if (atmJsFrmwrk.atmosphere.killHiddenIFrame == null) {
+                atmJsFrmwrk.atmosphere.killHiddenIFrame = document.createElement('iframe');
+                var ifr = atmJsFrmwrk.atmosphere.killHiddenIFrame;
                 ifr.style.display = 'block';
                 ifr.style.width = '0';
                 ifr.style.height = '0';
@@ -565,7 +624,7 @@ jQuery.atmosphere = function() {
         ,
 
         close : function() {
-            jQuery.atmosphere.closeSuspendedConnection();
+            atmJsFrmwrk.atmosphere.closeSuspendedConnection();
         },
 
 
