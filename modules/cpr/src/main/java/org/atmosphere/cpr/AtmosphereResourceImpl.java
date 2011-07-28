@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -195,6 +196,26 @@ public class AtmosphereResourceImpl implements
      */
     public void suspend(long timeout) {
         suspend(timeout, true);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public void suspend(long timeout, TimeUnit timeunit) {
+        suspend(timeout, timeunit, true);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public void suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
+    	
+    	long timeoutms = -1;
+    	if(timeunit!=null){
+    		timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
+    	}
+    	
+    	suspend(timeoutms, true);
     }
 
     public void suspend(long timeout, boolean flushComment) {
