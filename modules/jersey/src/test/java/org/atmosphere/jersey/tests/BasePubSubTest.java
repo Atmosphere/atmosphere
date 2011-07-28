@@ -456,7 +456,7 @@ public abstract class BasePubSubTest extends BaseTest {
             c.preparePost(urlTarget).addParameter("message", "cachememe").execute().get();
 
             //Suspend
-            Response r = c.prepareGet(urlTarget + "/subscribeAndResume").addHeader("X-Cache-Date", String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
+            Response r = c.prepareGet(urlTarget + "/subscribeAndResume").addHeader(HeaderBroadcasterCache.HEADER_CACHE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
 
                 @Override
                 public Response onCompleted(Response r) throws Exception {
@@ -477,6 +477,50 @@ public abstract class BasePubSubTest extends BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             assertEquals(r.getResponseBody(), "cacheme\ncachememe\n");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+
+        c.close();
+    }
+    
+    @Test(timeOut = 25000)
+    public void testHeaderBroadcasterCacheWithNoCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+        logger.info("{}: running test: testHeaderBroadcasterCacheWithNoCache", getClass().getSimpleName());
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        long t1 = System.currentTimeMillis();
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            // Suspend
+            c.preparePost(urlTarget).addParameter("message", "cacheme").execute().get();
+
+            // Broadcast
+            c.preparePost(urlTarget).addParameter("message", "cachememe").execute().get();
+
+            //Suspend
+            Response r = c.prepareGet(urlTarget + "/subscribeAndResumeWithPeriod").addHeader(HeaderBroadcasterCache.HEADER_CACHE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            }).get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(), "");
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
