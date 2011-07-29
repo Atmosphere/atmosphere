@@ -65,16 +65,11 @@ import javax.naming.InitialContext;
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
-    private static final String JMS_TOPIC = JMSBroadcaster.class.getName()
-            + ".topic";
-    private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName()
-            + ".JNDINamespace";
-    private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class
-            .getName() + ".JNDIConnectionFactoryName";
-    private static final String JNDI_TOPIC = JMSBroadcaster.class.getName()
-            + ".JNDITopic";
-    private static final Logger logger = LoggerFactory
-            .getLogger(JMSBroadcaster.class);
+    private static final String JMS_TOPIC = JMSBroadcaster.class.getName() + ".topic";
+    private static final String JNDI_NAMESPACE = JMSBroadcaster.class.getName() + ".JNDINamespace";
+    private static final String JNDI_FACTORY_NAME = JMSBroadcaster.class.getName() + ".JNDIConnectionFactoryName";
+    private static final String JNDI_TOPIC = JMSBroadcaster.class.getName() + ".JNDITopic";
+    private static final Logger logger = LoggerFactory.getLogger(JMSBroadcaster.class);
 
     private Connection connection;
     private Session session;
@@ -86,6 +81,14 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private String factoryName = "atmosphereFactory";
     private String namespace = "jms/";
 
+    public JMSBroadcaster() {
+        super(JMSBroadcaster.class.getSimpleName());
+    }
+    
+    public JMSBroadcaster(String id) {
+        super(id);
+    }
+    
     public synchronized void configure(AtmosphereServlet.AtmosphereConfig config) {
         try {
             if (config != null) {
@@ -143,23 +146,39 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void incomingBroadcast() {
-        try {
-            // This method is called by a task runner in an asynchronous fashion before the
-            // call to configure(). Wait for the configure() method to finish
-            synchronized(this) {
-                while(session == null)
-                    this.wait(1000);
+        // This method is called by a task runner in an asynchronous fashion before the
+        // call to configure(). Wait for the configure() method to finish
+        synchronized(this) {
+            while(session == null) {
+                try { this.wait(1000); } catch (InterruptedException e) {/* Ignore */}
             }
+        }
+        restartConsumer();
+    }
+    
+    @Override
+    public void setID(String id) {
+        super.setID(id);
+        synchronized(this) {
+            if(session != null)
+                restartConsumer();
+        }
+    }
+
+    void restartConsumer() {
+        try {
             String id = getID();
             if (id.startsWith("/*")) {
                 id = "atmosphere";
             }
-            if (consumer != null)
+            if (consumer != null) {
                 consumer.close();
-
-            logger.info("Create customer: {}", id);
+                consumer = null;
+            }
+    
+            logger.info("Create JMS consumer: {}", id);
             String selector = String.format("BroadcasterId = '%s'", id);
-
+    
             consumer = session.createConsumer(topic, selector);
             consumer.setMessageListener(new MessageListener() {
                 @Override
@@ -167,7 +186,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                     try {
                         TextMessage textMessage = (TextMessage) msg;
                         String message = textMessage.getText();
-
+    
                         if (message != null && bc != null) {
                             broadcastReceivedMessage(message);
                         }
