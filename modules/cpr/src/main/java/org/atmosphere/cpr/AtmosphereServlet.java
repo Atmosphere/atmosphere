@@ -239,6 +239,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected boolean isBroadcasterSpecified = false;
     protected boolean isSessionSupportSpecified = false;
     private BroadcasterFactory broadcasterFactory;
+    protected String broadcasterFactoryClassName;
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
     private String broadcasterLifeCyclePolicy = "NEVER";
@@ -588,6 +589,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected void configureBroadcaster() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
+        if (broadcasterFactoryClassName != null) {
+            logger.info("using BroadcasterFactory class: {}", broadcasterFactoryClassName);
+
+            broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
+                    .loadClass(broadcasterFactoryClassName).newInstance();
+        }
+
         if (broadcasterFactory == null) {
             Class<? extends Broadcaster> bc =
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
@@ -595,9 +603,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             logger.info("using broadcaster class: {}", bc.getName());
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
-            config.broadcasterFactory = broadcasterFactory;
-            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         }
+
+        config.broadcasterFactory = broadcasterFactory;
+        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+        InjectorProvider.getInjector().inject(broadcasterFactory);
 
         Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
         AtmosphereHandlerWrapper w;
@@ -702,6 +712,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
         if (s != null) {
             broadcasterLifeCyclePolicy = s;
+        }
+        s = sc.getInitParameter(BROADCASTER_FACTORY);
+        if (s != null) {
+            broadcasterFactoryClassName = s;
         }
     }
 
