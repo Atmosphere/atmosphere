@@ -86,7 +86,7 @@ jQuery.atmosphere = function() {
             if (jQuery.atmosphere.request.transport != 'websocket') {
                 jQuery.atmosphere.executeRequest();
             } else if (jQuery.atmosphere.request.transport == 'websocket') {
-                if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket) {
+                if (jQuery.atmosphere.request.webSocketImpl == null && !window.WebSocket && !window.MozWebSocket) {
                     jQuery.atmosphere.log(logLevel, ["Websocket is not supported, using request.fallbackTransport ("
                             + jQuery.atmosphere.request.fallbackTransport + ")"]);
                     jQuery.atmosphere.request.transport = jQuery.atmosphere.request.fallbackTransport;
@@ -403,7 +403,11 @@ jQuery.atmosphere = function() {
             if (jQuery.atmosphere.request.webSocketImpl != null) {
                 websocket = jQuery.atmosphere.request.webSocketImpl;
             } else {
-                websocket = new WebSocket(location);
+              if (window.WebSocket) {
+                  websocket = new WebSocket(location);
+              } else {
+                  websocket = new MozWebSocket(location);
+              }
             }
 
             jQuery.atmosphere.websocket = websocket;
@@ -525,7 +529,7 @@ jQuery.atmosphere = function() {
             if (jQuery.atmosphere.request.transport != 'websocket') {
                 jQuery.atmosphere.executeRequest();
             } else if (jQuery.atmosphere.request.transport == 'websocket') {
-                if (!window.WebSocket) {
+                if (!window.WebSocket && !window.MozWebSocket) {
                     alert("WebSocket not supported by this browser");
                 }
                 else {
