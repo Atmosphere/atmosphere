@@ -43,6 +43,7 @@ import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -94,6 +95,30 @@ public interface AtmosphereResource<E, F> {
      *                times out will throw an {@link IllegalStateException}.
      */
     public void suspend(long timeout);
+    
+    /**
+     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * tell the underlying container to avoid recycling objects associated with
+     * the current instance, and also to avoid commiting response. Invoking
+     * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
+     * has no effect.
+     * <p/>
+     * The Framework will output some HTML comments when suspending the response
+     * in order to make sure all Browser works well with suspended response. By default,
+     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * behavior by setting a request attribute named org.atmosphere.useStream to
+     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     *
+     * @param timeout The maximum amount of time, 
+     *                a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                nothing has been written or because the {@link AtmosphereResource#resume()}
+     *                , the {@link HttpServletResponse} will be automatically
+     *                resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                times out will throw an {@link IllegalStateException}.
+     *                
+     * @param timeunit The time unit of the timeout value
+     */
+    public void suspend(long timeout, TimeUnit timeunit);
 
     /**
      * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
@@ -118,6 +143,33 @@ public interface AtmosphereResource<E, F> {
      *                     browser working. Set it to false if you want to remove it.
      */
     public void suspend(long timeout, boolean flushComment);
+    
+    /**
+     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * tell the underlying container to avoid recycling objects associated with
+     * the current instance, and also to avoid commiting response. Invoking
+     * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
+     * has no effect.
+     * <p/>
+     * The Framework will output some HTML comments when suspending the response
+     * in order to make sure all Browser works well with suspended response. By default,
+     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * behavior by setting a request attribute named org.atmosphere.useStream to
+     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     *
+     * @param timeout      The maximum amount of time, in milliseconds,
+     *                     a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                     nothing has been written or because the {@link AtmosphereResource#resume()}
+     *                     , the {@link HttpServletResponse} will be automatically
+     *                     resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                     times out will throw an {@link IllegalStateException}.
+     * 
+     * @param timeunit The time unit of the timeout value
+     *                     
+     * @param flushComment By default, Atmosphere will output some comments to make WebKit based
+     *                     browser working. Set it to false if you want to remove it.
+     */
+    public void suspend(long timeout, TimeUnit timeunit, boolean flushComment);
 
     /**
      * Return the underlying <E> Request.

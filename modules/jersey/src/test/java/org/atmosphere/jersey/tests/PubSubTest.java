@@ -138,7 +138,7 @@ public class PubSubTest {
     }
 
     /**
-     * Suspend the response, and tell teh framework to resume the response
+     * Suspend the response, and tell the framework to resume the response
      * when the first @Broadcast operation occurs.
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
@@ -146,6 +146,18 @@ public class PubSubTest {
     @Suspend(resumeOnBroadcast=true, outputComments = false)
     @Path("subscribeAndResume")
     public Broadcastable subscribeAndResume() {
+        return new Broadcastable(broadcaster);
+    }
+    
+    /**
+     * Suspend the response, and tell the framework to resume the response after 5 sec or less
+     * when the first @Broadcast operation occurs.
+     * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
+     */
+    @GET
+    @Suspend(resumeOnBroadcast=true, outputComments = false, period = 5000)
+    @Path("subscribeAndResumeWithPeriod")
+    public Broadcastable subscribeAndResumeWithPeriod() {
         return new Broadcastable(broadcaster);
     }
 
