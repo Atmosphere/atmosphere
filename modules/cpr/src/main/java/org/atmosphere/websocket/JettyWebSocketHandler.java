@@ -29,8 +29,7 @@ import javax.servlet.http.HttpServletRequestWrapper;
 /**
  * Jetty 7 & 8 WebSocket support.
  */
-public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebSocket.OnBinaryMessage, WebSocket.OnTextMessage, WebSocket.OnControl
-{
+public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebSocket.OnBinaryMessage, WebSocket.OnTextMessage, WebSocket.OnControl {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketHandler.class);
 
@@ -39,130 +38,127 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     private final AtmosphereServlet atmosphereServlet;
     private final String webSocketProcessorClassName;
 
-    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProcessorClassName)
-    {
-        this.request = request;
+    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProcessorClassName) {
+        this.request = new JettyRequestFix(request, request.getServletPath(), request.getContextPath(), request.getPathInfo(), request.getRequestURI());
         this.atmosphereServlet = atmosphereServlet;
         this.webSocketProcessorClassName = webSocketProcessorClassName;
     }
 
     @Override
-    public void onConnect(WebSocket.Outbound outbound)
-    {
+    public void onConnect(WebSocket.Outbound outbound) {
         try {
             webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProcessorClassName)
                     .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
                     .newInstance(new Object[]{atmosphereServlet, new JettyWebSocketSupport(outbound)});
 
-            webSocketProcessor.connect(new JettyRequestFix(request));
-        }
-        catch (Exception e) {
-            logger.warn("failed to connect to web socket", e);
-        }
-    }
-
-    @Override
-    public void onMessage(byte frame, String data)
-    {
-        webSocketProcessor.broadcast(data);
-    }
-
-    @Override
-    public void onMessage(byte frame, byte[] data, int offset, int length)
-    {
-        webSocketProcessor.broadcast(new String(data, offset, length));
-    }
-
-    @Override
-    public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length)
-    {
-        webSocketProcessor.broadcast(new String(data, offset, length));
-    }
-
-    @Override
-    public void onDisconnect()
-    {
-        webSocketProcessor.close();
-    }
-
-    @Override
-    public void onMessage(byte[] data, int offset, int length)
-    {
-        webSocketProcessor.broadcast(data, offset, length);
-    }
-
-    @Override
-    public boolean onControl(byte controlCode, byte[] data, int offset, int length)
-    {
-        webSocketProcessor.broadcast(data, offset, length);
-        return false;
-    }
-
-    @Override
-    public boolean onFrame(byte flags, byte opcode, byte[] data, int offset, int length)
-    {
-        webSocketProcessor.broadcast(data, offset, length);
-        logger.debug("WebSocket.onFrame");
-        return false;
-    }
-
-    @Override
-    public void onHandshake(WebSocket.FrameConnection connection)
-    {
-        logger.debug("WebSocket.onHandshake");
-    }
-
-    @Override
-    public void onMessage(String data)
-    {
-        webSocketProcessor.broadcast(data);
-    }
-
-    @Override
-    public void onOpen(WebSocket.Connection connection)
-    {
-        try {        
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
-                    .loadClass(webSocketProcessorClassName)
-                    .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
-                    .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocketSupport(connection)});
-            webSocketProcessor.connect(new JettyRequestFix(request));
+            webSocketProcessor.connect(request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
     }
 
     @Override
-    public void onClose(int closeCode, String message)
-    {
+    public void onMessage(byte frame, String data) {
+        webSocketProcessor.broadcast(data);
+    }
+
+    @Override
+    public void onMessage(byte frame, byte[] data, int offset, int length) {
+        webSocketProcessor.broadcast(new String(data, offset, length));
+    }
+
+    @Override
+    public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
+        webSocketProcessor.broadcast(new String(data, offset, length));
+    }
+
+    @Override
+    public void onDisconnect() {
+        webSocketProcessor.close();
+    }
+
+    @Override
+    public void onMessage(byte[] data, int offset, int length) {
+        webSocketProcessor.broadcast(data, offset, length);
+    }
+
+    @Override
+    public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
+        webSocketProcessor.broadcast(data, offset, length);
+        return false;
+    }
+
+    @Override
+    public boolean onFrame(byte flags, byte opcode, byte[] data, int offset, int length) {
+        webSocketProcessor.broadcast(data, offset, length);
+        logger.debug("WebSocket.onFrame");
+        return false;
+    }
+
+    @Override
+    public void onHandshake(WebSocket.FrameConnection connection) {
+        logger.debug("WebSocket.onHandshake");
+    }
+
+    @Override
+    public void onMessage(String data) {
+        webSocketProcessor.broadcast(data);
+    }
+
+    @Override
+    public void onOpen(WebSocket.Connection connection) {
+        try {
+            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
+                    .loadClass(webSocketProcessorClassName)
+                    .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
+                    .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocketSupport(connection)});
+            webSocketProcessor.connect(request);
+        } catch (Exception e) {
+            logger.warn("failed to connect to web socket", e);
+        }
+    }
+
+    @Override
+    public void onClose(int closeCode, String message) {
         webSocketProcessor.close();
     }
 
     /**
      * https://issues.apache.org/jira/browse/WICKET-3190
      */
-    private static class JettyRequestFix extends HttpServletRequestWrapper
-    {
+    private static class JettyRequestFix extends HttpServletRequestWrapper {
+        private final String contextPath;
+        private final String servletPath;
+        private final String pathInfo;
+        private final String requestUri;
 
-        public JettyRequestFix(HttpServletRequest request)
-        {
+        public JettyRequestFix(HttpServletRequest request, String servletPath, String contextPath, String pathInfo, String requestUri) {
             super(request);
+            this.servletPath = servletPath;
+            this.contextPath = contextPath;
+            this.pathInfo = pathInfo;
+            this.requestUri = requestUri;
         }
 
-        /**
-         * Jetty's Websocket doesn't computer the ContextPath properly for WebSocket.
-         *
-         * @return
-         */
-        public String getContextPath()
-        {
-            String uri = getRequestURI();
-            String path = super.getContextPath();
-            if (path == null) {
-                path = uri.substring(0, uri.indexOf("/", 1));
-            }
-            return path;
+        @Override
+        public String getContextPath() {
+            return contextPath;
+        }
+
+        @Override
+        public String getServletPath(){
+            return servletPath;
+        }
+
+        @Override
+        public String getPathInfo(){
+            return pathInfo;
+        }
+
+        @Override
+        public String getRequestURI(){
+            return requestUri;
         }
     }
 
