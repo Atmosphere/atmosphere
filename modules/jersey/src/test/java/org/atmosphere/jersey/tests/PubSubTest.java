@@ -47,7 +47,6 @@ import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.util.StringFilterAggregator;
 import org.atmosphere.util.XSSHtmlFilter;
 
-import javax.annotation.PreDestroy;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -138,7 +137,7 @@ public class PubSubTest {
     }
 
     /**
-     * Suspend the response, and tell teh framework to resume the response
+     * Suspend the response, and tell the framework to resume the response
      * when the first @Broadcast operation occurs.
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
