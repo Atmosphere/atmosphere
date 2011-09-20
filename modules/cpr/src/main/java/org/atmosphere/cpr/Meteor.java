@@ -176,6 +176,20 @@ public class Meteor {
         r.suspend(l);
         return this;
     }
+    
+    /**
+    * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
+    * suspend the response forever.
+    *
+    * @param timeout the maximum time a response stay suspended.
+    * @param timeunit The time unit of the timeout value
+    * @return {@link Meteor}
+    */
+
+    public Meteor suspend(long timeout, TimeUnit timeunit) {
+    	r.suspend(timeout, timeunit);
+    	return this;
+    }
 
     /**
      * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
@@ -190,6 +204,21 @@ public class Meteor {
         return this;
     }
 
+    /**
+    * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
+    * suspend the response forever.
+    *
+    * @param timeout the maximum time a response stay suspended.
+    * @param timeunit The time unit of the timeout value
+    * @param outputComments the maximum time a response stay suspended.
+    * @return {@link Meteor}
+    */
+
+    public Meteor suspend(long timeout, TimeUnit timeunit, boolean outputComments) {
+    	r.suspend(timeout, timeunit, outputComments);
+    	return this;
+    }
+    
     /**
      * Resume the underlying {@link HttpServletResponse}
      *
