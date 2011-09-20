@@ -211,8 +211,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
     public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
 
-    private static final AtmospherePingSupport ATMOSPHERE_PING_SUPPORT = new AtmospherePingSupport();
-
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     private final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config = new AtmosphereConfig();
@@ -562,7 +560,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     return sc.getInitParameterNames();
                 }
             };
-            pingForStats();
             doInitParams(scFacade);
             configureDefaultBroadcasterFactory();
             doInitParamsForWebSocket(scFacade);
@@ -1408,13 +1405,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         broadcasterTypes.add(broadcasterTypeString);
     }
 
-    /**
-     * See {@link org.atmosphere.ping.AtmospherePing}
-     */
-    protected void pingForStats() {
-        ATMOSPHERE_PING_SUPPORT.invoke();
-    }
-
     public String getWebSocketProcessorClassName() {
         return webSocketProcessorClassName;
     }
@@ -1435,40 +1425,5 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         logger.info("WebSocket upgrade requested");
 
         return new JettyWebSocketHandler(request,this, webSocketProcessorClassName);
-    }
-
-    private static class AtmospherePingSupport {
-
-        private final Method method;
-        private final String[] version;
-
-        private AtmospherePingSupport() {
-            Method method = null;
-            String[] version = null;
-            try {
-                Class ping = Class.forName("org.atmosphere.ping.AtmospherePing");
-                method = ping.getMethod("ping", new Class[]{String.class});
-                version = new String[]{Version.getRawVersion()};
-            }
-            catch (Exception e) {
-            }
-
-            this.method = method;
-            this.version = (version == null ? new String[]{"no version found"} : version);
-
-            invoke();
-        }
-
-        private void invoke() {
-            if (method == null) {
-                return;
-            }
-
-            try {
-                method.invoke(null, version);
-            }
-            catch (Exception ignore) {
-            }
-        }
     }
 }
