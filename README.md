@@ -4,7 +4,7 @@ Servlet 3.0 is supported along with framework like Jersey (natively), GWT (nativ
 
 Atmosphere ships with a JQuery Plug In that can be used with any Comet or WebSocket Framework:
 
-[Getting started](http://is.gd/bJXhH)
+[Getting started](http://jfarcand.wordpress.com/2010/06/15/using-atmospheres-jquery-plug-in-to-build-applicationsupporting-both-websocket-and-comet/)
 
 Download Atmosphere Whitepaper
 
