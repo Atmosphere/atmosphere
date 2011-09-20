@@ -62,7 +62,7 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author Jeanfrancois Arcand
  */
-public class HeaderBroadcasterCache extends SessionBroadcasterCache {
+public class HeaderBroadcasterCache extends BroadcasterCacheBase {
 
     public static final String HEADER_CACHE = "X-Cache-Date";
 
