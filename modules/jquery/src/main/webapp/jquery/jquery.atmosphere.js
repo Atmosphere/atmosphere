@@ -245,6 +245,7 @@ jQuery.atmosphere = function() {
                             request.lastIndex = responseText.length;
                             if (junkForWebkit) return;
                         } else {
+                            response.responseBody = responseText;
                             request.lastIndex = responseText.length;
                         }
 
