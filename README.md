@@ -4,7 +4,7 @@ Servlet 3.0 is supported along with framework like Jersey (natively), GWT (nativ
 
 Atmosphere ships with a JQuery Plug In that can be used with any Comet or WebSocket Framework:
 
-     http://is.gd/bJXhH
+[Getting started](http://is.gd/bJXhH)
 
 Download Atmosphere Whitepaper
 
@@ -20,11 +20,11 @@ If you are using Maven, just add the following dependency:
 
 Where atmosphere-module can be: jersey, runtime, guice, jquery, cluster or gwt,. Our official release are available from Maven Central. For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds:
 
-[browse](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
+[browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
 
 Download samples
 
-[download](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
+[download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
 Atmosphere 0.7.2 is our official release, and our work in progress version is 0.8, targeted for end of October 2011
 
