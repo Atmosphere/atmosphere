@@ -58,9 +58,14 @@ import java.io.IOException;
 public class JettyWebSocketSupport extends Jetty7CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketSupport.class);
+    private final WebSocket
+
 
     public JettyWebSocketSupport(AtmosphereConfig config) {
         super(config);
+
+
+
     }
 
     /**
