@@ -439,7 +439,7 @@
         <grizzly-version>1.9.34</grizzly-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
-        <jetty7-version>7.2.1.v20101111</jetty7-version>
+        <jetty7-version>7.5.1.v20110908</jetty7-version>
         <tomcat-version>6.0.18</tomcat-version>
         <tomcat7-version>7.0.0-RC2</tomcat7-version>
         <jgroups-version>2.7.0.GA</jgroups-version>
