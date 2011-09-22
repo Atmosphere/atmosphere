@@ -77,15 +77,12 @@ public abstract class WebSocketProcessor implements Serializable {
             logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
         }
 
-        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
         try {
             atmosphereServlet
                     .doCometSupport(request, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport));
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
-        }
-        catch (ServletException e) {
+        } catch (ServletException e) {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
         }
 
@@ -96,23 +93,23 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
-    public AtmosphereResource resource(){
+    public AtmosphereResource resource() {
         return resource;
     }
 
-    public AtmosphereServlet atmosphereServlet(){
+    public AtmosphereServlet atmosphereServlet() {
         return atmosphereServlet;
     }
-    
-    public HttpServletRequest request(){
+
+    public HttpServletRequest request() {
         return resource.getRequest();
     }
 
-    public WebSocketSupport webSocketSupport(){
+    public WebSocketSupport webSocketSupport() {
         return webSocketSupport;
     }
-    
-    abstract public void broadcast(String data) ;
+
+    abstract public void broadcast(String data);
 
     abstract public void broadcast(byte[] data, int offset, int length);
 
@@ -121,8 +118,7 @@ public abstract class WebSocketProcessor implements Serializable {
             if (handler != null && resource != null) {
                 handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, false, true));
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }

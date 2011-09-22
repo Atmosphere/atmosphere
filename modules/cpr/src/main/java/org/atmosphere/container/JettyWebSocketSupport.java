@@ -41,7 +41,10 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketSupport;
+import org.eclipse.jetty.websocket.WebSocket;
+import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,14 +61,31 @@ import java.io.IOException;
 public class JettyWebSocketSupport extends Jetty7CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketSupport.class);
-    private final WebSocket
+    private final WebSocketFactory webSocketFactory;
 
 
-    public JettyWebSocketSupport(AtmosphereConfig config) {
+
+    public JettyWebSocketSupport(final AtmosphereConfig config) {
         super(config);
 
+        String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
+        if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
+            // Create and configure WS factory
+            webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
+                public boolean checkOrigin(HttpServletRequest request, String origin) {
+                    // Allow all origins
+                    return true;
+                }
 
-
+                public WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
+                    return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
+                }
+            });
+            webSocketFactory.setBufferSize(4096);
+            webSocketFactory.setMaxIdleTime(60000);
+        } else {
+            webSocketFactory = null;
+        }
     }
 
     /**
@@ -79,6 +99,12 @@ public class JettyWebSocketSupport extends Jetty7CometSupport {
         if (connection == null || !connection.equalsIgnoreCase("Upgrade")) {
             return super.service(req, res);
         } else {
+
+            if (webSocketFactory != null && req.getAttribute("websocket") == null) {
+                req.setAttribute("websocket", "inprocess");
+                webSocketFactory.acceptWebSocket(req, res);
+            }
+
             Action action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
