@@ -77,6 +77,7 @@ public abstract class WebSocketProcessor implements Serializable {
             logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
         }
 
+        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
         try {
             atmosphereServlet
                     .doCometSupport(request, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport));

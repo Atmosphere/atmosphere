@@ -63,21 +63,20 @@ public class JettyWebSocketSupport extends Jetty7CometSupport {
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketSupport.class);
     private final WebSocketFactory webSocketFactory;
 
-
-
     public JettyWebSocketSupport(final AtmosphereConfig config) {
         super(config);
 
         String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
         if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-            // Create and configure WS factory
             webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
                 public boolean checkOrigin(HttpServletRequest request, String origin) {
                     // Allow all origins
+                    logger.debug("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
                     return true;
                 }
 
                 public WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
+                    logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
                     return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
                 }
             });
