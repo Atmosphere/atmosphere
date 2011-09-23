@@ -94,11 +94,18 @@ public class JettyWebSocketSupport extends Jetty7CometSupport {
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        String connection = req.getHeader("Connection");
-        if (connection == null || !connection.equalsIgnoreCase("Upgrade")) {
+        boolean webSocketEnabled = false;
+        String[] e = req.getHeaders("Connection").nextElement().split(",");
+        for (String upgrade : e) {
+            if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                webSocketEnabled = true;
+                break;
+            }
+        }
+
+        if (!webSocketEnabled) {
             return super.service(req, res);
         } else {
-
             if (webSocketFactory != null && req.getAttribute("websocket") == null) {
                 req.setAttribute("websocket", "inprocess");
                 webSocketFactory.acceptWebSocket(req, res);

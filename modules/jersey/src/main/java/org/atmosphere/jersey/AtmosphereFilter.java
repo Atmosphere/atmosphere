@@ -75,6 +75,7 @@ import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -177,9 +178,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         boolean outputJunk(ContainerRequest request, boolean outputJunk) {
-            String upgrade = servletReq.getHeader("Connection");
+            boolean webSocketEnabled = false;
+            String[] e = ((Enumeration<String>)servletReq.getHeaders("Connection")).nextElement().split(",");
+            for(String upgrade: e) {
+                if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                    webSocketEnabled = true;
+                    break;
+                }
+            }
+
             String transport = request.getHeaderValue("X-Atmosphere-Transport");
-            if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
+            if (webSocketEnabled) {
                 return false;
             } else if (transport != null && transport.equals("long-polling")) {
                 return false;
