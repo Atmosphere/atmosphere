@@ -46,6 +46,7 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
 
     @Override
     public void onConnect(WebSocket.Outbound outbound) {
+        logger.debug("WebSocket.onConnect (outbound)");
         try {
             webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProcessorClassName)
@@ -60,39 +61,46 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
 
     @Override
     public void onMessage(byte frame, String data) {
+        logger.debug("WebSocket.onMessage (frame/string)");
         webSocketProcessor.broadcast(data);
     }
 
     @Override
     public void onMessage(byte frame, byte[] data, int offset, int length) {
+        logger.debug("WebSocket.onMessage (frame)");
         webSocketProcessor.broadcast(new String(data, offset, length));
     }
 
     @Override
     public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
+        logger.debug("WebSocket.onFragment");
         webSocketProcessor.broadcast(new String(data, offset, length));
     }
 
     @Override
     public void onDisconnect() {
+        logger.debug("WebSocket.onDisconnect");
         webSocketProcessor.close();
     }
 
     @Override
     public void onMessage(byte[] data, int offset, int length) {
+        logger.debug("WebSocket.onMessage (bytes)");
         webSocketProcessor.broadcast(data, offset, length);
     }
 
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
+        logger.debug("WebSocket.onControl.");
         webSocketProcessor.broadcast(data, offset, length);
         return false;
     }
 
     @Override
     public boolean onFrame(byte flags, byte opcode, byte[] data, int offset, int length) {
-        webSocketProcessor.broadcast(data, offset, length);
-        logger.debug("WebSocket.onFrame");
+        logger.debug("WebSocket.onFrame.");
+        // TODO: onMessage is always invoked after that method gets called, so no need to enable for now.
+ //       webSocketProcessor.broadcast(data, offset, length);
         return false;
     }
 
@@ -103,11 +111,13 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
 
     @Override
     public void onMessage(String data) {
+        logger.debug("WebSocket.onMessage");
         webSocketProcessor.broadcast(data);
     }
 
     @Override
     public void onOpen(WebSocket.Connection connection) {
+        logger.debug("WebSocket.onOPen.");
         try {
             webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProcessorClassName)
@@ -121,6 +131,7 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
 
     @Override
     public void onClose(int closeCode, String message) {
+        logger.debug("WebSocket.OnClose.");
         webSocketProcessor.close();
     }
 

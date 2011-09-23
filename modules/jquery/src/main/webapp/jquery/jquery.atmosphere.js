@@ -66,6 +66,7 @@ jQuery.atmosphere = function() {
                 lastIndex : 0,
                 logLevel : 'info',
                 requestCount : 0,
+                fallbackMethod: 'GET',
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
                 webSocketImpl: null
@@ -79,10 +80,6 @@ jQuery.atmosphere = function() {
             }
 
             if (jQuery.atmosphere.request.transport != jQuery.atmosphere.activeTransport) {
-                // XXX: If the preferred transport is not supported then this may unnecessarily close down the existing
-                //  transport, only to discover that the preferred is not possible and to re-establish the existing.
-                //  There is a reasonable argument for using the existing transport and only changing it if the existing
-                //  connection is forcibly disconnected first.
                 jQuery.atmosphere.closeSuspendedConnection();
             }
             jQuery.atmosphere.activeTransport = jQuery.atmosphere.request.transport;
@@ -212,7 +209,7 @@ jQuery.atmosphere = function() {
                     var responseText = ajaxRequest.responseText;
                     if (ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.request = request;
-                        if (request.suspend && ajaxRequest.status == 200 & request.transport == "long polling") {
+                        if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
                             jQuery.atmosphere.executeRequest();
                         }
 
@@ -432,6 +429,8 @@ jQuery.atmosphere = function() {
                         request.fallbackTransport + " and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    request.method = request.fallbackMethod ;
+                    request.data = data;
                     jQuery.atmosphere.response.transport = request.fallbackTransport;
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
@@ -475,6 +474,8 @@ jQuery.atmosphere = function() {
                         request.fallbackTransport + " and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
+                    request.method = request.fallbackMethod ;
+                    request.data = data;
                     jQuery.atmosphere.response.transport = request.fallbackTransport;
 
                     jQuery.atmosphere.request = request;

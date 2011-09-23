@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResource<E, F> {
+public interface AtmosphereResource<E, F> extends Trackable{
 
     /**
      * Complete the {@link HttpServletResponse} and finish/commit it. If the

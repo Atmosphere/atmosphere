@@ -71,7 +71,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface Broadcaster {
+public interface Broadcaster extends Trackable{
     
     enum SCOPE {
         REQUEST, APPLICATION, VM
