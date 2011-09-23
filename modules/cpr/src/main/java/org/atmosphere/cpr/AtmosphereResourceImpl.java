@@ -219,12 +219,14 @@ public class AtmosphereResourceImpl implements
 
         if (!event.isResumedOnTimeout()) {
 
-            String upgrade = req.getHeader("Connection");
-            if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
-                if (writeHeaders && !cometSupport.supportWebSocket()) {
-                    response.addHeader("X-Atmosphere-error", "Websocket protocol not supported");
-                } else {
-                    flushComment = false;
+            String[] e = req.getHeaders("Connection").nextElement().split(",");
+            for(String upgrade: e) {
+                if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                    if (writeHeaders && !cometSupport.supportWebSocket()) {
+                        response.addHeader("X-Atmosphere-error", "Websocket protocol not supported");
+                    } else {
+                        flushComment = false;
+                    }
                 }
             }
 
