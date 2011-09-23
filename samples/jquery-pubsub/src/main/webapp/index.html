@@ -46,7 +46,7 @@
                         if (response.status == 200) {
                             var data = response.responseBody;
                             if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data));
+                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
                             }
                         }
                     }
