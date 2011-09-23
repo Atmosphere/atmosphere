@@ -162,7 +162,9 @@ public class AtmosphereResourceImpl implements
             }
 
             // Resuming here means we need to pull away from all other Broadcaster, if they exists.
-            BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+            if (BroadcasterFactory.getDefault() != null) {
+                BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+            }
 
             try {
                 req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
