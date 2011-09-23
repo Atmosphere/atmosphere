@@ -79,10 +79,6 @@ jQuery.atmosphere = function() {
             }
 
             if (jQuery.atmosphere.request.transport != jQuery.atmosphere.activeTransport) {
-                // XXX: If the preferred transport is not supported then this may unnecessarily close down the existing
-                //  transport, only to discover that the preferred is not possible and to re-establish the existing.
-                //  There is a reasonable argument for using the existing transport and only changing it if the existing
-                //  connection is forcibly disconnected first.
                 jQuery.atmosphere.closeSuspendedConnection();
             }
             jQuery.atmosphere.activeTransport = jQuery.atmosphere.request.transport;
