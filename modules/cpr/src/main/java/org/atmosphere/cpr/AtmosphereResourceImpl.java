@@ -67,42 +67,29 @@ public class AtmosphereResourceImpl implements
 
     // The {@link HttpServletRequest}
     private final HttpServletRequest req;
-
     // The {@link HttpServletResponse}
     private final HttpServletResponse response;
-
     // The upcoming Action.
     protected final AtmosphereServlet.Action action = new AtmosphereServlet.Action();
-
     // The Broadcaster
     protected Broadcaster broadcaster;
-
     // ServletContext
     private final AtmosphereConfig config;
-
     protected final CometSupport cometSupport;
-
     private Serializer serializer;
-
     private boolean isInScope = true;
-
     private final AtmosphereResourceEventImpl event;
-
     private final static String beginCompatibleData = createCompatibleStringJunk();
-
     private boolean useWriter = true;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
 
     private final boolean injectCacheHeaders;
-
     private final boolean enableAccessControl;
-
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
-
     private final AtmosphereHandler atmosphereHandler;
-
+    private final boolean writeHeaders;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -129,7 +116,13 @@ public class AtmosphereResourceImpl implements
         injectCacheHeaders = nocache != null ? false : true;
 
         String ac = config.getInitParameter(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-        enableAccessControl =  ac != null ? false : true;
+        enableAccessControl = ac != null ? false : true;
+
+        String wh = config.getInitParameter(AtmosphereServlet.WRITE_HEADERS);
+        writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
+
+        req.setAttribute(AtmosphereServlet.NO_CACHE_HEADERS, injectCacheHeaders);
+        req.setAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
     }
 
     /**
@@ -173,8 +166,7 @@ public class AtmosphereResourceImpl implements
 
             try {
                 req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 logger.debug("Cannot resume an already resumed/cancelled request");
             }
             cometSupport.action(this);
@@ -187,7 +179,6 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public void suspend() {
-
         suspend(-1);
     }
 
@@ -197,24 +188,24 @@ public class AtmosphereResourceImpl implements
     public void suspend(long timeout) {
         suspend(timeout, true);
     }
-    
+
     /**
-    * {@inheritDoc}
-    */
+     * {@inheritDoc}
+     */
     public void suspend(long timeout, TimeUnit timeunit) {
-    	suspend(timeout, timeunit, true);
+        suspend(timeout, timeunit, true);
     }
 
     /**
-    * {@inheritDoc}
-    */
+     * {@inheritDoc}
+     */
     public void suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
-    	long timeoutms = -1;
-    	if(timeunit!=null){
-    		timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
-    	}
+        long timeoutms = -1;
+        if (timeunit != null) {
+            timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
+        }
 
-    	suspend(timeoutms, true);
+        suspend(timeoutms, true);
     }
 
     public void suspend(long timeout, boolean flushComment) {
@@ -228,14 +219,14 @@ public class AtmosphereResourceImpl implements
 
             String upgrade = req.getHeader("Connection");
             if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
-                if (!cometSupport.supportWebSocket()) {
+                if (writeHeaders && !cometSupport.supportWebSocket()) {
                     response.addHeader("X-Atmosphere-error", "Websocket protocol not supported");
                 } else {
                     flushComment = false;
                 }
             }
 
-            if (injectCacheHeaders) {
+            if (writeHeaders && injectCacheHeaders) {
                 // Set to expire far in the past.
                 response.setHeader("Expires", "-1");
                 // Set standard HTTP/1.1 no-cache headers.
@@ -244,7 +235,7 @@ public class AtmosphereResourceImpl implements
                 response.setHeader("Pragma", "no-cache");
             }
 
-            if (enableAccessControl) {
+            if (writeHeaders && enableAccessControl) {
                 response.setHeader("Access-Control-Allow-Origin", "*");
             }
 

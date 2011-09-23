@@ -76,7 +76,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -210,6 +209,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
     public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
+    public static final String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
+
 
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     private final HashMap<String, String> initParams = new HashMap<String, String>();
@@ -763,6 +764,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+
+        // Jersey will handle itself the headers.
+        initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
         if (!isBroadcasterSpecified) broadcasterClassName = lookupDefaultBroadcasterType();
