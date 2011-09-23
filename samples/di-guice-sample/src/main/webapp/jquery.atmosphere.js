@@ -131,7 +131,7 @@ jQuery.atmosphere = function()
         {
 
             if (jQuery.atmosphere.request.transport == 'streaming') {
-                if ($.browser.msie) {
+                if (jQuery.browser.msie) {
                     jQuery.atmosphere.ieStreaming();
                     return;
                 } else if ((typeof window.addEventStream) == 'function') {
@@ -155,7 +155,7 @@ jQuery.atmosphere = function()
 
                 var ajaxRequest;
                 var error = false;
-                if ($.browser.msie) {
+                if (jQuery.browser.msie) {
                     var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"];
                     for (var i = 0; i < activexmodes.length; i++) {
                         try {
@@ -185,7 +185,7 @@ jQuery.atmosphere = function()
                     ajaxRequest.setRequestHeader(x, request.headers[x]);
                 }
 
-                if (!$.browser.msie) {
+                if (!jQuery.browser.msie) {
                     ajaxRequest.onerror = function()
                     {
                         error = true;
@@ -215,10 +215,10 @@ jQuery.atmosphere = function()
                             jQuery.atmosphere.executeRequest();
                         }
 
-                        if ($.browser.msie) {
+                        if (jQuery.browser.msie) {
                             update = true;
                         }
-                    } else if (!$.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
+                    } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;
                     } else {
                         clearTimeout(request.id);
