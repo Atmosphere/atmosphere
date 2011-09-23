@@ -61,6 +61,7 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.websocket.WebSocketSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -334,7 +335,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         void configureHeaders(ContainerResponse response) throws IOException {
 
             String upgrade = servletReq.getHeader("Connection");
-            boolean webSocketSupported = servletReq.getHeader("WebSocketSupport.WEBSOCKET_SUSPEND") != null;
+            boolean webSocketSupported = servletReq.getAttribute(WebSocketSupport.WEBSOCKET_SUSPEND) != null;
             if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
                 if (!webSocketSupported) {
                     response.getHttpHeaders().putSingle("X-Atmosphere-error", "Websocket protocol not supported");
