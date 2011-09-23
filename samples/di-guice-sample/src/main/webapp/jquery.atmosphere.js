@@ -74,13 +74,17 @@ jQuery.atmosphere = function()
 
             }, request);
 
-            logLevel = jQuery.atmosphere.request.logLevel || 'info';
+            logLevel = jQuery.atmosphere.request.logLevel;
             if (callback != null) {
                 jQuery.atmosphere.addCallback(callback);
                 jQuery.atmosphere.request.callback = callback;
             }
 
             if (jQuery.atmosphere.request.transport != jQuery.atmosphere.activeTransport) {
+                // XXX: If the preferred transport is not supported then this may unnecessarily close down the existing
+                //  transport, only to discover that the preferred is not possible and to re-establish the existing.
+                //  There is a reasonable argument for using the existing transport and only changing it if the existing
+                //  connection is forcibly disconnected first.
                 jQuery.atmosphere.closeSuspendedConnection();
             }
             jQuery.atmosphere.activeTransport = jQuery.atmosphere.request.transport;
@@ -372,6 +376,7 @@ jQuery.atmosphere = function()
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
                 url = jQuery.atmosphere.parseUri(document.location, url);
+                jQuery.atmosphere.debug("Using URL: " + url);
             }
             var location = url.replace('http:', 'ws:').replace('https:', 'wss:');
 
@@ -412,7 +417,7 @@ jQuery.atmosphere = function()
             websocket.onopen = function(message)
             {
                 success = true;
-                jQuery.atmosphere.response.state = 'openning';
+                jQuery.atmosphere.response.state = 'opening';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
@@ -432,13 +437,14 @@ jQuery.atmosphere = function()
 
             websocket.onerror = function(message)
             {
+                jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
                 jQuery.atmosphere.response.state = 'error';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
             websocket.onclose = function(message)
             {
-                if (!success) {
+                if (!success || !message.wasClean) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
@@ -448,6 +454,7 @@ jQuery.atmosphere = function()
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
                 } else {
+                    jQuery.atmosphere.debug("Websocket closed cleanly");
                     jQuery.atmosphere.response.state = 'closed';
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
                 }
@@ -569,7 +576,7 @@ jQuery.atmosphere = function()
 
         warn: function()
         {
-            log('warn', arguments);
+            jQuery.atmosphere.log('warn', arguments);
         }
         ,
 
@@ -578,7 +585,7 @@ jQuery.atmosphere = function()
         {
             if (logLevel != 'warn')
             {
-                log('info', arguments);
+                jQuery.atmosphere.log('info', arguments);
             }
         }
         ,
@@ -587,7 +594,7 @@ jQuery.atmosphere = function()
         {
             if (logLevel == 'debug')
             {
-                log('debug', arguments);
+                jQuery.atmosphere.log('debug', arguments);
             }
         }
         ,
