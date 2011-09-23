@@ -53,7 +53,8 @@ public class AtmosphereResourceConfigurator implements ResourceConfigurator {
     @Override
     public void configure(ResourceConfig config) {
         Collections.addAll(config.getClasses(), 
-                AtmosphereProviders.BroadcasterProvider.class, 
+                AtmosphereProviders.BroadcasterProvider.class,
+                AtmosphereProviders.TrackableResourceProvider.class,
                 BroadcasterFactoryInjector.PerRequest.class,
                 BroadcasterFactoryInjector.Singleton.class,
                 BroadcasterInjector.PerRequest.class,

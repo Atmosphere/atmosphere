@@ -61,23 +61,24 @@ public class AtmosphereProviders {
 
     public static class BroadcasterProvider implements StringReaderProvider {
 
-        @Context HttpServletRequest req;
+        @Context
+        HttpServletRequest req;
 
         @Override
         public StringReader getStringReader(Class type, Type genericType, Annotation[] annotations) {
 
-            if (!Broadcaster.class.isAssignableFrom(type)) {
-                return null;
+            if (Broadcaster.class.isAssignableFrom(type)) {
+                return new BroadcasterStringReader();
             }
 
-            return new BroadcasterStringReader();
+            return null;
         }
 
         @StringReader.ValidateDefaultValue(false)
         public class BroadcasterStringReader implements StringReader {
             @Override
             public Object fromString(String topic) {
-                Broadcaster broadcaster = null;
+                Broadcaster broadcaster;
                 try {
                     AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
                             (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
@@ -93,6 +94,39 @@ public class AtmosphereProviders {
                 return broadcaster;
             }
         }
+    }
 
+    public static class TrackableResourceProvider implements StringReaderProvider {
+
+        @Context
+        HttpServletRequest req;
+
+        @Override
+        public StringReader getStringReader(Class type, Type genericType, Annotation[] annotations) {
+
+            if (TrackableResource.class.isAssignableFrom(type)) {
+                return new TrackableResourceStringReader();
+            }
+
+            return null;
+        }
+
+        @StringReader.ValidateDefaultValue(false)
+        public class TrackableResourceStringReader implements StringReader {
+            @Override
+            public Object fromString(String topic) {
+                TrackableResource<?> trackableResource = null;
+                try {
+                    String trackingId = req.getHeader(TrackableResource.TRACKING_HEADER);
+                    if (trackingId != null) {
+                        trackableResource = TrackableSession.getDefault().lookup(trackingId);
+                        req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
+                    }
+                } catch (Throwable ex) {
+                    throw new WebApplicationException(ex);
+                }
+                return trackableResource;
+            }
+        }
     }
 }
