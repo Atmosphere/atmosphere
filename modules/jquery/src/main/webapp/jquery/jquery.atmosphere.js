@@ -66,6 +66,7 @@ jQuery.atmosphere = function() {
                 lastIndex : 0,
                 logLevel : 'info',
                 requestCount : 0,
+                fallbackMethod: 'GET',
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
                 webSocketImpl: null
@@ -424,7 +425,7 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
-                    request.method = 'POST' ;
+                    request.method = request.fallbackMethod ;
                     request.data = data;
                     jQuery.atmosphere.response.transport = request.fallbackTransport;
                     jQuery.atmosphere.request = request;
@@ -468,7 +469,7 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
-                    request.method = 'POST' ;
+                    request.method = request.fallbackMethod ;
                     request.data = data;
                     jQuery.atmosphere.response.transport = request.fallbackTransport;
 
