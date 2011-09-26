@@ -85,8 +85,17 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     public Action service(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
 
-        String connection = request.getHeader("Connection");
-        if (!"Upgrade".equalsIgnoreCase(connection)) {
+        boolean webSocketEnabled = false;
+        if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
+            String[] e = request.getHeaders("Connection").nextElement().split(",");
+            for (String upgrade : e) {
+                if (upgrade.equalsIgnoreCase("Upgrade")) {
+                    webSocketEnabled = true;
+                    break;
+                }
+            }
+        }
+        if (!webSocketEnabled) {
             return super.service(request, response);
         } else {
             Action action = suspended(request, response);
