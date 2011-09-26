@@ -55,6 +55,7 @@ import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
@@ -388,8 +389,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            boolean injectCacheHeaders = servletReq.getAttribute(AtmosphereServlet.NO_CACHE_HEADERS) != null ? false : true;
-            boolean enableAccessControl = servletReq.getAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER) != null ? false : true;
+            boolean injectCacheHeaders = (Boolean)servletReq.getAttribute(AtmosphereServlet.NO_CACHE_HEADERS);
+            boolean enableAccessControl = (Boolean)servletReq.getAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
@@ -609,14 +610,22 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         contentType = MediaType.APPLICATION_OCTET_STREAM_TYPE;
                 }
 
-                r.getResponse().setContentType(contentType != null ?
-                        contentType.toString() : "text/html;charset=ISO-8859-1");
+                Object entity = response.getEntity();
+                if (entity != null) {
+                    r.getResponse().setContentType(contentType != null ?
+                            contentType.toString() : "text/html; charset=ISO-8859-1");
+                }
 
                 configureHeaders(response);
-                if (response.getEntity() != null) {
+                if (comments && !resumeOnBroadcast) {
+                    response.setEntity(AtmosphereResourceImpl.createCompatibleStringJunk());
+                }
+
+                if (entity != null) {
+                    response.setEntity(entity);
                     response.write();
                 }
-                r.suspend(timeout, comments && !resumeOnBroadcast);
+                r.suspend(timeout, false);
 
             } catch (IOException ex) {
                 throw new WebApplicationException(ex);
