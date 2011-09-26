@@ -95,11 +95,13 @@ public class JettyWebSocketSupport extends Jetty7CometSupport {
             throws IOException, ServletException {
 
         boolean webSocketEnabled = false;
-        String[] e = req.getHeaders("Connection").nextElement().split(",");
-        for (String upgrade : e) {
-            if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
-                webSocketEnabled = true;
-                break;
+        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
+            String[] e = req.getHeaders("Connection").nextElement().split(",");
+            for (String upgrade : e) {
+                if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                    webSocketEnabled = true;
+                    break;
+                }
             }
         }
 

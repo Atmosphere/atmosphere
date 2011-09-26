@@ -138,7 +138,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      */
     public Action suspended(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
-        logger.debug("(suspend) invoked:\n HttpServletRequest: {}\n HttpServletResponse: {}", request, response);
         return action(request, response);
     }
 
@@ -156,11 +155,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
 
         boolean webSocketEnabled = false;
-        String[] e = req.getHeaders("Connection").nextElement().split(",");
-        for (String upgrade : e) {
-            if (upgrade.equalsIgnoreCase("Upgrade")) {
-                webSocketEnabled = true;
-                break;
+        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
+            String[] e = req.getHeaders("Connection").nextElement().split(",");
+            for (String upgrade : e) {
+                if (upgrade.equalsIgnoreCase("Upgrade")) {
+                    webSocketEnabled = true;
+                    break;
+                }
             }
         }
 
