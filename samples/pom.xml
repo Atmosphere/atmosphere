@@ -21,7 +21,6 @@
         <module>rest-twitter</module>
         <module>counter-longpolling</module>
         <module>rest-counter</module>
-        <module>bayeux</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>gwt-auction</module>
@@ -31,7 +30,6 @@
         <module>meteor-chat</module>
         <module>pubsub</module>
         <module>jquery-pubsub</module>
-        <module>appengine-chat</module>
         <module>twitter-live-feed</module>
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
