@@ -38,8 +38,6 @@ package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Publish;
 import org.atmosphere.annotation.Subscribe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -55,27 +53,29 @@ import javax.ws.rs.Produces;
 @Path("/")
 @Produces("text/plain;charset=ISO-8859-1")
 public class TypedChannel {
-
-    private static final Logger logger = LoggerFactory.getLogger(TypedChannel.class);
-
     /**
-     * Subscribe to "channel" distribution
-     * @return null.
+     * Subscribe to "channel" distribution. With comet, the http connection will be suspended. With websocket,
+     * the handshake will gets executed.
+     *
+     * @return null - no message is send back to browser yet.
      */
     @GET
     @Subscribe("channel")
-    public String subscribe() {
+    public String handshake() {
         return null;
     }
 
     /**
-     * Post to the "channel" distribution.
+     * Broadcast messages to the "channel" distribution. This method gets invoked when a WebSocket message arrive and distributed to
+     * all websocket connection that has invoked the handshake method. Note that comet application will works as well
+     * when sending POST.
+     *
      * @param message the message to distribute
-     * @return the message that will be send to the "channel" distribution
+     * @return the message that will be send to the "channel" distribution.
      */
     @POST
     @Publish("channel")
-    public String publish(@FormParam("message") String message) {
+    public String onMessage(@FormParam("message") String message) {
         return message;
     }
 } 
