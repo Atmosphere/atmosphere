@@ -75,7 +75,7 @@ public class TypedChannel {
      */
     @POST
     @Publish("channel")
-    public String publishWithXML(@FormParam("message") String message) {
+    public String publish(@FormParam("message") String message) {
         return message;
     }
 } 
