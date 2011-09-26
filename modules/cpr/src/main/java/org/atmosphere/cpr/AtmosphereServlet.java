@@ -572,7 +572,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             cometSupport.init(scFacade);
             initAtmosphereServletProcessor(scFacade);
 
-            logger.info("started atmosphere framework: {}", Version.getRawVersion());
+            logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         }
         catch (Throwable t) {
             logger.error("failed to initialize atmosphere framework", t);
@@ -588,7 +588,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void configureBroadcaster() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         if (broadcasterFactoryClassName != null) {
-            logger.info("using BroadcasterFactory class: {}", broadcasterFactoryClassName);
+            logger.info("Using BroadcasterFactory class: {}", broadcasterFactoryClassName);
 
             broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                     .loadClass(broadcasterFactoryClassName).newInstance();
@@ -598,7 +598,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             Class<? extends Broadcaster> bc =
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                             .loadClass(broadcasterClassName);
-            logger.info("using broadcaster class: {}", bc.getName());
+            logger.info("Using broadcaster class: {}", bc.getName());
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
         }
@@ -1178,6 +1178,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             throws IOException, ServletException {
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
+        req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
 
         try {
             return cometSupport.service(req, res);
