@@ -16,7 +16,6 @@
     <modules>
         <module>guice</module>
         <module>grizzly-adapter</module>
-        <module>bayeux</module>
         <module>jgroups</module>
         <module>jms</module>
         <module>redis</module>
