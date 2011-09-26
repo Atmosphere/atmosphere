@@ -21,6 +21,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * When a method is annotated with this annotation, the returned value of the method will be broadcasted to the passed
+ * value, e.g the associated {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} will be invoked.
+ *
+ * @author Jeanfrancois Arcand
+ */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
