@@ -619,6 +619,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 configureHeaders(response);
                 if (comments && !resumeOnBroadcast) {
                     response.setEntity(AtmosphereResourceImpl.createCompatibleStringJunk());
+                    response.write();
                 }
 
                 if (entity != null) {
