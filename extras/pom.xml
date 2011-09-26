@@ -14,7 +14,6 @@
     <name>atmosphere-extras</name>
     <url>https://atmosphere.dev.java.net</url>
     <modules>
-        <module>spade-server</module>
         <module>guice</module>
     </modules>
 </project>
