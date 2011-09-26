@@ -25,7 +25,6 @@
         <module>tictactoe</module>
 		<module>gwt-demo</module>
 		<module>gwt-jsdemo</module>
-        <module>spade-chat</module>
         <module>meteor-chat</module>
         <module>pubsub</module>
         <module>jquery-pubsub</module>
