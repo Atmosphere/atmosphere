@@ -6,6 +6,6 @@ Build-Jdk: 1.6.0_17
 implementation-version: 0.6-SNAPSHOT
 mode: development
 package: org.atmosphere
-url: https://atmosphere.dev.java.net/atmosphere-samples/atmosphere-sca
+url: https://github.com/Atmosphere/atmosphere/atmosphere-samples/atmosphere-sca
  la-longpolling-chat
 

@@ -12,7 +12,7 @@
     <packaging>bundle</packaging>
     <version>0.8-SNAPSHOT</version>
     <name>atmosphere-xmpp</name>
-    <url>https://atmosphere.dev.java.net</url>
+    <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
         <defaultGoal>install</defaultGoal>
         <plugins>

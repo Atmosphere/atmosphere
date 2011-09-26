@@ -29,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-di-guice</artifactId>
+            <artifactId>atmosphere-guice</artifactId>
             <version>${pom.version}</version>
         </dependency>
         <dependency>
@@ -69,10 +69,6 @@
             <artifactId>logback-core</artifactId>
             <version>0.9.24</version>
             <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
 
     </dependencies>
