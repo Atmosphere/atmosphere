@@ -38,16 +38,16 @@
     </developers>
     <issueManagement>
         <system>bugzilla</system>
-        <url>https://atmosphere.dev.java.net/servlets/ProjectIssues</url>
+        <url>https://github.com/Atmosphere/atmosphere/servlets/ProjectIssues</url>
     </issueManagement>
     <mailingLists>
         <mailingList>
             <name>atmosphere Dev List</name>
-            <archive>dev@atmosphere.dev.java.net</archive>
+            <archive>dev@github.com/Atmosphere/atmosphere</archive>
         </mailingList>
         <mailingList>
             <name>atmosphere Support List</name>
-            <archive>users@atmosphere.dev.java.net</archive>
+            <archive>users@github.com/Atmosphere/atmosphere</archive>
         </mailingList>
     </mailingLists>
     <licenses>
@@ -236,7 +236,6 @@
     </profiles>
     <modules>
         <module>modules</module>
-        <module>plugins</module>
         <module>extras</module>
         <module>samples</module>
     </modules>
