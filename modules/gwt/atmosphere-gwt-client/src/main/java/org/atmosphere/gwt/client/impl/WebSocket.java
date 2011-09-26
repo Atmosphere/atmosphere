@@ -37,11 +37,19 @@ public class WebSocket extends JavaScriptObject {
      * @return the created object
      */
     public static native WebSocket create(String url) /*-{
-        return new WebSocket(url);
+        if ($wnd.WebSocket) {
+            return new WebSocket(url);
+        } else if (!$wnd.MozWebSocket) {
+            return new MozWebSocket(url);
+        }
     }-*/;
 
     public static native WebSocket create(String url, String protocol) /*-{
-        return new WebSocket(url, protocol);
+        if ($wnd.WebSocket) {
+            return new WebSocket(url, protocol);
+        } else if (!$wnd.MozWebSocket) {
+            return new MozWebSocket(url, protocol);
+        }
     }-*/;
 
     protected WebSocket() {
@@ -95,7 +103,7 @@ public class WebSocket extends JavaScriptObject {
 
 
     public native static boolean isSupported() /*-{
-        if (!$wnd.WebSocket) {
+        if (!$wnd.WebSocket && !$wnd.MozWebSocket) {
             return false;
         } else {
             return true;
