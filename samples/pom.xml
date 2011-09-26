@@ -23,7 +23,6 @@
         <module>rest-counter</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
-        <module>gwt-auction</module>
 		<module>gwt-demo</module>
 		<module>gwt-jsdemo</module>
         <module>spade-chat</module>
