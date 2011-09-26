@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.plugin.guice;
+package org.atmosphere.guice;
 
 import org.atmosphere.di.Injector;
 import org.atmosphere.di.ServletContextHolder;
