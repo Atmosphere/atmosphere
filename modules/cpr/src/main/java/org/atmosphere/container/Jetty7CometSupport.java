@@ -125,14 +125,13 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
                         config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             Continuation c = ContinuationSupport.getContinuation(actionEvent.getRequest());
-            try {
-                c.complete();
-            }
-            catch (IllegalStateException ex) {
-                logger.debug("Continuation.complete() failed", ex);
-            }
-            finally {
-                resumed.offer(c);
+            if (c != null) {
+                try {
+                    c.complete();
+                }
+                catch (IllegalStateException ex) {
+                    logger.debug("Continuation.complete() failed", ex);
+                }
             }
         }
         else {
