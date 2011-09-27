@@ -50,20 +50,18 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
     @Override
     public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
 
-        if (request.getHeader("User-Agent") != null && request.getAttribute("X-Atmosphere-Transport") == null
-                || request.getAttribute("X-Atmosphere-Transport") != null && ((String) request.getAttribute("X-Atmosphere-Transport")).equalsIgnoreCase("long-polling")) {
-            String userAgent = request.getHeader("User-Agent").toLowerCase();
-            if (userAgent != null && userAgent.startsWith("opera") && message instanceof String) {
-                StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
-                        .append(uniqueScriptToken.getAndIncrement())
-                        .append("\">")
-                        .append("window.parent.$.atmosphere.streamingCallback")
-                        .append("('")
-                        .append(message.toString())
-                        .append("');</script>");
-                message = sb.toString();
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
-            }
+        String userAgent = request.getHeader("User-Agent") == null ? "" : request.getHeader("User-Agent").toLowerCase();
+        String transport = request.getHeader("X-Atmosphere-Transport") == null ? "streaming" : request.getHeader("X-Atmosphere-Transport").toString();
+        if (transport.equals("streaming") && userAgent.startsWith("opera")) {
+            StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
+                    .append(uniqueScriptToken.getAndIncrement())
+                    .append("\">")
+                    .append("window.parent.$.atmosphere.streamingCallback")
+                    .append("('")
+                    .append(message.toString())
+                    .append("');</script>");
+            message = sb.toString();
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
