@@ -37,17 +37,18 @@
  */
 package org.atmosphere.samples.chat;
 
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import org.atmosphere.commons.jersey.JsonpFilter;
+import org.atmosphere.commons.util.EventsLogger;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Meteor;
 import org.atmosphere.util.XSSHtmlFilter;
-import org.atmosphere.commons.jersey.JsonpFilter;
-import org.atmosphere.commons.util.EventsLogger;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Simple Servlet that implement the logic to build a Chat application using
@@ -73,6 +74,7 @@ public class MeteorChat extends HttpServlet {
 
     /**
      * Create a {@link Meteor} and use it to suspend the response.
+     *
      * @param req An {@link HttpServletRequest}
      * @param res An {@link HttpServletResponse}
      */
@@ -93,13 +95,13 @@ public class MeteorChat extends HttpServlet {
 
     /**
      * Re-use the {@link Meteor} created onthe first GET for broadcasting message.
-     * 
+     *
      * @param req An {@link HttpServletRequest}
      * @param res An {@link HttpServletResponse}
      */
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        Meteor m = (Meteor)req.getSession().getAttribute("meteor");
+        Meteor m = (Meteor) req.getSession().getAttribute("meteor");
         res.setCharacterEncoding("UTF-8");
         String action = req.getParameterValues("action")[0];
         String name = req.getParameterValues("name")[0];

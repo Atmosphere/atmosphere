@@ -18,16 +18,16 @@ package org.atmosphere.gwt.js;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
-import java.io.Serializable;
-import java.util.List;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereListener;
 import org.timepedia.exporter.client.Export;
 import org.timepedia.exporter.client.ExportPackage;
 import org.timepedia.exporter.client.Exportable;
 
+import java.io.Serializable;
+import java.util.List;
+
 /**
- *
  * @author p.havelaar
  */
 @ExportPackage("atmosphere")
@@ -41,7 +41,7 @@ public class Client implements Exportable {
     private OnDisconnected onDisconnected;
     private OnBeforeDisconnected onBeforeDisconnected;
     private OnHeartbeat onHeartbeat;
-    
+
     @Export
     public Client(String url) {
         impl = new AtmosphereClient(url, serializer, listener);
@@ -57,11 +57,13 @@ public class Client implements Exportable {
         impl.stop();
     }
 
-    @Export void post(JavaScriptObject message) {
+    @Export
+    void post(JavaScriptObject message) {
         impl.post(encodeJSON(message));
     }
 
-    @Export void broadcast(JavaScriptObject message) {
+    @Export
+    void broadcast(JavaScriptObject message) {
         impl.broadcast(encodeJSON(message));
     }
 
@@ -72,43 +74,49 @@ public class Client implements Exportable {
                 onConnected.execute(heartbeat, connectionID);
             }
         }
+
         @Override
         public void onBeforeDisconnected() {
             if (onBeforeDisconnected != null) {
                 onBeforeDisconnected.execute();
             }
         }
+
         @Override
         public void onDisconnected() {
             if (onDisconnected != null) {
                 onDisconnected.execute();
             }
         }
+
         @Override
         public void onError(Throwable exception, boolean connected) {
             if (onError != null) {
                 onError.execute(exception.getMessage(), connected);
             }
         }
+
         @Override
         public void onHeartbeat() {
             if (onHeartbeat != null) {
                 onHeartbeat.execute();
             }
         }
+
         @Override
         public void onRefresh() {
         }
+
         @Override
         public void onMessage(List<? extends Serializable> messages) {
             if (onMessage != null) {
                 for (Serializable m : messages) {
-                    onMessage.execute(decodeJSON((String)m));
+                    onMessage.execute(decodeJSON((String) m));
                 }
             }
         }
     };
-    
+
     @Export
     public void setOnMessage(OnMessage function) {
         onMessage = function;
@@ -147,5 +155,5 @@ public class Client implements Exportable {
         return atmosphere_JSON.decode(json);
     }-*/;
 
-    
+
 }

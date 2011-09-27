@@ -58,10 +58,10 @@ public class TomcatCometSupportTest extends BaseTest {
 
     protected Embedded embedded;
 
-    public static class TomcatAtmosphereServlet extends AtmosphereServlet{
+    public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            cometSupport = new TomcatCometSupport(getAtmosphereConfig());   
+            cometSupport = new TomcatCometSupport(getAtmosphereConfig());
             super.init(sc);
         }
 
@@ -93,9 +93,9 @@ public class TomcatCometSupportTest extends BaseTest {
         //w.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
 
         c.addChild(w);
-        host.addChild(c);        
+        host.addChild(c);
 
-        Connector connector = embedded.createConnector("127.0.0.1",port,Http11NioProtocol.class.getName());
+        Connector connector = embedded.createConnector("127.0.0.1", port, Http11NioProtocol.class.getName());
         connector.setContainer(host);
         embedded.addEngine(engine);
         embedded.addConnector(connector);

@@ -1,25 +1,25 @@
 body {
-  color : #FFFFFF;
+    color: #FFFFFF;
 }
 
 a {
-  color : #FFFFFF;
+    color: #FFFFFF;
 }
 
 #header {
-  border: 1px solid #000000;
-  height:85px;
+    border: 1px solid #000000;
+    height: 85px;
 }
 
 #main {
-  position: relative;
-  margin-top: 5px;
+    position: relative;
+    margin-top: 5px;
 }
 
 #content {
-  border: 1px solid #000000;
+    border: 1px solid #000000;
 }
 
 #banner {
-  font-size:35px;
- }
+    font-size: 35px;
+}

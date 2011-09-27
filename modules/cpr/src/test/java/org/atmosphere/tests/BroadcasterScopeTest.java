@@ -72,8 +72,7 @@ public class BroadcasterScopeTest {
             socket = new ServerSocket(0);
 
             return socket.getLocalPort();
-        }
-        finally {
+        } finally {
             if (socket != null) {
                 socket.close();
             }
@@ -86,16 +85,16 @@ public class BroadcasterScopeTest {
             final Meteor m = Meteor.build(req);
             m.getBroadcaster().setScope(Broadcaster.SCOPE.REQUEST);
             req.getSession().setAttribute("meteor", m);
-            
+
             m.suspend(5000, false);
             broadcasterId.set(m.getBroadcaster().getID());
 
             res.getOutputStream().write("resume".getBytes());
-            m.addListener(new AtmosphereResourceEventListener(){
+            m.addListener(new AtmosphereResourceEventListener() {
 
                 @Override
-                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
-                     event.getResource().getRequest().setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, "true");
+                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                    event.getResource().getRequest().setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
@@ -107,7 +106,7 @@ public class BroadcasterScopeTest {
                 }
 
                 @Override
-                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {                   
+                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
                 }
 
                 @Override
@@ -218,7 +217,7 @@ public class BroadcasterScopeTest {
             logger.error("test failed", e);
             fail(e.getMessage());
         } finally {
-           if (b != null) b.destroy();
+            if (b != null) b.destroy();
         }
         c.close();
     }

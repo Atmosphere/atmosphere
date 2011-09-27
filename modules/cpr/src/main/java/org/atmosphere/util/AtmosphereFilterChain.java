@@ -130,7 +130,7 @@ public final class AtmosphereFilterChain implements FilterChain {
             throws IOException, ServletException {
 
         // Call the next filter if there is one
-        AtomicInteger pos = ((AtomicInteger)request.getAttribute("pos"));
+        AtomicInteger pos = ((AtomicInteger) request.getAttribute("pos"));
         if (pos.get() < n) {
             FilterConfigImpl filterConfig = filters[pos.getAndIncrement()];
             Filter filter = null;

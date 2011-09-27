@@ -90,19 +90,15 @@ public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
             // Google App Engine doesn't allow a thread to block more than 30 seconds
             if (action.timeout != -1 && action.timeout < 30000) {
                 latch.await(action.timeout, TimeUnit.MILLISECONDS);
-            }
-            else {
+            } else {
                 latch.await(20000, TimeUnit.MILLISECONDS);
             }
-        }
-        catch (Throwable ex) {
+        } catch (Throwable ex) {
             logger.warn("Unable to resume the suspended connection", ex);
-        }
-        finally {
+        } finally {
             try {
                 timedout(req, res);
-            }
-            catch (Throwable e) {
+            } catch (Throwable e) {
                 logger.warn("Unable to timeout connection", e);
             }
         }

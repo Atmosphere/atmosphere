@@ -20,6 +20,7 @@ import java.io.Serializable;
 
 /**
  * Reserved for atmosphere-gwt internals
+ *
  * @author p.havelaar
  */
 public interface SystemMessage extends Serializable {

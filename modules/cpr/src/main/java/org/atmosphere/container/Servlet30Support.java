@@ -89,8 +89,7 @@ public class Servlet30Support extends AsynchronousProcessor {
             if (action.type == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", response);
                 suspend(action, request, response);
-            }
-            else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", response);
 
                 if (supportSession()) {
@@ -108,12 +107,10 @@ public class Servlet30Support extends AsynchronousProcessor {
                     suspend(action, request, response);
                 }
             }
-        }
-        else {
+        } else {
             if (action.type == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", response);
-            }
-            else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", response);
                 request.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
             }
@@ -173,8 +170,7 @@ public class Servlet30Support extends AsynchronousProcessor {
                     || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
                 asyncContext.complete();
             }
-        }
-        else {
+        } else {
             if (!actionEvent.isInScope()) {
                 logger.debug("Already resumed or cancelled: event: {}", actionEvent);
             }

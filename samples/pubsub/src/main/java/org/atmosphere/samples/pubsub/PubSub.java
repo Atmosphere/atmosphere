@@ -78,7 +78,9 @@ public class PubSub {
     /**
      * Inject a {@link Broadcaster} based on @Path
      */
-    private @PathParam("topic") Broadcaster topic;
+    private
+    @PathParam("topic")
+    Broadcaster topic;
 
     /**
      * Suspend the response, and register a {@link AtmosphereResourceEventListener}

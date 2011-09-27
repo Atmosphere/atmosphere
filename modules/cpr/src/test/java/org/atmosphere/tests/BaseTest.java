@@ -109,8 +109,7 @@ public abstract class BaseTest {
             socket = new ServerSocket(0);
 
             return socket.getLocalPort();
-        }
-        finally {
+        } finally {
             if (socket != null) {
                 socket.close();
             }
@@ -228,7 +227,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void testProgrammaticDisconnection() {
         logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
 
@@ -505,11 +504,10 @@ public abstract class BaseTest {
         atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
-            AtomicInteger count  = new AtomicInteger(0);
+            AtomicInteger count = new AtomicInteger(0);
             private long currentTime;
 
-            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException
-            {
+            public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
                 if (!b.getAndSet(true)) {
                     event.suspend(-1, false);
 
@@ -529,7 +527,7 @@ public abstract class BaseTest {
                     return;
                 }
                 try {
-                    event.getResource().getResponse().getWriter().write((String)event.getMessage());
+                    event.getResource().getResponse().getWriter().write((String) event.getMessage());
                     event.getResource().getResponse().flushBuffer();
                     event.getResource().resume();
                 } catch (Exception ex) {
@@ -1169,9 +1167,9 @@ public abstract class BaseTest {
                 currentTime = System.currentTimeMillis();
                 event.suspend(5000, false);
                 try {
-                Broadcaster b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "ExternalBroadcaster", true);
-                b.addAtmosphereResource(event);
-                b.broadcast("Outer broadcast").get();
+                    Broadcaster b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "ExternalBroadcaster", true);
+                    b.addAtmosphereResource(event);
+                    b.broadcast("Outer broadcast").get();
 
 
                     event.getBroadcaster().broadcast("Inner broadcast").get();
@@ -1254,7 +1252,7 @@ public abstract class BaseTest {
                 writer.write(event.getMessage().toString());
                 writer.flush();
                 try {
-                     broadcastCount.incrementAndGet();
+                    broadcastCount.incrementAndGet();
                 } finally {
                     if (broadcastCount.get() == 4) {
                         event.getResource().resume();
@@ -1279,7 +1277,7 @@ public abstract class BaseTest {
 
             assertNotNull(response.get());
             assertEquals(response.get().getStatusCode(), 200);
-            assertEquals(response.get().getResponseBody(),"Message-1 Message-2 Message-3 Message-4");
+            assertEquals(response.get().getResponseBody(), "Message-1 Message-2 Message-3 Message-4");
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());

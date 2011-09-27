@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -7,7 +8,7 @@
         <artifactId>atmosphere-gwt</artifactId>
         <version>0.8-SNAPSHOT</version>
     </parent>
-    
+
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-gwt-js</artifactId>
     <packaging>war</packaging>
@@ -21,14 +22,14 @@
         <gwt.style>OBF</gwt.style>
         <outputDir>${war.target}/war/WEB-INF/classes</outputDir>
     </properties>
- 
+
     <build>
         <outputDirectory>${outputDir}</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>gwt-maven-plugin</artifactId>
-                <version>${gwt-version}</version> 
+                <version>${gwt-version}</version>
                 <configuration>
                     <module>${gwtModule}</module>
                     <gwtVersion>${gwt.version}</gwtVersion>
@@ -52,7 +53,7 @@
                     </execution>
                 </executions>
             </plugin>
-            
+
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
@@ -63,7 +64,7 @@
                 </configuration>
             </plugin>
 
-<!--            <plugin>
+            <!--            <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>

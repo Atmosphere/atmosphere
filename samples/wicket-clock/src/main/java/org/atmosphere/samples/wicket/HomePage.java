@@ -24,16 +24,15 @@ import org.apache.wicket.markup.html.basic.Label;
  *
  * @author Andrey Belyaev
  */
-public class HomePage extends WebPage{
+public class HomePage extends WebPage {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     /**
-	 * Constructor that is invoked when page is invoked without a session.
-	 * 
-	 * @param parameters
-	 *            Page parameters
-	 */
+     * Constructor that is invoked when page is invoked without a session.
+     *
+     * @param parameters Page parameters
+     */
     public HomePage(final PageParameters parameters) {
         add(new Label("message", "This clock updates the time using Atmosphere Meteor PUSH framework"));
         add(new ClockPanel("clockPanel"));

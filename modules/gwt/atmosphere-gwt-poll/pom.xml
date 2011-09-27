@@ -1,17 +1,18 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-gwt</artifactId>
         <version>0.8-SNAPSHOT</version>
     </parent>
-    
+
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-gwt-poll</artifactId>
     <packaging>jar</packaging>
     <name>atmosphere-gwt-poll</name>
-    
+
     <build>
         <plugins>
             <!-- use Java 1.6 for HT -->
@@ -47,5 +48,5 @@
             <artifactId>junit</artifactId>
         </dependency>
     </dependencies>
-    
+
 </project>

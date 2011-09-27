@@ -58,7 +58,9 @@ import javax.ws.rs.Produces;
 @Produces("text/html;charset=ISO-8859-1")
 public class JQueryPubSub {
 
-    private @PathParam("topic") Broadcaster topic;
+    private
+    @PathParam("topic")
+    Broadcaster topic;
 
     @GET
     public SuspendResponse<String> subscribe() {

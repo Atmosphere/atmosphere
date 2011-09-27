@@ -51,10 +51,10 @@ import java.io.PrintWriter;
  * Simple handler that listens for GET and POST requests, and responds appropriately.
  * Uses long polling, with a GET that listens for new data, and a POST that triggers
  * broadcasts to all clients, resuming the GETs and returning that data.
- *
+ * <p/>
  * Actual game logic is held in a separate class - {@link TTTGame}.
- * @author driscoll
  *
+ * @author driscoll
  */
 public class TTTHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
@@ -63,6 +63,7 @@ public class TTTHandler implements AtmosphereHandler<HttpServletRequest, HttpSer
     /**
      * On GET, suspend the conneciton. On POST, update game logic, send
      * broadcast, and resume the connection.
+     *
      * @param event
      * @throws IOException
      */
@@ -118,6 +119,7 @@ public class TTTHandler implements AtmosphereHandler<HttpServletRequest, HttpSer
 
     /**
      * Resume the underlying response on the first Broadcast
+     *
      * @param event
      * @return event
      * @throws IOException

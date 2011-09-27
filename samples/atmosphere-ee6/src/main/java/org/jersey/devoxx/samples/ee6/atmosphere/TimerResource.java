@@ -60,9 +60,9 @@ import java.util.concurrent.Semaphore;
 
 /**
  * curl -N -v http://localhost:8080/atmosphere-ee6-1.0-SNAPSHOT/resources/timer
- * 
+ * <p/>
  * curl -X POST http://localhost:8080/atmosphere-ee6-1.0-SNAPSHOT/resources/timer/start
- * 
+ * <p/>
  * curl -X POST http://localhost:8080/atmosphere-ee6-1.0-SNAPSHOT/resources/timer/stop
  * curl -X POST http://localhost:8080/atmosphere-ee6-1.0-SNAPSHOT/resources/timer/hardstop
  *
@@ -74,26 +74,32 @@ public class TimerResource {
 
     private static final Logger logger = LoggerFactory.getLogger(TimerResource.class);
 
-    private @Resource TimerService ts;
+    private
+    @Resource
+    TimerService ts;
 
-    private @Context BroadcasterFactory bf;
+    private
+    @Context
+    BroadcasterFactory bf;
 
     private Semaphore started = new Semaphore(1);
-    
+
     private Semaphore stopped = new Semaphore(1);
 
     private Broadcaster tb;
-    
+
     private Timer t;
 
-    private @PostConstruct void postConstruct() {
+    private
+    @PostConstruct
+    void postConstruct() {
         stopped.tryAcquire();
     }
 
     private Broadcaster getTimerBroadcaster() {
         return bf.lookup(JerseyBroadcaster.class, "timer", true);
     }
-    
+
     @Suspend
     @GET
     public Broadcastable get() {
@@ -132,7 +138,7 @@ public class TimerResource {
     @POST
     public void hardstop() {
         stop();
-        
+
         getTimerBroadcaster().resumeAll();
     }
 }

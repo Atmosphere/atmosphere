@@ -37,9 +37,10 @@
 
 package org.atmosphere.jersey.tests;
 
-import org.testng.annotations.Test;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.testng.annotations.Test;
+
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
@@ -48,7 +49,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 /**
- *
  * @author paulsandoz
  */
 public class SingletonResourceTest extends BaseGrizzyTest {
@@ -71,8 +71,7 @@ public class SingletonResourceTest extends BaseGrizzyTest {
             assertEquals(resume, "singleton");
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
         }

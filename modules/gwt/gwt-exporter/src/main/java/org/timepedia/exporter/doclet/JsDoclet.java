@@ -16,8 +16,6 @@ import com.sun.tools.doclets.internal.toolkit.util.DocletConstants;
 import com.sun.tools.doclets.internal.toolkit.util.PackageListWriter;
 import com.sun.tools.doclets.internal.toolkit.util.Util;
 */
-import java.io.File;
-import java.util.StringTokenizer;
 
 /**
  * Doclet to generate documentation for exported Javascript methods.

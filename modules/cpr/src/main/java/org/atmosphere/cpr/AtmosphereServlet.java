@@ -109,7 +109,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
  *      &lt;url-pattern&gt;/Atmosphere &lt;/url-pattern&gt;
  *  &lt;/servlet-mapping&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can force this Servlet to use native API of the Web Server instead of
  * the Servlet 3.0 Async API you are deploying on by adding
  * <blockquote><pre>
@@ -117,7 +117,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      &lt;param-name&gt;org.atmosphere.useNative&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can force this Servlet to use one Thread per connection instead of
  * native API of the Web Server you are deploying on by adding
  * <blockquote><pre>
@@ -125,42 +125,42 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      &lt;param-name&gt;org.atmosphere.useBlocking&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can also define {@link Broadcaster}by adding:
- * <blockquote><pre> 
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
  *      &lt;param-value&gt;class-name&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
- * <blockquote><pre> 
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
- * <blockquote><pre> 
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
  *      &lt;param-value&gt;class-name&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can also configure Atmosphere to use http session or not
- * <blockquote><pre> 
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport&lt;/param-name&gt;
  *      &lt;param-value&gt;false&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * You can also configure {@link BroadcastFilter} that will be applied at all newly created {@link Broadcaster}
- * <blockquote><pre> 
+ * <blockquote><pre>
  *  &lt;init-param&gt;
  *      &lt;param-name&gt;org.atmosphere.cpr.broadcastFilterClasses&lt;/param-name&gt;
  *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
  *  &lt;/init-param&gt;
- *</pre></blockquote>
+ * </pre></blockquote>
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
  * <p/>
  * If you are planning to use JSP, Servlet or JSF, you can instead use the
@@ -401,8 +401,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             b = (Class<? extends Broadcaster>) cl.loadClass(defaultBroadcasterClassName);
-        }
-        catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException e) {
             logger.error("failed to load default broadcaster class name: " + defaultBroadcasterClassName, e);
         }
 
@@ -573,8 +572,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             initAtmosphereServletProcessor(scFacade);
 
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
-        }
-        catch (Throwable t) {
+        } catch (Throwable t) {
             logger.error("failed to initialize atmosphere framework", t);
 
             if (t instanceof ServletException) {
@@ -635,7 +633,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
-                addAtmosphereHandler("/*", (AtmosphereHandler<?,?>)cl.loadClass(s).newInstance());
+                addAtmosphereHandler("/*", (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
                 webSocketEnabled = true;
                 sessionSupport(false);
             } catch (Exception ex) {
@@ -941,8 +939,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     broadcasterFilters = reader.getBroadcastFilterClasses();
                 }
 
-            }
-            catch (Throwable t) {
+            } catch (Throwable t) {
                 logger.warn("unable to load AtmosphereHandler class: " + handlerClassName, t);
                 throw new ServletException(t);
             }
@@ -1029,7 +1026,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             for (String className : possibleAtmosphereHandlersCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/",".");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
@@ -1040,8 +1037,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                         logger.info("Successfully loaded handler: {}  mapped to context-path: {}", handler,
                                 handler.getClass().getSimpleName());
                     }
-                }
-                catch (Throwable t) {
+                } catch (Throwable t) {
                     logger.trace("failed to load class as an AtmosphereHandler: " + className, t);
                 }
             }
@@ -1183,7 +1179,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         try {
             return cometSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            logger.warn(ex.getMessage(),ex);
+            logger.warn(ex.getMessage(), ex);
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
                 if (!isFilter) {
                     logger.warn("failed using comet support: {}, error: {}", cometSupport.getClass().getName(),
@@ -1429,6 +1425,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.info("WebSocket upgrade requested");
 
-        return new JettyWebSocketHandler(request,this, webSocketProcessorClassName);
+        return new JettyWebSocketHandler(request, this, webSocketProcessorClassName);
     }
 }

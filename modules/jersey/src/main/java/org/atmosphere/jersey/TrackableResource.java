@@ -22,19 +22,17 @@ import org.atmosphere.cpr.Trackable;
  * annotated with the suspend annotation, the atmosphere framework will automatically add the X-Atmosphere-tracking-id
  * header to the response. The header can later be used for injecting {@link TrackableResource}. As simple as
  * <blockquote><pre>
-    @GET
-    @Suspend
-    public TrackableResource suspend(){
-        return new TrackableResource(AtmosphereResource.class, "abcdef", Response.OK());
-    }
-
-    @POST
-    public String asyncBroadcast(@HeaderParam("X-Atmosphere-tracking-id") TrackableResource<AtmosphereResource> track) {
-        AtmosphereResource<?,?> r = track.resource();
-        ...
-    }
- * </blockquote><pre>
+ *
  * @param <T>
+ * @GET
+ * @Suspend public TrackableResource suspend(){
+ * return new TrackableResource(AtmosphereResource.class, "abcdef", Response.OK());
+ * }
+ * @POST public String asyncBroadcast(@HeaderParam("X-Atmosphere-tracking-id") TrackableResource<AtmosphereResource> track) {
+ * AtmosphereResource<?,?> r = track.resource();
+ * ...
+ * }
+ * </blockquote><pre>
  */
 public class TrackableResource<T extends Trackable> {
 
@@ -60,6 +58,7 @@ public class TrackableResource<T extends Trackable> {
 
     /**
      * Return the associated resource of type T
+     *
      * @return the associated resource of type T
      */
     public T resource() {
@@ -68,6 +67,7 @@ public class TrackableResource<T extends Trackable> {
 
     /**
      * Retunr the class's type.
+     *
      * @return
      */
     public Class<T> type() {
@@ -76,6 +76,7 @@ public class TrackableResource<T extends Trackable> {
 
     /**
      * Return the trackingID token associated with the resource.
+     *
      * @return the trackingID token associated with the resource.
      */
     public String trackingID() {
@@ -84,6 +85,7 @@ public class TrackableResource<T extends Trackable> {
 
     /**
      * Return the Entity associated with the resource.
+     *
      * @return the Entity associated with the resource.
      */
     public Object entity() {

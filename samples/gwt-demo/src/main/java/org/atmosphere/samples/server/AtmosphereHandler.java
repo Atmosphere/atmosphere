@@ -15,18 +15,17 @@
  */
 package org.atmosphere.samples.server;
 
-import java.io.IOException;
-import java.util.concurrent.Executors;
+import org.atmosphere.gwt.server.AtmosphereGwtHandler;
+import org.atmosphere.gwt.server.GwtAtmosphereResource;
+
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.ServletConfig;
-import javax.servlet.http.HttpSession;
-import org.atmosphere.gwt.server.GwtAtmosphereResource;
-import org.atmosphere.gwt.server.AtmosphereGwtHandler;
 
 /**
- *
  * @author p.havelaar
  */
 public class AtmosphereHandler extends AtmosphereGwtHandler {

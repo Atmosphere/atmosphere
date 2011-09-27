@@ -103,8 +103,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
                     if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
                         logger.debug("Pruning: {}", message.message());
                         queue.remove(message);
-                    }
-                    else {
+                    } else {
                         break;
                     }
                 }

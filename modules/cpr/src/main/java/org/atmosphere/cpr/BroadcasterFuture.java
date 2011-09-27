@@ -62,7 +62,7 @@ public class BroadcasterFuture<E> implements Future {
     private final Future<?> innerFuture;
 
     public BroadcasterFuture(E msg) {
-        this(null,msg);
+        this(null, msg);
     }
 
     public BroadcasterFuture(Future<?> innerFuture, E msg) {

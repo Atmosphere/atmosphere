@@ -34,44 +34,41 @@ import java.util.Map;
 /**
  * Google Guice Integration. The difference between this class and the {@link AtmosphereGuiceServlet} is you don't need
  * to define it in web.xml and instead use a pure Guice web.xml file.
- *
+ * <p/>
  * <blockquote><code>
-    &lt;listener&gt;
-        &lt;listener-class&gt;org.company.GuiceContextListener&lt;/listener-class&gt;
-    &lt;/listener&gt;
-    &lt;filter&gt;
-        &lt;filter-name&gt;Guice Filter&lt;/filter-name&gt;
-        &lt;filter-class&gt;com.google.inject.servlet.GuiceFilter&lt;/filter-class&gt;
-    &lt;/filter&gt;
-    &lt;filter-mapping&gt;
-        &lt;filter-name&gt;Guice Filter&lt;/filter-name&gt;
-        &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
-    &lt;/filter-mapping&gt;
-
-  and then:
-
-     @Override
-     protected Injector getInjector() {
-         return Guice.createInjector(new ServletModule() {
-             @Override
-             protected void configureServlets() {
-                 bind(MessageResource.class);
-                 serve("/*async/**").with(*GuiceManagedAtmosphereServlet*.class, new HashMap&lt;String, String&gt;() {
-                     {
-                         put("org.atmosphere.useWebSocket", "true");
-                         put("org.atmosphere.useNative", "true");
-                     }
-                 });
-                 serve("/*rest/**").with(*GuiceContainer*.class);
-             }
-         });
-     }
-
-</code></blockquote>
-
+ * &lt;listener&gt;
+ * &lt;listener-class&gt;org.company.GuiceContextListener&lt;/listener-class&gt;
+ * &lt;/listener&gt;
+ * &lt;filter&gt;
+ * &lt;filter-name&gt;Guice Filter&lt;/filter-name&gt;
+ * &lt;filter-class&gt;com.google.inject.servlet.GuiceFilter&lt;/filter-class&gt;
+ * &lt;/filter&gt;
+ * &lt;filter-mapping&gt;
+ * &lt;filter-name&gt;Guice Filter&lt;/filter-name&gt;
+ * &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+ * &lt;/filter-mapping&gt;
+ * <p/>
+ * and then:
+ *
  * @author Jeanfrancois Arcand
  * @author Richard Wallace
  * @author Mathieu Carbou
+ * @Override protected Injector getInjector() {
+ * return Guice.createInjector(new ServletModule() {
+ * @Override protected void configureServlets() {
+ * bind(MessageResource.class);
+ * serve("/*async/**").with(*GuiceManagedAtmosphereServlet*.class, new HashMap&lt;String, String&gt;() {
+ * {
+ * put("org.atmosphere.useWebSocket", "true");
+ * put("org.atmosphere.useNative", "true");
+ * }
+ * });
+ * serve("/*rest/**").with(*GuiceContainer*.class);
+ * }
+ * });
+ * }
+ * <p/>
+ * </code></blockquote>
  */
 @Singleton
 public class GuiceManagedAtmosphereServlet extends AtmosphereServlet {
@@ -79,10 +76,11 @@ public class GuiceManagedAtmosphereServlet extends AtmosphereServlet {
     private static final Logger logger = LoggerFactory.getLogger(GuiceManagedAtmosphereServlet.class);
 
     public static final String JERSEY_PROPERTIES = GuiceManagedAtmosphereServlet.class.getName() + ".properties";
-     private boolean guiceInstalled = false;
+    private boolean guiceInstalled = false;
 
     /**
      * Install Guice event if other extension has been already installed.
+     *
      * @param sc {@link javax.servlet.ServletConfig}
      * @throws javax.servlet.ServletException
      */
@@ -121,7 +119,8 @@ public class GuiceManagedAtmosphereServlet extends AtmosphereServlet {
 
         try {
             Map<String, String> props = injector.getInstance(
-                    Key.get(new TypeLiteral<Map<String, String>>() {},Names.named(JERSEY_PROPERTIES)));
+                    Key.get(new TypeLiteral<Map<String, String>>() {
+                    }, Names.named(JERSEY_PROPERTIES)));
 
 
             if (props != null) {

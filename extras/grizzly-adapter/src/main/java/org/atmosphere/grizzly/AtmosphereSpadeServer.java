@@ -50,7 +50,7 @@ import java.net.URI;
 /**
  * Simple Atmosphere REST based Server builder:
  * <p>
- *    AtmosphereSpadeServer.build("http://localhost:8080/","org.foo.bar").start()
+ * AtmosphereSpadeServer.build("http://localhost:8080/","org.foo.bar").start()
  * </p>
  * which listen on localhost:8080 for resources starting with package org.foo.bar.
  *
@@ -77,47 +77,47 @@ public final class AtmosphereSpadeServer {
      * @return an instance of AtmosphereSpadeServer
      */
     public static AtmosphereSpadeServer build(String u) {
-       return AtmosphereSpadeServer.build(u,"");
+        return AtmosphereSpadeServer.build(u, "");
     }
 
     /**
      * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
      * resources defined under the resources package.
      *
-     * @param u The URI the server listen for requests
+     * @param u                The URI the server listen for requests
      * @param resourcesPackage The resources package name.
      * @return an instance of AtmosphereSpadeServer
      */
     public static AtmosphereSpadeServer build(String u, String resourcesPackage) {
-        return AtmosphereSpadeServer.build(u,resourcesPackage,null);
+        return AtmosphereSpadeServer.build(u, resourcesPackage, null);
     }
 
     /**
      * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
      * resources defined under the resources package.
      *
-     * @param u The URI the server listen for requests
+     * @param u         The URI the server listen for requests
      * @param sslConfig The {@link SSLConfig}
      * @return an instance of AtmosphereSpadeServer
      */
     public static AtmosphereSpadeServer build(String u, SSLConfig sslConfig) {
-        return AtmosphereSpadeServer.build(u,null,sslConfig);
+        return AtmosphereSpadeServer.build(u, null, sslConfig);
     }
 
     /**
      * Create a {@link AtmosphereSpadeServer} which listen based on the 'u' for requests for
      * resources defined under the resources package.
      *
-     * @param u The URI the server listen for requests
+     * @param u                The URI the server listen for requests
      * @param resourcesPackage The resources package name.
-     * @param sslConfig The {@link SSLConfig}
+     * @param sslConfig        The {@link SSLConfig}
      * @return
      */
     public static AtmosphereSpadeServer build(String u, String resourcesPackage, SSLConfig sslConfig) {
         if (u == null) {
             throw new IllegalArgumentException("The URI must not be null");
         }
-        
+
         URI uri = URI.create(u);
         final String scheme = uri.getScheme();
         if (!scheme.startsWith("http"))
@@ -168,33 +168,34 @@ public final class AtmosphereSpadeServer {
     /**
      * Add an {@link AtmosphereHandler}
      */
-    public AtmosphereSpadeServer addAtmosphereHandler(String mapping,AtmosphereHandler h){
+    public AtmosphereSpadeServer addAtmosphereHandler(String mapping, AtmosphereHandler h) {
         defaultToJersey = false;
         AtmosphereAdapter a = new AtmosphereAdapter();
         a.setServletInstance(aa.getServletInstance());
         a.addAtmosphereHandler(mapping, h);
         a.setServletPath(mapping);
         a.setHandleStaticResources(true);
-        gws.addGrizzlyAdapter(a,new String[]{mapping});
+        gws.addGrizzlyAdapter(a, new String[]{mapping});
         return this;
     }
 
     /**
      * Set the resource package name.
      */
-    public void setResourcePackage(String resourcePackage){
+    public void setResourcePackage(String resourcePackage) {
         aa.setResourcePackage(resourcePackage);
     }
 
     /**
      * Start the {@link AtmosphereSpadeServer}
+     *
      * @return
      * @throws IOException
      */
     public AtmosphereSpadeServer start() throws IOException {
         logger.info("AtmosphereSpade Server Started on port: {}", gws.getSelectorThread().getPort());
 
-        if (defaultToJersey){
+        if (defaultToJersey) {
             aa.setHandleStaticResources(true);
             gws.addGrizzlyAdapter(aa, new String[]{"*"});
         }
@@ -204,6 +205,7 @@ public final class AtmosphereSpadeServer {
 
     /**
      * Stop the {@link AtmosphereSpadeServer}
+     *
      * @return
      * @throws IOException
      */

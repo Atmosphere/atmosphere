@@ -15,7 +15,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     public EventsLogger() {
     }
 
-    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         logger.info("onSuspend(): {}", event);
     }
 

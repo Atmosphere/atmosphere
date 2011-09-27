@@ -49,15 +49,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- *
  * @author p.havelaar
  */
 public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
-    implements Executor, AtmosphereServletProcessor {
+        implements Executor, AtmosphereServletProcessor {
 
     public static final int NO_TIMEOUT = -1;
     public static final String GWT_BROADCASTER_ID = "GWT_BROADCASTER";
-    
+
     private static final int DEFAULT_HEARTBEAT = 15 * 1000; // 15 seconds by default
     private ExecutorService executorService;
     private int heartbeat = DEFAULT_HEARTBEAT;
@@ -87,30 +86,31 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     public void cometTerminated(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
         resources.remove(cometResponse.getConnectionID());
     }
-    
+
     /**
      * Default implementation echo's the message back to the client
+     *
      * @param messages
-     * @param r 
+     * @param r
      */
     public void doPost(List<Serializable> messages, GwtAtmosphereResource r) {
         if (messages.size() == 1) {
             r.post(messages.get(0));
         } else {
-            r.post((List)messages);
+            r.post((List) messages);
         }
     }
-    
+
     @Deprecated
     protected Broadcaster getBroadcaster(GwtAtmosphereResource resource) {
         return resource.getBroadcaster();
     }
-    
+
     /**
      * This can be used to lookup a resource for instance if you are implementing a remote service call
      * You will need to pass the connectionID, which you can pass as an url parameter {getConnectionID()} or
      * directly in your remote call
-     * 
+     *
      * @param connectionId
      * @return
      */
@@ -132,13 +132,13 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public void init(ServletConfig servletConfig) throws ServletException {
         executorService = Executors.newCachedThreadPool();
-		String heartbeat = servletConfig.getInitParameter("heartbeat");
+        String heartbeat = servletConfig.getInitParameter("heartbeat");
         context = servletConfig.getServletContext();
-		if (heartbeat != null) {
-			this.heartbeat = Integer.parseInt(heartbeat);
-		}
+        if (heartbeat != null) {
+            this.heartbeat = Integer.parseInt(heartbeat);
+        }
     }
-    
+
     @Override
     public void destroy() {
         if (executorService != null) {
@@ -168,44 +168,42 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
     @Override
     public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
-        
+
         HttpServletRequest request = resource.getRequest();
-    
+
         String servertransport = request.getParameter("servertransport");
-        if ("rpcprotocol".equals(servertransport)){
+        if ("rpcprotocol".equals(servertransport)) {
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
             doServerMessage(request.getReader(), connectionID);
             return;
         }
-        
+
         try {
-			int requestHeartbeat = heartbeat;
-			String requestedHeartbeat = request.getParameter("heartbeat");
-			if (requestedHeartbeat != null) {
-				try {
-					requestHeartbeat = Integer.parseInt(requestedHeartbeat);
-					if (requestHeartbeat <= 0) {
-						throw new IOException("invalid heartbeat parameter");
-					}
-					requestHeartbeat = computeHeartbeat(requestHeartbeat);
-				}
-				catch (NumberFormatException e) {
-					throw new IOException("invalid heartbeat parameter");
-				}
-			}
+            int requestHeartbeat = heartbeat;
+            String requestedHeartbeat = request.getParameter("heartbeat");
+            if (requestedHeartbeat != null) {
+                try {
+                    requestHeartbeat = Integer.parseInt(requestedHeartbeat);
+                    if (requestHeartbeat <= 0) {
+                        throw new IOException("invalid heartbeat parameter");
+                    }
+                    requestHeartbeat = computeHeartbeat(requestHeartbeat);
+                } catch (NumberFormatException e) {
+                    throw new IOException("invalid heartbeat parameter");
+                }
+            }
 
             GwtAtmosphereResourceImpl resourceWrapper = new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat);
-			doCometImpl(resourceWrapper);
-		}
-		catch (IOException e) {
+            doCometImpl(resourceWrapper);
+        } catch (IOException e) {
 //            GwtAtmosphereResourceImpl resource = new GwtAtmosphereResourceImpl(atm, this, -1);
             logger.error("Unable to initiated comet" + e.getMessage(), e);
 //			resource.getResponseWriter().sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-		}
+        }
     }
-    
+
     /// --- server message handlers
-    
+
     protected void doServerMessage(BufferedReader data, int connectionID) {
         List<Serializable> postMessages = new ArrayList<Serializable>();
         GwtAtmosphereResource resource = lookupResource(connectionID);
@@ -224,7 +222,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                 }
                 data.readLine();
                 if (logger.isTraceEnabled()) {
-                    logger.trace("["+connectionID+"] Server message received: " +event + ";" + messageData.charAt(0));
+                    logger.trace("[" + connectionID + "] Server message received: " + event + ";" + messageData.charAt(0));
                 }
                 if (event.equals("o")) {
                     if (messageData.charAt(0) == 'p') {
@@ -236,9 +234,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                         Serializable message = deserialize(messageData.substring(1));
                         broadcast(message, resource);
                     }
-                    
+
                 } else if (event.equals("s")) {
-                    
+
                     if (messageData.charAt(0) == 'p') {
                         String message = messageData.substring(1);
                         postMessages.add(message);
@@ -246,16 +244,16 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                         Serializable message = messageData.substring(1);
                         broadcast(message, resource);
                     }
-                    
+
                 } else if (event.equals("c")) {
-                    
+
                     if (messageData.equals("d")) {
                         disconnect(resource);
                     }
                 }
             }
         } catch (IOException ex) {
-            logger.error("["+connectionID+"] Failed to read", ex);
+            logger.error("[" + connectionID + "] Failed to read", ex);
         }
 
         if (postMessages.size() > 0) {
@@ -314,16 +312,17 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
     public void disconnect(GwtAtmosphereResource resource) {
         if (resource != null) {
-            logger.debug("Resuming connection["+resource.getConnectionID()+"] after client disconnect message");
+            logger.debug("Resuming connection[" + resource.getConnectionID() + "] after client disconnect message");
             resource.getAtmosphereResource().resume();
         }
     }
-    
+
     /// --- end server message handlers
 
     /**
      * Execute a task in a seperate thread, the thread pool will grow and shrink depending on demand
-     * @param command 
+     *
+     * @param command
      */
     @Override
     public void execute(Runnable command) {
@@ -331,14 +330,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected int computeHeartbeat(int requestedHeartbeat) {
-		return requestedHeartbeat < heartbeat ? heartbeat : requestedHeartbeat;
-	}
-  
-	private void doCometImpl(GwtAtmosphereResourceImpl resource) throws IOException {
+        return requestedHeartbeat < heartbeat ? heartbeat : requestedHeartbeat;
+    }
+
+    private void doCometImpl(GwtAtmosphereResourceImpl resource) throws IOException {
 
         try {
-			// setup the request
-			resource.getWriterImpl().initiate();
+            // setup the request
+            resource.getWriterImpl().initiate();
             if (resources == null) {
                 resources = new ConcurrentHashMap<Integer, GwtAtmosphereResource>(5);
                 resource.getBroadcaster().getBroadcasterConfig().getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
@@ -356,26 +355,24 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
         int timeout;
         try {
-			// call the application code
-			timeout = doComet(resource);
+            // call the application code
+            timeout = doComet(resource);
             if (timeout == -1) {
                 logger.info("You have set an infinite timeout for your comet connection this is not recommended");
             }
-		}
-        catch (ServletException e) {
+        } catch (ServletException e) {
+            logger.error("Error calling doComet()", e);
+//			resource.getResponseWriter().sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return;
+        } catch (IOException e) {
             logger.error("Error calling doComet()", e);
 //			resource.getResponseWriter().sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             return;
         }
-		catch (IOException e) {
-			logger.error("Error calling doComet()", e);
-//			resource.getResponseWriter().sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-            return;
-		}
 
-		// at this point the application may have spawned threads to process this response
-		// so we have to be careful about concurrency from here on
-		resource.suspend(timeout);
-	}
-	
+        // at this point the application may have spawned threads to process this response
+        // so we have to be careful about concurrency from here on
+        resource.suspend(timeout);
+    }
+
 }

@@ -37,7 +37,9 @@ import javax.ws.rs.Produces;
 @Produces("text/html;charset=ISO-8859-1")
 public class XMPPPubSub {
 
-    private @PathParam("topic") XMPPBroadcaster topic;
+    private
+    @PathParam("topic")
+    XMPPBroadcaster topic;
 
     @GET
     public SuspendResponse<String> subscribe() {

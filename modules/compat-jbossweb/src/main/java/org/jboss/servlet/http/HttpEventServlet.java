@@ -81,16 +81,16 @@ import java.io.IOException;
  * Note: When this interface is implemented, the service method of the servlet will
  * never be called, and will be replaced with a begin event.
  */
-public interface HttpEventServlet extends Servlet{
+public interface HttpEventServlet extends Servlet {
 
     /**
      * Process the given Comet event.
-     * 
+     *
      * @param event The Comet event that will be processed
      * @throws IOException
      * @throws ServletException
      */
     public void event(HttpEvent event)
-        throws IOException, ServletException;
+            throws IOException, ServletException;
 
 }

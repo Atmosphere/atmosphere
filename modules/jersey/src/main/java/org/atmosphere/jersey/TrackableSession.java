@@ -35,6 +35,7 @@ public class TrackableSession {
 
     /**
      * Return the default implementation of {@link TrackableSession}
+     *
      * @return the default implementation of {@link TrackableSession}
      */
     public static TrackableSession getDefault() {
@@ -43,6 +44,7 @@ public class TrackableSession {
 
     /**
      * Start tracking an {@link TrackableResource}
+     *
      * @param trackableResource a {@link TrackableResource}
      */
     public void track(TrackableResource<? extends Trackable> trackableResource) {
@@ -51,8 +53,9 @@ public class TrackableSession {
 
     /**
      * Return the {@link TrackableResource} associated with the trackingID
+     *
      * @param trackingID a unique token.
-     * @return  the {@link TrackableResource} associated with the trackingID
+     * @return the {@link TrackableResource} associated with the trackingID
      */
     public TrackableResource<? extends Trackable> lookup(String trackingID) {
         return factoryCache.get(trackingID);

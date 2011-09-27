@@ -84,8 +84,8 @@ public class MeteorServlet extends AtmosphereServlet {
     }
 
     @Override
-    public void destroy(){
+    public void destroy() {
         super.destroy();
-        Meteor.destroy();        
+        Meteor.destroy();
     }
 }

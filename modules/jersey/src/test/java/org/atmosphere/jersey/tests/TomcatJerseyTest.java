@@ -46,7 +46,6 @@ import org.apache.coyote.http11.Http11NioProtocol;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.CometSupport;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 import javax.servlet.ServletConfig;
@@ -58,7 +57,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
 
     protected Embedded embedded;
 
-    public static class TomcatAtmosphereServlet extends AtmosphereServlet{
+    public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
             addInitParameter(CometSupport.MAX_INACTIVE, "20000");
@@ -70,7 +69,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
 
     }
 
-   @BeforeMethod(alwaysRun = true)
+    @BeforeMethod(alwaysRun = true)
     public void setUpGlobal() throws Exception {
         System.setProperty("org.atmosphere.useNative", "true");
 
@@ -102,7 +101,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
         c.addChild(w);
         host.addChild(c);
 
-        Connector connector = embedded.createConnector("127.0.0.1",port,Http11NioProtocol.class.getName());
+        Connector connector = embedded.createConnector("127.0.0.1", port, Http11NioProtocol.class.getName());
         connector.setContainer(host);
         embedded.addEngine(engine);
         embedded.addConnector(connector);
@@ -116,7 +115,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
     public void configureCometSupport() {
     }
 
-    @Override    
+    @Override
     public void stopServer() throws Exception {
         if (atmoServlet != null) atmoServlet.destroy();
         embedded.stop();

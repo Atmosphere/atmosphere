@@ -50,7 +50,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     }
 
     /**
-     * Allow this Broadcaster to configure itself using the {@link AtmosphereServlet.AtmosphereConfig} or the 
+     * Allow this Broadcaster to configure itself using the {@link AtmosphereServlet.AtmosphereConfig} or the
      * {@link javax.servlet.ServletContext}.
      *
      * @param config the {@link AtmosphereServlet.AtmosphereConfig}
@@ -66,6 +66,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     /**
      * Implement this method to broadcast message to external source like JGroups, Redis, etc.
+     *
      * @param message outgoing message
      */
     abstract public void outgoingBroadcast(Object message);

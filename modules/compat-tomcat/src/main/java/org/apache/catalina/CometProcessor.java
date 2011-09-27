@@ -70,10 +70,9 @@
 
 package org.apache.catalina;
 
-import java.io.IOException;
-
-import javax.servlet.ServletException;
 import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import java.io.IOException;
 
 /**
  * This interface should be implemented by servlets which would like to handle
@@ -82,16 +81,16 @@ import javax.servlet.Servlet;
  * Note: When this interface is implemented, the service method of the servlet will
  * never be called, and will be replaced with a begin event.
  */
-public interface CometProcessor extends Servlet{
+public interface CometProcessor extends Servlet {
 
     /**
      * Process the given Comet event.
-     * 
+     *
      * @param event The Comet event that will be processed
      * @throws IOException
      * @throws ServletException
      */
     public void event(CometEvent event)
-        throws IOException, ServletException;
+            throws IOException, ServletException;
 
 }

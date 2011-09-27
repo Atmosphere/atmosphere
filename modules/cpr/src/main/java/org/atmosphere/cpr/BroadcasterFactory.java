@@ -83,8 +83,8 @@ public abstract class BroadcasterFactory {
      * Remove a {@link Broadcaster} to the list.
      *
      * @param b a {@link Broadcaster}
-     * @oaram id the {@link Broadcaster's ID}
      * @return false if wasn't present, or {@link Broadcaster}
+     * @oaram id the {@link Broadcaster's ID}
      */
     abstract public boolean remove(Broadcaster b, Object id);
 
@@ -103,7 +103,7 @@ public abstract class BroadcasterFactory {
      * used when invoking {@link BroadcasterFactory#getDefault()}
      *
      * @param c
-     * @param id The Broadcaster's unique ID, or name.
+     * @param id           The Broadcaster's unique ID, or name.
      * @param createIfNull If the broadcaster is not found, create it.
      * @return a Broadcaster, or null if not found.
      */
@@ -111,12 +111,14 @@ public abstract class BroadcasterFactory {
 
     /**
      * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}
+     *
      * @param r an void {@link AtmosphereResource}
      */
-    abstract public void removeAllAtmosphereResource(AtmosphereResource<?,?> r);
+    abstract public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r);
 
     /**
      * Return an immutable Collection of {@link Broadcaster} this factory contains.
+     *
      * @return an immutable Collection of {@link Broadcaster} this factory contains.
      */
     abstract public Collection<Broadcaster> lookupAll();

@@ -23,7 +23,6 @@ import org.timepedia.exporter.client.ExportPackage;
 import org.timepedia.exporter.client.Exportable;
 
 /**
- *
  * @author p.havelaar
  */
 @Export

@@ -40,10 +40,10 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
 
     private static final String XMPP_AUTH = XMPPBroadcaster.class.getName() + ".authorization";
     private static final String XMPP_SERVER = XMPPBroadcaster.class.getName() + ".server";
-    private static final String XMPP_DEBUG= XMPPBroadcaster.class.getName() + ".debug";
+    private static final String XMPP_DEBUG = XMPPBroadcaster.class.getName() + ".debug";
 
     private URI uri;
-    private String authToken; 
+    private String authToken;
     private XMPPConnection xmppConnection;
     private Chat channel;
 
@@ -86,7 +86,7 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
 
                 if (config.getServletConfig().getInitParameter(XMPP_DEBUG) != null) {
                     XMPPConnection.DEBUG_ENABLED = true;
-                }               
+                }
             }
 
             ConnectionConfiguration config = null;

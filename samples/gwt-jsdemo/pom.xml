@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
         <version>0.8-SNAPSHOT</version>
     </parent>
-    
+
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-gwt-jsdemo</artifactId>
     <packaging>war</packaging>
     <name>atmosphere-gwt-jsdemo</name>
-    
+
     <build>
         <plugins>
 
@@ -51,11 +52,11 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-jdk14</artifactId>
-			<version>${slf4j-impl-version}</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+            <version>${slf4j-impl-version}</version>
             <scope>runtime</scope>
-		</dependency>
+        </dependency>
     </dependencies>
     <properties>
         <netbeans.hint.deploy.server>gfv3ee6</netbeans.hint.deploy.server>

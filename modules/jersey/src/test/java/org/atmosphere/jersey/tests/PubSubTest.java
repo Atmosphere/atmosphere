@@ -69,40 +69,42 @@ public class PubSubTest {
     /**
      * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
      */
-    private @PathParam("topic") Broadcaster broadcaster;
+    private
+    @PathParam("topic")
+    Broadcaster broadcaster;
     private final static int count = 0;
 
     @GET
     @Path("scope")
-    @Suspend (period = 5000, outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
+    @Suspend(period = 5000, outputComments = false, scope = Suspend.SCOPE.REQUEST, resumeOnBroadcast = true)
     public Broadcastable suspendScopeRequest(@PathParam("topic") Broadcaster b) throws ExecutionException, InterruptedException {
         b.broadcast("foo").get();
-        return new Broadcastable("bar",b);
+        return new Broadcastable("bar", b);
     }
 
     @GET
-    @Suspend (period = 5000, outputComments = false)
+    @Suspend(period = 5000, outputComments = false)
     public Broadcastable subscribe() {
         return new Broadcastable("resume", broadcaster);
     }
 
     @GET
     @Path("withComments")
-    @Suspend (period = 5000, outputComments = true)
+    @Suspend(period = 5000, outputComments = true)
     public Broadcastable subscribeWithComments() {
         return new Broadcastable(broadcaster);
     }
 
     @GET
-    @Path("forever")    
-    @Suspend (outputComments = true)
+    @Path("forever")
+    @Suspend(outputComments = true)
     public Broadcastable suspendForever() {
         return new Broadcastable(broadcaster);
     }
 
     @GET
     @Path("foreverWithoutComments")
-    @Suspend (outputComments = false)
+    @Suspend(outputComments = false)
     public Broadcastable suspendForeverWithoutComments() {
         return new Broadcastable(broadcaster);
     }
@@ -111,19 +113,20 @@ public class PubSubTest {
      * Suspend the response, and register a {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
      * that get notified when events occurs like client disconnection, broadcast
      * or when the response get resumed.
+     *
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
     @GET
     @Path("subscribeAndUsingExternalThread")
-    @Suspend(resumeOnBroadcast=true)
+    @Suspend(resumeOnBroadcast = true)
     public String subscribeAndResumeUsingExternalThread(final @PathParam("topic") String topic) {
-        Executors.newSingleThreadExecutor().submit(new Runnable(){
+        Executors.newSingleThreadExecutor().submit(new Runnable() {
             public void run() {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                 }
-                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class,topic).broadcast("Echo: " + topic);
+                BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class, topic).broadcast("Echo: " + topic);
             }
         });
         return "foo";
@@ -139,10 +142,11 @@ public class PubSubTest {
     /**
      * Suspend the response, and tell the framework to resume the response
      * when the first @Broadcast operation occurs.
+     *
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
     @GET
-    @Suspend(resumeOnBroadcast=true, outputComments = false)
+    @Suspend(resumeOnBroadcast = true, outputComments = false)
     @Path("subscribeAndResume")
     public Broadcastable subscribeAndResume() {
         return new Broadcastable(broadcaster);
@@ -158,38 +162,40 @@ public class PubSubTest {
 
     /**
      * Broadcast message to this server and also to other server using JGroups
+     *
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
     @POST
     @Broadcast
-    public Broadcastable publish(@FormParam("message") String message){
+    public Broadcastable publish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     /**
      * Broadcast message to this server and also to other server using JGroups
+     *
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
     @POST
     @Path("publishAndResume")
-    @Broadcast ( resumeOnBroadcast = true )
-    public Broadcastable publishAndResume(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true)
+    public Broadcastable publishAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("filter")
-    @Broadcast ( resumeOnBroadcast = true , value = {XSSHtmlFilter.class})
-    public Broadcastable filter(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true, value = {XSSHtmlFilter.class})
+    public Broadcastable filter(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("aggregate")
-    @Broadcast ( resumeOnBroadcast = true , value = {StringFilterAggregator.class})
-    public Broadcastable aggregate(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true, value = {StringFilterAggregator.class})
+    public Broadcastable aggregate(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -200,10 +206,10 @@ public class PubSubTest {
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
-    @Schedule(period=5, resumeOnBroadcast=true, waitFor = 5)
+    @Schedule(period = 5, resumeOnBroadcast = true, waitFor = 5)
     @POST
     @Path("scheduleAndResume")
-    public Broadcastable scheduleAndResume(@FormParam("message") String message){
+    public Broadcastable scheduleAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -214,10 +220,10 @@ public class PubSubTest {
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
-    @Schedule(period=10, waitFor=5)
+    @Schedule(period = 10, waitFor = 5)
     @POST
     @Path("delaySchedule")
-    public Broadcastable delaySchedule(@FormParam("message") String message){
+    public Broadcastable delaySchedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -227,10 +233,10 @@ public class PubSubTest {
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
-    @Schedule(period=5)
+    @Schedule(period = 5)
     @POST
     @Path("schedule")
-    public Broadcastable schedule(@FormParam("message") String message){
+    public Broadcastable schedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -240,17 +246,17 @@ public class PubSubTest {
      * @param message A String from an HTML form
      * @return A {@link org.atmosphere.jersey.Broadcastable} used to broadcast events.
      */
-    @Broadcast(delay=0)
+    @Broadcast(delay = 0)
     @POST
     @Path("delay")
-    public Broadcastable delayPublish(@FormParam("message") String message){
+    public Broadcastable delayPublish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Broadcast(delay=5, resumeOnBroadcast=true)
+    @Broadcast(delay = 5, resumeOnBroadcast = true)
     @POST
     @Path("delayAndResume")
-    public Broadcastable delayPublishAndResume(@FormParam("message") String message){
+    public Broadcastable delayPublishAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
@@ -263,18 +269,19 @@ public class PubSubTest {
      */
     @POST
     @Path("programmaticDelayBroadcast")
-    public String manualDelayBroadcast(@FormParam("message") String message){
+    public String manualDelayBroadcast(@FormParam("message") String message) {
         broadcaster.delayBroadcast(message);
         return message;
     }
 
     /**
      * Create a new {@link org.atmosphere.jersey.Broadcastable}.
+     *
      * @param m
      * @return
      */
-    Broadcastable broadcast(String m){
-       return new Broadcastable(m + "\n", broadcaster);
+    Broadcastable broadcast(String m) {
+        return new Broadcastable(m + "\n", broadcaster);
     }
 
 }

@@ -53,7 +53,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletRequest,HttpServletResponse> {
+public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
     private static final Logger logger = LoggerFactory.getLogger(FlickrAtmosphereHandler.class);
 
@@ -76,7 +76,7 @@ public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletReq
                 }
 
                 event.getBroadcaster().broadcast("<script id='comet_" + counter++ + "'>"
-                        + "window.parent." 
+                        + "window.parent."
                         + callback + "(" + message + ");</script>");
                 res.getWriter().write("ok");
                 res.getWriter().flush();
@@ -88,10 +88,10 @@ public class FlickrAtmosphereHandler implements AtmosphereHandler<HttpServletReq
                 if (callback == null) {
                     callback = "alert";
                 }
-                
+
                 event.suspend();
                 String message = "{ message : 'Welcome'}";
-                res.getWriter().write("<script id='comet_" + counter++ + "'>" 
+                res.getWriter().write("<script id='comet_" + counter++ + "'>"
                         + "window.parent."
                         + callback + "(" + message + ");</script>");
                 res.getWriter().write("<html><head><title>Atmosphere Flickr " +

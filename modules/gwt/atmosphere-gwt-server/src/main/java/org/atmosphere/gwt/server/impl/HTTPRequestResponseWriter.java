@@ -19,7 +19,6 @@ import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 /**
- *
  * @author p.havelaar
  */
 public class HTTPRequestResponseWriter extends StreamingProtocolResponseWriter {
@@ -28,9 +27,9 @@ public class HTTPRequestResponseWriter extends StreamingProtocolResponseWriter {
         super(resource, serializationPolicy, clientOracle);
     }
 
-	@Override
-	protected int getPaddingRequired() {
-		return 0;
+    @Override
+    protected int getPaddingRequired() {
+        return 0;
     }
 
     @Override

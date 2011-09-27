@@ -57,7 +57,7 @@ import java.util.Collection;
 abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
 
     boolean isValidType(Type t) {
-        return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class)t);
+        return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class) t);
     }
 
     public static final class PerRequest extends BroadcasterFactoryInjector {
@@ -98,7 +98,7 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
                 }
             };
         }
-        
+
         class BroadcasterFactoryProxy extends BroadcasterFactory {
             BroadcasterFactory _get() {
                 return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();

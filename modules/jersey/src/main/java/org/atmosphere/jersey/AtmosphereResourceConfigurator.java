@@ -39,6 +39,7 @@ package org.atmosphere.jersey;
 
 import com.sun.jersey.api.core.ResourceConfig;
 import com.sun.jersey.api.core.ResourceConfigurator;
+
 import java.util.Collections;
 
 
@@ -52,7 +53,7 @@ public class AtmosphereResourceConfigurator implements ResourceConfigurator {
 
     @Override
     public void configure(ResourceConfig config) {
-        Collections.addAll(config.getClasses(), 
+        Collections.addAll(config.getClasses(),
                 AtmosphereProviders.BroadcasterProvider.class,
                 AtmosphereProviders.TrackableResourceProvider.class,
                 BroadcasterFactoryInjector.PerRequest.class,

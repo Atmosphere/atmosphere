@@ -1,38 +1,39 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
-    <head>
-        <script type="text/javascript" src="jquery-1.3.2.js"></script>
-        <script type="text/javascript" src="jquery.form.js"></script>
-        <script type="text/javascript">
-            var last_date = 0;
-            function fetchLatest() {
-                var ul = $('ul');
-                $.getJSON('chat?date=' + last_date, function(data){
+<head>
+    <script type="text/javascript" src="jquery-1.3.2.js"></script>
+    <script type="text/javascript" src="jquery.form.js"></script>
+    <script type="text/javascript">
+        var last_date = 0;
+        function fetchLatest() {
+            var ul = $('ul');
+            $.getJSON('chat?date=' + last_date, function(data) {
 
-                    $.each(data, function() {
-                        ul.prepend($('<li></li>').text(new Date(this.date) + ": " + this.message));
-                        if (last_date < this.date)
-                            last_date = this.date;
-                    });
-                    
-                    setTimeout('fetchLatest()', 1);
+                $.each(data, function() {
+                    ul.prepend($('<li></li>').text(new Date(this.date) + ": " + this.message));
+                    if (last_date < this.date)
+                        last_date = this.date;
                 });
-            }
-        </script>
-        <script type="text/javascript">
-            $(document).ready(function() {
-                fetchLatest();
-                $('#publishForm').ajaxForm();
+
+                setTimeout('fetchLatest()', 1);
             });
-        </script>
-    </head>
-    <body>
-        <p>
-            <form id="publishForm" action="chat" method="post">
-                Message: <input type="text" name="message" />
-                <input type="submit" value="Submit Comment" />
-            </form>
-        </p>
-        <p>Waiting for messages...</p>
-        <ul></ul>
-    </body>
+        }
+    </script>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            fetchLatest();
+            $('#publishForm').ajaxForm();
+        });
+    </script>
+</head>
+<body>
+<p>
+
+<form id="publishForm" action="chat" method="post">
+    Message: <input type="text" name="message"/>
+    <input type="submit" value="Submit Comment"/>
+</form>
+</p>
+<p>Waiting for messages...</p>
+<ul></ul>
+</body>
 </html>

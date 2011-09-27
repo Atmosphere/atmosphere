@@ -80,9 +80,9 @@ public abstract class AbstractReflectorAtmosphereHandler
         if (message == null || event.isCancelled()) return;
 
         if (event.getResource().getSerializer() != null) {
-            try{
+            try {
                 event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), message);
-            } catch (Throwable ex){
+            } catch (Throwable ex) {
                 logger.warn("Serializer exception: message: " + message, ex);
                 throw new IOException(ex);
             }

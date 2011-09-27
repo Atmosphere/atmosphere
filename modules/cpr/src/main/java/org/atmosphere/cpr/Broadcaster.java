@@ -71,8 +71,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface Broadcaster extends Trackable{
-    
+public interface Broadcaster extends Trackable {
+
     enum SCOPE {
         REQUEST, APPLICATION, VM
     }
@@ -85,7 +85,7 @@ public interface Broadcaster extends Trackable{
      * Set the maximum number of suspended {@link AtmosphereResource}. If the max is reached, Atmosphere will either
      * resume {@link AtmosphereResource} using {@link org.atmosphere.cpr.Broadcaster.POLICY#FIFO} (first in first out)
      * or {@link org.atmosphere.cpr.Broadcaster.POLICY#REJECT} the {@link AtmosphereResource}.
-     *
+     * <p/>
      * By default the number is uunlimited.
      *
      * @param maxSuspended max suspended
@@ -164,7 +164,7 @@ public interface Broadcaster extends Trackable{
      * Broadcast the {@link Object} when an {@link AtmosphereResource} is resumed by a timeout or when using
      * {@link org.atmosphere.cpr.AtmosphereResource#resume()}
      *
-     * @param o        and {@link Object} to be broadcasted.
+     * @param o and {@link Object} to be broadcasted.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
     <T> Future<T> broadcastOnResume(T o);
@@ -187,7 +187,7 @@ public interface Broadcaster extends Trackable{
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if added, or null if it was already there.
      */
-    AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?, ?> resource);
+    AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> resource);
 
     /**
      * Remove a {@link AtmosphereResource<?,?>} from the list of item to be notified when
@@ -196,7 +196,7 @@ public interface Broadcaster extends Trackable{
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if removed, or null if it was not.
      */
-    AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource<?, ?> resource);
+    AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource<?, ?> resource);
 
     /**
      * Set the {@link BroadcasterConfig} instance.
@@ -223,7 +223,7 @@ public interface Broadcaster extends Trackable{
      * @return {@link List} of {@link AtmosphereResource<?,?>} associated with this {@link Broadcaster}.
      * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource<?,?>)
      */
-    Collection<AtmosphereResource<?,?>> getAtmosphereResources();
+    Collection<AtmosphereResource<?, ?>> getAtmosphereResources();
 
     /**
      * Set the scope.
@@ -269,19 +269,21 @@ public interface Broadcaster extends Trackable{
     /**
      * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}. Make sure you are selecting the right policy
      * to avoid unexpected situation.
-     * 
+     *
      * @param policy a {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      */
     public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
     /**
      * Add a {@link BroadcasterLifeCyclePolicyListener}
+     *
      * @param b a {@link BroadcasterLifeCyclePolicyListener}
      */
     void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
 
     /**
      * Remove a {@link BroadcasterLifeCyclePolicyListener}
+     *
      * @param b a {@link BroadcasterLifeCyclePolicyListener}
      */
     void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);

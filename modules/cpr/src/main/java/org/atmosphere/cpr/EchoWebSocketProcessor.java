@@ -1,11 +1,9 @@
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketSupport;
 
 
-public class EchoWebSocketProcessor extends WebSocketProcessor{
+public class EchoWebSocketProcessor extends WebSocketProcessor {
 
     public EchoWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
         super(atmosphereServlet, webSocketSupport);

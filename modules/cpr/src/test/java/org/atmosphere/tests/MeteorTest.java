@@ -71,26 +71,25 @@ public class MeteorTest {
             socket = new ServerSocket(0);
 
             return socket.getLocalPort();
-        }
-        finally {
+        } finally {
             if (socket != null) {
                 socket.close();
             }
         }
     }
-    
+
     public static class Meteor1 extends HttpServlet {
         @Override
         public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
             final Meteor m = Meteor.build(req);
             req.getSession().setAttribute("meteor", m);
             m.suspend(5000, false);
-            
+
             m.broadcast("resume");
-            m.addListener(new AtmosphereResourceEventListener(){
+            m.addListener(new AtmosphereResourceEventListener() {
 
                 @Override
-                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
                 }
 
                 @Override
@@ -111,7 +110,7 @@ public class MeteorTest {
 
                 }
             });
-            
+
             if (servletLatch != null) {
                 servletLatch.countDown();
             }

@@ -37,7 +37,9 @@ import javax.ws.rs.Produces;
 @Produces("text/html;charset=ISO-8859-1")
 public class RedisPubSub {
 
-    private @PathParam("topic") RedisBroadcaster topic;
+    private
+    @PathParam("topic")
+    RedisBroadcaster topic;
 
     @GET
     public SuspendResponse<String> subscribe() {

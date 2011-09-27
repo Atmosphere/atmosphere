@@ -86,8 +86,7 @@ public abstract class BaseTest {
             socket = new ServerSocket(0);
 
             return socket.getLocalPort();
-        }
-        finally {
+        } finally {
             if (socket != null) {
                 socket.close();
             }
@@ -107,7 +106,7 @@ public abstract class BaseTest {
     }
 
     abstract String getUrlTarget(int port);
-        
+
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
         if (atmoServlet != null) atmoServlet.destroy();

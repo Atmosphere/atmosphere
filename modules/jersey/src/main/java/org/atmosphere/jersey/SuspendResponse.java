@@ -39,7 +39,6 @@ import java.util.concurrent.TimeUnit;
  * </pre></blockquote>
  *
  * @param <E> the {@link org.atmosphere.jersey.SuspendResponse#entity type}
- * 
  * @author Jeanfrancois Arcand
  */
 public class SuspendResponse<E> extends JResponse {
@@ -62,6 +61,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Return the {@link org.atmosphere.annotation.Suspend.SCOPE} value.
+     *
      * @return the {@link org.atmosphere.annotation.Suspend.SCOPE} value.
      */
     public Suspend.SCOPE scope() {
@@ -70,6 +70,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Return the {@link org.atmosphere.jersey.SuspendResponse.TimeSpan} used to suspend the response.
+     *
      * @return the {@link org.atmosphere.jersey.SuspendResponse.TimeSpan} used to suspend the response.
      */
     public TimeSpan period() {
@@ -78,6 +79,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Tell Atmosphere to write some comments during the connection suspension.
+     *
      * @return true is comment will be written.
      */
     public boolean outputComments() {
@@ -86,6 +88,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Resume the connection on the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} operations.
+     *
      * @return true if the connection needs to be resumed.
      */
     public boolean resumeOnBroadcast() {
@@ -94,6 +97,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Return the {@link Broadcaster} that will be used to broadcast events.
+     *
      * @return the {@link Broadcaster} that will be used to broadcast events.
      */
     public Broadcaster broadcaster() {
@@ -102,6 +106,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * Return the current list of {@link AtmosphereResourceEventListener} classes.
+     *
      * @return the current list of {@link AtmosphereResourceEventListener} classes.
      */
     public Collection<AtmosphereResourceEventListener> listeners() {
@@ -110,6 +115,7 @@ public class SuspendResponse<E> extends JResponse {
 
     /**
      * A Builder for {@link org.atmosphere.jersey.SuspendResponse}
+     *
      * @param <E>
      */
     public static class SuspendResponseBuilder<E> extends AJResponseBuilder<E, SuspendResponseBuilder<E>> {
@@ -122,7 +128,7 @@ public class SuspendResponse<E> extends JResponse {
                 = new ArrayList<AtmosphereResourceEventListener>();
         private Broadcaster broadcaster;
 
-         /**
+        /**
          * Default constructor.
          */
         public SuspendResponseBuilder() {
@@ -140,6 +146,7 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Set the {@link org.atmosphere.annotation.Suspend.SCOPE} value
+         *
          * @param scope {@link org.atmosphere.annotation.Suspend.SCOPE} value
          * @return this
          */
@@ -150,17 +157,19 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Set the timeout period.
+         *
          * @param suspendTimeout the period
-         * @param timeUnit the {@link java.util.concurrent.TimeUnit}
+         * @param timeUnit       the {@link java.util.concurrent.TimeUnit}
          * @return this
          */
         public SuspendResponseBuilder<E> period(int suspendTimeout, TimeUnit timeUnit) {
-            this.suspendTimeout = new TimeSpan(suspendTimeout,timeUnit);
+            this.suspendTimeout = new TimeSpan(suspendTimeout, timeUnit);
             return this;
         }
 
         /**
          * Set true to tell Atmosphere to write comments when suspending.
+         *
          * @param outputComments true to tell Atmosphere to write comments when suspending
          * @return this
          */
@@ -171,6 +180,7 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Set to true to resume the connection on the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
+         *
          * @param resumeOnBroadcast true to resume the connection on the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
          * @return this
          */
@@ -181,7 +191,8 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Set the {@link Broadcaster}
-         * @param broadcaster  {@link Broadcaster}
+         *
+         * @param broadcaster {@link Broadcaster}
          * @return this
          */
         public SuspendResponseBuilder<E> broadcaster(Broadcaster broadcaster) {
@@ -191,6 +202,7 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
+         *
          * @param e {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
          * @return this
          */
@@ -201,6 +213,7 @@ public class SuspendResponse<E> extends JResponse {
 
         /**
          * Build the {@link org.atmosphere.jersey.SuspendResponse}
+         *
          * @return an instance of {@link org.atmosphere.jersey.SuspendResponse}
          */
         public SuspendResponse<E> build() {

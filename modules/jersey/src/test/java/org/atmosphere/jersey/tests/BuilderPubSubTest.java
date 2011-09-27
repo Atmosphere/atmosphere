@@ -26,7 +26,9 @@ import java.util.concurrent.TimeUnit;
 @Produces("text/plain;charset=ISO-8859-1")
 public class BuilderPubSubTest {
 
-    private @PathParam("topic") Broadcaster broadcaster;
+    private
+    @PathParam("topic")
+    Broadcaster broadcaster;
 
     @GET
     public SuspendResponse<String> suspendUsingAPI() {
@@ -151,75 +153,75 @@ public class BuilderPubSubTest {
 
     @POST
     @Broadcast
-    public Broadcastable publish(@FormParam("message") String message){
+    public Broadcastable publish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("publishAndResume")
-    @Broadcast ( resumeOnBroadcast = true )
-    public Broadcastable publishAndResume(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true)
+    public Broadcastable publishAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("filter")
-    @Broadcast ( resumeOnBroadcast = true , value = {XSSHtmlFilter.class})
-    public Broadcastable filter(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true, value = {XSSHtmlFilter.class})
+    public Broadcastable filter(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("aggregate")
-    @Broadcast ( resumeOnBroadcast = true , value = {StringFilterAggregator.class})
-    public Broadcastable aggregate(@FormParam("message") String message){
+    @Broadcast(resumeOnBroadcast = true, value = {StringFilterAggregator.class})
+    public Broadcastable aggregate(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Schedule(period=5, resumeOnBroadcast=true, waitFor = 5)
+    @Schedule(period = 5, resumeOnBroadcast = true, waitFor = 5)
     @POST
     @Path("scheduleAndResume")
-    public Broadcastable scheduleAndResume(@FormParam("message") String message){
+    public Broadcastable scheduleAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Schedule(period=10, waitFor=5)
+    @Schedule(period = 10, waitFor = 5)
     @POST
     @Path("delaySchedule")
-    public Broadcastable delaySchedule(@FormParam("message") String message){
+    public Broadcastable delaySchedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Schedule(period=5)
+    @Schedule(period = 5)
     @POST
     @Path("schedule")
-    public Broadcastable schedule(@FormParam("message") String message){
+    public Broadcastable schedule(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Broadcast(delay=0)
+    @Broadcast(delay = 0)
     @POST
     @Path("delay")
-    public Broadcastable delayPublish(@FormParam("message") String message){
+    public Broadcastable delayPublish(@FormParam("message") String message) {
         return broadcast(message);
     }
 
-    @Broadcast(delay=5, resumeOnBroadcast=true)
+    @Broadcast(delay = 5, resumeOnBroadcast = true)
     @POST
     @Path("delayAndResume")
-    public Broadcastable delayPublishAndResume(@FormParam("message") String message){
+    public Broadcastable delayPublishAndResume(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("programmaticDelayBroadcast")
-    public String manualDelayBroadcast(@FormParam("message") String message){
+    public String manualDelayBroadcast(@FormParam("message") String message) {
         broadcaster.delayBroadcast(message);
         return message;
     }
 
-    Broadcastable broadcast(String m){
-       return new Broadcastable(m + "\n", broadcaster);
+    Broadcastable broadcast(String m) {
+        return new Broadcastable(m + "\n", broadcaster);
     }
 
     @GET

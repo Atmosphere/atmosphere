@@ -176,26 +176,26 @@ public class Meteor {
         r.suspend(l);
         return this;
     }
-    
+
     /**
-    * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-    * suspend the response forever.
-    *
-    * @param timeout the maximum time a response stay suspended.
-    * @param timeunit The time unit of the timeout value
-    * @return {@link Meteor}
-    */
+     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
+     * suspend the response forever.
+     *
+     * @param timeout  the maximum time a response stay suspended.
+     * @param timeunit The time unit of the timeout value
+     * @return {@link Meteor}
+     */
 
     public Meteor suspend(long timeout, TimeUnit timeunit) {
-    	r.suspend(timeout, timeunit);
-    	return this;
+        r.suspend(timeout, timeunit);
+        return this;
     }
 
     /**
      * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
      * suspend the response forever.
      *
-     * @param l the maximum time a response stay suspended.
+     * @param l              the maximum time a response stay suspended.
      * @param outputComments the maximum time a response stay suspended.
      * @return {@link Meteor}
      */
@@ -205,20 +205,20 @@ public class Meteor {
     }
 
     /**
-    * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-    * suspend the response forever.
-    *
-    * @param timeout the maximum time a response stay suspended.
-    * @param timeunit The time unit of the timeout value
-    * @param outputComments the maximum time a response stay suspended.
-    * @return {@link Meteor}
-    */
+     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
+     * suspend the response forever.
+     *
+     * @param timeout        the maximum time a response stay suspended.
+     * @param timeunit       The time unit of the timeout value
+     * @param outputComments the maximum time a response stay suspended.
+     * @return {@link Meteor}
+     */
 
     public Meteor suspend(long timeout, TimeUnit timeunit, boolean outputComments) {
-    	r.suspend(timeout, timeunit, outputComments);
-    	return this;
+        r.suspend(timeout, timeunit, outputComments);
+        return this;
     }
-    
+
     /**
      * Resume the underlying {@link HttpServletResponse}
      *
@@ -326,14 +326,15 @@ public class Meteor {
             ((AtmosphereEventLifecycle) r).removeEventListener(e);
         }
     }
-    
+
     static void destroy() {
         cache.clear();
     }
 
     /**
      * Return the underlying {@link AtmosphereResource}
-     * @return  the underlying {@link AtmosphereResource}
+     *
+     * @return the underlying {@link AtmosphereResource}
      */
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
         return r;

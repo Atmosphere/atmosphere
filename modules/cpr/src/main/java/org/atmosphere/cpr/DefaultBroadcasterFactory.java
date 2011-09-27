@@ -50,7 +50,11 @@ import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.*;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 
 /**
  * This class is responsible for creating {@link Broadcaster} instance. You can also add and remove {@link Broadcaster}
@@ -81,15 +85,15 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     private void configure(String broadcasterLifeCyclePolicy) {
-        if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+        if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY).build();
-        } else if (EMPTY_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+        } else if (EMPTY_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY_DESTROY).build();
-        } else if (IDLE.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+        } else if (IDLE.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(5 * 60 * 100).build();
-        } else if (IDLE_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+        } else if (IDLE_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(5 * 60 * 100).build();
-        } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)){
+        } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
         } else {
             logger.warn("Unsupported BroadcasterLifeCyclePolicy policy {}", broadcasterLifeCyclePolicy);
@@ -120,7 +124,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (id == null) throw new NullPointerException("id is null");
         if (c == null) throw new NullPointerException("Class is null");
 
-        if (getBroadcaster(id) != null) throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
+        if (getBroadcaster(id) != null)
+            throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
 
         Broadcaster b = c.newInstance();
         InjectorProvider.getInjector().inject(b);
@@ -198,9 +203,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
         // Remove inside all Broadcaster as well.
         try {
-            synchronized(r) {
+            synchronized (r) {
                 if (store.size() > 0) {
-                    for (Broadcaster b: lookupAll()){
+                    for (Broadcaster b : lookupAll()) {
                         try {
                             b.removeAtmosphereResource(r);
                         } catch (IllegalStateException ex) {
@@ -237,8 +242,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
-     * @param clazz  A class implementing {@link Broadcaster}
-     * @param c An instance of {@link AtmosphereServlet.AtmosphereConfig}
+     * @param clazz A class implementing {@link Broadcaster}
+     * @param c     An instance of {@link AtmosphereServlet.AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException

@@ -1,19 +1,18 @@
-
 /*
- * Copyright 2011 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+* Copyright 2011 Jeanfrancois Arcand
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* use this file except in compliance with the License. You may obtain a copy of
+* the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations under
+* the License.
+*/
 
 package org.atmosphere.gwt.client.impl;
 
@@ -25,7 +24,6 @@ import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.TimeoutException;
 
 /**
- *
  * @author p.havelaar
  */
 public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
@@ -38,7 +36,7 @@ public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
             transportRequest.setListener(xDomainRequestListener);
             transportRequest.openGET(getUrl(connectionCount));
             transportRequest.send();
-            
+
         } catch (JavaScriptException ex) {
             if (transportRequest != null) {
                 transportRequest.abort();
@@ -48,23 +46,24 @@ public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
         }
     }
 
-	@Override
-	public void disconnect() {
-		aborted = true;
-		expectingDisconnection = true;
+    @Override
+    public void disconnect() {
+        aborted = true;
+        expectingDisconnection = true;
         super.disconnect();
-		if (transportRequest != null) {
+        if (transportRequest != null) {
             transportRequest.clearListener();
             transportRequest.abort();
             transportRequest = null;
-		}
+        }
         listener.onDisconnected();
-	}
+    }
 
     /**
      * add a session cookie to the url
+     *
      * @param connectionCount
-     * @return 
+     * @return
      */
     @Override
     public String getUrl(int connectionCount) {
@@ -98,7 +97,7 @@ public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
 
         return url;
     }
-    
+
     private XDomainRequest transportRequest;
     private XDomainRequestListener xDomainRequestListener = new XDomainRequestListener() {
 
@@ -145,7 +144,7 @@ public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
                 }
             }
         }
-        
+
         public boolean isCurrent(XDomainRequest request) {
             return request == transportRequest;
         }

@@ -39,12 +39,12 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import org.atmosphere.cpr.Broadcaster;
 
 import javax.ws.rs.core.Context;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
 /**
@@ -52,12 +52,12 @@ import java.lang.reflect.Type;
  * by Jersey.
  *
  * @author Jeanfrancois Arcand
-  * @author Paul Sandoz
-*/
+ * @author Paul Sandoz
+ */
 abstract class BroadcasterInjector extends BaseInjectableProvider {
 
     boolean isValidType(Type t) {
-        return (t instanceof Class) && Broadcaster.class.isAssignableFrom((Class)t);            
+        return (t instanceof Class) && Broadcaster.class.isAssignableFrom((Class) t);
     }
 
     public static final class PerRequest extends BroadcasterInjector {
@@ -94,15 +94,15 @@ abstract class BroadcasterInjector extends BaseInjectableProvider {
             return new Injectable<Broadcaster>() {
                 @Override
                 public Broadcaster getValue() {
-                    return (Broadcaster)Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                            new Class[] { Broadcaster.class },
+                    return (Broadcaster) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                            new Class[]{Broadcaster.class},
                             new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            return method.invoke(getAtmosphereResource(Broadcaster.class, true).getBroadcaster(),
-                                    args);
-                        }
-                    });
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                                    return method.invoke(getAtmosphereResource(Broadcaster.class, true).getBroadcaster(),
+                                            args);
+                                }
+                            });
 
                 }
             };

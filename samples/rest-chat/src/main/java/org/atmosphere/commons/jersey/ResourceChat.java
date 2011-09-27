@@ -36,6 +36,11 @@
  */
 package org.atmosphere.commons.jersey;
 
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Schedule;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.util.XSSHtmlFilter;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -43,10 +48,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MultivaluedMap;
-import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Schedule;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.util.XSSHtmlFilter;
 
 @Path("/chat")
 @Produces("text/html;charset=ISO-8859-1")
@@ -74,10 +75,10 @@ public class ResourceChat {
         }
     }
 
-    @Schedule(period=30)
+    @Schedule(period = 30)
     @POST
     @Path("/ping")
-    public String pingSuspendedClients(){
+    public String pingSuspendedClients() {
         return "Atmosphere__ping";
     }
 }

@@ -53,20 +53,20 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 
 /**
- * Twitter like Comet application. This {@link AtmosphereHandler} implement the logic 
- * needed to support micro blogging a la Twitter.com. Users can blog about what 
+ * Twitter like Comet application. This {@link AtmosphereHandler} implement the logic
+ * needed to support micro blogging a la Twitter.com. Users can blog about what
  * they are doing and can also follow their friends. When an update is made
- * by one user, all its follower gets updated automatically. The updated words 
- * can be moved on the screen and all follower will see the move. 
- * 
- * This {@link Servlet} demonstrate how multiple {@link Broadcaster} can be 
+ * by one user, all its follower gets updated automatically. The updated words
+ * can be moved on the screen and all follower will see the move.
+ * <p/>
+ * This {@link Servlet} demonstrate how multiple {@link Broadcaster} can be
  * used to easily isolate suspended connection and to only
  * push messages to a subset of those suspended connection. It also demonstrate
  * how to push messages to a single {@link AtmosphereResourceEvent}
- * 
+ * <p/>
  * There is one {@link AtmosphereResourceEvent} per user. {@link AtmosphereResourceEvent} associated
  * with the user suspended connection are added to their {@link Broadcaster}
- * and added to the {@link Broadcaster} of the users they are following. 
+ * and added to the {@link Broadcaster} of the users they are following.
  *
  * @author Jeanfrancois Arcand
  */
@@ -76,19 +76,19 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     // Simple transaction counter
     private int counter;
-    
+
     // Begin Script
     private static final String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
-    
+
     //End script
     private static final String END_SCRIPT_TAG = "</script>\n";
-    
+
     // Unique id
     private static final long serialVersionUID = -2919167206889576860L;
-    
+
     // Before suspending message
     private String startingMessage = "<html><head><title>Twitter</title></head><body bgcolor=\"#FFFFFF\">";
-    
+
     // When terminate or interrupted atmoResource happens.
     private String endingMessage = "Twitter closed<br/>\n</body></html>";
 
@@ -97,30 +97,30 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * Based on the {@link HttpServletRequest#getParameter} action value, decide
-     * if the connection needs to be suspended (when the user logs in) or if the 
+     * if the connection needs to be suspended (when the user logs in) or if the
      * {@link Broadcaster} needs to be updated by the user or by its follower.
-     * 
-     * There is one {@link Broadcaster} per suspended connection, representing 
+     * <p/>
+     * There is one {@link Broadcaster} per suspended connection, representing
      * the user account. When one user B request to follow user A, the {@link AtmosphereResource}
      * associated with user B's {@link Broadcaster} is also added to user A
      * {@link Broadcaster}. Hence when user A push message ({@link Broadcaster#broadcast(Object)}
      * all {@link AtmosphereResource} gets the {@link AtmosphereResourceEvent}, which means user B
      * will be updated when user A update its micro blog.
-     * 
-     * The suspended connection on the client side is multiplexed, e.g. 
+     * <p/>
+     * The suspended connection on the client side is multiplexed, e.g.
      * messages sent by the server are not only for a single component, but
      * shared amongst several components. The client side include a message board
      * that is updated by notifying the owner of the {@link Broadcaster}. This
      * is achieved by calling {@link Broadcaster#broadcast(Object)}
-     * 
+     *
      * @param atmoResource An {@link AtmosphereResourceEvent}
      * @throws java.io.IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> atmoResource) throws IOException{
+    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> atmoResource) throws IOException {
         HttpServletRequest request = atmoResource.getRequest();
-        HttpServletResponse response = atmoResource.getResponse();        
-        
-        String action = request.getParameter("action");      
+        HttpServletResponse response = atmoResource.getResponse();
+
+        String action = request.getParameter("action");
 
         String sessionId = request.getSession().getId();
         HttpSession session = request.getSession();
@@ -129,18 +129,18 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             if ("login".equals(action)) {
                 response.setContentType("text/plain");
                 response.setCharacterEncoding("UTF-8");
-                               
-                String name = request.getParameter("name"); 
-                
+
+                String name = request.getParameter("name");
+
                 if (name == null) {
                     logger.error("Name cannot be null");
                     return;
                 }
-                
+
                 session.setAttribute("name", name);
-                
+
                 myBroadcasterFollower.broadcast(BEGIN_SCRIPT_TAG
-                        + toJsonp("Welcome back", name) 
+                        + toJsonp("Welcome back", name)
                         + END_SCRIPT_TAG);
 
                 // Store the Broadcaster associated with this user so
@@ -149,18 +149,18 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             } else if ("post".equals(action)) {
                 String message = request.getParameter("message");
                 String callback = request.getParameter("callback");
-                
+
                 if (message == null) {
                     logger.error("Message cannot be null");
                     return;
                 }
-                
+
                 if (callback == null) {
                     callback = "alert";
                 }
 
-                if (myBroadcasterFollower != null){
-                    myBroadcasterFollower.broadcast("<script id='comet_" + counter++ + "'>" 
+                if (myBroadcasterFollower != null) {
+                    myBroadcasterFollower.broadcast("<script id='comet_" + counter++ + "'>"
                             + "window.parent." + callback + "(" + message + ");</script>");
                 } else {
                     throw new RuntimeException("Broadcaster was null");
@@ -178,7 +178,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 // Use one Broadcaster per AtmosphereResource
                 try {
                     atmoResource.setBroadcaster(BroadcasterFactory.getDefault().get());
-                } catch (Throwable t){
+                } catch (Throwable t) {
                     throw new IOException(t);
                 }
 
@@ -196,35 +196,35 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             } else if ("following".equals(action)) {
                 response.setContentType("text/html");
                 String follow = request.getParameter("message");
-                String name = (String)session.getAttribute("name");
-                
+                String name = (String) session.getAttribute("name");
+
                 if (follow == null) {
                     logger.error("Message cannot be null");
                     return;
-                }      
-                
+                }
+
                 if (name == null) {
                     logger.error("Name cannot be null");
                     return;
                 }
-                
-                Broadcaster outsiderBroadcaster 
+
+                Broadcaster outsiderBroadcaster
                         = (Broadcaster) atmoResource.getAtmosphereConfig().getServletContext().getAttribute(follow);
-                                    
-                AtmosphereResource r = (AtmosphereResource)session.getAttribute("atmoResource");
-                if (outsiderBroadcaster == null){
+
+                AtmosphereResource r = (AtmosphereResource) session.getAttribute("atmoResource");
+                if (outsiderBroadcaster == null) {
                     myBroadcasterFollower.broadcast(BEGIN_SCRIPT_TAG
-                        + toJsonp("Invalid Twitter user ", follow)
-                        + END_SCRIPT_TAG, r);
+                            + toJsonp("Invalid Twitter user ", follow)
+                            + END_SCRIPT_TAG, r);
                     return;
                 }
 
                 outsiderBroadcaster.addAtmosphereResource(r);
-                
+
                 myBroadcasterFollower.broadcast(BEGIN_SCRIPT_TAG
                         + toJsonp("You are now following ", follow)
                         + END_SCRIPT_TAG, r);
-                
+
                 outsiderBroadcaster.broadcast(BEGIN_SCRIPT_TAG
                         + toJsonp(name, " is now following " + follow)
                         + END_SCRIPT_TAG);
@@ -237,6 +237,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * Escape any maliscious characters.
+     *
      * @param orig the String
      * @return a well formed String.
      */
@@ -289,6 +290,7 @@ public class TwitterAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * Simple JSOn transformation.
+     *
      * @param name
      * @param message
      * @return the JSON representation.

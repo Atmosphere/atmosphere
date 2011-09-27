@@ -1,23 +1,24 @@
-<%@page session="true"  %><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<%@page session="true" %>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <!-- The HTML 4.01 Transitional DOCTYPE declaration-->
-<!-- above set at the top of the file will set     -->
-<!-- the browser's rendering engine into           -->
-<!-- "Quirks Mode". Replacing this declaration     -->
+<!-- above set at the top of the file will set -->
+<!-- the browser's rendering engine into -->
+<!-- "Quirks Mode". Replacing this declaration -->
 <!-- with a "Standards Mode" doctype is supported, -->
-<!-- but may lead to some differences in layout.   -->
+<!-- but may lead to some differences in layout. -->
 <%
-long current=new java.util.Date().getTime();
-session.setAttribute("time", new Long(current));
+    long current = new java.util.Date().getTime();
+    session.setAttribute("time", new Long(current));
 %>
 <html>
-  <head>
+<head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <!--                                           -->
     <!-- Any title is fine                         -->
     <!--                                           -->
     <title>GWT Comet Demo Timestamp[<%=current%>] SessionID[<%=session.getId()%>] </title>
 
-    <link rel="stylesheet" type="text/css" href="css/gwtDemo.css" />
+    <link rel="stylesheet" type="text/css" href="css/gwtDemo.css"/>
 
     <!--                                           -->
     <!-- This script loads your compiled module.   -->
@@ -25,18 +26,19 @@ session.setAttribute("time", new Long(current));
     <!-- be added before this line.                -->
     <!--                                           -->
     <script type="text/javascript" language="javascript" src="gwtDemo.nocache.js"></script>
-  </head>
+</head>
 
-  <!--                                           -->
-  <!-- The body can have arbitrary html, or      -->
-  <!-- you can leave the body empty if you want  -->
-  <!-- to create a completely dynamic UI.        -->
-  <!--                                           -->
-  <body>
+<!--                                           -->
+<!-- The body can have arbitrary html, or      -->
+<!-- you can leave the body empty if you want  -->
+<!-- to create a completely dynamic UI.        -->
+<!--                                           -->
+<body>
 
-    <!-- OPTIONAL: include this if you want history support -->
-    <iframe src="javascript:''" id="__gwt_historyFrame" tabIndex='-1' style="position:absolute;width:0;height:0;border:0"></iframe>
+<!-- OPTIONAL: include this if you want history support -->
+<iframe src="javascript:''" id="__gwt_historyFrame" tabIndex='-1'
+        style="position:absolute;width:0;height:0;border:0"></iframe>
 
-    <div id="buttons"></div>
-  </body>
+<div id="buttons"></div>
+</body>
 </html>

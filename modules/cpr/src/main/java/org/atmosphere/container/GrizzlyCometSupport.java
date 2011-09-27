@@ -103,8 +103,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
         if (action.type == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
-        }
-        else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
 
             resume(req, ctx);
@@ -177,9 +176,9 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        Action action =  super.cancelled(req,res);
+        Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
-            resume(req,CometEngine.getEngine().getCometContext(atmosphereCtx));
+            resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
         }
         return action;
     }

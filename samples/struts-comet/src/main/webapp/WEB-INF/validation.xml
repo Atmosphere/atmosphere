@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 
 <!DOCTYPE form-validation PUBLIC
-     "-//Apache Software Foundation//DTD Commons Validator Rules Configuration 1.2.0//EN"
-     "http://jakarta.apache.org/commons/dtds/validator_1_2_0.dtd">
+        "-//Apache Software Foundation//DTD Commons Validator Rules Configuration 1.2.0//EN"
+        "http://jakarta.apache.org/commons/dtds/validator_1_2_0.dtd">
 
 <form-validation>
 
-<!--
-     This is a minimal Validator form file with a couple of examples.
--->
+    <!--
+         This is a minimal Validator form file with a couple of examples.
+    -->
 
     <global>
 
@@ -26,18 +26,18 @@
         <!-- An example form -->
         <form name="logonForm">
             <field
-                property="username"
-                depends="required">
-                    <arg key="logonForm.username"/>
+                    property="username"
+                    depends="required">
+                <arg key="logonForm.username"/>
             </field>
             <field
-                property="password"
-                depends="required,mask">
-                    <arg key="logonForm.password"/>
-                    <var>
-                        <var-name>mask</var-name>
-                        <var-value>^[0-9a-zA-Z]*$</var-value>
-                    </var>
+                    property="password"
+                    depends="required,mask">
+                <arg key="logonForm.password"/>
+                <var>
+                    <var-name>mask</var-name>
+                    <var-value>^[0-9a-zA-Z]*$</var-value>
+                </var>
             </field>
         </form>
 
@@ -54,21 +54,21 @@
         <!-- An example form -->
         <form name="logonForm">
             <field
-                property="username"
-                depends="required">
-                    <arg key="logonForm.username"/>
+                    property="username"
+                    depends="required">
+                <arg key="logonForm.username"/>
             </field>
             <field
-                property="password"
-                depends="required,mask">
-                    <arg key="logonForm.password"/>
-                    <var>
-                        <var-name>mask</var-name>
-                        <var-value>^[0-9a-zA-Z]*$</var-value>
-                    </var>
+                    property="password"
+                    depends="required,mask">
+                <arg key="logonForm.password"/>
+                <var>
+                    <var-name>mask</var-name>
+                    <var-value>^[0-9a-zA-Z]*$</var-value>
+                </var>
             </field>
         </form>
 
-   </formset>
+    </formset>
 
 </form-validation>

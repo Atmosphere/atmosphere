@@ -19,7 +19,6 @@ import com.google.gwt.user.client.rpc.RemoteService;
 import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
 
 /**
- *
  * @author p.havelaar
  */
 @RemoteServiceRelativePath("gwtPoll")

@@ -88,11 +88,9 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
                 }
             });
             jchannel.connect(CLUSTER_NAME);
-        }
-        catch (Throwable t) {
+        } catch (Throwable t) {
             logger.warn("failed to connect to JGroups channel", t);
-        }
-        finally {
+        } finally {
             ready.countDown();
         }
     }
@@ -106,8 +104,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
         try {
             ready.await();
             jchannel.send(new Message(null, null, new BroadcastMessage(getID(), message)));
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
             logger.error("failed to send messge over Jgroups channel", e.getMessage());
         }
     }

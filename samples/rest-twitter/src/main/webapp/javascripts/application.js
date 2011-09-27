@@ -1,92 +1,92 @@
 var count = 0;
 var app = {
-   url: '/atmosphere-rest-twitter/dispatch/twitter/login',
-   follows: '/atmosphere-rest-twitter/dispatch/twitter/follows',
-   initialize: function() {
-      $('login-name').focus();
-      //app.listen();
-   },
-   listen: function() {
-      $('comet-frame').src = app.url + '?' + count;
-      count ++;
-   },
-   login: function() {
-      var name = $F('login-name');
-      if(! name.length > 0) {
-	 $('system-message').style.color = 'red';
-	 $('login-name').focus();
-	 return;
-      }
-      $('system-message').style.color = '#2d2b3d';
-      $('system-message').innerHTML = '';
+    url: '/atmosphere-rest-twitter/dispatch/twitter/login',
+    follows: '/atmosphere-rest-twitter/dispatch/twitter/follows',
+    initialize: function() {
+        $('login-name').focus();
+        //app.listen();
+    },
+    listen: function() {
+        $('comet-frame').src = app.url + '?' + count;
+        count ++;
+    },
+    login: function() {
+        var name = $F('login-name');
+        if (! name.length > 0) {
+            $('system-message').style.color = 'red';
+            $('login-name').focus();
+            return;
+        }
+        $('system-message').style.color = '#2d2b3d';
+        $('system-message').innerHTML = '';
 
-      $('login-button').disabled = true;
-      $('login-form').style.display = 'none';
-      $('message-form').style.display = '';
-      $('follower').style.display = '';
+        $('login-button').disabled = true;
+        $('login-form').style.display = 'none';
+        $('message-form').style.display = '';
+        $('follower').style.display = '';
 
-      var query =
-	 'action=login' +
-	 '&name=' + encodeURI($F('login-name'));
-      new Ajax.Request(app.url, {
-	 postBody: query,
-	 onSuccess: function() {
-	    $('message').focus();
-	 }
-      });
-   },
-   post: function() {
-      var message = $F('message');
-      if(!message > 0) {
-	 return;
-      }
-      $('message').disabled = true;
-      $('post-button').disabled = true;
+        var query =
+                'action=login' +
+                        '&name=' + encodeURI($F('login-name'));
+        new Ajax.Request(app.url, {
+            postBody: query,
+            onSuccess: function() {
+                $('message').focus();
+            }
+        });
+    },
+    post: function() {
+        var message = $F('message');
+        if (!message > 0) {
+            return;
+        }
+        $('message').disabled = true;
+        $('post-button').disabled = true;
 
-      var query =
-	 'action=following' +
-	 '&name=' + encodeURI($F('login-name')) +
-	 '&followee=' + encodeURI(message);
-      new Ajax.Request(app.follows, {
-	 postBody: query,
-	 onComplete: function() {
-	    $('message').disabled = false;
-	    $('post-button').disabled = false;
-	    $('message').focus();
-	    $('message').value = '';
-	 }
-      });
-   },
-   update: function(data) {
-      var p = document.createElement('p');
-      p.innerHTML = data.name + ' ' + data.message;
-      
-      $('display').appendChild(p);
+        var query =
+                'action=following' +
+                        '&name=' + encodeURI($F('login-name')) +
+                        '&followee=' + encodeURI(message);
+        new Ajax.Request(app.follows, {
+            postBody: query,
+            onComplete: function() {
+                $('message').disabled = false;
+                $('post-button').disabled = false;
+                $('message').focus();
+                $('message').value = '';
+            }
+        });
+    },
+    update: function(data) {
+        var p = document.createElement('p');
+        p.innerHTML = data.name + ' ' + data.message;
 
-      new Fx.Scroll('display').down();
-   }
+        $('display').appendChild(p);
+
+        new Fx.Scroll('display').down();
+    }
 };
 var rules = {
-   '#login-name': function(elem) {
-      Event.observe(elem, 'keydown', function(e) {
-	 if(e.keyCode == 13) {
-	    $('login-button').focus();
-	 }
-      });
-   },
-   '#login-button': function(elem) {
-      elem.onclick = app.login;
-   },
-   '#message': function(elem) {
-      Event.observe(elem, 'keydown', function(e) {
-	 if(e.shiftKey && e.keyCode == 13) {
-	    $('post-button').focus();
-	 }
-      });
-   },
-   '#post-button': function(elem) {
-      elem.onclick = app.post;
-   }
+    '#login-name': function(elem) {
+        Event.observe(elem, 'keydown', function(e) {
+            if (e.keyCode == 13) {
+                $('login-button').focus();
+            }
+        });
+    },
+    '#login-button': function(elem) {
+        elem.onclick = app.login;
+    },
+    '#message': function(elem) {
+        Event.observe(elem, 'keydown', function(e) {
+            if (e.shiftKey && e.keyCode == 13) {
+                $('post-button').focus();
+            }
+        });
+    },
+    '#post-button': function(elem) {
+        elem.onclick = app.post;
+    }
 };
 Behaviour.addLoadEvent(app.initialize);
 Behaviour.register(rules);

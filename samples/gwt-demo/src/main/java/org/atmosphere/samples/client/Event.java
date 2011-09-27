@@ -18,7 +18,6 @@ package org.atmosphere.samples.client;
 import java.io.Serializable;
 
 /**
- *
  * @author p.havelaar
  */
 public class Event implements Serializable {

@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Clustering support based on JGroupsFilter (http://jgroups.org)
- * 
+ *
  * @author Hubert Iwaniuk
  */
 public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFilter {
@@ -69,6 +69,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
 
     /**
      * Create a JGroupsFilter based filter.
+     *
      * @param bc the Broadcaster to use when receiving update from the cluster.
      */
     public JGroupsFilter(Broadcaster bc) {
@@ -100,11 +101,13 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
         jchannel.shutdown();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void receive(final Message message) {
         final Object msg = message.getObject();
-        if (message.getSrc() != jchannel.getLocalAddress()){
+        if (message.getSrc() != jchannel.getLocalAddress()) {
             if (msg != null) {
                 if (msg != null && JGroupsBroadcaster.BroadcastMessage.class.isAssignableFrom(msg.getClass())) {
                     receivedMessages.offer(msg);
@@ -119,6 +122,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
 
     /**
      * Every time a message gets broadcasted, make sure we update the cluster.
+     *
      * @param message the message to broadcast.
      * @return The same message.
      */
@@ -148,6 +152,7 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
 
     /**
      * Set the current {@link Broadcaster} to use when a cluster event happens.
+     *
      * @param bc
      */
     public void setBroadcaster(Broadcaster bc) {

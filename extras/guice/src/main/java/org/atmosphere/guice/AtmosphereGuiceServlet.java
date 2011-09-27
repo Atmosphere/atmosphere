@@ -68,50 +68,47 @@ import java.util.Map;
 
 /**
  * Google Guice Integration. To use it, just do in web.xml:
- *
+ * <p/>
  * <blockquote><code>
-     &lt;web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee"
-        xmlns:j2ee = "http://java.sun.com/xml/ns/j2ee"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"&gt;
-        &lt;listener&gt;
-            &lt;listener-class&gt;org.atmosphere.samples.guice.GuiceChatConfig&lt;/listener-class&gt;
-        &lt;/listener&gt;
-        &lt;description&gt;Atmosphere Chat&lt;/description&gt;
-        &lt;display-name&gt;Atmosphere Chat&lt;/display-name&gt;
-        &lt;servlet&gt;
-            &lt;description&gt;AtmosphereServlet&lt;/description&gt;
-            &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
-            &lt;servlet-class&gt;org.atmosphere.guice.AtmosphereGuiceServlet&lt;/servlet-class&gt;
-            &lt;load-on-startup&gt;0&lt;/load-on-startup&gt;
-        &lt;/servlet&gt;
-        &lt;servlet-mapping&gt;
-            &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
-            &lt;url-pattern&gt;/chat/*&lt;/url-pattern&gt;
-        &lt;/servlet-mapping&gt;
-    &lt;/web-app&gt;
-
-    and then
-
-    public class GuiceConfig extends GuiceServletContextListener {
-
-        @Override
-        protected Injector getInjector() {
-            return Guice.createInjector(new ServletModule() {
-                @Override
-                protected void configureServlets() {
-                    bind(PubSubTest.class);
-                    bind(new TypeLiteral&lt;Map&lt;String, String&gt;&gt;() {
-                        }).annotatedWith(Names.named(AtmosphereGuiceServlet.JERSEY_PROPERTIES)).toInstance(
-                            Collections.&lt;String, String>emptyMap());
-                }
-            });
-        }
-    }
- </code></blockquote>
+ * &lt;web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee"
+ * xmlns:j2ee = "http://java.sun.com/xml/ns/j2ee"
+ * xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ * xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee    http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"&gt;
+ * &lt;listener&gt;
+ * &lt;listener-class&gt;org.atmosphere.samples.guice.GuiceChatConfig&lt;/listener-class&gt;
+ * &lt;/listener&gt;
+ * &lt;description&gt;Atmosphere Chat&lt;/description&gt;
+ * &lt;display-name&gt;Atmosphere Chat&lt;/display-name&gt;
+ * &lt;servlet&gt;
+ * &lt;description&gt;AtmosphereServlet&lt;/description&gt;
+ * &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
+ * &lt;servlet-class&gt;org.atmosphere.guice.AtmosphereGuiceServlet&lt;/servlet-class&gt;
+ * &lt;load-on-startup&gt;0&lt;/load-on-startup&gt;
+ * &lt;/servlet&gt;
+ * &lt;servlet-mapping&gt;
+ * &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
+ * &lt;url-pattern&gt;/chat/*&lt;/url-pattern&gt;
+ * &lt;/servlet-mapping&gt;
+ * &lt;/web-app&gt;
+ * <p/>
+ * and then
+ * <p/>
+ * public class GuiceConfig extends GuiceServletContextListener {
  *
  * @author Jeanfrancois Arcand
  * @author Richard Wallace
+ * @Override protected Injector getInjector() {
+ * return Guice.createInjector(new ServletModule() {
+ * @Override protected void configureServlets() {
+ * bind(PubSubTest.class);
+ * bind(new TypeLiteral&lt;Map&lt;String, String&gt;&gt;() {
+ * }).annotatedWith(Names.named(AtmosphereGuiceServlet.JERSEY_PROPERTIES)).toInstance(
+ * Collections.&lt;String, String>emptyMap());
+ * }
+ * });
+ * }
+ * }
+ * </code></blockquote>
  */
 public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
@@ -123,6 +120,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
     /**
      * Install Guice event if other extension has been already installed.
+     *
      * @param sc {@link javax.servlet.ServletConfig}
      * @throws ServletException
      */
@@ -162,7 +160,8 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
         try {
             Map<String, String> props = injector.getInstance(
-                    Key.get(new TypeLiteral<Map<String, String>>() {},Names.named(JERSEY_PROPERTIES)));
+                    Key.get(new TypeLiteral<Map<String, String>>() {
+                    }, Names.named(JERSEY_PROPERTIES)));
 
 
             if (props != null) {

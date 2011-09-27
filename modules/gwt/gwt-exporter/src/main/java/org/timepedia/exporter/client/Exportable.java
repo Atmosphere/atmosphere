@@ -3,7 +3,7 @@ package org.timepedia.exporter.client;
 /**
  * Marker interface. To export a class to Javascript, perform the following
  * steps:
- *
+ * <p/>
  * <ol> <li>add Exportable as an implemented interface <li>Choose between a
  * whitelist or blacklist export policy <li>If blacklist, add @gwt.export to the
  * JavaDoc of the class definition and use @gwt.noexport for any methods you do
@@ -14,7 +14,7 @@ package org.timepedia.exporter.client;
  * the same export name, you can resolve the conflict by renaming the exported
  * method, e.g. "@gwt.export addDouble" will export method add(double, double)
  * as addDouble(double,double) </ol>
- *
+ * <p/>
  * <p>Finally, somewhere in your entry point class, perform the following:
  * <xmp>Exporter exporter = (Exporter)GWT.create(MyClass.class);
  * exporter.export(); </xmp>

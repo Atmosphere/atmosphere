@@ -86,7 +86,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
      * @param event An {@link AtmosphereResource}
      * @throws java.io.IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest, 
+    public void onRequest(AtmosphereResource<HttpServletRequest,
             HttpServletResponse> event) throws IOException {
 
         HttpServletRequest req = event.getRequest();
@@ -95,11 +95,11 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
         res.setContentType("text/html;charset=ISO-8859-1");
         if (req.getMethod().equalsIgnoreCase("GET")) {
             event.suspend();
-            
+
             Broadcaster bc = event.getBroadcaster();
             String clusterType = event.getAtmosphereConfig().getInitParameter(CLUSTER);
-            if (!filterAdded.getAndSet(true) && clusterType != null){
-                if (clusterType.equals("jgroups")){
+            if (!filterAdded.getAndSet(true) && clusterType != null) {
+                if (clusterType.equals("jgroups")) {
                     event.getAtmosphereConfig().getServletContext().log("JGroupsFilter enabled");
                     bc.getBroadcasterConfig().addFilter(
                             new JGroupsFilter(bc));
@@ -115,7 +115,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
             try {
                 // Wait for the push to occurs. This is blocking a thread as the Broadcast operation
                 // is usually asynchronous, e.g executed using an {@link ExecuturService}
-                f.get(); 
+                f.get();
             } catch (InterruptedException ex) {
                 logger.error("", ex);
             } catch (ExecutionException ex) {
@@ -169,14 +169,14 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
         String name = e;
         String message = "";
 
-        if (e.indexOf("**")> 0){
-            name = e.substring(0,e.indexOf("**"));
-            message = e.substring(e.indexOf("**")+2);
+        if (e.indexOf("**") > 0) {
+            name = e.substring(0, e.indexOf("**"));
+            message = e.substring(e.indexOf("**") + 2);
         }
 
         String msg = BEGIN_SCRIPT_TAG + toJsonp(name, message) + END_SCRIPT_TAG;
 
-        if (event.isCancelled()){
+        if (event.isCancelled()) {
             event.getResource().getBroadcaster()
                     .broadcast(req.getSession().getAttribute("name") + " has left");
         } else if (event.isResuming() || event.isResumedOnTimeout()) {

@@ -26,11 +26,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- *
  * @author p.havelaar
  */
 public class PollService extends AtmospherePollService
-    implements Poll {
+        implements Poll {
 
     @Override
     public Event pollDelayed(final int milli) {
@@ -48,7 +47,7 @@ public class PollService extends AtmospherePollService
                 }
             }
         }, milli);
-        
+
         return null;
     }
 

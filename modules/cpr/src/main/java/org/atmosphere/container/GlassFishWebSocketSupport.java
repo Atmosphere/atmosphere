@@ -135,7 +135,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
                         .loadClass(config.getServlet().getWebSocketProcessorClassName())
                         .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
                         .newInstance(new Object[]{config.getServlet(), new GrizzlyWebSocketSupport(webSocket)});
-                
+
                 webSocketProcessor.connect(new HttpServletRequestWrapper(webSocket.getRequest()));
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);

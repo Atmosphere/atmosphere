@@ -58,15 +58,15 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * Fake Weblogic class to allow compilation of support for that web container.
- * 
+ *
  * @author Jeanfrancois Arcand
  */
 public class RequestResponseKey {
-    public HttpServletRequest getRequest(){
+    public HttpServletRequest getRequest() {
         throw new IllegalStateException("Not supported, must not ends here");
     }
-    
-    public HttpServletResponse getResponse(){
+
+    public HttpServletResponse getResponse() {
         throw new IllegalStateException("Not supported, must not ends here");
     }
 

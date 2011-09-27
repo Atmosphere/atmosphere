@@ -155,12 +155,12 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        Action action =  super.cancelled(req,res);
+        Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
-           CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
-           if (event == null) return action;
-           resumed.offer(event);
-           event.close(); 
+            CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
+            if (event == null) return action;
+            resumed.offer(event);
+            event.close();
         }
         return action;
     }

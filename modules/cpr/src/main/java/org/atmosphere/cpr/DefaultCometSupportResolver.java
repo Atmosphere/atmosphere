@@ -44,8 +44,8 @@ import org.atmosphere.container.GlassFishv2CometSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
-import org.atmosphere.container.JettyWebSocketSupport;
 import org.atmosphere.container.JettyCometSupport;
+import org.atmosphere.container.JettyWebSocketSupport;
 import org.atmosphere.container.Servlet30Support;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
@@ -95,11 +95,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         try {
             return testClass != null && testClass.length() > 0 &&
                     Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
-        }
-        catch (ClassNotFoundException ex) {
+        } catch (ClassNotFoundException ex) {
             return false;
-        }
-        catch (NoClassDefFoundError ex) {
+        } catch (NoClassDefFoundError ex) {
             return false;
         }
     }
@@ -143,7 +141,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     public List<Class<? extends CometSupport>> detectWebSocketPresent() {
-        List l =  new LinkedList<Class<? extends CometSupport>>() {
+        List l = new LinkedList<Class<? extends CometSupport>>() {
             {
                 if (testClassExists(JETTY_8))
                     add(JettyWebSocketSupport.class);
@@ -186,8 +184,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         try {
             return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
-        }
-        catch (final Exception e) {
+        } catch (final Exception e) {
             logger.error("failed to create comet support class: {}, error: {}", targetClass, e.getMessage());
             throw new IllegalArgumentException(
                     "Comet support class " + targetClass.getCanonicalName() + " has bad signature.", e);
@@ -199,8 +196,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             return (CometSupport) cl.loadClass(targetClassFQN)
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
-        }
-        catch (final Exception e) {
+        } catch (final Exception e) {
             logger.error("failed to create comet support class: {}, error: {}", targetClassFQN, e.getMessage());
             throw new IllegalArgumentException("Comet support class " + targetClassFQN + " has bad signature.", e);
         }

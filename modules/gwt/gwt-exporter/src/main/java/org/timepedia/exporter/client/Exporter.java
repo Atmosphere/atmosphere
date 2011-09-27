@@ -9,15 +9,15 @@ package org.timepedia.exporter.client;
  */
 public interface Exporter {
 
-  @Deprecated
-  /**
-   * Invoking GWT.create() on an exportable class is sufficient to export it.
-   */
-  void export();
+    @Deprecated
+    /**
+     * Invoking GWT.create() on an exportable class is sufficient to export it.
+     */
+    void export();
 
-  /**
-   * Invoked to synchronize Java object with underlying structural type JS 
-   * object after return from a Java method.
-   */
+    /**
+     * Invoked to synchronize Java object with underlying structural type JS
+     * object after return from a Java method.
+     */
 //  void sync();
 }

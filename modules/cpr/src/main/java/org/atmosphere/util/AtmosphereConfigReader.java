@@ -68,7 +68,7 @@ public class AtmosphereConfigReader {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereConfigReader.class);
 
     private final Map<String, String> tuples = new HashMap<String, String>();
-    private final Map<String, ArrayList<Property>> atmosphereHandlerProperties =  new HashMap<String, ArrayList<Property>>();
+    private final Map<String, ArrayList<Property>> atmosphereHandlerProperties = new HashMap<String, ArrayList<Property>>();
     private final Map<String, String> broadcasters = new HashMap<String, String>();
     private final Map<String, String> broadcasterCache = new HashMap<String, String>();
 
@@ -85,16 +85,13 @@ public class AtmosphereConfigReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             parse(factory.newDocumentBuilder().parse(stream));
-        }
-        catch (SAXException e) {
+        } catch (SAXException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        }
-        catch (ParserConfigurationException e) {
+        } catch (ParserConfigurationException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
@@ -235,7 +232,7 @@ public class AtmosphereConfigReader {
         return cometSupportClass;
     }
 
-    public String[] getBroadcastFilterClasses(){
+    public String[] getBroadcastFilterClasses() {
         return broadcastFilterClasses;
     }
 }

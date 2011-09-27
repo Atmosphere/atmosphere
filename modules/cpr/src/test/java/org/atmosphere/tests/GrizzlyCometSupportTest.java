@@ -59,13 +59,13 @@ public class GrizzlyCometSupportTest extends BaseTest {
         ServletAdapter sa = new ServletAdapter();
         sa.setProperty("load-on-startup", 0);
         ws.addAsyncFilter(new CometAsyncFilter());
-        
+
         atmoServlet = new AtmosphereServlet();
         //atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
         sa.setServletInstance(atmoServlet);
         configureCometSupport();
 
-        ws.addGrizzlyAdapter(sa,new String[] {ROOT});
+        ws.addGrizzlyAdapter(sa, new String[]{ROOT});
         ws.start();
     }
 

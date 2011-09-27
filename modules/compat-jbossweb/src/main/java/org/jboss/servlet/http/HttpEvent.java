@@ -70,11 +70,10 @@
 
 package org.jboss.servlet.http;
 
-import java.io.IOException;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * The HttpEvent interface.
@@ -84,61 +83,61 @@ import javax.servlet.http.HttpServletResponse;
 public interface HttpEvent {
 
     public enum EventType {BEGIN, READ, END, ERROR, TIMEOUT, EOF}
-    
-        
+
+
     /**
      * Returns the HttpServletRequest.
-     * 
+     *
      * @return HttpServletRequest
      */
     public HttpServletRequest getHttpServletRequest();
-    
+
     /**
      * Returns the HttpServletResponse.
-     * 
+     *
      * @return HttpServletResponse
      */
     public HttpServletResponse getHttpServletResponse();
-    
+
     /**
      * Returns the event type.
-     * 
+     *
      * @return EventType
      */
     public EventType getType();
-    
-    
+
+
     /**
-     * Ends the Comet session. This signals to the container that 
+     * Ends the Comet session. This signals to the container that
      * the container wants to end the comet session. This will send back to the
      * client a notice that the server has no more data to send as part of this
      * request. The servlet should perform any needed cleanup as if it had recieved
-     * an END or ERROR event. 
-     * 
+     * an END or ERROR event.
+     *
      * @throws IOException if an IO exception occurs
      */
     public void close() throws IOException;
-    
+
     /**
-     * Sets the timeout for this Comet connection. Please NOTE, that the implementation 
+     * Sets the timeout for this Comet connection. Please NOTE, that the implementation
      * of a per connection timeout is OPTIONAL and MAY NOT be implemented.<br/>
      * This method sets the timeout in milliseconds of idle time on the connection.
      * The timeout is reset every time data is received from the connection or data is flushed
-     * using <code>response.flushBuffer()</code>. If a timeout occurs, the 
-     * <code>error(HttpServletRequest, HttpServletResponse)</code> method is invoked. The 
+     * using <code>response.flushBuffer()</code>. If a timeout occurs, the
+     * <code>error(HttpServletRequest, HttpServletResponse)</code> method is invoked. The
      * web application SHOULD NOT attempt to reuse the request and response objects after a timeout
      * as the <code>error(HttpServletRequest, HttpServletResponse)</code> method indicates.<br/>
      * This method should not be called asynchronously, as that will have no effect.
-     * 
+     *
      * @param timeout The timeout in milliseconds for this connection, must be a positive value, larger than 0
-     * @throws IOException An IOException may be thrown to indicate an IO error, 
-     *         or that the EOF has been reached on the connection
-     * @throws ServletException An exception has occurred, as specified by the root
-     *         cause
+     * @throws IOException                   An IOException may be thrown to indicate an IO error,
+     *                                       or that the EOF has been reached on the connection
+     * @throws ServletException              An exception has occurred, as specified by the root
+     *                                       cause
      * @throws UnsupportedOperationException if per connection timeout is not supported, either at all or at this phase
-     *         of the invocation.
+     *                                       of the invocation.
      */
     public void setTimeout(int timeout)
-        throws IOException, ServletException, UnsupportedOperationException;
+            throws IOException, ServletException, UnsupportedOperationException;
 
 }

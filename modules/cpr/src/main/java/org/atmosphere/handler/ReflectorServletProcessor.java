@@ -40,7 +40,6 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
-import org.atmosphere.cpr.MeteorServlet;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
@@ -91,7 +90,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     void loadWebApplication(ServletConfig sc) throws MalformedURLException,
             InstantiationException, IllegalAccessException, ClassNotFoundException {
-        
+
         URL url = sc.getServletContext().getResource("/WEB-INF/lib/");
         URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                 Thread.currentThread().getContextClassLoader());
@@ -121,11 +120,11 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             fc.setFilter(f);
 
             if (filterName == null) {
-               if (sc.getInitParameter(APPLICATION_NAME) != null) {
-                   filterName = sc.getInitParameter(APPLICATION_NAME);
-               } else {
-                   filterName = f.getClass().getSimpleName();
-               }
+                if (sc.getInitParameter(APPLICATION_NAME) != null) {
+                    filterName = sc.getInitParameter(APPLICATION_NAME);
+                } else {
+                    filterName = f.getClass().getSimpleName();
+                }
             }
 
             fc.setFilterName(filterName);
@@ -151,7 +150,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {
-            logger.error("onRequest()",ex);
+            logger.error("onRequest()", ex);
             throw new RuntimeException(ex);
         }
     }
@@ -159,7 +158,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     public void init(ServletConfig sc) throws ServletException {
         try {
             loadWebApplication(sc);
-        } catch (Exception ex) {                                                      
+        } catch (Exception ex) {
             throw new ServletException(ex);
         }
         wrapper.init(sc);
@@ -212,7 +211,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     /**
      * Add a FilterClass. Since we are using Reflection to call this method,
      * what we are really doing is addFilterClass.
-     *
+     * <p/>
      * TODO: MUST ALLOW MORE THAN ONE FILTER
      *
      * @param filterClass
