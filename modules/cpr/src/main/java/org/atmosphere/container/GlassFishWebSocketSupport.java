@@ -47,7 +47,6 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.WebSocketProcessor;
-import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,7 +130,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             BaseServerWebSocket webSocket = BaseServerWebSocket.class.cast(w);
             try {
 
-                webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
+                webSocketProcessor = (WebSocketProcessor) GrizzlyWebSocketSupport.class.getClassLoader()
                         .loadClass(config.getServlet().getWebSocketProcessorClassName())
                         .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocketSupport.class})
                         .newInstance(new Object[]{config.getServlet(), new GrizzlyWebSocketSupport(webSocket)});
