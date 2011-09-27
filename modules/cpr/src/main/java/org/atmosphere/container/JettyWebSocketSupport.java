@@ -37,8 +37,6 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.JettyWebSocketHandler;
@@ -124,25 +122,6 @@ public class JettyWebSocketSupport extends Jetty7CometSupport {
             }
 
             return action;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void action(AtmosphereResourceImpl r) {
-        aliveRequests.remove(r.getRequest());
-        if (r.isInScope() && r.action().type == Action.TYPE.RESUME &&
-                (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
-                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-            // Do nothing because it is a websocket.
-        } else {
-            try {
-                r.getResponse().flushBuffer();
-            } catch (IOException e) {
-                logger.trace(e.getMessage(), e);
-            }
         }
     }
 
