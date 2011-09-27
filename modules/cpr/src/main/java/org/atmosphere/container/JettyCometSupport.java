@@ -130,7 +130,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        Action action =  super.cancelled(req,res);
+        Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             Continuation c = ContinuationSupport.getContinuation(req, null);
             if (c != null) {

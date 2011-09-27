@@ -51,7 +51,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.lang.IllegalStateException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -85,31 +84,26 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 // Do nothing except setting the times out
                 if (action.timeout != -1) {
                     c.setTimeout(action.timeout);
-                }
-                else {
+                } else {
                     // Jetty 7 does something really weird if you set it to
                     // Long.MAX_VALUE, which is to resume automatically.
                     c.setTimeout(Integer.MAX_VALUE);
                 }
                 c.suspend();
-            }
-            else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resume {}", res);
 
                 if (!resumed.remove(c)) {
                     try {
                         c.complete();
-                    }
-                    catch (IllegalStateException ex) {
+                    } catch (IllegalStateException ex) {
                         logger.debug("Continuation.complete()", ex);
-                    }
-                    finally {
+                    } finally {
                         resumed(req, res);
                     }
                 }
             }
-        }
-        else if (!c.isInitial() && c.isExpired()) {
+        } else if (!c.isInitial() && c.isExpired()) {
             timedout(req, res);
         }
         return action;
@@ -128,17 +122,14 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             if (c != null) {
                 try {
                     c.complete();
-                }
-                catch (IllegalStateException ex) {
+                } catch (IllegalStateException ex) {
                     logger.debug("Continuation.complete() failed", ex);
                 }
             }
-        }
-        else {
+        } else {
             try {
                 actionEvent.getResponse().flushBuffer();
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
             }
         }
     }

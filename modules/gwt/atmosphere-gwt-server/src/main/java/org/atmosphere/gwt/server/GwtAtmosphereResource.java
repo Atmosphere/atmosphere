@@ -26,34 +26,48 @@ import java.util.List;
 
 public interface GwtAtmosphereResource {
     public Broadcaster getBroadcaster();
+
     public HttpSession getSession();
+
     public HttpSession getSession(boolean create);
+
     public int getHeartBeatInterval();
+
     /**
      * Deprecated because the name is deceiving.
      * Use post instead
-     * 
+     *
      * @param message
      * @deprecated
      */
     @Deprecated
     public void broadcast(Serializable message);
+
     public void post(Serializable message);
+
     /**
      * Deprecated because the name is deceiving.
      * Use post instead
-     * 
+     *
      * @param messages
      * @deprecated
      */
     @Deprecated
     public void broadcast(List<Serializable> messages);
+
     public void post(List<Serializable> messages);
+
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource();
+
     public HttpServletRequest getRequest();
+
     public HttpServletResponse getResponse();
+
     public boolean isAlive();
+
     public <T> void setAttribute(String name, T value);
+
     public <T> T getAttribute(String name);
+
     public int getConnectionID();
 }

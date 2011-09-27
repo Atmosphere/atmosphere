@@ -1,6 +1,6 @@
 <module rename-to="atmosphere_gwt_js">
-    
-    <inherits name="org.atmosphere.gwt.Client" />
+
+    <inherits name="org.atmosphere.gwt.Client"/>
     <inherits name="org.timepedia.exporter.Exporter"/>
     <set-property name="export" value="yes"/>
     <add-linker name="xs"/>

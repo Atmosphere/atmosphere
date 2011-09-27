@@ -2,7 +2,7 @@
 jmaki.namespace("jmaki.widgets.grizzly.words");
 
 jmaki.widgets.grizzly.words.Widget = function(wargs) {
-    var r = Math.floor(Math.random()*9999);
+    var r = Math.floor(Math.random() * 9999);
     this.vuuid = new Date().getMilliseconds() + r;
     var counter = 0;
     var self = this;
@@ -13,9 +13,9 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
     var originalText;
     var repeatCharacters = false;
     var renderred = false;
-    
+
     var blankImage = wargs.widgetDir + "/images/blank.gif";
-  
+
     var pxSize = "25";
     var word = "jmaki";
     var fl;
@@ -27,24 +27,24 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         usedChars = {};
         renderred = false;
         originalText = text.toLowerCase();
-        
+
         if (typeof size != 'undefined') {
             pxSize = size;
         }
         if (typeof repeat != 'undefined') {
             repeatCharacters = repeat;
         }
-        items.targetCharacters =  getCharacters(text);
+        items.targetCharacters = getCharacters(text);
         for (var i = 0; i < items.targetCharacters.length; i++) {
             fl.load("oneletter," + items.targetCharacters[i] + items.targetCharacters[i], fCallback);
         }
     }
- 
+
     this.getTargetWord = function() {
         return items.targetCharacters.join();
     }
-    
-    function fCallback (obj, t) {
+
+    function fCallback(obj, t) {
 
         var letter = t.split(',')[1].charAt(0);
         // get info from the JSON object
@@ -54,18 +54,18 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         var count = Number(usedChars[letter]);
         for (var lo = 0; lo < count; lo++) {
             // randomly choose one of the letters
-            var l= Math.floor(Math.random()*(obj.items.length));
-            var description = obj.items[l].description;     
+            var l = Math.floor(Math.random() * (obj.items.length));
+            var description = obj.items[l].description;
             var start = description.indexOf("src=") + 10;
-            var stop =  description.indexOf("_m.jpg");
-            var imageBase = description.substring(start,stop);
+            var stop = description.indexOf("_m.jpg");
+            var imageBase = description.substring(start, stop);
             var thumbURL = imageBase + "_s.jpg";
             var name = obj.items[l].title;
             var i = {
                 name: name,
                 url: thumbURL,
                 link: obj.items[l].link
-                };
+            };
             items[letter].push(i);
         }
         // check to see all the images are loaded
@@ -74,7 +74,7 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
             showImages(items);
         }
     }
-    
+
     // check to see if all the target characters have been loaded.
     function checkIfDone() {
         for (var l = 0; l < items.targetCharacters.length; l++) {
@@ -84,7 +84,7 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         }
         return true;
     }
-     
+
     this.addWord = function(imgs, id) {
         var targetDiv = document.createElement("div");
         targetDiv.id = id;
@@ -92,9 +92,9 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         targetDiv.style.height = "auto";
         targetDiv.innerHTML = "";
         jmaki.makeDraggable(targetDiv);
-        document.body.appendChild(targetDiv);        
+        document.body.appendChild(targetDiv);
         words.push(targetDiv);
-        for (var i =0;  i < imgs.length; i++) {
+        for (var i = 0; i < imgs.length; i++) {
             var node = document.createElement("img");
             node.style.border = "0px";
             node.style.height = pxSize + "px";
@@ -104,14 +104,14 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
                 targetDiv.appendChild(node);
             } else {
                 node.src = imgs[i];
-                targetDiv.appendChild(node);  
+                targetDiv.appendChild(node);
             }
         }
-    }     
-     
+    }
+
     function showImages(items) {
         var imgs = [];
-        for (var i =0;  i < originalText.length; i++) {
+        for (var i = 0; i < originalText.length; i++) {
             // if we are working with a space handle it
             if (originalText.charAt(i) == ' ') {
                 imgs.push('');
@@ -127,14 +127,14 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
                 } else {
                     t = items[originalText.charAt(i)][0];
                     imgs.push(t.url);
-                }        
+                }
             }
         }
         // serialze message
         var message = "{ command : 'add', 'id' : '" + (self.vuuid + "_" + counter++) + "', 'value' : [";
-        for (var i=0; i < imgs.length; i++) {
+        for (var i = 0; i < imgs.length; i++) {
             message += "'" + imgs[i] + "'";
-            if (i < imgs.length -1) message += ",";
+            if (i < imgs.length - 1) message += ",";
         }
         message += "]}";
         jmaki.publish("/grizzly/message", message);
@@ -143,10 +143,10 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
     function getCharacters(w) {
         var word = w.toLowerCase();
         var characters = [];
-        for (var ch=0; ch < word.length; ch++) {
+        for (var ch = 0; ch < word.length; ch++) {
             // skip spaces and only allow legal characters
             if (word.charAt(ch) != ' ' && legalCharacters.indexOf(word.charAt(ch)) != -1) {
-                if (repeatCharacters == false) {     
+                if (repeatCharacters == false) {
                     if (typeof usedChars[word.charAt(ch)] == 'undefined') {
                         usedChars[word.charAt(ch)] = 1;
                         characters.push(word.charAt(ch));
@@ -166,6 +166,7 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         }
         return characters;
     }
+
     if (typeof wargs.args != "undefined") {
         if (typeof wargs.args.word != "undefined") {
             word = wargs.args.word;
@@ -181,9 +182,9 @@ jmaki.widgets.grizzly.words.Widget = function(wargs) {
         } else {
             fl = new jmaki.FlickrLoader();
         }
-        self.getWord(word, pxSize,repeatCharacters);
+        self.getWord(word, pxSize, repeatCharacters);
     }
-    
+
     self.postLoad = function() {
     }
 }

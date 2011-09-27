@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 
 <!DOCTYPE struts-config PUBLIC
-          "-//Apache Software Foundation//DTD Struts Configuration 1.3//EN"
-          "http://struts.apache.org/dtds/struts-config_1_3.dtd">
+        "-//Apache Software Foundation//DTD Struts Configuration 1.3//EN"
+        "http://struts.apache.org/dtds/struts-config_1_3.dtd">
 
 <!--
      This is a blank Struts configuration file with an example
@@ -21,25 +21,25 @@
 <struts-config>
 
 
-<!-- ================================================ Form Bean Definitions -->
+    <!-- ================================================ Form Bean Definitions -->
 
     <form-beans>
-    <!--
+        <!--
+            <form-bean
+                name="simpleForm"
+                type="prototype.SimpleForm"/>
+        -->
         <form-bean
-            name="simpleForm"
-            type="prototype.SimpleForm"/>
-    -->
-        <form-bean
-            name="simpleForm"
-            type="org.apache.struts.action.DynaActionForm">
+                name="simpleForm"
+                type="org.apache.struts.action.DynaActionForm">
             <form-property
-                name="echoString"
-                type="java.lang.String"/>
-       </form-bean>
+                    name="echoString"
+                    type="java.lang.String"/>
+        </form-bean>
     </form-beans>
 
 
-<!-- ========================================= Global Exception Definitions -->
+    <!-- ========================================= Global Exception Definitions -->
 
     <global-exceptions>
         <!-- sample exception handler
@@ -51,116 +51,116 @@
     </global-exceptions>
 
 
-<!-- =========================================== Global Forward Definitions -->
+    <!-- =========================================== Global Forward Definitions -->
 
     <global-forwards>
         <!-- Default forward to "Welcome" action -->
         <!-- Demonstrates using index.jsp to forward -->
         <forward
-            name="welcome"
-            path="/Welcome.do"/>
+                name="welcome"
+                path="/Welcome.do"/>
     </global-forwards>
 
 
-<!-- =========================================== Action Mapping Definitions -->
+    <!-- =========================================== Action Mapping Definitions -->
 
     <action-mappings>
-            <!-- Default "Welcome" action -->
-            <!-- Forwards to Welcome.jsp -->
+        <!-- Default "Welcome" action -->
+        <!-- Forwards to Welcome.jsp -->
         <action
-            path="/Welcome"
-            forward="/pages/Welcome.jsp"
-            type="app.SimpleAction"
-            name="simpleForm"
-            parameter="op">
-            <forward name="success" path="/pages/Welcome.jsp" />
+                path="/Welcome"
+                forward="/pages/Welcome.jsp"
+                type="app.SimpleAction"
+                name="simpleForm"
+                parameter="op">
+            <forward name="success" path="/pages/Welcome.jsp"/>
         </action>
 
-    <!-- sample input and input submit actions
+        <!-- sample input and input submit actions
 
-        <action
-            path="/Input"
-            type="org.apache.struts.actions.ForwardAction"
-            parameter="/pages/Input.jsp"
-            parameter="op"/>
+          <action
+              path="/Input"
+              type="org.apache.struts.actions.ForwardAction"
+              parameter="/pages/Input.jsp"
+              parameter="op"/>
 
-        <action
-            path="/InputSubmit"
-            type="app.InputAction"
-            name="inputForm"
-            scope="request"
-            validate="true"
-            input="/pages/Input.jsp"/>
+          <action
+              path="/InputSubmit"
+              type="app.InputAction"
+              name="inputForm"
+              scope="request"
+              validate="true"
+              input="/pages/Input.jsp"/>
 
-            <action
-                path="/edit*"
-                type="app.Edit{1}Action"
-                name="inputForm"
-                scope="request"
-                validate="true"
-                input="/pages/Edit{1}.jsp"/>
+              <action
+                  path="/edit*"
+                  type="app.Edit{1}Action"
+                  name="inputForm"
+                  scope="request"
+                  validate="true"
+                  input="/pages/Edit{1}.jsp"/>
 
-    end samples -->
+      end samples -->
     </action-mappings>
 
 
-<!-- ======================================== Message Resources Definitions -->
+    <!-- ======================================== Message Resources Definitions -->
 
-    <message-resources parameter="MessageResources" />
+    <message-resources parameter="MessageResources"/>
 
 
-<!-- =============================================== Plug Ins Configuration -->
+    <!-- =============================================== Plug Ins Configuration -->
 
-  <!-- ======================================================= Tiles plugin -->
-  <!--
-     This plugin initialize Tiles definition factory. This later can takes some
-	 parameters explained here after. The plugin first read parameters from
-	 web.xml, thenoverload them with parameters defined here. All parameters
-	 are optional.
-     The plugin should be declared in each struts-config file.
-       - definitions-config: (optional)
-            Specify configuration file names. There can be several comma
-		    separated file names (default: ?? )
-       - moduleAware: (optional - struts1.1)
-            Specify if the Tiles definition factory is module aware. If true
-            (default), there will be one factory for each Struts module.
-			If false, there will be one common factory for all module. In this
-            later case, it is still needed to declare one plugin per module.
-            The factory will be initialized with parameters found in the first
-            initialized plugin (generally the one associated with the default
-            module).
-			  true : One factory per module. (default)
-			  false : one single shared factory for all modules
-	   - definitions-parser-validate: (optional)
-	        Specify if xml parser should validate the Tiles configuration file.
-			  true : validate. DTD should be specified in file header (default)
-			  false : no validation
+    <!-- ======================================================= Tiles plugin -->
+    <!--
+       This plugin initialize Tiles definition factory. This later can takes some
+       parameters explained here after. The plugin first read parameters from
+       web.xml, thenoverload them with parameters defined here. All parameters
+       are optional.
+       The plugin should be declared in each struts-config file.
+         - definitions-config: (optional)
+              Specify configuration file names. There can be several comma
+              separated file names (default: ?? )
+         - moduleAware: (optional - struts1.1)
+              Specify if the Tiles definition factory is module aware. If true
+              (default), there will be one factory for each Struts module.
+              If false, there will be one common factory for all module. In this
+              later case, it is still needed to declare one plugin per module.
+              The factory will be initialized with parameters found in the first
+              initialized plugin (generally the one associated with the default
+              module).
+                true : One factory per module. (default)
+                false : one single shared factory for all modules
+         - definitions-parser-validate: (optional)
+              Specify if xml parser should validate the Tiles configuration file.
+                true : validate. DTD should be specified in file header (default)
+                false : no validation
 
-	  Paths found in Tiles definitions are relative to the main context.
+        Paths found in Tiles definitions are relative to the main context.
 
-      To use this plugin, uncomment the following:
-        - the struts-tiles dependency in pom.xml,
-        - the chainConfig init-param in web.xml, and
-        - the the plugin definition below.
+        To use this plugin, uncomment the following:
+          - the struts-tiles dependency in pom.xml,
+          - the chainConfig init-param in web.xml, and
+          - the the plugin definition below.
 
-  -->
-  <!--
-    <plug-in className="org.apache.struts.tiles.TilesPlugin" >
+    -->
+    <!--
+      <plug-in className="org.apache.struts.tiles.TilesPlugin" >
 
-      <set-property property="definitions-config"
-                       value="/WEB-INF/tiles-defs.xml" />
-      <set-property property="moduleAware" value="true" />
-    </plug-in>
-  -->
+        <set-property property="definitions-config"
+                         value="/WEB-INF/tiles-defs.xml" />
+        <set-property property="moduleAware" value="true" />
+      </plug-in>
+    -->
 
-  <!-- =================================================== Validator plugin -->
+    <!-- =================================================== Validator plugin -->
 
-  <plug-in className="org.apache.struts.validator.ValidatorPlugIn">
-    <set-property
-        property="pathnames"
-        value="/org/apache/struts/validator/validator-rules.xml,
+    <plug-in className="org.apache.struts.validator.ValidatorPlugIn">
+        <set-property
+                property="pathnames"
+                value="/org/apache/struts/validator/validator-rules.xml,
                /WEB-INF/validation.xml"/>
-  </plug-in>
+    </plug-in>
 
 </struts-config>
 

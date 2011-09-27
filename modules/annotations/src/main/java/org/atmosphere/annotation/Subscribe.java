@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  * Subscribe to the "value", or topic. This annotation will create a {@link org.atmosphere.cpr.Broadcaster} with the
  * value as ID, and suspend the underlying connection. This annotation does the same as {@link Suspend}, but create
  * the Broadcaster automatically from the value.
- *
+ * <p/>
  * That annotation doesn't allow configuring the {@link org.atmosphere.annotation.Suspend#outputComments()} value. The
  * default value is set to false. If you want to support http-streaming, make sure your client set the X-Atmosphere-Transport
  * header to "streaming".
@@ -42,7 +42,8 @@ public @interface Subscribe {
 
     /**
      * The value that will be used to create or lookup a {@link org.atmosphere.cpr.Broadcaster}
-     * @return  The value that will be used to create or lookup a {@link org.atmosphere.cpr.Broadcaster}
+     *
+     * @return The value that will be used to create or lookup a {@link org.atmosphere.cpr.Broadcaster}
      */
     String value();
 

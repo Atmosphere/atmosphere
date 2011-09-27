@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <!-- synced to revision 144 of gwt-comet -->
@@ -8,27 +9,27 @@
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
         <version>0.8-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>        
+        <relativePath>../../pom.xml</relativePath>
     </parent>
-    
+
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-gwt</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-gwt</name>
-    
+
     <description>A fork of gwt-comet project to integrate with Atmosphere</description>
-    
-	<modules>
+
+    <modules>
         <!-- not needed any as of 2.3.0 <module>gwt-exporter</module> -->
-		<module>atmosphere-gwt-client</module>
-		<module>atmosphere-gwt-common</module>
-		<module>atmosphere-gwt-js</module>
-		<module>atmosphere-gwt-poll</module>
-		<module>atmosphere-gwt-server</module>
-	</modules>
-	
+        <module>atmosphere-gwt-client</module>
+        <module>atmosphere-gwt-common</module>
+        <module>atmosphere-gwt-js</module>
+        <module>atmosphere-gwt-poll</module>
+        <module>atmosphere-gwt-server</module>
+    </modules>
+
     <build>
-		<pluginManagement>
+        <pluginManagement>
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -39,7 +40,7 @@
                     </configuration>
                 </plugin>
             </plugins>
-		</pluginManagement>
+        </pluginManagement>
         <extensions>
             <extension>
                 <groupId>org.jvnet.wagon-svn</groupId>
@@ -93,5 +94,5 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+
 </project>

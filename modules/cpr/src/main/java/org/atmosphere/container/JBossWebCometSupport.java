@@ -100,25 +100,20 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 try {
                     if (action.timeout != -1) {
                         event.setTimeout((int) action.timeout);
-                    }
-                    else {
+                    } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
-                }
-                catch (UnsupportedOperationException ex) {
+                } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
                 }
-            }
-            else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
                 event.close();
-            }
-            else {
+            } else {
                 event.close();
             }
-        }
-        else if (event.getType() == HttpEvent.EventType.READ) {
+        } else if (event.getType() == HttpEvent.EventType.READ) {
             // Not implemente
         } else if (event.getType() == HttpEvent.EventType.EOF) {
             logger.debug("Client closed connection: response: {}", res);
@@ -133,18 +128,15 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
             event.close();
         } else if (event.getType() == HttpEvent.EventType.ERROR) {
             event.close();
-        }
-        else if (event.getType() == HttpEvent.EventType.END) {
+        } else if (event.getType() == HttpEvent.EventType.END) {
             if (!resumed.remove(event)) {
                 logger.debug("Client closed connection response: {}", res);
                 action = cancelled(req, res);
-            }
-            else {
+            } else {
                 logger.debug("Cancelling response: {}", res);
             }
             event.close();
-        }
-        else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
+        } else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
             logger.debug("Timing out {}", res);
             action = timedout(req, res);
             event.close();
@@ -182,8 +174,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                         config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
                     event.close();
                 }
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 logger.debug("", ex);
             }
         }

@@ -148,8 +148,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.disconnect();
             jedisSubscriber.disconnect();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             logger.error("failure encountered during destroy", e);
         }
     }

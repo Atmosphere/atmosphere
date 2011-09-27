@@ -74,16 +74,13 @@ public class WebDotXmlReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             parse(factory.newDocumentBuilder().parse(stream));
-        }
-        catch (SAXException e) {
+        } catch (SAXException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
-        }
-        catch (ParserConfigurationException e) {
+        } catch (ParserConfigurationException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }

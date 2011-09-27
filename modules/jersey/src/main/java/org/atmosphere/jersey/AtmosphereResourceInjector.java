@@ -39,14 +39,14 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Context;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
@@ -63,7 +63,7 @@ abstract class AtmosphereResourceInjector extends BaseInjectableProvider {
     boolean isValidType(Type c) {
         if (c == AtmosphereResource.class) return true;
 
-        if (c  instanceof ParameterizedType){
+        if (c instanceof ParameterizedType) {
             ParameterizedType pt = (ParameterizedType) c;
             if (pt.getRawType() != AtmosphereResource.class) return false;
 
@@ -111,8 +111,8 @@ abstract class AtmosphereResourceInjector extends BaseInjectableProvider {
             return new Injectable<AtmosphereResource>() {
                 @Override
                 public AtmosphereResource getValue() {
-                    return (AtmosphereResource)Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                            new Class[] { AtmosphereResource.class }, new InvocationHandler() {
+                    return (AtmosphereResource) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                            new Class[]{AtmosphereResource.class}, new InvocationHandler() {
                         @Override
                         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                             return method.invoke(getAtmosphereResource(AtmosphereResource.class, false), args);

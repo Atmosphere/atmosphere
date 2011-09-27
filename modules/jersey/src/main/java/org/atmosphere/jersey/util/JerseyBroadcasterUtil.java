@@ -29,7 +29,7 @@ public final class JerseyBroadcasterUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
 
-    public final static void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+    public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         HttpServletRequest res = (HttpServletRequest) r.getRequest();
 
         try {
@@ -68,7 +68,7 @@ public final class JerseyBroadcasterUtil {
                 String uuid = (String) res.getAttribute(AtmosphereFilter.RESUME_UUID);
                 if (uuid != null) {
                     if (res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
-                        ((ConcurrentHashMap<String, AtmosphereResource<?,?>>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                        ((ConcurrentHashMap<String, AtmosphereResource<?, ?>>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                     }
                 }
                 r.resume();
@@ -76,7 +76,7 @@ public final class JerseyBroadcasterUtil {
         }
     }
 
-    final static void onException(Throwable t, AtmosphereResource<?,?> r) {
+    final static void onException(Throwable t, AtmosphereResource<?, ?> r) {
         try {
             logger.debug("onException()", t);
 

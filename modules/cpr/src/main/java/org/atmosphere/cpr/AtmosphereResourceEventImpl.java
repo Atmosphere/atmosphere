@@ -70,7 +70,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
-            boolean isResumedOnTimeout) {
+                                       boolean isResumedOnTimeout) {
         this.isCancelled.set(isCancelled);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         this.resource = resource;
@@ -78,8 +78,8 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
-            boolean isResumedOnTimeout,
-            Throwable throwable) {
+                                       boolean isResumedOnTimeout,
+                                       Throwable throwable) {
         this.isCancelled.set(isCancelled);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         this.resource = resource;

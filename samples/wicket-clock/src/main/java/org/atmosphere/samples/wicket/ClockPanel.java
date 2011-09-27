@@ -35,7 +35,7 @@ public class ClockPanel extends Panel {
         add(new Label("clock", new AbstractReadOnlyModel<String>() {
             @Override
             public String getObject() {
-                return new Date().toString(); 
+                return new Date().toString();
             }
         }));
 

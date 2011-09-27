@@ -175,9 +175,9 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        Action action =  super.cancelled(req,res);
+        Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
-           resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
+            resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
         }
         return action;
     }

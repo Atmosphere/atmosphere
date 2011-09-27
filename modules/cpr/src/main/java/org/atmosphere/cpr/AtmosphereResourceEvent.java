@@ -120,6 +120,7 @@ public interface AtmosphereResourceEvent<E, F> {
 
     /**
      * Return a {@link Throwable} if an unexpected exception occured.
+     *
      * @return {@link Throwable} if an unexpected exception occured.
      */
     public Throwable throwable();

@@ -38,19 +38,20 @@
 package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.inject.InjectableProvider;
-import java.lang.reflect.Type;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Context;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.Context;
+import java.lang.reflect.Type;
+
 /**
- *
  * @author Paul Sandoz
  */
 abstract class BaseInjectableProvider implements InjectableProvider<Context, Type> {
     // The current {@link HttpServletRequest{
-    @Context HttpServletRequest req;
+    @Context
+    HttpServletRequest req;
 
     protected AtmosphereResource getAtmosphereResource(Class injectType, boolean session) {
         AtmosphereResource r = null;

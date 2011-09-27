@@ -65,7 +65,7 @@ public class MessageResource {
     @Path("{name}")
     @Broadcast
     public Broadcastable publish(@PathParam("name") String topic, @FormParam("from") String from,
-            @FormParam("msg") String message) throws JSONException {
+                                 @FormParam("msg") String message) throws JSONException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
         logger.info("thread: {} PUBLISH to '{}' from {}: {}",
                 new Object[]{Thread.currentThread().getName(), broadcaster.getID(), from, message});

@@ -85,7 +85,6 @@ public @interface Suspend {
     int period() default -1;
 
     /**
-     *
      * @return
      */
     TimeUnit timeUnit() default TimeUnit.MILLISECONDS;

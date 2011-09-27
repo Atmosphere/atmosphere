@@ -95,7 +95,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
             } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
 
-                int latchId = (req.getAttribute(LATCH) == null ? 0 : (Integer)req.getAttribute(LATCH));
+                int latchId = (req.getAttribute(LATCH) == null ? 0 : (Integer) req.getAttribute(LATCH));
                 if (req.getSession(true).getAttribute(LATCH) != null) {
                     latchId = (Integer) req.getSession(true).getAttribute(LATCH);
                 }
@@ -107,7 +107,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 }
 
                 latch.countDown();
-                                                                  
+
                 Action nextAction = resumed(req, res);
                 if (nextAction.type == Action.TYPE.SUSPEND) {
                     logger.debug("Suspending after resuming response: {}", res);
@@ -174,9 +174,9 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
             latchId = (Integer) req.getAttribute(LATCH);
         }
         CountDownLatch latch = latchs.remove(latchId);
-        Action a = super.cancelled(req,res);
+        Action a = super.cancelled(req, res);
         latch.countDown();
-        return a;        
+        return a;
     }
 
     /**
@@ -185,7 +185,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         try {
-            super.action(actionEvent);            
+            super.action(actionEvent);
             if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
                 int latchId = -1;
                 HttpServletRequest req = actionEvent.getRequest();
@@ -205,17 +205,14 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                     CountDownLatch latch = latchs.remove(latchId);
                     if (latch == null) {
                         logger.error("Unable to resume the suspended connection with latchId: {}", latchId);
-                    }
-                    else {
+                    } else {
                         latch.countDown();
                     }
-                }
-                else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
+                } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
                     logger.error("Unable to resume the suspended connection");
                 }
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.error("", ex);
         }
     }

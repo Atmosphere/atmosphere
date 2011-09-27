@@ -65,14 +65,17 @@ public class PerRequestResource {
 
     private static final Logger logger = LoggerFactory.getLogger(PerRequestResource.class);
 
-    @Context Broadcaster broadcaster;
+    @Context
+    Broadcaster broadcaster;
 
-    @Context BroadcasterFactory broadcasterFactory;
+    @Context
+    BroadcasterFactory broadcasterFactory;
 
-    @Context AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
-    
+    @Context
+    AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
+
     @GET
-    @Suspend (period = 5000, outputComments = false)
+    @Suspend(period = 5000, outputComments = false)
     public String subscribe() {
         logger.info("broadcaster: {}", broadcaster);
         logger.info("factory: {}", broadcasterFactory);
@@ -83,7 +86,7 @@ public class PerRequestResource {
 
     @POST
     @Broadcast
-    public String publish(@FormParam("message") String message){
+    public String publish(@FormParam("message") String message) {
         return message;
     }
 

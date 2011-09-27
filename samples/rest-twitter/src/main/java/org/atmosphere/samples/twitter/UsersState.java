@@ -40,10 +40,8 @@ package org.atmosphere.samples.twitter;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.atmosphere.cpr.Broadcaster;
 
 /**
- *
  * @author paulsandoz
  */
 public class UsersState {

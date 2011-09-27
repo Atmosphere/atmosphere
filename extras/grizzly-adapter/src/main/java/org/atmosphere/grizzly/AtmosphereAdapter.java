@@ -126,8 +126,7 @@ public class AtmosphereAdapter extends ServletAdapter {
                 throws MalformedURLException, URISyntaxException {
             try {
                 Class.forName("org.atmosphere.spade.AtmosphereSpadeLauncher");
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
                 super.autoDetectAtmosphereHandlers(servletContext, classLoader);
                 return;
             }
@@ -143,17 +142,17 @@ public class AtmosphereAdapter extends ServletAdapter {
 
             File f = new File(realPath);
             // There is a bug in Grizzly 1.9.18 which doesn't construct the URL properly.
-            if (!f.exists()){
-            	String ctxPath = servletContext.getContextPath();
-                if (System.getProperty("os.name").toLowerCase().startsWith("win")){
-                    ctxPath = ctxPath.replace("/","\\");
+            if (!f.exists()) {
+                String ctxPath = servletContext.getContextPath();
+                if (System.getProperty("os.name").toLowerCase().startsWith("win")) {
+                    ctxPath = ctxPath.replace("/", "\\");
                 }
 
                 int index = realPath.indexOf(ctxPath);
                 if (index < 1) {
                     index = realPath.length();
                 }
-                String trailer = realPath.substring(0,index);
+                String trailer = realPath.substring(0, index);
                 f = new File(trailer + servletContext.getContextPath() + WEB_INF_CLASSES);
             }
 

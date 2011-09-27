@@ -37,8 +37,6 @@
 
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpServletRequest;
-
 /**
  * Transform a message of type 'E" before it get broadcasted to
  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }

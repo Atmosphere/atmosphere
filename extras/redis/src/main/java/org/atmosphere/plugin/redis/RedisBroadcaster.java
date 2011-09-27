@@ -127,7 +127,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     /**
      * {@inheritDoc}
      */
-    @Override                                                                 
+    @Override
     public void incomingBroadcast() {
         logger.info("Subscribing to: {}", getID());
 

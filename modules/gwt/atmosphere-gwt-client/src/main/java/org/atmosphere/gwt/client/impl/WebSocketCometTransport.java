@@ -1,19 +1,18 @@
-
 /*
- * Copyright 2011 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+* Copyright 2011 Jeanfrancois Arcand
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* use this file except in compliance with the License. You may obtain a copy of
+* the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations under
+* the License.
+*/
 /*
  *
  * With thanks to : http://code.google.com/p/gwt-websockets
@@ -45,10 +44,10 @@ import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereClientException;
+
 import java.util.Collections;
 
 /**
- *
  * @author p.havelaar
  */
 public class WebSocketCometTransport extends BaseCometTransport {
@@ -98,8 +97,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
             // a GWT object message
             try {
                 listener.onMessage(Collections.singletonList(parse(message.substring(2))));
-            }
-            catch (SerializationException e) {
+            } catch (SerializationException e) {
                 listener.onError(e, true);
             }
         } else if (message.startsWith("c\n")) {
@@ -110,47 +108,40 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     private void onConnection(String message) {
         if (message.startsWith("c")) {
-			connected = true;
-			String initParameters = message.substring(1);
-			try {
+            connected = true;
+            String initParameters = message.substring(1);
+            try {
                 String[] params = initParameters.split(":");
                 connectionId = Integer.parseInt(params[1]);
-				listener.onConnected(Integer.parseInt(params[0]), connectionId);
-			}
-			catch (NumberFormatException e) {
-				listener.onError(new AtmosphereClientException("Unexpected init parameters: " + initParameters), true);
-			}
-		}
-		else if (message.startsWith("e")) {
-			disconnect();
-			String status = message.substring(1);
-			try {
-				int statusCode;
-				String statusMessage;
-				int index = status.indexOf(' ');
-				if (index == -1) {
-					statusCode = Integer.parseInt(status);
-					statusMessage = null;
-				}
-				else {
-					statusCode = Integer.parseInt(status.substring(0, index));
-					statusMessage = HTTPRequestCometTransport.unescape(status.substring(index + 1));
-				}
-				listener.onError(new StatusCodeException(statusCode, statusMessage), false);
-			}
-			catch (NumberFormatException e) {
-				listener.onError(new AtmosphereClientException("Unexpected status code: " + status), false);
-			}
-		}
-		else if (message.equals("d")) {
-			disconnect();
-		}
-		else if (message.equals("h")) {
-			listener.onHeartbeat();
-		}
-		else {
-			listener.onError(new AtmosphereClientException("Unexpected connection status: " + message), true);
-		}
+                listener.onConnected(Integer.parseInt(params[0]), connectionId);
+            } catch (NumberFormatException e) {
+                listener.onError(new AtmosphereClientException("Unexpected init parameters: " + initParameters), true);
+            }
+        } else if (message.startsWith("e")) {
+            disconnect();
+            String status = message.substring(1);
+            try {
+                int statusCode;
+                String statusMessage;
+                int index = status.indexOf(' ');
+                if (index == -1) {
+                    statusCode = Integer.parseInt(status);
+                    statusMessage = null;
+                } else {
+                    statusCode = Integer.parseInt(status.substring(0, index));
+                    statusMessage = HTTPRequestCometTransport.unescape(status.substring(index + 1));
+                }
+                listener.onError(new StatusCodeException(statusCode, statusMessage), false);
+            } catch (NumberFormatException e) {
+                listener.onError(new AtmosphereClientException("Unexpected status code: " + status), false);
+            }
+        } else if (message.equals("d")) {
+            disconnect();
+        } else if (message.equals("h")) {
+            listener.onHeartbeat();
+        } else {
+            listener.onError(new AtmosphereClientException("Unexpected connection status: " + message), true);
+        }
     }
 
 
@@ -159,7 +150,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
         @Override
         public void onOpen(WebSocket socket) {
-            
+
         }
 
         @Override
@@ -178,7 +169,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
         public void onMessage(WebSocket socket, String message) {
             JsArrayString messages = AtmosphereClient.split(message, "\n\n");
             int len = messages.length();
-            for (int i=0; i < len; i++) {
+            for (int i = 0; i < len; i++) {
                 parseMessage(messages.get(i));
             }
         }

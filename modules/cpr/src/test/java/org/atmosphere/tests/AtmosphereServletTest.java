@@ -1,6 +1,10 @@
 package org.atmosphere.tests;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.Broadcaster;
 import org.testng.annotations.Test;
 
 import javax.servlet.http.HttpServletRequest;

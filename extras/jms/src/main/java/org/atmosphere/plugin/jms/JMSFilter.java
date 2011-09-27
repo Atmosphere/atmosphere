@@ -56,7 +56,6 @@ import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 
 /**
  * Clustering support based on JMS
@@ -102,8 +101,8 @@ public class JMSFilter implements ClusterBroadcastFilter {
     /**
      * Create a JMSFilter based filter.
      *
-     * @param bc       the Broadcaster to use when receiving update from the cluster.
-     * @param topicId  the topic id
+     * @param bc      the Broadcaster to use when receiving update from the cluster.
+     * @param topicId the topic id
      */
     public JMSFilter(Broadcaster bc, String topicId) {
         this.bc = bc;
@@ -222,7 +221,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
      * Return the current {@link Broadcaster}
      */
     @Override
-    public Broadcaster getBroadcaster(){
+    public Broadcaster getBroadcaster() {
         return bc;
     }
 
@@ -232,7 +231,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
      * @param bc
      */
     @Override
-    public void setBroadcaster(Broadcaster bc){
+    public void setBroadcaster(Broadcaster bc) {
         this.bc = bc;
     }
 }

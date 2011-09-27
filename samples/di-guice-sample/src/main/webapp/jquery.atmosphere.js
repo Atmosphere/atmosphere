@@ -409,11 +409,11 @@ jQuery.atmosphere = function() {
             if (jQuery.atmosphere.request.webSocketImpl != null) {
                 websocket = jQuery.atmosphere.request.webSocketImpl;
             } else {
-              if (window.WebSocket) {
-                  websocket = new WebSocket(location);
-              } else {
-                  websocket = new MozWebSocket(location);
-              }
+                if (window.WebSocket) {
+                    websocket = new WebSocket(location);
+                } else {
+                    websocket = new MozWebSocket(location);
+                }
             }
 
             jQuery.atmosphere.websocket = websocket;

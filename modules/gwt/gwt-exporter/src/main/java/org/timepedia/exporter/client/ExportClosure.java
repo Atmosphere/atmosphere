@@ -10,19 +10,19 @@ import java.lang.annotation.Target;
  * to its type when it appears as an argument to an exported function.
  * For example:
  * <pre>
-&#64;Export
-&#64;ExportPackage("jsc")
-&#64;ExportClosure
-public interface JsClosure extends Exportable {
-  public void execute(String par1, String par2);
-}
-
-&#64;Export
-&#64;ExportPackage("jsc")
-public class DatePicker implements Exportable {
-public executeJsClosure(JsClosure closure){
-   closure.execute("Hello", "Friend");
-}
+ * &#64;Export
+ * &#64;ExportPackage("jsc")
+ * &#64;ExportClosure
+ * public interface JsClosure extends Exportable {
+ * public void execute(String par1, String par2);
+ * }
+ *
+ * &#64;Export
+ * &#64;ExportPackage("jsc")
+ * public class DatePicker implements Exportable {
+ * public executeJsClosure(JsClosure closure){
+ * closure.execute("Hello", "Friend");
+ * }
  * </pre>
  */
 

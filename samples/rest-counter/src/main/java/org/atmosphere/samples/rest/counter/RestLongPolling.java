@@ -57,12 +57,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Simple application that demonstrate how a Comet long poll request can be implemented.
  * Mainly, the client send a GET, the {@link AtmosphereHandler} suspend the connection. As
  * soon a POST request arrive, the underlying response is resumed.
+ *
  * @author jeanfrancoisarcand
  */
 @Path("{counter}")
 @Singleton
-public class RestLongPolling{
-      
+public class RestLongPolling {
+
     private static final Logger logger = LoggerFactory.getLogger(RestLongPolling.class);
 
     private final AtomicInteger counter = new AtomicInteger();
@@ -77,8 +78,8 @@ public class RestLongPolling{
 
     @POST
     @Path("{counter}")
-    @Broadcast(resumeOnBroadcast=true)
-    public String increment(@PathParam("counter") String count){
+    @Broadcast(resumeOnBroadcast = true)
+    public String increment(@PathParam("counter") String count) {
         logger.info("Broadcasting and resuming: {}", count);
         counter.incrementAndGet();
         return counter.toString();
@@ -87,7 +88,7 @@ public class RestLongPolling{
     @GET
     @Path("/{uuid}")
     @Resume
-    public String resume(){
+    public String resume() {
         logger.info("Resuming");
         return "Resumed";
     }

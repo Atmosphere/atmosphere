@@ -60,18 +60,18 @@ import javax.ws.rs.core.MediaType;
 
 /**
  * Twitter like Comet application. This rest based web application implements the logic
- * needed to support micro blogging a la Twitter.com. Users can blog about what 
+ * needed to support micro blogging a la Twitter.com. Users can blog about what
  * they are doing and can also follow their friends. When an update is made
- * by one user, all its follower gets updated automatically. The updated words 
- * can be moved on the screen and all follower will see the move. 
- * 
+ * by one user, all its follower gets updated automatically. The updated words
+ * can be moved on the screen and all follower will see the move.
+ * <p/>
  * This {@link Singleton} demonstrate how multiple {@link Broadcaster} can be
  * used to easily isolate suspended connection and to only
  * push messages to a subset of those suspended connection using the {@link Suspend} annotation.
- * 
+ * <p/>
  * There is one {@link AtmosphereResourceEvent} per user. {@link AtmosphereResourceEvent} associated
  * with the user suspended connection are added to their {@link Broadcaster}
- * and added to the {@link Broadcaster} of the users they are following. 
+ * and added to the {@link Broadcaster} of the users they are following.
  *
  * @author Jeanfrancois Arcand
  * @author Paul Sandoz
@@ -103,7 +103,7 @@ public class TwitterResource {
      * to REQUEST, which means every suspended connection by default have their
      * own instance of {@link Broadcaster}
      */
-    @Suspend(scope=Suspend.SCOPE.REQUEST)
+    @Suspend(scope = Suspend.SCOPE.REQUEST)
     @GET
     @Produces("text/html;charset=ISO-8859-1")
     public String onStart(@QueryParam("callback") String callback) {
@@ -130,7 +130,7 @@ public class TwitterResource {
     public Broadcastable onLogin(@Context TwitterBroadcaster bc,
                                  @FormParam("name") String name) {
 
-        UserStateData usd = us.create(name,(TwitterBroadcaster)bc);
+        UserStateData usd = us.create(name, (TwitterBroadcaster) bc);
         // User already exists, client error
         if (usd == null)
             throw new WebApplicationException(400);
@@ -148,6 +148,7 @@ public class TwitterResource {
 
     /**
      * Add a follower, using the user's associated {@link Broadcaster}
+     *
      * @param name
      * @param followee
      * @return
@@ -180,22 +181,23 @@ public class TwitterResource {
         }
 
         outsiderBroadcaster.broadcast(BEGIN_SCRIPT_TAG
-                        + toJsonp(name, " is now following " + followee)
-                        + END_SCRIPT_TAG);
+                + toJsonp(name, " is now following " + followee)
+                + END_SCRIPT_TAG);
 
         outsiderBroadcaster.addAtmosphereResource(userBc.getUserAtmosphereEvent().getResource());
 
         String m = (BEGIN_SCRIPT_TAG
-                        + toJsonp("You are now following ", followee)
-                        + END_SCRIPT_TAG);
+                + toJsonp("You are now following ", followee)
+                + END_SCRIPT_TAG);
         Broadcastable b = new Broadcastable(m, userBc);
         return b;
     }
 
     /**
      * Push tweet to the user and its followers.
-     * @param bc The {@link Broadcaster}
-     * @param message The message to broadcast
+     *
+     * @param bc       The {@link Broadcaster}
+     * @param message  The message to broadcast
      * @param callback The calback
      * @return a {@link Broadcastable}
      */
@@ -205,8 +207,8 @@ public class TwitterResource {
     @Broadcast
     public Broadcastable onPush(@Context TwitterBroadcaster bc,
                                 @FormParam("message") String message,
-                                @FormParam("callback") String callback){
-        
+                                @FormParam("callback") String callback) {
+
         if (message == null) {
             logger.error("Message cannot be null");
             throw new WebApplicationException(400);
@@ -225,6 +227,7 @@ public class TwitterResource {
 
     /**
      * Escape any maliscious characters.
+     *
      * @param orig the String
      * @return a well formed String.
      */
@@ -276,6 +279,7 @@ public class TwitterResource {
 
     /**
      * Simple JSOn transformation.
+     *
      * @param name
      * @param message
      * @return the JSON representation.

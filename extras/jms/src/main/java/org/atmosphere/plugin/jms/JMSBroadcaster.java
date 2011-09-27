@@ -61,7 +61,7 @@ import javax.naming.InitialContext;
  * The {@link ConnectionFactory} name's is jms/atmosphereFactory The
  * {@link Topic} by constructing "BroadcasterId =
  * {@link org.atmosphere.cpr.Broadcaster#getID}
- * 
+ *
  * @author Jeanfrancois Arcand
  */
 public class JMSBroadcaster extends AbstractBroadcasterProxy {
@@ -84,11 +84,11 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     public JMSBroadcaster() {
         super(JMSBroadcaster.class.getSimpleName());
     }
-    
+
     public JMSBroadcaster(String id) {
         super(id);
     }
-    
+
     public synchronized void configure(AtmosphereServlet.AtmosphereConfig config) {
         try {
             if (config != null) {
@@ -148,19 +148,21 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     public void incomingBroadcast() {
         // This method is called by a task runner in an asynchronous fashion before the
         // call to configure(). Wait for the configure() method to finish
-        synchronized(this) {
-            while(session == null) {
-                try { this.wait(1000); } catch (InterruptedException e) {/* Ignore */}
+        synchronized (this) {
+            while (session == null) {
+                try {
+                    this.wait(1000);
+                } catch (InterruptedException e) {/* Ignore */}
             }
         }
         restartConsumer();
     }
-    
+
     @Override
     public void setID(String id) {
         super.setID(id);
-        synchronized(this) {
-            if(session != null)
+        synchronized (this) {
+            if (session != null)
                 restartConsumer();
         }
     }
@@ -175,10 +177,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 consumer.close();
                 consumer = null;
             }
-    
+
             logger.info("Create JMS consumer: {}", id);
             String selector = String.format("BroadcasterId = '%s'", id);
-    
+
             consumer = session.createConsumer(topic, selector);
             consumer.setMessageListener(new MessageListener() {
                 @Override
@@ -186,7 +188,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                     try {
                         TextMessage textMessage = (TextMessage) msg;
                         String message = textMessage.getText();
-    
+
                         if (message != null && bc != null) {
                             broadcastReceivedMessage(message);
                         }

@@ -1,35 +1,35 @@
 <module>
 
-  <!-- Inherit the core Web Toolkit stuff.                  -->
-  <inherits name='com.google.gwt.user.User'/>
+    <!-- Inherit the core Web Toolkit stuff.                  -->
+    <inherits name='com.google.gwt.user.User'/>
 
 
-  <define-property name="export" values="yes,no"/>
+    <define-property name="export" values="yes,no"/>
 
-  <replace-with class="org.timepedia.exporter.client.ExporterBaseImpl">
-    <when-type-assignable
-        class="org.timepedia.exporter.client.ExporterBaseImpl"/>
-    <when-property-is name="export" value="no"/>
-  </replace-with>
+    <replace-with class="org.timepedia.exporter.client.ExporterBaseImpl">
+        <when-type-assignable
+                class="org.timepedia.exporter.client.ExporterBaseImpl"/>
+        <when-property-is name="export" value="no"/>
+    </replace-with>
 
-  <replace-with class="org.timepedia.exporter.client.ExporterBaseActual">
-    <when-type-assignable
-        class="org.timepedia.exporter.client.ExporterBaseImpl"/>
-    <when-property-is name="export" value="yes"/>
-  </replace-with>
+    <replace-with class="org.timepedia.exporter.client.ExporterBaseActual">
+        <when-type-assignable
+                class="org.timepedia.exporter.client.ExporterBaseImpl"/>
+        <when-property-is name="export" value="yes"/>
+    </replace-with>
 
-  <generate-with class="org.timepedia.exporter.rebind.ExporterGenerator">
-    <when-type-assignable class="org.timepedia.exporter.client.Exportable"/>
-    <when-property-is name="export" value="yes"/>
-  </generate-with>
+    <generate-with class="org.timepedia.exporter.rebind.ExporterGenerator">
+        <when-type-assignable class="org.timepedia.exporter.client.Exportable"/>
+        <when-property-is name="export" value="yes"/>
+    </generate-with>
 
-  <generate-with
-      class="org.timepedia.exporter.rebind.ExporterGeneratorNoExport">
-    <when-type-assignable class="org.timepedia.exporter.client.Exportable"/>
-    <when-property-is name="export" value="no"/>
-  </generate-with>
+    <generate-with
+            class="org.timepedia.exporter.rebind.ExporterGeneratorNoExport">
+        <when-type-assignable class="org.timepedia.exporter.client.Exportable"/>
+        <when-property-is name="export" value="no"/>
+    </generate-with>
 
-  <set-property name="export" value="no"/>
+    <set-property name="export" value="no"/>
 
 
 </module>

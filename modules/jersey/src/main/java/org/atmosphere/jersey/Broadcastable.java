@@ -62,12 +62,13 @@ public class Broadcastable {
         message = "";
         callerMessage = "";
     }
+
     /**
      * Broadcast the <tt>message</tt> to the set of suspended {@link AtmosphereResource}, and write back
      * the <tt>message</tt> to the request which invoked the current resource method.
      *
      * @param message the message which will be broadcasted
-     * @param b  the {@link Broadcaster}
+     * @param b       the {@link Broadcaster}
      */
     public Broadcastable(Object message, Broadcaster b) {
         this.b = b;
@@ -79,9 +80,9 @@ public class Broadcastable {
      * Broadcast the <tt>message</tt> to the set of suspended {@link AtmosphereResource}, and write back
      * the <tt>callerMessage</tt> to the request which invoked the current resource method.
      *
-     * @param message the message which will be broadcasted
-     * @param callerMessage  the message which will be sent back to the request.
-     * @param b the {@link Broadcaster}
+     * @param message       the message which will be broadcasted
+     * @param callerMessage the message which will be sent back to the request.
+     * @param b             the {@link Broadcaster}
      */
     public Broadcastable(Object message, Object callerMessage, Broadcaster b) {
         this.b = b;
@@ -97,8 +98,7 @@ public class Broadcastable {
     public Object broadcast() {
         try {
             return b.broadcast(message).get();
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.error("failed to broadcast message: " + message, ex);
         }
         return null;

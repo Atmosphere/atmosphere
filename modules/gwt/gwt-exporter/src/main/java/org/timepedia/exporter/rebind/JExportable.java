@@ -8,7 +8,7 @@ package org.timepedia.exporter.rebind;
  */
 public interface JExportable {
 
-  public String getJSQualifiedExportName();
+    public String getJSQualifiedExportName();
 
-  public String getJSNIReference();
+    public String getJSNIReference();
 }

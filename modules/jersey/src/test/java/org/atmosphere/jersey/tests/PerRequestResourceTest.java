@@ -37,9 +37,10 @@
 
 package org.atmosphere.jersey.tests;
 
-import org.testng.annotations.Test;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.testng.annotations.Test;
+
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
@@ -48,7 +49,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 /**
- *
  * @author paulsandoz
  */
 public class PerRequestResourceTest extends BaseGrizzyTest {

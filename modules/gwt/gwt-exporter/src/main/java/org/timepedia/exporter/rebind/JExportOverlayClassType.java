@@ -7,16 +7,16 @@ import com.google.gwt.core.ext.typeinfo.JClassType;
  */
 public class JExportOverlayClassType extends JExportableClassType {
 
-  private JClassType exportType;
+    private JClassType exportType;
 
-  public JExportOverlayClassType(ExportableTypeOracle exportableTypeOracle,
-      JClassType requestedType) {
-    super(exportableTypeOracle, requestedType);
-    exportType = exportableTypeOracle.getExportOverlayType(requestedType);
-  }
+    public JExportOverlayClassType(ExportableTypeOracle exportableTypeOracle,
+                                   JClassType requestedType) {
+        super(exportableTypeOracle, requestedType);
+        exportType = exportableTypeOracle.getExportOverlayType(requestedType);
+    }
 
-  @Override
-  public JClassType getType() {
-    return exportType;
-  }
+    @Override
+    public JClassType getType() {
+        return exportType;
+    }
 }

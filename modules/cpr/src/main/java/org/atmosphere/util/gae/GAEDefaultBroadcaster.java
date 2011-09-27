@@ -85,7 +85,7 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?,?> r) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -98,7 +98,7 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?,?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);

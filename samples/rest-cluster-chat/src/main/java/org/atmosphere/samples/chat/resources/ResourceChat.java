@@ -36,6 +36,13 @@
  */
 package org.atmosphere.samples.chat.resources;
 
+import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Cluster;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.commons.jersey.JsonpFilter;
+import org.atmosphere.plugin.jgroups.JGroupsFilter;
+import org.atmosphere.util.XSSHtmlFilter;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -43,12 +50,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MultivaluedMap;
-import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.util.XSSHtmlFilter;
-import org.atmosphere.annotation.Cluster;
-import org.atmosphere.plugin.jgroups.JGroupsFilter;
-import org.atmosphere.commons.jersey.JsonpFilter;
 
 @Path("/chat")
 public class ResourceChat {
@@ -60,13 +61,13 @@ public class ResourceChat {
         return "";
     }
 
-    @Broadcast({XSSHtmlFilter.class,JsonpFilter.class})
+    @Broadcast({XSSHtmlFilter.class, JsonpFilter.class})
     @Consumes("application/x-www-form-urlencoded")
     @POST
     @Produces("text/html")
     @Cluster(
-        name="chat",
-        value=JGroupsFilter.class
+            name = "chat",
+            value = JGroupsFilter.class
     )
     public String publishMessage(MultivaluedMap<String, String> form) {
         String action = form.getFirst("action");

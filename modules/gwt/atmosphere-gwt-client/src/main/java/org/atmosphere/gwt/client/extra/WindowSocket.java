@@ -19,12 +19,11 @@ import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.event.shared.EventBus;
 import com.google.gwt.event.shared.EventHandler;
 import com.google.gwt.event.shared.GwtEvent;
-import com.google.gwt.event.shared.GwtEvent.Type;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.event.shared.SimpleEventBus;
 import com.google.gwt.user.client.Timer;
+
 /**
- *
  * @author p.havelaar
  */
 public class WindowSocket {
@@ -41,6 +40,7 @@ public class WindowSocket {
         public MessageEvent(String message) {
             this.message = message;
         }
+
         @Override
         public Type<MessageHandler> getAssociatedType() {
             return getType();
@@ -124,9 +124,9 @@ public class WindowSocket {
     private final static class SocketImpl extends JavaScriptObject {
         private static native SocketImpl create(String xname) /*-{
             return {
-               messages: null,
-               last: null,
-               name: xname
+                messages: null,
+                last: null,
+                name: xname
             };
         }-*/;
 

@@ -37,22 +37,22 @@
  */
 package org.atmosphere.samples.twitter;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import org.atmosphere.jersey.JerseyBroadcaster;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.jersey.JerseyBroadcaster;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Simple {@link Broadcaster} that keep a reference to the user {@ link AtmosphereResourceEvent}
- * 
+ *
  * @author Jeanfrancois Arcand
  */
 public class TwitterBroadcaster extends JerseyBroadcaster {
 
-    public TwitterBroadcaster(){
+    public TwitterBroadcaster() {
     }
 
 
@@ -60,23 +60,25 @@ public class TwitterBroadcaster extends JerseyBroadcaster {
 
     /**
      * Set the user (@link Broadcaster#getName}'s AtmosphereResourceEvent.
+     *
      * @param event AtmosphereResourceEvent
      */
-    public void setUserAtmosphereEvent(AtmosphereResourceEvent event){
+    public void setUserAtmosphereEvent(AtmosphereResourceEvent event) {
         this.event = event;
     }
 
     /**
      * Return the user (@link Broadcaster#getName}'s AtmosphereResourceEvent.
+     *
      * @return event AtmosphereResourceEvent
      */
-    public AtmosphereResourceEvent<HttpServletRequest,HttpServletResponse> getUserAtmosphereEvent(){
+    public AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> getUserAtmosphereEvent() {
         return event;
     }
 
     @Override
-    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> r) {
-        if (getAtmosphereResources().size() == 0){
+    public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
+        if (getAtmosphereResources().size() == 0) {
             event = r.getAtmosphereResourceEvent();
         }
         return super.addAtmosphereResource(r);

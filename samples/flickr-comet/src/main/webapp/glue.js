@@ -1,11 +1,9 @@
-jmaki.makeDraggable = function(element)
-{
+jmaki.makeDraggable = function(element) {
     init();
     var dragTarget;
     var offset;
 
-    function getMousePosition(e)
-    {
+    function getMousePosition(e) {
         var lx = 0;
         var ly = 0;
         if (!e) var e = window.event;
@@ -22,8 +20,7 @@ jmaki.makeDraggable = function(element)
         }
     }
 
-    function getPosition(_e)
-    {
+    function getPosition(_e) {
         var pX = 0;
         var pY = 0;
         while (_e.offsetParent) {
@@ -37,8 +34,7 @@ jmaki.makeDraggable = function(element)
         };
     }
 
-    function init()
-    {
+    function init() {
         dragTarget = element;
         dragTarget.style.cursor = "move";
         dragTarget.onmousedown = mouseDown;
@@ -49,14 +45,12 @@ jmaki.makeDraggable = function(element)
         }
     }
 
-    function mouseOver(e)
-    {
+    function mouseOver(e) {
         if (e)e.preventDefault();
         else return false;
     }
 
-    function mouseDown(e)
-    {
+    function mouseDown(e) {
         var mp = getMousePosition(e);
         var p = getPosition(element);
         offset = {
@@ -67,8 +61,7 @@ jmaki.makeDraggable = function(element)
         else return false;
     }
 
-    function mouseMove(e)
-    {
+    function mouseMove(e) {
         if (offset) {
             var x = 0;
             var y = 0;
@@ -92,8 +85,7 @@ jmaki.makeDraggable = function(element)
         }
     }
 
-    function done(e)
-    {
+    function done(e) {
         offset = null;
         if (e)e.preventDefault();
         else return false;
@@ -106,11 +98,9 @@ jmaki.makeDraggable = function(element)
  *  and call jsonFlickrFeed(obj) with the corresponding object.
  *
  */
-jmaki.FlickrLoader = function(apiKey)
-{
+jmaki.FlickrLoader = function(apiKey) {
 
-    this.load = function(tags, callback)
-    {
+    this.load = function(tags, callback) {
         if (typeof _globalScope.flickrListeners == 'undefined') {
             _globalScope.flickrListeners = {};
         }
@@ -121,8 +111,7 @@ jmaki.FlickrLoader = function(apiKey)
         listeners.push(callback);
         _globalScope.flickrListeners[tags] = listeners;
 
-        _globalScope.jsonFlickrFeed = function(args)
-        {
+        _globalScope.jsonFlickrFeed = function(args) {
 
             var title = args.title;
             var tagsEnd = title.indexOf("tagged ");
@@ -149,13 +138,11 @@ jmaki.FlickrLoader = function(apiKey)
     }
 }
 
-jmaki.CometClient = function(_url, callback)
-{
+jmaki.CometClient = function(_url, callback) {
 
     var uuid = "icomet";
 
-    function init()
-    {
+    function init() {
         var iframe = document.createElement("iframe");
         iframe.style.width = "0px";
         iframe.style.height = "0px";
@@ -179,8 +166,7 @@ jmaki.CometClient = function(_url, callback)
 
 }
 
-jmaki.CometClient.callback = function(args)
-{
+jmaki.CometClient.callback = function(args) {
     var message;
     try {
         message = eval("(" + args.message + ")");
@@ -201,11 +187,9 @@ jmaki.CometClient.callback = function(args)
     }
 }
 
-jmaki.sendMessage = function(message)
-{
+jmaki.sendMessage = function(message) {
     var xhr = jmaki.getXHR();
-    xhr.onreadystatechange = function()
-    {
+    xhr.onreadystatechange = function() {
     };
     xhr.open("post", "words", true);
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -213,14 +197,12 @@ jmaki.sendMessage = function(message)
     xhr.send(body);
 }
 
-jmaki.addWord = function()
-{
+jmaki.addWord = function() {
     jmaki.attributes.get('mywords').getWord(document.getElementById("myinput").value);
 }
 
 // start comet once jmaki has loaded
-jmaki.subscribe("/jmaki/runtime/loadComplete", function()
-{
+jmaki.subscribe("/jmaki/runtime/loadComplete", function() {
     var c = new jmaki.CometClient("words?action=start");
 });
 // this is the functin that handles messages

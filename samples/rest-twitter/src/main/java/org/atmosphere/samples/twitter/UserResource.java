@@ -75,7 +75,7 @@ public class UserResource {
     public void delete() {
         us.remove(user);
     }
-    
+
     @Path("messages")
     @POST
     public void post(String message) {

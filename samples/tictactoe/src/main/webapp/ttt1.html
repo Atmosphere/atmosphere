@@ -1,101 +1,122 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
-    <head>
-        <title>Tic Tac Toe Example 1</title>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <link rel="stylesheet" type="text/css" href="resources/tictactoe.css">
-        <script type="text/javascript">
-            var url = "long_polling";
-            function postMe(arg) {
-                function createXMLHttpRequest() {
-                    try { return new XMLHttpRequest(); } catch(e) {}
-                    try { return new ActiveXObject("Msxml2.XMLHTTP"); } catch (e) {}
-                    try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
-                    alert("Sorry, you're not running a supported browser - XMLHttpRequest not supported");
-                    return null;
-                };
-                var xhReq = new createXMLHttpRequest();
-                xhReq.open("POST", url, false);
-                xhReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-                xhReq.send("cell="+arg);
-            };
-            function chImg(args) {
-                var data  = eval(args);
-                
-                for (i = 0; i < 9; i++) {
-                    // 0 is blank, 10 is x, 1 is o
-                    document.getElementById("img"+i).src="resources/"+data.board[i]+".gif";
+<head>
+    <title>Tic Tac Toe Example 1</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="resources/tictactoe.css">
+    <script type="text/javascript">
+        var url = "long_polling";
+        function postMe(arg) {
+            function createXMLHttpRequest() {
+                try {
+                    return new XMLHttpRequest();
+                } catch(e) {
                 }
-                
-                var statusMsg;  
-                // -1 is unfinished, 0 is tie, 1 is X win, 2 is Y win
-                if (data.win == 0) {
-                    statusMsg = "It's a tie!";
-                } else if (data.win == 1) {
-                    statusMsg = "X wins!";
-                } else if (data.win == 2) {
-                    statusMsg = "O wins!";
-                } else if (data.win == -1 && data.turn == 10) {  
-                    statusMsg = "It's X's Turn";
-                } else if (data.win == -1 && data.turn == 1) {
-                    statusMsg = "It's O's Turn";
-                } else {
-                    statusMsg = "That's odd, it shouldn't get here";
+                try {
+                    return new ActiveXObject("Msxml2.XMLHTTP");
+                } catch (e) {
                 }
-                
-                if (data.win != -1) {
-                    statusMsg = statusMsg + '<br><a href="ttt1.html">Restart the game</a>';
+                try {
+                    return new ActiveXObject("Microsoft.XMLHTTP");
+                } catch (e) {
                 }
-        
-                // And write the status message out here -
-                document.getElementById("gstatus").innerHTML = statusMsg;
-                
-                hidden.location = url;  // restart the poll
-                retries = 0; // reset retry number
+                alert("Sorry, you're not running a supported browser - XMLHttpRequest not supported");
+                return null;
             }
-            
-            var retries = 0;
-            function restartPoll() {
-                if (retries++ > 10) {  // stop the client from indefinate spin
-                    alert("The connection has errored out too many times - hit reload to retry");                    
-                } else {
-                    hidden.location = url;    // restart the poll                 
-                }
+
+            ;
+            var xhReq = new createXMLHttpRequest();
+            xhReq.open("POST", url, false);
+            xhReq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhReq.send("cell=" + arg);
+        }
+        ;
+        function chImg(args) {
+            var data = eval(args);
+
+            for (i = 0; i < 9; i++) {
+                // 0 is blank, 10 is x, 1 is o
+                document.getElementById("img" + i).src = "resources/" + data.board[i] + ".gif";
             }
-        </script>
-        
-    </head>
-    <body>
-        <iframe name="hidden" src="TTTComet1" frameborder="0" height="0" width="100%" 
-                onload="restartPoll()" onerror="restartPoll()" ></iframe>
-        
-        <h1>Tic Tac Toe</h1>
-        <table>
-            <tr>
-                <td id="cell0"><img id="img0" src="resources/0.gif" 
-                                    onclick=postMe("0")></td>
-                <td id="cell1"><img id="img1" src="resources/0.gif" 
-                                    onclick=postMe("1")></td>
-                <td id="cell2"><img id="img2" src="resources/0.gif" 
-                                    onclick=postMe("2")></td>
-            </tr>
-            <tr>
-                <td id="cell3"><img id="img3" src="resources/0.gif" 
-                                    onclick=postMe("3")></td>
-                <td id="cell4"><img id="img4" src="resources/0.gif" 
-                                    onclick=postMe("4")></td>
-                <td id="cell5"><img id="img5" src="resources/0.gif" 
-                                    onclick=postMe("5")></td>
-            </tr>
-            <tr>
-                <td id="cell6"><img id="img6" src="resources/0.gif" 
-                                    onclick=postMe("6")></td>
-                <td id="cell7"><img id="img7" src="resources/0.gif" 
-                                    onclick=postMe("7")></td>
-                <td id="cell8"><img id="img8" src="resources/0.gif" 
-                                    onclick=postMe("8")></td>
-            </tr>      
-        </table>
-        <h2 id="gstatus">Starting to watch the game.</h2>
-    </body>
+
+            var statusMsg;
+            // -1 is unfinished, 0 is tie, 1 is X win, 2 is Y win
+            if (data.win == 0) {
+                statusMsg = "It's a tie!";
+            } else if (data.win == 1) {
+                statusMsg = "X wins!";
+            } else if (data.win == 2) {
+                statusMsg = "O wins!";
+            } else if (data.win == -1 && data.turn == 10) {
+                statusMsg = "It's X's Turn";
+            } else if (data.win == -1 && data.turn == 1) {
+                statusMsg = "It's O's Turn";
+            } else {
+                statusMsg = "That's odd, it shouldn't get here";
+            }
+
+            if (data.win != -1) {
+                statusMsg = statusMsg + '<br><a href="ttt1.html">Restart the game</a>';
+            }
+
+            // And write the status message out here -
+            document.getElementById("gstatus").innerHTML = statusMsg;
+
+            hidden.location = url;  // restart the poll
+            retries = 0; // reset retry number
+        }
+
+        var retries = 0;
+        function restartPoll() {
+            if (retries++ > 10) {  // stop the client from indefinate spin
+                alert("The connection has errored out too many times - hit reload to retry");
+            } else {
+                hidden.location = url;    // restart the poll
+            }
+        }
+    </script>
+
+</head>
+<body>
+<iframe name="hidden" src="TTTComet1" frameborder="0" height="0" width="100%"
+        onload="restartPoll()" onerror="restartPoll()"></iframe>
+
+<h1>Tic Tac Toe</h1>
+<table>
+    <tr>
+        <td id="cell0"><img id="img0" src="resources/0.gif"
+                            onclick=postMe("0")>
+        </td>
+        <td id="cell1"><img id="img1" src="resources/0.gif"
+                            onclick=postMe("1")>
+        </td>
+        <td id="cell2"><img id="img2" src="resources/0.gif"
+                            onclick=postMe("2")>
+        </td>
+    </tr>
+    <tr>
+        <td id="cell3"><img id="img3" src="resources/0.gif"
+                            onclick=postMe("3")>
+        </td>
+        <td id="cell4"><img id="img4" src="resources/0.gif"
+                            onclick=postMe("4")>
+        </td>
+        <td id="cell5"><img id="img5" src="resources/0.gif"
+                            onclick=postMe("5")>
+        </td>
+    </tr>
+    <tr>
+        <td id="cell6"><img id="img6" src="resources/0.gif"
+                            onclick=postMe("6")>
+        </td>
+        <td id="cell7"><img id="img7" src="resources/0.gif"
+                            onclick=postMe("7")>
+        </td>
+        <td id="cell8"><img id="img8" src="resources/0.gif"
+                            onclick=postMe("8")>
+        </td>
+    </tr>
+</table>
+<h2 id="gstatus">Starting to watch the game.</h2>
+</body>
 </html>

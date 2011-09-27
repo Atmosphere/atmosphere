@@ -273,7 +273,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.SUBSCRIBE) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String)servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -337,7 +337,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.PUBLISH) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String)servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -389,8 +389,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            boolean injectCacheHeaders = (Boolean)servletReq.getAttribute(AtmosphereServlet.NO_CACHE_HEADERS);
-            boolean enableAccessControl = (Boolean)servletReq.getAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+            boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(AtmosphereServlet.NO_CACHE_HEADERS);
+            boolean enableAccessControl = (Boolean) servletReq.getAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
@@ -727,7 +727,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         if (am.isAnnotationPresent(Publish.class)) {
-            f = new Filter( Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
+            f = new Filter(Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
                     false, null, am.getAnnotation(Publish.class).value());
             list.addFirst(f);
         }

@@ -23,7 +23,6 @@ import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.ScriptElement;
 
 /**
- *
  * @author p.havelaar
  */
 public class JsClient implements EntryPoint {
@@ -38,8 +37,8 @@ public class JsClient implements EntryPoint {
         GWT.create(OnMessage.class);
         GWT.create(OnHeartbeat.class);
 
-        include(GWT.getModuleBaseURL()+"JSON.js");
-        
+        include(GWT.getModuleBaseURL() + "JSON.js");
+
         Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
             @Override
             public void execute() {

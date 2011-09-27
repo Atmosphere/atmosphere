@@ -19,7 +19,6 @@ import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 /**
- *
  * @author p.havelaar
  */
 public class IEHTMLFileResponseWriter extends IFrameResponseWriter {

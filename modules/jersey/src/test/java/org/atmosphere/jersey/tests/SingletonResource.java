@@ -37,20 +37,20 @@
 package org.atmosphere.jersey.tests;
 
 import com.sun.jersey.spi.resource.Singleton;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 
 import static org.testng.Assert.assertNotNull;
 
@@ -65,14 +65,17 @@ import static org.testng.Assert.assertNotNull;
 @Singleton
 public class SingletonResource {
 
-    @Context Broadcaster b;
+    @Context
+    Broadcaster b;
 
-    @Context BroadcasterFactory bf;
+    @Context
+    BroadcasterFactory bf;
 
-    @Context AtmosphereResource<HttpServletRequest, HttpServletResponse> ar;
-    
+    @Context
+    AtmosphereResource<HttpServletRequest, HttpServletResponse> ar;
+
     @GET
-    @Suspend (period = 5000, outputComments = false)
+    @Suspend(period = 5000, outputComments = false)
     public String subscribe() {
         assertNotNull(b.toString());
         assertNotNull(bf.toString());
@@ -83,7 +86,7 @@ public class SingletonResource {
 
     @POST
     @Broadcast
-    public String publish(@FormParam("message") String message){
+    public String publish(@FormParam("message") String message) {
         return message;
     }
 

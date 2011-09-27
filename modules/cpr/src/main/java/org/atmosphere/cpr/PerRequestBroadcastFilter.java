@@ -22,17 +22,16 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * A markable interface that can be used in conjonction with {@link BroadcastFilter} to filter
  * message per request.
- *
  */
-public interface PerRequestBroadcastFilter extends BroadcastFilter{
+public interface PerRequestBroadcastFilter extends BroadcastFilter {
 
     /**
      * Transform or Filter a message per request, with V as an indicator. Be careful when setting headers on the
      * {@link javax.servlet.http.HttpServletResponse} as the headers may have been already sent back to the browser.
      *
-     * @param request The {@link javax.servlet.http.HttpServletRequest} send before the response was suspended/upgraded.
+     * @param request  The {@link javax.servlet.http.HttpServletRequest} send before the response was suspended/upgraded.
      * @param response The suspended {@link javax.servlet.http.HttpServletResponse}.
-     * @param message Object a message
+     * @param message  Object a message
      * @return a transformed message.
      */
     BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message);

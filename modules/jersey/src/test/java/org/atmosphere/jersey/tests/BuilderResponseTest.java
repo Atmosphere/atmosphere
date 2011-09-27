@@ -14,7 +14,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-public class BuilderResponseTest extends BlockingIOJerseyTest{
+public class BuilderResponseTest extends BlockingIOJerseyTest {
 
     @Override
     public void configureCometSupport() {

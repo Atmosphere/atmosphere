@@ -17,38 +17,38 @@ package org.atmosphere.gwt.server.impl;
 
 import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.List;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import org.atmosphere.gwt.server.GwtAtmosphereResource;
-import org.atmosphere.gwt.server.AtmosphereGwtHandler;
-import org.atmosphere.gwt.server.GwtResponseWriter;
-import java.util.Collection;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.Serializer;
+import org.atmosphere.gwt.server.AtmosphereGwtHandler;
+import org.atmosphere.gwt.server.GwtAtmosphereResource;
+import org.atmosphere.gwt.server.GwtResponseWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 /**
- *
  * @author p.havelaar
  */
 public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
-    
+
     public static final String HEARTBEAT_MESSAGE = "4dc5bdb9-edc8-4edf-8833-ab478326d8c9";
 
     public GwtAtmosphereResourceImpl(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource,
-            AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
+                                     AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
         this.atmosphereHandler = servlet;
         this.atmResource = resource;
         this.heartBeatInterval = heartBeatInterval;
@@ -123,8 +123,8 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         if (atmResource.getBroadcaster() == null) {
             return false;
         }
-        Collection<AtmosphereResource<?,?>> res = atmResource.getBroadcaster().getAtmosphereResources();
-        for (AtmosphereResource<?,?> ar : res) {
+        Collection<AtmosphereResource<?, ?>> res = atmResource.getBroadcaster().getAtmosphereResources();
+        for (AtmosphereResource<?, ?> ar : res) {
             if (ar == atmResource) {
                 return true;
             }
@@ -154,23 +154,25 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     public void suspend() throws IOException {
         suspend(-1);
     }
+
     public void suspend(int timeout) throws IOException {
         if (!suspended) {
             atmResource.setSerializer(serializer);
             if (atmResource instanceof AtmosphereEventLifecycle) {
-                AtmosphereEventLifecycle ael = (AtmosphereEventLifecycle)atmResource;
+                AtmosphereEventLifecycle ael = (AtmosphereEventLifecycle) atmResource;
                 ael.addEventListener(eventListener);
             }
             writer.suspend();
             atmResource.suspend(timeout, false);
         }
     }
-    
+
     public void resume() {
         atmResource.resume();
     }
-    
-    /** this will be called by the writer to resume an already dead connection.
+
+    /**
+     * this will be called by the writer to resume an already dead connection.
      * Because this can possibly block for as long as the timeout of http connections we do this in
      * 1 or more seperate threads
      */
@@ -196,11 +198,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     public GwtResponseWriterImpl getWriterImpl() {
         return writer;
     }
-    
-	ScheduledFuture<?> scheduleHeartbeat() {
+
+    ScheduledFuture<?> scheduleHeartbeat() {
         return getBroadcaster().getBroadcasterConfig().getScheduledExecutorService()
                 .schedule(heartBeatTask, heartBeatInterval, TimeUnit.MILLISECONDS);
-	}
+    }
 
     void terminate(boolean serverInitiated) {
         AtmosphereGwtHandler s = atmosphereHandler;
@@ -213,10 +215,10 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         }
     }
 
-	private GwtResponseWriterImpl createResponseWriter() throws IOException {
+    private GwtResponseWriterImpl createResponseWriter() throws IOException {
 
-		ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
-		SerializationPolicy serializationPolicy = clientOracle == null ? RPCUtil.createSimpleSerializationPolicy() : null;
+        ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
+        SerializationPolicy serializationPolicy = clientOracle == null ? RPCUtil.createSimpleSerializationPolicy() : null;
 
         String transport = atmResource.getRequest().getParameter("tr");
         if ("WebSocket".equals(transport)) {
@@ -225,22 +227,22 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         } else if ("HTTPRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using XMLHttpRequest");
             return new HTTPRequestResponseWriter(this, serializationPolicy, clientOracle);
-		} else if ("IFrame".equals(transport)) {
+        } else if ("IFrame".equals(transport)) {
             logger.debug("atmosphere-gwt Using streaming IFrame");
             return new IFrameResponseWriter(this, serializationPolicy, clientOracle);
-		} else if ("OperaEventSource".equals(transport)) {
+        } else if ("OperaEventSource".equals(transport)) {
             logger.debug("atmosphere-gwt Using Opera EventSource");
-			return new OperaEventSourceResponseWriter(this, serializationPolicy, clientOracle);
-		} else if ("IEXDomainRequest".equals(transport)) {
+            return new OperaEventSourceResponseWriter(this, serializationPolicy, clientOracle);
+        } else if ("IEXDomainRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE XDomainRequest");
             return new IEXDomainRequestResponseWriter(this, serializationPolicy, clientOracle);
         } else if ("IEHTMLFile".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE html file iframe");
-			return new IEHTMLFileResponseWriter(this, serializationPolicy, clientOracle);
-		} else {
+            return new IEHTMLFileResponseWriter(this, serializationPolicy, clientOracle);
+        } else {
             throw new IllegalStateException("Failed to determine responsewriter");
         }
-	}
+    }
 
     private final static long WARMUP_TIME = 10000;
     private long startTime = System.currentTimeMillis();
@@ -265,20 +267,20 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         public void write(OutputStream out, Object o) throws IOException {
             if (o instanceof Serializable) {
                 try {
-                    writer.write((Serializable)o);
+                    writer.write((Serializable) o);
                 } catch (IOException e) {
                     if (writer.isTerminated()) {
                         logger.debug("broadcast failed, connection terminated:" + e.getMessage(), e);
                     }
                     throw e;
                 }
-            } else  if (o instanceof List) {
-                List<?> list = (List)o;
+            } else if (o instanceof List) {
+                List<?> list = (List) o;
                 if (list.size() > 0) {
                     if (!(list.get(0) instanceof Serializable)) {
                         throw new IOException("Failed to write a list of objects that are not serializable");
                     }
-                    writer.write((List<Serializable>)o);
+                    writer.write((List<Serializable>) o);
                 }
             } else {
                 logger.warn("Failed to write an object that is not serializable");

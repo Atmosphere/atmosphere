@@ -186,8 +186,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (!resources.isEmpty()) {
                 destroy();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error("failed to set request scope for current resources", e);
         }
     }
@@ -203,10 +202,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void setID(String id) {
-        if(id == null) {
+        if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
-                
+
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
@@ -250,8 +249,8 @@ public class DefaultBroadcaster implements Broadcaster {
             currentLifecycleTask.cancel(false);
         }
 
-        if ( lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE
-                || lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY ) {
+        if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE
+                || lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY) {
 
             int time = lifeCyclePolicy.getTimeout();
             if (time == -1) {
@@ -259,7 +258,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             final AtomicReference<Future<?>> ref = new AtomicReference<Future<?>>();
-            currentLifecycleTask = bc.getScheduledExecutorService().scheduleAtFixedRate(new Runnable(){
+            currentLifecycleTask = bc.getScheduledExecutorService().scheduleAtFixedRate(new Runnable() {
 
                 @Override
                 public void run() {
@@ -303,7 +302,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
-         lifeCycleListeners.remove(b);
+        lifeCycleListeners.remove(b);
     }
 
     public class Entry {
@@ -423,7 +422,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
 
                 if (entry.writeLocally) {
-                    queueWriteIO( (AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
+                    queueWriteIO((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
                 Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
@@ -435,7 +434,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
             entry.message = prevMessage;
-        } catch(InterruptedException ex) {
+        } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
     }
@@ -447,14 +446,14 @@ public class DefaultBroadcaster implements Broadcaster {
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
         Object finalMsg = msg.message;
 
-        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass()))  {
+        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
             if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
                 if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
                     Object message = msg.originalMessage;
-                    BroadcastAction a  = bc.filter( (HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                    BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
                     if (a.action() == BroadcastAction.ACTION.ABORT
                             || a.message() != msg.originalMessage) {
-                       finalMsg = a.message();
+                        finalMsg = a.message();
                     }
                 }
                 trackBroadcastMessage(r, finalMsg);
@@ -471,7 +470,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private Object translate(Object msg) {
         if (Callable.class.isAssignableFrom(msg.getClass())) {
             try {
-                return  Callable.class.cast(msg).call();
+                return Callable.class.cast(msg).call();
             } catch (Exception e) {
                 logger.error("failed to cast message: " + msg, e);
             }
@@ -518,7 +517,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     token = asyncWriteQueue.take();
                     // Leader/follower
-                    synchronized(token.resource) {
+                    synchronized (token.resource) {
                         bc.getAsyncWriteService().submit(this);
                         executeAsyncWrite(token.resource, token.msg, token.future);
                     }
@@ -552,7 +551,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void trackBroadcastMessage(final AtmosphereResource<?, ?> r, Object msg) {
         broadcasterCache.addToCache(r, msg);
     }
-                                                                                                             
+
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereHandler().onStateChange(e);
@@ -581,14 +580,12 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        bc.getAsyncWriteService().execute( new Runnable()
-        {
+        bc.getAsyncWriteService().execute(new Runnable() {
             @Override
-            public void run()
-            {
+            public void run() {
                 r.resume();
             }
-        } );
+        });
 
     }
 
@@ -663,14 +660,14 @@ public class DefaultBroadcaster implements Broadcaster {
         return f;
     }
 
-    protected void broadcastOnResume(AtmosphereResource<?,?> r){
+    protected void broadcastOnResume(AtmosphereResource<?, ?> r) {
         Iterator<Entry> i = broadcastOnResume.iterator();
         while (i.hasNext()) {
             Entry e = i.next();
             e.multipleAtmoResources = r;
             push(e);
-        } 
-        
+        }
+
         if (resources.isEmpty()) {
             broadcastOnResume.clear();
         }
@@ -714,8 +711,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     logger.warn("Too many resource. Forcing resume of {} ", resource);
                     resource.resume();
-                }
-                catch (Throwable t) {
+                } catch (Throwable t) {
                     logger.warn("failed to resume resource {} ", resource, t);
                 }
             } else if (policy == POLICY.REJECT) {
@@ -757,30 +753,31 @@ public class DefaultBroadcaster implements Broadcaster {
                 releaseExternalResources();
             } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
                 notifyDestroyListener();
-                BroadcasterFactory.getDefault().remove(this, name);                
+                BroadcasterFactory.getDefault().remove(this, name);
                 destroy();
             }
-        }      
+        }
         return r;
     }
 
     private void notifyIdleListener() {
-        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+        for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onIdle();
         }
     }
 
     private void notifyDestroyListener() {
-        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+        for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onDestroy();
         }
     }
 
     private void notifyEmptyListener() {
-        for (BroadcasterLifeCyclePolicyListener b: lifeCycleListeners) {
+        for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onEmpty();
         }
     }
+
     /**
      * Set the {@link BroadcasterConfig} instance.
      *
@@ -839,7 +836,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             logger.error("", e);
                         }
                     }
-                    
+
                     final Object msg = filter(o);
                     final Entry e = new Entry(msg, null, null, o);
                     push(e);

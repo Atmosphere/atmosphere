@@ -278,11 +278,9 @@ public final class IntrospectionUtils {
                 }
             }
 
-        }
-        catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             logger.info("failed, object: " + object + ", setter: " + setter + ", value: " + value, e);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (dbg > 0) {
                 debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + setter + "=" + value + ")");
             }
@@ -324,11 +322,9 @@ public final class IntrospectionUtils {
                 return getPropertyMethod.invoke(object, params);
             }
 
-        }
-        catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             logger.info("failed, object: " + object + ", name: " + name, e);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (dbg > 0) {
                 debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + name + ")");
             }
@@ -355,8 +351,7 @@ public final class IntrospectionUtils {
                     return;
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (dbg > 0) {
                 debug("Exception for " + object.getClass() + " " + name);
             }
@@ -459,8 +454,7 @@ public final class IntrospectionUtils {
                         cpV.addElement(url);
                 }
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.debug("failed to add urls to classpath", ex);
         }
     }
@@ -484,8 +478,7 @@ public final class IntrospectionUtils {
             URL url = new URL("file", "", f.getAbsolutePath());
 
             v.addElement(url);
-        }
-        catch (MalformedURLException ex) {
+        } catch (MalformedURLException ex) {
             logger.debug("failed to add tools jar url to vector", ex);
         }
     }
@@ -525,8 +518,7 @@ public final class IntrospectionUtils {
                 return null;
             }
             return new URL("file", "", path);
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.debug("failed to get url, base: " + base + ", file: " + file, ex);
             return null;
         }
@@ -787,8 +779,7 @@ public final class IntrospectionUtils {
                     }
                 }
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.debug("hasHook() failed", ex);
         }
         return false;
@@ -814,8 +805,7 @@ public final class IntrospectionUtils {
         Class<?> params[] = new Class[1];
         if (typeParam1 == null) {
             params[0] = param1.getClass();
-        }
-        else {
+        } else {
             params[0] = cl.loadClass(typeParam1);
         }
         Method m = findMethod(target.getClass(), methodN, params);

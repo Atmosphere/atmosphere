@@ -1,19 +1,18 @@
-
 /*
- * Copyright 2011 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+* Copyright 2011 Jeanfrancois Arcand
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* use this file except in compliance with the License. You may obtain a copy of
+* the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations under
+* the License.
+*/
 
 package org.atmosphere.gwt.client.impl;
 
@@ -27,74 +26,75 @@ import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereClientException;
 import org.atmosphere.gwt.client.AtmosphereListener;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
  * @author p.havelaar
  */
 public class IFrameCometTransport extends BaseCometTransport {
 
-	private String domain;
-	private IFrameElement iframe;
-	private BodyElement body;
-	private boolean connected;
-	private boolean expectingDisconnection;
-	
-	@Override
-	public void initiate(AtmosphereClient client, AtmosphereListener listener) {
-		super.initiate(client, listener);
+    private String domain;
+    private IFrameElement iframe;
+    private BodyElement body;
+    private boolean connected;
+    private boolean expectingDisconnection;
 
-	}
-	
-	@Override
-	public void connect(int connectionCount) {
+    @Override
+    public void initiate(AtmosphereClient client, AtmosphereListener listener) {
+        super.initiate(client, listener);
+
+    }
+
+    @Override
+    public void connect(int connectionCount) {
         domain = getDomain(getDocumentDomain(), client.getUrl());
-		
-		StringBuilder html = new StringBuilder("<html>");
-		if (domain != null) {
-			html.append("<script>document.domain='").append(domain).append("'</script>");
-		}
-		html.append("<iframe src=''></iframe></html>");
-		
-		iframe = createIFrame(html.toString());
-        
-		expectingDisconnection = false;
-		String url = getUrl(connectionCount);
-		if (domain != null) {
-			url += "&d=" + domain;
-		}
-		iframe.setSrc(url);
-	}
-	
-	@Override
-	public void disconnect() {
-		// TODO this does not seem to close the connection immediately.
-		expectingDisconnection = true;
+
+        StringBuilder html = new StringBuilder("<html>");
+        if (domain != null) {
+            html.append("<script>document.domain='").append(domain).append("'</script>");
+        }
+        html.append("<iframe src=''></iframe></html>");
+
+        iframe = createIFrame(html.toString());
+
+        expectingDisconnection = false;
+        String url = getUrl(connectionCount);
+        if (domain != null) {
+            url += "&d=" + domain;
+        }
+        iframe.setSrc(url);
+    }
+
+    @Override
+    public void disconnect() {
+        // TODO this does not seem to close the connection immediately.
+        expectingDisconnection = true;
         super.disconnect();
-		iframe.setSrc("");
+        iframe.setSrc("");
         // perhaps this will fix disconnecting properly
         destroyIFrame();
         iframe = null;
         body = null;
-		if (connected) {
-			onDisconnected();
-		}
+        if (connected) {
+            onDisconnected();
+        }
         connected = false;
-	}
-	
-	protected IFrameElement createIFrame(String html) {
+    }
+
+    protected IFrameElement createIFrame(String html) {
         return createIFrameImpl(this, html);
     }
-    
-    protected void destroyIFrame() {}
-    
+
+    protected void destroyIFrame() {
+    }
+
     private static native IFrameElement createIFrameImpl(IFrameCometTransport client, String domain) /*-{
-		var div = document.createElement('div'),
-            iframe = document.createElement("iframe"),
-            span = document.createElement('span');
+        var div = document.createElement('div'),
+                iframe = document.createElement("iframe"),
+                span = document.createElement('span');
         iframe.id = '--endless-iframe-comet-transport';
         iframe.setAttribute('name', '--endless-iframe-comet-transport');
         iframe.name = '--endless-iframe-comet-transport';
@@ -112,137 +112,135 @@ public class IFrameCometTransport extends BaseCometTransport {
         document.getElementsByTagName('body')[0].appendChild(div);
 
         window.m = $entry(function(message) {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onMessages(Lcom/google/gwt/core/client/JsArrayString;)(arguments);
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onMessages(Lcom/google/gwt/core/client/JsArrayString;)(arguments);
         });
         window.c = $entry(function(heartbeat, connectionID) {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onConnected(II)(heartbeat, connectionID);
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onConnected(II)(heartbeat, connectionID);
         });
         window.d = $entry(function() {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onDisconnected()();
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onDisconnected()();
         });
         window.e = $entry(function(statusCode, message) {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onError(ILjava/lang/String;)(statusCode, message);
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onError(ILjava/lang/String;)(statusCode, message);
         });
         window.h = $entry(function() {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onHeartbeat()();
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onHeartbeat()();
         });
         window.r = $entry(function() {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onRefresh()();
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onRefresh()();
         });
         // no $entry() because no user code is reachable
         window.t = function() {
-                client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onTerminate()();
+            client.@org.atmosphere.gwt.client.impl.IFrameCometTransport::onTerminate()();
         };
 
         return iframe;
-	}-*/;
-    
-	private native static String getDocumentDomain() /*-{
-		return $doc.domain;
-	}-*/;
-	
-	private native static String getDomain(String documentDomain, String url) /*-{
- 		var urlParts = /(^https?:)?(\/\/(([^:\/\?#]+)(:(\d+))?))?([^\?#]*)/.exec(url);
+    }-*/;
+
+    private native static String getDocumentDomain() /*-{
+        return $doc.domain;
+    }-*/;
+
+    private native static String getDomain(String documentDomain, String url) /*-{
+        var urlParts = /(^https?:)?(\/\/(([^:\/\?#]+)(:(\d+))?))?([^\?#]*)/.exec(url);
         var urlDomain = urlParts[4];
-        
+
         if (!urlDomain || documentDomain == urlDomain) {
-        	return null;
+            return null;
         }
-        
+
         var documentDomainParts = documentDomain.split('.');
         var urlDomainParts = urlDomain.split('.');
-        
+
         var d = documentDomainParts.length - 1;
         var u = urlDomainParts.length - 1;
         var resultDomainParts = [];
-        
+
         while (d >= 0 && u >= 0 && documentDomainParts[d] == urlDomainParts[u]) {
-        		resultDomainParts.push(urlDomainParts[u]);
-        		d--;
-        		u--;
+            resultDomainParts.push(urlDomainParts[u]);
+            d--;
+            u--;
         }
         return resultDomainParts.reverse().join('.')
-	}-*/;
-	
-	private void collect() {
+    }-*/;
+
+    private void collect() {
         if (body != null) {
             NodeList<Node> childNodes = body.getChildNodes();
             if (childNodes.getLength() > 1) {
                 body.removeChild(childNodes.getItem(0));
             }
         }
-	}
-	
-	@SuppressWarnings("unused")
-	private void onMessages(JsArrayString arguments) {
-		collect();
-		int length = arguments.length();
-		List<Serializable> messages = new ArrayList<Serializable>(length);
-		for (int i = 0; i < length; i++) {
-			String message = arguments.get(i);
-			switch (message.charAt(0)) {
-			case ']':
-				messages.add(message.substring(1));
-				break;
-			case '[':
-			case 'R':
-			case 'r':
-			case 'f':
-                try {
-                    messages.add(parse(message));
-                }
-                catch (SerializationException e) {
-                    listener.onError(e, true);
-                }
-				break;
-			default:
-				listener.onError(new AtmosphereClientException("Invalid message received: " + message), true);
-			}
-		}
-		
-		listener.onMessage(messages);
-	}
-	
-	@SuppressWarnings("unused")
-	private void onConnected(int heartbeat, int connectionID) {
-		connected = true;
-		body = iframe.getContentDocument().getBody();
-		collect();
+    }
+
+    @SuppressWarnings("unused")
+    private void onMessages(JsArrayString arguments) {
+        collect();
+        int length = arguments.length();
+        List<Serializable> messages = new ArrayList<Serializable>(length);
+        for (int i = 0; i < length; i++) {
+            String message = arguments.get(i);
+            switch (message.charAt(0)) {
+                case ']':
+                    messages.add(message.substring(1));
+                    break;
+                case '[':
+                case 'R':
+                case 'r':
+                case 'f':
+                    try {
+                        messages.add(parse(message));
+                    } catch (SerializationException e) {
+                        listener.onError(e, true);
+                    }
+                    break;
+                default:
+                    listener.onError(new AtmosphereClientException("Invalid message received: " + message), true);
+            }
+        }
+
+        listener.onMessage(messages);
+    }
+
+    @SuppressWarnings("unused")
+    private void onConnected(int heartbeat, int connectionID) {
+        connected = true;
+        body = iframe.getContentDocument().getBody();
+        collect();
         this.connectionId = connectionID;
-		listener.onConnected(heartbeat, connectionID);
-	}
-	
-	private void onDisconnected() {
-		connected = false;
-		body = null;
-		if (expectingDisconnection) {
-			listener.onDisconnected();
-		}
-		else {
-			listener.onError(new AtmosphereClientException("Unexpected disconnection"), false);
-		}
-	}
-	
-	@SuppressWarnings("unused")
-	private void onError(int statusCode, String message) {
-		listener.onError(new StatusCodeException(statusCode, message), false);
-	}
-	
-	@SuppressWarnings("unused")
-	private void onHeartbeat() {
+        listener.onConnected(heartbeat, connectionID);
+    }
+
+    private void onDisconnected() {
+        connected = false;
+        body = null;
+        if (expectingDisconnection) {
+            listener.onDisconnected();
+        } else {
+            listener.onError(new AtmosphereClientException("Unexpected disconnection"), false);
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private void onError(int statusCode, String message) {
+        listener.onError(new StatusCodeException(statusCode, message), false);
+    }
+
+    @SuppressWarnings("unused")
+    private void onHeartbeat() {
         collect();
-		listener.onHeartbeat();
-	}
-	
-	@SuppressWarnings("unused")
-	private void onRefresh() {
+        listener.onHeartbeat();
+    }
+
+    @SuppressWarnings("unused")
+    private void onRefresh() {
         collect();
-		listener.onRefresh();
-	}
-	
-	@SuppressWarnings("unused")
-	private void onTerminate() {
+        listener.onRefresh();
+    }
+
+    @SuppressWarnings("unused")
+    private void onTerminate() {
         collect();
-		disconnect();
-	}
+        disconnect();
+    }
 }

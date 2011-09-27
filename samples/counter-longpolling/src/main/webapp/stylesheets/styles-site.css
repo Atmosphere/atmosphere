@@ -1,43 +1,43 @@
 @charset "utf-8";
 
 body {
-  font-family: 'trebuchet ms', verdana, helvetica, arial, sans-serif;
+    font-family: 'trebuchet ms', verdana, helvetica, arial, sans-serif;
 }
 
 h1 {
-  font-size: 16px;
-  color: #999;
-  text-align: center;
+    font-size: 16px;
+    color: #999;
+    text-align: center;
 }
 
 pre {
-  font-size: 12px;
-  padding: 12px;
-  border: 1px dotted #d1d1d4;
-  overflow: hidden;
+    font-size: 12px;
+    padding: 12px;
+    border: 1px dotted #d1d1d4;
+    overflow: hidden;
 }
 
 #container {
-  text-align: center;
+    text-align: center;
 }
 
 #container-inner {
-  margin-left: auto;
-  margin-right: auto;
-  text-align: justify;
-  width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: justify;
+    width: 640px;
 }
 
 #counter {
-  text-align: center;
+    text-align: center;
 }
 
 #count {
-  height: 40px;
-  font-size: 40px;
+    height: 40px;
+    font-size: 40px;
 }
 
 #increment {
-  font-size: 14px;
-  cursor: pointer;
+    font-size: 14px;
+    cursor: pointer;
 }

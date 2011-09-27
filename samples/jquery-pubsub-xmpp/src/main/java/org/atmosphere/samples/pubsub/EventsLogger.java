@@ -27,7 +27,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     }
 
 
-    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event){
+    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         System.out.println("onSuspend: " + event.getResource().getRequest().getRemoteAddr()
                 + event.getResource().getRequest().getRemotePort());
     }

@@ -1,29 +1,29 @@
 .jmakiTitle {
-  background:#1b5790;
+    background: #1b5790;
 }
 
 .jmakiBackround {
-  background:#1b5790;
+    background: #1b5790;
 }
 
 .jmakiBackroundHover {
-  background:#0085af;
+    background: #0085af;
 }
 
 .jmakiFont {
-  color : #FFFFFFF;
+    color: #FFFFFFF;
 }
 
 .jmakiFontHover {
-  color : #0085af;
+    color: #0085af;
 }
 
 .jmakiShadow {
-  color : #0085af;
+    color: #0085af;
 }
 
-body  {
-  background-image:url(images/bg-gradient.gif);
+body {
+    background-image: url(images/bg-gradient.gif);
 }
 
 #outerBorder {
@@ -31,43 +31,43 @@ body  {
 }
 
 #header {
-  color : #FFFFFF;
-  background-image:url(images/bg-banner.jpg);
-  border : 0;
+    color: #FFFFFF;
+    background-image: url(images/bg-banner.jpg);
+    border: 0;
 }
 
 #subheader, #subheader div a {
-  color : #FFFFFF;
-  border : 0;
-  padding : 0;
+    color: #FFFFFF;
+    border: 0;
+    padding: 0;
 }
 
-#subheader  {
+#subheader {
 }
 
 #main {
 }
 
 #content {
-  background : #FFFFFF;
+    background: #FFFFFF;
 }
 
 #leftColumn {
-  background : #FFFFFF;
+    background: #FFFFFF;
 }
 
 #rightColumn {
-  background : #FFFFFF;
+    background: #FFFFFF;
 }
 
 #leftSidebar {
-  background : #FFFFFF;
+    background: #FFFFFF;
 }
 
 #banner {
 }
 
 #footer {
-  color : #FFFFFF;
-  background : #2B6398;
+    color: #FFFFFF;
+    background: #2B6398;
 }

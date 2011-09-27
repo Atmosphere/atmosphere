@@ -100,7 +100,7 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     public boolean onFrame(byte flags, byte opcode, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onFrame.");
         // TODO: onMessage is always invoked after that method gets called, so no need to enable for now.
- //       webSocketProcessor.broadcast(data, offset, length);
+        //       webSocketProcessor.broadcast(data, offset, length);
         return false;
     }
 
@@ -158,17 +158,17 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
         }
 
         @Override
-        public String getServletPath(){
+        public String getServletPath() {
             return servletPath;
         }
 
         @Override
-        public String getPathInfo(){
+        public String getPathInfo() {
             return pathInfo;
         }
 
         @Override
-        public String getRequestURI(){
+        public String getRequestURI() {
             return requestUri;
         }
     }

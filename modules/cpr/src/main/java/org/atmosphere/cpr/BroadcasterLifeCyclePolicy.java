@@ -55,12 +55,12 @@ public class BroadcasterLifeCyclePolicy {
         EMPTY_DESTROY,
 
         /**
-         * Never release or destroy the {@link org.atmosphere.cpr.Broadcaster}.       
+         * Never release or destroy the {@link org.atmosphere.cpr.Broadcaster}.
          */
         NEVER
 
     }
-                                                                 
+
     private final ATMOSPHERE_RESOURCE_POLICY policy;
     private final int time;
     private final TimeUnit timeUnit;
@@ -77,15 +77,15 @@ public class BroadcasterLifeCyclePolicy {
         this.timeUnit = null;
     }
 
-    public ATMOSPHERE_RESOURCE_POLICY getLifeCyclePolicy(){
+    public ATMOSPHERE_RESOURCE_POLICY getLifeCyclePolicy() {
         return policy;
     }
 
-    public TimeUnit getTimeUnit(){
+    public TimeUnit getTimeUnit() {
         return timeUnit;
     }
 
-    public int getTimeout(){
+    public int getTimeout() {
         return time;
     }
 
@@ -112,7 +112,7 @@ public class BroadcasterLifeCyclePolicy {
             return this;
         }
 
-        public BroadcasterLifeCyclePolicy build(){
+        public BroadcasterLifeCyclePolicy build() {
             return new BroadcasterLifeCyclePolicy(policy, time, timeUnit);
         }
     }

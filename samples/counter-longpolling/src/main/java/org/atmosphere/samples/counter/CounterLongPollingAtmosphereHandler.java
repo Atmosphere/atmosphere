@@ -111,10 +111,10 @@ public class CounterLongPollingAtmosphereHandler implements AtmosphereHandler<Ht
 
         int count = 0;
         if (event.getMessage() instanceof Integer) {
-            count = ((Integer)event.getMessage()).intValue();
+            count = ((Integer) event.getMessage()).intValue();
         }
 
-        try{
+        try {
             event.getResource().getResponse().addHeader("X-JSON", "{\"counter\":" + count + " }");
             PrintWriter writer = event.getResource().getResponse().getWriter();
             writer.write("success");

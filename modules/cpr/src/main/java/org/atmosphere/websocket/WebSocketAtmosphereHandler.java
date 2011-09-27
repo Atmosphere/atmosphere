@@ -77,14 +77,12 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
                 r.getAtmosphereConfig().getServletContext()
                         .getNamedDispatcher(r.getAtmosphereConfig().getDispatcherName())
                         .forward(r.getRequest(), r.getResponse());
-            }
-            catch (ServletException e) {
+            } catch (ServletException e) {
                 IOException ie = new IOException();
                 ie.initCause(e);
                 throw ie;
             }
-        }
-        else {
+        } else {
             upgrade(r);
         }
     }

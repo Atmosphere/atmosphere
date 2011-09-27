@@ -19,7 +19,6 @@ import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 /**
- *
  * @author p.havelaar
  */
 public class IEXDomainRequestResponseWriter extends StreamingProtocolResponseWriter {
@@ -27,12 +26,12 @@ public class IEXDomainRequestResponseWriter extends StreamingProtocolResponseWri
     public IEXDomainRequestResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
         super(resource, serializationPolicy, clientOracle);
     }
-    
-	@Override
-	protected int getPaddingRequired() {
-		return 2048;
+
+    @Override
+    protected int getPaddingRequired() {
+        return 2048;
     }
-    
+
     @Override
     String getContentType() {
         return "application/comet";

@@ -26,10 +26,6 @@ import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.StatusCodeException;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.RootPanel;
-import java.io.Serializable;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
@@ -37,8 +33,12 @@ import org.atmosphere.gwt.client.extra.Window;
 import org.atmosphere.gwt.client.extra.WindowFeatures;
 import org.atmosphere.gwt.client.extra.WindowSocket;
 
+import java.io.Serializable;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- *
  * @author p.havelaar
  */
 public class GWTDemo implements EntryPoint {
@@ -50,7 +50,7 @@ public class GWTDemo implements EntryPoint {
 
     @Override
     public void onModuleLoad() {
-     
+
         Button button = new Button("Broadcast");
         button.addClickHandler(new ClickHandler() {
             @Override
@@ -58,7 +58,7 @@ public class GWTDemo implements EntryPoint {
                 sendMessage();
             }
         });
-        
+
         Button post = new Button("Post");
         post.addClickHandler(new ClickHandler() {
             @Override
@@ -66,7 +66,7 @@ public class GWTDemo implements EntryPoint {
                 client.post(new Event(count++, "This was send using the post mechanism"));
             }
         });
-        
+
         Button pollButton = new Button("Poll");
         pollButton.addClickHandler(new ClickHandler() {
             @Override
@@ -117,7 +117,7 @@ public class GWTDemo implements EntryPoint {
             }
         });
         socket.bind("wsock");
-        
+
         RootPanel.get("buttons").add(button);
         RootPanel.get("buttons").add(post);
         RootPanel.get("buttons").add(pollButton);
@@ -133,17 +133,17 @@ public class GWTDemo implements EntryPoint {
                 client.stop();
             }
         });
-        
+
         RootPanel.get("buttons").add(killbutton);
-        
+
     }
-    
-    
+
+
     private class MyCometListener implements AtmosphereListener {
 
         @Override
         public void onConnected(int heartbeat, int connectionID) {
-            GWT.log("comet.connected [" +heartbeat+", "+connectionID+"]");
+            GWT.log("comet.connected [" + heartbeat + ", " + connectionID + "]");
         }
 
         @Override
@@ -158,33 +158,35 @@ public class GWTDemo implements EntryPoint {
 
         @Override
         public void onError(Throwable exception, boolean connected) {
-            int statuscode =-1;
+            int statuscode = -1;
             if (exception instanceof StatusCodeException) {
-                statuscode = ((StatusCodeException)exception).getStatusCode();
+                statuscode = ((StatusCodeException) exception).getStatusCode();
             }
-            GWT.log("comet.error [connected=" + connected + "] ("+statuscode+")", exception);
+            GWT.log("comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
         }
 
         @Override
         public void onHeartbeat() {
-            GWT.log("comet.heartbeat ["+client.getConnectionID()+"]");
+            GWT.log("comet.heartbeat [" + client.getConnectionID() + "]");
         }
 
         @Override
         public void onRefresh() {
-            GWT.log("comet.refresh ["+client.getConnectionID()+"]");
+            GWT.log("comet.refresh [" + client.getConnectionID() + "]");
         }
 
         @Override
         public void onMessage(List<? extends Serializable> messages) {
             StringBuilder result = new StringBuilder();
-            for(Serializable obj : messages) {
+            for (Serializable obj : messages) {
                 result.append(obj.toString()).append("<br/>");
             }
-            logger.log(Level.INFO, "comet.message ["+client.getConnectionID()+"] " + result.toString());
-            Info.display("["+client.getConnectionID()+"] Received " + messages.size() + " messages", result.toString());
+            logger.log(Level.INFO, "comet.message [" + client.getConnectionID() + "] " + result.toString());
+            Info.display("[" + client.getConnectionID() + "] Received " + messages.size() + " messages", result.toString());
         }
-    };
+    }
+
+    ;
 
     public void initialize() {
 
@@ -193,11 +195,12 @@ public class GWTDemo implements EntryPoint {
         AtmosphereGWTSerializer serializer = GWT.create(EventSerializer.class);
         // set a small length parameter to force refreshes
         // normally you should remove the length parameter
-        client = new AtmosphereClient(GWT.getModuleBaseURL()+"gwtComet", serializer, cometListener);
+        client = new AtmosphereClient(GWT.getModuleBaseURL() + "gwtComet", serializer, cometListener);
         client.start();
     }
 
     static int count = 0;
+
     public void sendMessage() {
         client.broadcast(new Event(count++, "Button clicked!"));
     }

@@ -24,10 +24,10 @@ import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.user.client.ui.Widget;
+
 import java.util.ArrayList;
 
 /**
- *
  * @author p.havelaar
  */
 public class Info extends PopupPanel {
@@ -37,7 +37,7 @@ public class Info extends PopupPanel {
         final Info info = new Info(title, message);
 
         info.show();
-        
+
         Timer t = new Timer() {
             @Override
             public void run() {
@@ -84,29 +84,31 @@ public class Info extends PopupPanel {
 
     private static int findAvailableLevel() {
         int size = slots.size();
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             if (slots.get(i) == null) {
                 return i;
             }
         }
         return size;
     }
-    
+
     public static class InfoWidget extends Composite {
         MyUiBinder binder = GWT.create(MyUiBinder.class);
-        interface MyUiBinder extends UiBinder<Widget, InfoWidget> {}
+
+        interface MyUiBinder extends UiBinder<Widget, InfoWidget> {
+        }
+
         @UiField
         Label title;
         @UiField
         Label message;
-        
+
         private InfoWidget(String title, String message) {
             initWidget(binder.createAndBindUi(this));
             this.title.setText(title);
             this.message.setText(message);
         }
     }
-
 
 
 }

@@ -75,8 +75,7 @@ public class WebLogicCometSupport extends AsynchronousProcessor {
         Action action = suspended(req, res);
         if (action.type == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
-        }
-        else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
 
             Action nextAction = resumed(req, res);
@@ -97,11 +96,9 @@ public class WebLogicCometSupport extends AsynchronousProcessor {
                 (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             try {
-                RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest().getSession().getAttribute(RRK)
-                        ;
+                RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest().getSession().getAttribute(RRK);
                 AbstractAsyncServlet.notify(rrk, null);
-            }
-            catch (IOException ex) {
+            } catch (IOException ex) {
                 logger.debug("action failed", ex);
             }
         }
