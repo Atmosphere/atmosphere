@@ -56,7 +56,6 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
-import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -115,7 +114,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereGuiceServlet.class);
     public static final String JERSEY_PROPERTIES = AtmosphereGuiceServlet.class.getName() + ".properties";
     private static final String GUICE_FILTER = "com.google.inject.servlet.GuiceFilter";
-
+    protected static final String SKIP_GUICE_FILTER = "SkipGuiceFilter";
     private boolean guiceInstalled = false;
 
     /**
@@ -150,7 +149,9 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
         setUseStreamForFlushingComments(true);
 
         rsp.setServlet(guiceServlet);
-        rsp.setFilterClassName(GUICE_FILTER);
+        if (sc.getServletContext().getAttribute(SKIP_GUICE_FILTER) == null) {
+            rsp.setFilterClassName(GUICE_FILTER);
+        }
         getAtmosphereConfig().setSupportSession(false);
 
         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
