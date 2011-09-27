@@ -97,7 +97,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                     try {
                         c.complete();
                     } catch (IllegalStateException ex) {
-                        logger.debug("Continuation.complete()", ex);
+                        logger.trace("Continuation.complete()", ex);
                     } finally {
                         resumed(req, res);
                     }
@@ -123,7 +123,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 try {
                     c.complete();
                 } catch (IllegalStateException ex) {
-                    logger.debug("Continuation.complete() failed", ex);
+                    logger.trace("Continuation.complete() failed", ex);
                 }
             }
         } else {
