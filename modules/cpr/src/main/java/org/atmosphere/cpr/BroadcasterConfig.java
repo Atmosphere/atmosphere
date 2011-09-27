@@ -99,21 +99,18 @@ public class BroadcasterConfig {
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
             }
-        }
-        catch (InstantiationException e) {
+        } catch (InstantiationException e) {
             throw new RuntimeException(e);
-        }
-        catch (IllegalAccessException e) {
+        } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
-        }
-        catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
 
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-            ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -212,14 +209,14 @@ public class BroadcasterConfig {
         }
 
         if (e instanceof PerRequestBroadcastFilter) {
-            perRequestFilters.add((PerRequestBroadcastFilter)e);
+            perRequestFilters.add((PerRequestBroadcastFilter) e);
         }
 
         return filters.offer(e);
     }
 
     private boolean checkDuplicateFilter(BroadcastFilter e) {
-        for (BroadcastFilter f: filters) {
+        for (BroadcastFilter f : filters) {
             if (f.getClass().isAssignableFrom(e.getClass())) {
                 return true;
             }
@@ -272,7 +269,7 @@ public class BroadcasterConfig {
         if (filter instanceof PerRequestBroadcastFilter) {
             perRequestFilters.remove(filter);
         }
-        
+
         return filters.remove(filter);
     }
 
@@ -284,7 +281,7 @@ public class BroadcasterConfig {
             removeFilter(filter);
         }
     }
-    
+
     /**
      * Return true if this object contains {@link BroadcastFilter}
      *
@@ -303,7 +300,7 @@ public class BroadcasterConfig {
         if (filters.isEmpty()) {
             return false;
         } else {
-            for(BroadcastFilter b: filters) {
+            for (BroadcastFilter b : filters) {
                 if (PerRequestBroadcastFilter.class.isAssignableFrom(b.getClass())) {
                     return true;
                 }
@@ -321,9 +318,11 @@ public class BroadcasterConfig {
     protected BroadcastAction filter(Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
-            transformed = mf.filter(object, transformed.message());
-            if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
-                return transformed;
+            synchronized (mf) {
+                transformed = mf.filter(object, transformed.message());
+                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                    return transformed;
+                }
             }
         }
         return transformed;
@@ -331,16 +330,19 @@ public class BroadcasterConfig {
 
     /**
      * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link javax.servlet.http.HttpServletRequest}
+     *
      * @param request {@link javax.servlet.http.HttpServletRequest}
-     * @param object the broadcasted object.
+     * @param object  the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object object) {
         BroadcastAction transformed = new BroadcastAction(object);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
-            transformed = mf.filter(request, response, transformed.message());
-            if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
-                return transformed;
+            synchronized (mf) {
+                transformed = mf.filter(request, response, transformed.message());
+                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                    return transformed;
+                }
             }
         }
         return transformed;
@@ -458,6 +460,7 @@ public class BroadcasterConfig {
     /**
      * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
      * if the associated {@link Broadcaster} has been created manually.
+     *
      * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
     public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
@@ -466,6 +469,7 @@ public class BroadcasterConfig {
 
     /**
      * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     *
      * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
     public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
