@@ -42,7 +42,6 @@ package org.atmosphere.cpr;
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.container.GoogleAppEngineCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
@@ -55,7 +54,6 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
-import org.atmosphere.util.gae.GAEDefaultBroadcaster;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
@@ -180,7 +178,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
 
     public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
-    public final static String GAE_BROADCASTER = GAEDefaultBroadcaster.class.getName();
     public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
     public final static String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     public final static String PROPERTY_NATIVE_COMETSUPPORT = "org.atmosphere.useNative";
@@ -563,7 +560,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             doInitParams(scFacade);
             configureDefaultBroadcasterFactory();
             doInitParamsForWebSocket(scFacade);
-            detectGoogleAppEngine(scFacade);
             loadConfiguration(scFacade);
 
             autoDetectContainer();
@@ -798,23 +794,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void sessionSupport(boolean sessionSupport) {
         if (!isSessionSupportSpecified) {
             config.supportSession = sessionSupport;
-        }
-    }
-
-    /**
-     * Auto-Detect Google App Engine.
-     *
-     * @param sc (@link ServletConfig}
-     * @return true if detected
-     */
-    boolean detectGoogleAppEngine(ServletConfig sc) {
-        if (sc.getServletContext().getServerInfo().startsWith("Google")) {
-            broadcasterClassName = GAE_BROADCASTER;
-            isBroadcasterSpecified = true;
-            cometSupport = new GoogleAppEngineCometSupport(config);
-            return true;
-        } else {
-            return false;
         }
     }
 
