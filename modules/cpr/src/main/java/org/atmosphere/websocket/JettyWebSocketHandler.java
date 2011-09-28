@@ -117,7 +117,7 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
 
     @Override
     public void onOpen(WebSocket.Connection connection) {
-        logger.debug("WebSocket.onOPen.");
+        logger.debug("WebSocket.onOpen.");
         try {
             webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProcessorClassName)
