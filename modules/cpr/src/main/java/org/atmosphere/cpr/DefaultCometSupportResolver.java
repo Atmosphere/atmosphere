@@ -47,6 +47,7 @@ import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.JettyCometSupportWithWebSocket;
 import org.atmosphere.container.Servlet30CometSupport;
+import org.atmosphere.container.Servlet30CometSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -166,6 +167,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      */
     public CometSupport defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
+            if (detectWebSocketPresent().size() > 0) {
+                return new Servlet30CometSupportWithWebSocket(config);
+            }
             return new Servlet30CometSupport(config);
         } else {
             return new BlockingIOCometSupport(config);
