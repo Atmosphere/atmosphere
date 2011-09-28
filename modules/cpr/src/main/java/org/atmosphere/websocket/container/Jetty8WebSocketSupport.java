@@ -17,6 +17,8 @@ package org.atmosphere.websocket.container;
 
 import org.atmosphere.websocket.WebSocketSupport;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -27,6 +29,7 @@ import java.io.IOException;
  */
 public class Jetty8WebSocketSupport implements WebSocketSupport {
 
+    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocketSupport.class);
     private final Connection connection;
 
     public Jetty8WebSocketSupport(Connection connection) {
@@ -41,22 +44,24 @@ public class Jetty8WebSocketSupport implements WebSocketSupport {
 
     public void write(byte frame, String data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection closed");
+        logger.debug("WebSocket.write()");
         connection.sendMessage(data);
     }
 
     public void write(byte frame, byte[] data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection closed");
+        logger.debug("WebSocket.write()");
         connection.sendMessage(data, 0, data.length);
     }
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection closed");
-        // That sucks, but there is a bug in Jetty 8.0.0.M3 that add junk in front of the message.
-        // TODO: Revisit.
+        logger.debug("WebSocket.write()");
         connection.sendMessage(new String(data, offset, length, "UTF-8"));
     }
 
     public void close() throws IOException {
+        logger.debug("WebSocket.close()");
         connection.disconnect();
     }
 
