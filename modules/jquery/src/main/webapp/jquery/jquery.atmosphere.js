@@ -203,7 +203,6 @@ jQuery.atmosphere = function() {
 
                     var junkForWebkit = false;
                     var update = false;
-                    var responseText = ajaxRequest.responseText;
                     if (ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.request = request;
                         if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
@@ -220,7 +219,7 @@ jQuery.atmosphere = function() {
                     }
 
                     if (update) {
-
+                        var responseText = ajaxRequest.responseText;
                         this.previousLastIndex = request.lastIndex;
                         if (request.transport == 'streaming') {
                             response.responseBody = responseText.substring(request.lastIndex, responseText.length);
