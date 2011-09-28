@@ -56,12 +56,12 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyWebSocketSupport extends Jetty7CometSupport {
+public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(JettyCometSupportWithWebSocket.class);
     private final WebSocketFactory webSocketFactory;
 
-    public JettyWebSocketSupport(final AtmosphereConfig config) {
+    public JettyCometSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
         String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
