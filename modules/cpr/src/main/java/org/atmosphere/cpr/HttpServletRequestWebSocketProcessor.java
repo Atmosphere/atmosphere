@@ -45,10 +45,24 @@ import java.util.Enumeration;
  */
 public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor implements Serializable {
 
+
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    private final String contentType;
+    private final String methodType;
 
     public HttpServletRequestWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
         super(atmosphereServlet, webSocketSupport);
+        String contentType = atmosphereServlet.config.getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
+        if (contentType == null) {
+            contentType = "text/html";
+        }
+        this.contentType = contentType;
+
+        String methodType = atmosphereServlet.config.getInitParameter(AtmosphereServlet.WEBSOCKET_METHOD);
+        if (methodType == null) {
+            methodType = "POST";
+        }
+        this.methodType = methodType;
     }
 
     public void broadcast(final String data) {
@@ -60,19 +74,19 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
 
                 @Override
                 public String getMethod() {
-                    return "POST";
+                    return methodType;
                 }
 
                 @Override
                 public String getContentType() {
-                    return "text/plain";
+                    return contentType;
                 }
 
                 @Override
                 public Enumeration getHeaders(String name) {
                     ArrayList list = Collections.list(super.getHeaders(name));
                     if (name.equalsIgnoreCase("content-type")) {
-                        list.add("text/plain");
+                        list.add(contentType);
                     }
                     return Collections.enumeration(list);
                 }
@@ -88,7 +102,7 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     if (s.equalsIgnoreCase("Connection")) {
                         return "keep-alive";
                     } else if ("content-type".equalsIgnoreCase(s)) {
-                        return "text/plain";
+                        return contentType;
                     } else {
                         return super.getHeader(s);
                     }
@@ -122,19 +136,19 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
 
                 @Override
                 public String getMethod() {
-                    return "POST";
+                    return methodType;
                 }
 
                 @Override
                 public String getContentType() {
-                    return "application/octet-stream";
+                    return contentType;
                 }
 
                 @Override
                 public Enumeration getHeaders(String name) {
                     ArrayList list = Collections.list(super.getHeaders(name));
                     if (name.equalsIgnoreCase("content-type")) {
-                        list.add("application/octet-stream");
+                        list.add(contentType);
                     }
                     return Collections.enumeration(list);
                 }
@@ -150,7 +164,7 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     if (s.equalsIgnoreCase("Connection")) {
                         return "keep-alive";
                     } else if ("content-type".equalsIgnoreCase(s)) {
-                        return "application/octet-stream";
+                        return contentType;
                     } else {
                         return super.getHeader(s);
                     }
