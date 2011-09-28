@@ -415,33 +415,32 @@ jQuery.atmosphere = function() {
 
             jQuery.atmosphere.websocket = websocket;
 
-            jQuery.atmosphere.response.push = function (url) {
-                var data;
-                var ws = jQuery.atmosphere.websocket;
-                try {
-                    data = jQuery.atmosphere.request.data;
-                    ws.send(jQuery.atmosphere.request.data);
-                } catch (e) {
-                    jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
-                    // Websocket is not supported, reconnect using the fallback transport.
-                    request.transport = request.fallbackTransport;
-                    request.method = request.fallbackMethod;
-                    request.data = data;
-                    jQuery.atmosphere.response.transport = request.fallbackTransport;
-                    jQuery.atmosphere.request = request;
-                    jQuery.atmosphere.executeRequest();
-
-                    ws.onclose = function(message) {
-                    };
-                    ws.close();
-                }
-            };
-
             websocket.onopen = function(message) {
                 jQuery.atmosphere.debug("Websocket successfully opened");
                 success = true;
                 jQuery.atmosphere.response.state = 'opening';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
+                jQuery.atmosphere.response.push = function (url) {
+                    var data;
+                    try {
+                        data = jQuery.atmosphere.request.data;
+                        websocket.send(jQuery.atmosphere.request.data);
+                    } catch (e) {
+                        jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
+                        // Websocket is not supported, reconnect using the fallback transport.
+                        request.transport = request.fallbackTransport;
+                        request.method = request.fallbackMethod;
+                        request.data = data;
+                        jQuery.atmosphere.response.transport = request.fallbackTransport;
+                        jQuery.atmosphere.request = request;
+                        jQuery.atmosphere.executeRequest();
+
+                        websocket.onclose = function(message) {
+                        };
+                        websocket.close();
+                    }
+                };
             };
 
             websocket.onmessage = function(message) {
