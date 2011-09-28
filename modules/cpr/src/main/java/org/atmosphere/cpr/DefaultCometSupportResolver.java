@@ -46,7 +46,7 @@ import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.JettyCometSupportWithWebSocket;
-import org.atmosphere.container.Servlet30Support;
+import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -166,7 +166,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      */
     public CometSupport defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
-            return new Servlet30Support(config);
+            return new Servlet30CometSupport(config);
         } else {
             return new BlockingIOCometSupport(config);
         }

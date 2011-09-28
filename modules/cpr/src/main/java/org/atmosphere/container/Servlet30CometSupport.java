@@ -60,11 +60,11 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class Servlet30Support extends AsynchronousProcessor {
+public class Servlet30CometSupport extends AsynchronousProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(Servlet30Support.class);
+    private static final Logger logger = LoggerFactory.getLogger(Servlet30CometSupport.class);
 
-    public Servlet30Support(AtmosphereConfig config) {
+    public Servlet30CometSupport(AtmosphereConfig config) {
         super(config);
     }
 
