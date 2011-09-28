@@ -85,36 +85,28 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = suspended(request, response);
-        if (request.getAttribute(WebSocketSupport.WEBSOCKET_SUSPEND) == null) {
-            if (action.type == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", response);
-                suspend(action, request, response);
-            } else if (action.type == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", response);
+        if (action.type == Action.TYPE.SUSPEND) {
+            logger.debug("Suspending response: {}", response);
+            suspend(action, request, response);
+        } else if (action.type == Action.TYPE.RESUME) {
+            logger.debug("Resuming response: {}", response);
 
-                if (supportSession()) {
-                    AsyncContext asyncContext =
-                            (AsyncContext) request.getSession().getAttribute("org.atmosphere.container.asyncContext");
+            if (supportSession()) {
+                AsyncContext asyncContext =
+                        (AsyncContext) request.getSession().getAttribute("org.atmosphere.container.asyncContext");
 
-                    if (asyncContext != null) {
-                        asyncContext.complete();
-                    }
-                }
-
-                Action nextAction = resumed(request, response);
-                if (nextAction.type == Action.TYPE.SUSPEND) {
-                    logger.debug("Suspending after resuming response: {}", response);
-                    suspend(action, request, response);
+                if (asyncContext != null) {
+                    asyncContext.complete();
                 }
             }
-        } else {
-            if (action.type == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", response);
-            } else if (action.type == Action.TYPE.RESUME) {
-                logger.debug("Resume response: {}", response);
-                request.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
+
+            Action nextAction = resumed(request, response);
+            if (nextAction.type == Action.TYPE.SUSPEND) {
+                logger.debug("Suspending after resuming response: {}", response);
+                suspend(action, request, response);
             }
         }
+
         return action;
     }
 
