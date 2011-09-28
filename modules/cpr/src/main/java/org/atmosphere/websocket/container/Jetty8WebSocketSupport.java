@@ -57,7 +57,8 @@ public class Jetty8WebSocketSupport implements WebSocketSupport {
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection closed");
         logger.debug("WebSocket.write()");
-        connection.sendMessage(data, offset, length);
+        // Chrome doesn't like it, throwing: Received a binary frame which is not supported yet. So send a String instead
+        connection.sendMessage(new String(data, offset, length, "UTF-8"));
     }
 
     public void close() throws IOException {
