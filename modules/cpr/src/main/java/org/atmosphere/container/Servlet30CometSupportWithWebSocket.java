@@ -71,24 +71,28 @@ public class Servlet30CometSupportWithWebSocket extends Servlet30CometSupport {
     public Servlet30CometSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
-        String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
         boolean isJetty = config.getServletContext().getServerInfo().toLowerCase().startsWith("jetty");
-        if (isJetty && Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-            webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
-                public boolean checkOrigin(HttpServletRequest request, String origin) {
-                    // Allow all origins
-                    logger.debug("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
-                    return true;
-                }
+        if (isJetty) {
+            String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
+            if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
+                webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
+                    public boolean checkOrigin(HttpServletRequest request, String origin) {
+                        // Allow all origins
+                        logger.debug("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
+                        return true;
+                    }
 
-                public WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
-                    logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                    return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
-                }
-            });
-            webSocketFactory.setBufferSize(4096);
-            webSocketFactory.setMaxIdleTime(60000);
-        } else {
+                    public WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
+                        logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
+                        return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
+                    }
+                });
+                webSocketFactory.setBufferSize(4096);
+                webSocketFactory.setMaxIdleTime(60000);
+            } else {
+                webSocketFactory = null;
+            }
+        }  else {
             webSocketFactory = null;
         }
         //TODO: Add Grizzly support here as well.
