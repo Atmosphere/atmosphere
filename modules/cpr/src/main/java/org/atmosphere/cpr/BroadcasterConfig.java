@@ -83,6 +83,8 @@ public class BroadcasterConfig {
 
     private BroadcasterCache broadcasterCache;
     private AtmosphereServlet.AtmosphereConfig config;
+    private boolean isExecutorShared = false;
+    private boolean isAsyncExecutorShared = false;
 
     public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
         this.config = config;
@@ -153,10 +155,24 @@ public class BroadcasterConfig {
      * @param executorService to be used when broadcasting.
      */
     public BroadcasterConfig setExecutorService(ExecutorService executorService) {
-        if (this.executorService != null) {
+        return setExecutorService(executorService, false);
+    }
+
+    /**
+     * Set an {@link ExecutorService} which can be used to dispatch
+     * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
+     * of size 1 is used if that method is not invoked.
+     *
+     * @param executorService to be used when broadcasting.
+     * @param isExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
+     * That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     */
+    public BroadcasterConfig setExecutorService(ExecutorService executorService, boolean isExecutorShared) {
+        if (!this.isExecutorShared && this.executorService != null) {
             this.executorService.shutdown();
         }
         this.executorService = executorService;
+        this.isExecutorShared = isExecutorShared;
         return this;
     }
 
@@ -178,10 +194,24 @@ public class BroadcasterConfig {
      * @param asyncWriteService to be used when writing events .
      */
     public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService) {
-        if (this.asyncWriteService != null) {
+        return setAsyncWriteService(asyncWriteService, false);
+    }
+
+    /**
+     * Set an {@link ExecutorService} which can be used to write
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
+     * is used if that method is not invoked.
+     *
+     * @param asyncWriteService to be used when writing events .
+     * @param isAsyncExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
+     * That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     */
+    public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService, boolean isAsyncExecutorShared) {
+        if (!this.isAsyncExecutorShared && this.asyncWriteService != null) {
             this.asyncWriteService.shutdown();
         }
         this.asyncWriteService = asyncWriteService;
+        this.isAsyncExecutorShared = isAsyncExecutorShared;
         return this;
     }
 
@@ -229,16 +259,16 @@ public class BroadcasterConfig {
             broadcasterCache.stop();
         }
 
-        if (executorService != null) {
+        if (!isExecutorShared && executorService != null) {
             executorService.shutdownNow();
         }
-        if (asyncWriteService != null) {
+        if (!isAsyncExecutorShared && asyncWriteService != null) {
             asyncWriteService.shutdownNow();
         }
-        if (defaultExecutorService != null) {
+        if (!isExecutorShared && defaultExecutorService != null) {
             defaultExecutorService.shutdownNow();
         }
-        if (defaultAsyncWriteService != null) {
+        if (!isAsyncExecutorShared && defaultAsyncWriteService != null) {
             defaultAsyncWriteService.shutdownNow();
         }
 
