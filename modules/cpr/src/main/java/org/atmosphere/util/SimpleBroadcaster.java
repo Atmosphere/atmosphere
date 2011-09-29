@@ -68,8 +68,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
-        bc.setExecutorService(null);
-        bc.setAsyncWriteService(null);
+        bc.setExecutorService(null, false).setAsyncWriteService(null, false);
     }
 
     /**

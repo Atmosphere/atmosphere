@@ -18,7 +18,7 @@ package org.atmosphere.cpr;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class can be used to configure the life cyle of a {@link org.atmosphere.cpr.Broadcaster}, e.g when a broadcaster
+ * This class can be used to configure the life cycle of a {@link org.atmosphere.cpr.Broadcaster}, e.g when a broadcaster
  * gets destroyed {@link org.atmosphere.cpr.Broadcaster#destroy()} or when it's associated resources
  * get released {@link Broadcaster#releaseExternalResources()}.
  *
