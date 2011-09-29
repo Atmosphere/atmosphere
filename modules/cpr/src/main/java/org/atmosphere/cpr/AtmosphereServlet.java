@@ -560,7 +560,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             loadConfiguration(scFacade);
 
             autoDetectContainer();
-            configureBroadcaster();
+            configureBroadcaster(sc.getServletContext());
             configureWebDotXmlAtmosphereHandler(sc);
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
@@ -591,7 +591,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         logger.info("Installed AtmosphereHandler {} mapped to context-path: /*", s);
     }
 
-    protected void configureBroadcaster() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    protected void configureBroadcaster(ServletContext sc) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         if (broadcasterFactoryClassName != null) {
             logger.info("Using BroadcasterFactory class: {}", broadcasterFactoryClassName);
@@ -607,6 +607,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
         }
+
+        // http://java.net/jira/browse/ATMOSPHERE-157
+        sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
 
         config.broadcasterFactory = broadcasterFactory;
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
@@ -1348,7 +1351,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public AtmosphereServlet setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         this.broadcasterFactory = broadcasterFactory;
-        configureBroadcaster();
+        configureBroadcaster(config.getServletContext());
         return this;
     }
 
@@ -1368,7 +1371,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public void setBroadcasterCacheClassName(String broadcasterCacheClassName) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
-        configureBroadcaster();
+        configureBroadcaster(config.getServletContext());
     }
 
     /**
