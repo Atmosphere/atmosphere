@@ -45,7 +45,6 @@ import java.util.Enumeration;
  */
 public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor implements Serializable {
 
-
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     private final String contentType;
     private final String methodType;
