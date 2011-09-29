@@ -34,14 +34,14 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,9 +60,9 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
+public class SimpleWebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketAtmosphereHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(SimpleWebSocketAtmosphereHandler.class);
 
     /**
      * This method redirect the request to the server main page (index.html, index.jsp, etc.) and then execute the
@@ -71,7 +71,8 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
      * @param r The {@link AtmosphereResource}
      * @throws IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+    @Override
+    public final void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
         if (!r.getResponse().getClass().isAssignableFrom(WebSocketHttpServletResponse.class)) {
             try {
                 r.getAtmosphereConfig().getServletContext()
@@ -100,6 +101,7 @@ public class WebSocketAtmosphereHandler extends AbstractReflectorAtmosphereHandl
         resource.suspend(-1, false);
     }
 
+    @Override
     public void destroy() {
     }
 

@@ -41,6 +41,7 @@ package org.atmosphere.cpr;
 
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
+import org.apache.catalina.core.ApplicationContextFacade;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
@@ -55,7 +56,6 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
-import org.atmosphere.websocket.WebSocketAtmosphereHandler;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -196,7 +196,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
     public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
     public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
-    public final static String WEBSOCKET_ATMOSPHEREHANDLER = WebSocketAtmosphereHandler.class.getName();
     public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     public final static String DEFAULT_NAMED_DISPATCHER = "default";
@@ -566,6 +565,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             autoDetectContainer();
             configureBroadcaster();
+            configureWebDotXmlAtmosphereHandler(sc);
             cometSupport.init(scFacade);
             initAtmosphereServletProcessor(scFacade);
 
@@ -578,6 +578,18 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
 
             throw new ServletException(t.getCause());
+        }
+    }
+
+    protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
+        String s = sc.getInitParameter(ATMOSPHERE_HANDLER);
+        if (s != null) {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            try {
+                addAtmosphereHandler("/*", (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
+            } catch (Exception ex) {
+                logger.warn("Unable to load WebSocketHandle instance", ex);
+            }
         }
     }
 
@@ -627,19 +639,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     protected void doInitParamsForWebSocket(ServletConfig sc) {
-        String s = sc.getInitParameter(WEBSOCKET_ATMOSPHEREHANDLER);
-        if (s != null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            try {
-                addAtmosphereHandler("/*", (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
-                webSocketEnabled = true;
-                sessionSupport(false);
-            } catch (Exception ex) {
-                logger.warn("Unable to load WebSocketHandle instance", ex);
-            }
-        }
-
-        s = sc.getInitParameter(WEBSOCKET_SUPPORT);
+        String s = sc.getInitParameter(WEBSOCKET_SUPPORT);
         if (s != null) {
             webSocketEnabled = true;
             sessionSupport(false);
