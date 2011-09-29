@@ -289,6 +289,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         TrackableSession.getDefault().track(trackableResource);
                         response.setEntity(trackableResource.entity());
                         response.getHttpHeaders().putSingle(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
+                        servletReq.setAttribute(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
