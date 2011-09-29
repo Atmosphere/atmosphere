@@ -96,8 +96,8 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 logger.debug("Resuming response: {}", res);
 
                 int latchId = (req.getAttribute(LATCH) == null ? 0 : (Integer) req.getAttribute(LATCH));
-                if (req.getSession(true).getAttribute(LATCH) != null) {
-                    latchId = (Integer) req.getSession(true).getAttribute(LATCH);
+                if (req.getSession(false).getAttribute(LATCH) != null) {
+                    latchId = (Integer) req.getSession(false).getAttribute(LATCH);
                 }
                 CountDownLatch latch = latchs.get(latchId);
 
