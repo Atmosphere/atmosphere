@@ -527,8 +527,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     @Override
     public void init(final ServletConfig sc) throws ServletException {
-        logger.info("Initializing Atmosphere framework: {}", Version.getRawVersion());
-
         try {
             super.init(sc);
 
