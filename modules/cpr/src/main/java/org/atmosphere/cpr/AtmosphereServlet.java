@@ -752,8 +752,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         } catch (Throwable ignored) {
         }
 
+        String broadcasterClassNameTmp = null;
+        
         try {
             cl.loadClass(JERSEY_CONTAINER);
+            
+            if (!isBroadcasterSpecified){
+                broadcasterClassNameTmp = lookupDefaultBroadcasterType();
+
+                cl.loadClass(broadcasterClassNameTmp);
+            }
             useStreamForFlushingComments = true;
         } catch (Throwable t) {
             return false;
@@ -765,7 +773,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
-        if (!isBroadcasterSpecified) broadcasterClassName = lookupDefaultBroadcasterType();
+        if (broadcasterClassNameTmp!=null) broadcasterClassName = broadcasterClassNameTmp;
         rsp.setServletClassName(JERSEY_CONTAINER);
         sessionSupport(false);
         initParams.put(DISABLE_ONSTATE_EVENT, "true");
