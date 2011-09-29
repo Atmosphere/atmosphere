@@ -103,7 +103,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public Broadcaster get() throws IllegalAccessException, InstantiationException {
+    public synchronized final Broadcaster get() throws IllegalAccessException, InstantiationException {
         Broadcaster b = clazz.newInstance();
         InjectorProvider.getInjector().inject(b);
         if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
@@ -119,7 +119,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public final Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException {
+    public synchronized final Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException {
 
         if (id == null) throw new NullPointerException("id is null");
         if (c == null) throw new NullPointerException("Class is null");
@@ -230,7 +230,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public void destroy() {
+    public synchronized void destroy() {
         Enumeration<Broadcaster> e = store.elements();
         while (e.hasMoreElements()) {
             e.nextElement().destroy();
