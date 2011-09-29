@@ -22,7 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -87,12 +89,28 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     if (name.equalsIgnoreCase("content-type")) {
                         list.add(contentType);
                     }
+
+                    if (list.size() == 0 && name.startsWith("X-Atmosphere")) {
+                        if (request().getAttribute(name) != null) {
+                            list.add(request().getAttribute(name));
+                        }
+                    }
+
                     return Collections.enumeration(list);
                 }
 
                 public Enumeration<String> getHeaderNames() {
                     ArrayList list = Collections.list(super.getHeaderNames());
                     list.add("content-type");
+
+                    Enumeration e = request().getAttributeNames();
+                    while (e.hasMoreElements()) {
+                        String name = e.nextElement().toString();
+                        if (name.startsWith("X-Atmosphere")) {
+                            list.add(name);
+                        }
+                    }
+
                     return Collections.enumeration(list);
                 }
 
@@ -103,7 +121,13 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     } else if ("content-type".equalsIgnoreCase(s)) {
                         return contentType;
                     } else {
-                        return super.getHeader(s);
+                        String name = super.getHeader(s);
+                        if (name != null) {
+                            if (name.startsWith("X-Atmosphere")) {
+                                return (String) request().getAttribute(s);
+                            }
+                        }
+                        return name;
                     }
                 }
 
@@ -149,12 +173,27 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     if (name.equalsIgnoreCase("content-type")) {
                         list.add(contentType);
                     }
+
+                    if (list.size() == 0 && name.startsWith("X-Atmosphere")) {
+                        if (request().getAttribute(name) != null) {
+                            list.add(request().getAttribute(name));
+                        }
+                    }
                     return Collections.enumeration(list);
                 }
 
                 public Enumeration<String> getHeaderNames() {
                     ArrayList list = Collections.list(super.getHeaderNames());
                     list.add("content-type");
+
+                    Enumeration e = request().getAttributeNames();
+                    while (e.hasMoreElements()) {
+                        String name = e.nextElement().toString();
+                        if (name.startsWith("X-Atmosphere")) {
+                            list.add(name);
+                        }
+                    }
+
                     return Collections.enumeration(list);
                 }
 
@@ -165,7 +204,13 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     } else if ("content-type".equalsIgnoreCase(s)) {
                         return contentType;
                     } else {
-                        return super.getHeader(s);
+                        String name = super.getHeader(s);
+                        if (name != null) {
+                            if (name.startsWith("X-Atmosphere")) {
+                                return (String) request().getAttribute(s);
+                            }
+                        }
+                        return name;
                     }
                 }
 

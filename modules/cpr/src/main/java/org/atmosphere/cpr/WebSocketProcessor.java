@@ -77,10 +77,10 @@ public abstract class WebSocketProcessor implements Serializable {
             logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
         }
 
+        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport);
         request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
         try {
-            atmosphereServlet
-                    .doCometSupport(request, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport));
+            atmosphereServlet.doCometSupport(request, wsr );
         } catch (IOException e) {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
