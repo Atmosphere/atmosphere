@@ -33,13 +33,13 @@ import java.util.Collections;
 import java.util.Enumeration;
 
 /**
- * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
- * proper {@link org.atmosphere.websocket.WebSocketSupport} implementation by wrapping the Websocket bytes within
+ * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
+ * proper {@link org.atmosphere.websocket.WebSocketSupport} implementation by wrapping the Websocket message's bytes within
  * an {@link javax.servlet.http.HttpServletRequest}.
  * <p/>
- * The current content-type is text/plain for String message, and application/octet-stream for bytes.
+ * The content-type is defined using {@link AtmosphereServlet#WEBSOCKET_CONTENT_TYPE} property
+ * The method is defined using {@link AtmosphereServlet#WEBSOCKET_METHOD} property
  * <p/>
- * TODO: Add a way to configure the content-type.
  *
  * @author Jeanfrancois Arcand
  */
