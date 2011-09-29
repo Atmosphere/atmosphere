@@ -46,6 +46,7 @@ public final class JerseyBroadcasterUtil {
                 cr.setResponse((Response) e.getMessage());
                 cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
+                cr.getOutputStream().flush();
             } else if (e.getMessage() instanceof List) {
                 for (Object msg : (List<Object>) e.getMessage()) {
                     cr.setResponse(Response.ok(msg).build());
@@ -57,8 +58,8 @@ public final class JerseyBroadcasterUtil {
                 cr.setResponse(Response.ok(e.getMessage()).build());
                 cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
+                cr.getOutputStream().flush();
             }
-            cr.getOutputStream().flush();
         } catch (Throwable t) {
             onException(t, r);
         } finally {
