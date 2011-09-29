@@ -16,18 +16,31 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.websocket.WebSocketSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Simple {@link WebSocketProcessor} that invoke the {@link Broadcaster#broadcast} API when a WebSocket message
+ * is received.
+ *
+ * NOTE: If WebSocket frame are used
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class EchoWebSocketProcessor extends WebSocketProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
     public EchoWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
         super(atmosphereServlet, webSocketSupport);
     }
 
     public void broadcast(String data) {
+        logger.trace("broadcast String");
         resource().getBroadcaster().broadcast(data);
     }
 
     public void broadcast(byte[] data, int offset, int length) {
+        logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
         resource().getBroadcaster().broadcast(b);
