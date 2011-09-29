@@ -90,7 +90,7 @@ public abstract class WebSocketProcessor implements Serializable {
         resource = (AtmosphereResource) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
         handler = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
         if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
-            logger.warn("No AtmosphereResource has been suspended. The WebSocket will be closed.");
+            logger.error("No AtmosphereResource has been suspended. The WebSocket will be closed.");
             webSocketSupport.close();
         }
     }
@@ -124,7 +124,7 @@ public abstract class WebSocketProcessor implements Serializable {
             if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
-            logger.info("failed invoking atmosphere handler onStateChange()", e);
+            logger.info("Failed invoking atmosphere handler onStateChange()", e);
         }
     }
 
