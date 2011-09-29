@@ -201,7 +201,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public void setID(String id) {
+    public synchronized void setID(String id) {
         if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
