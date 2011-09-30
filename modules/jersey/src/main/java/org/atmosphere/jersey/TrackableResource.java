@@ -17,6 +17,9 @@ package org.atmosphere.jersey;
 
 import org.atmosphere.cpr.Trackable;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Associate any kind of resource to a @Suspend operation. When returning a {@link TrackableResource} from a method
  * annotated with the suspend annotation, the atmosphere framework will automatically add the X-Atmosphere-tracking-id
@@ -42,6 +45,7 @@ public class TrackableResource<T extends Trackable> {
     private T resource;
     private String trackingID = null;
     private final Object entity;
+    private final CountDownLatch latch = new CountDownLatch(1);
 
     public TrackableResource(Class<T> type, Object entity) {
         this.type = type;
@@ -58,6 +62,7 @@ public class TrackableResource<T extends Trackable> {
         if (!type.isAssignableFrom(resource.getClass())) {
             throw new IllegalStateException(String.format("Unassignable %s to %s", type.toString(), resource.getClass().toString()));
         }
+        latch.countDown();
         this.resource = type.cast(resource);
     }
 
@@ -71,6 +76,11 @@ public class TrackableResource<T extends Trackable> {
      * @return the associated resource of type T
      */
     public T resource() {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
         return resource;
     }
 
