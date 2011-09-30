@@ -16,6 +16,8 @@
 package org.atmosphere.jersey;
 
 import org.atmosphere.cpr.Trackable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TrackableResource<T extends Trackable> {
 
+    private static final Logger logger = LoggerFactory.getLogger(TrackableResource.class);
     public static final String TRACKING_HEADER = "X-Atmosphere-tracking-id";
 
     private final Class<T> type;
@@ -79,7 +82,7 @@ public class TrackableResource<T extends Trackable> {
         try {
             latch.await(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            logger.trace("", e);
         }
         return resource;
     }
