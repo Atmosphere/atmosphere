@@ -47,6 +47,7 @@ jQuery.atmosphere = function() {
         websocket : null,
         killHiddenIFrame : null,
         uuid : 0,
+        opening : true,
 
         subscribe: function(url, callback, request) {
             jQuery.atmosphere.request = jQuery.extend({
@@ -193,9 +194,14 @@ jQuery.atmosphere = function() {
                     var junkForWebkit = false;
                     var update = false;
 
-                    if (ajaxRequest.readyState == 2) {
+                    if (ajaxRequest.readyState == 2 && jQuery.atmosphere.opening) {
                         response.status = 202;
                         response.state = 'opening';
+                        response.responseBody = '';
+
+                        if (request.transport == 'streaming')
+                            jQuery.atmosphere.opening = false;
+
                         jQuery.atmosphere.invokeCallback(response);
                         return;
                     }
