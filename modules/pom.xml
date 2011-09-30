@@ -23,7 +23,6 @@
         <module>cpr</module>
         <module>annotations</module>
         <module>jersey</module>
-        <module>gwt</module>
         <module>jquery</module>
     </modules>
 </project>
