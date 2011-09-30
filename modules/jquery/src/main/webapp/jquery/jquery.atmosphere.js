@@ -192,6 +192,14 @@ jQuery.atmosphere = function() {
 
                     var junkForWebkit = false;
                     var update = false;
+
+                    if (ajaxRequest.readyState == 2) {
+                        response.status = 202;
+                        response.state = 'opening';
+                        jQuery.atmosphere.invokeCallback(response);
+                        return;
+                    }
+
                     if (ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.request = request;
                         if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
