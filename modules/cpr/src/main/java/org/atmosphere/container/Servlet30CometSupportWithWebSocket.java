@@ -117,13 +117,15 @@ public class Servlet30CometSupportWithWebSocket extends Servlet30CometSupport {
             }
         }
 
-        Object o = req.getAttribute(WebSocketSupport.WEBSOCKET_INITIATED);
+        Boolean b = (Boolean)req.getAttribute(WebSocketSupport.WEBSOCKET_INITIATED);
+        if (b == null) b = Boolean.FALSE;
+
         if (!webSocketEnabled) {
             return super.service(req, res);
         } else {
-            if (webSocketFactory != null && o != null && !Boolean.class.cast(o)) {
+            if (webSocketFactory != null && !b) {
+                req.setAttribute(WebSocketSupport.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
-                req.setAttribute(WebSocketSupport.WEBSOCKET_INITIATED, "true");
                 return new Action();
             }
 
@@ -132,7 +134,7 @@ public class Servlet30CometSupportWithWebSocket extends Servlet30CometSupport {
                 logger.debug("Suspending response: {}", res);
             } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", res);
-                req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, "true");
+                req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, true);
             }
 
             return action;

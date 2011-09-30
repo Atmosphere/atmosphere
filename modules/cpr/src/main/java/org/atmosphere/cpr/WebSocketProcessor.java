@@ -78,7 +78,7 @@ public abstract class WebSocketProcessor implements Serializable {
         }
 
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport);
-        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
+        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, true);
         try {
             atmosphereServlet.doCometSupport(request, wsr );
         } catch (IOException e) {

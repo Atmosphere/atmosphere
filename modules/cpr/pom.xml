@@ -45,7 +45,6 @@
                     <instructions>
                         <Import-Package>*</Import-Package>
                         <Export-Package>
-                            !org.atmosphere.ping.*,
                             org.atmosphere.*,
                         </Export-Package>
                     </instructions>
