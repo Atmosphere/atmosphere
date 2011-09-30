@@ -87,7 +87,7 @@ public class TrackableSession {
             CountDownLatch latch = new CountDownLatch(1);
             pendingLock.put(trackingID,latch);
             try {
-                if (!latch.await(10, TimeUnit.SECONDS)) {
+                if (!latch.await(5, TimeUnit.SECONDS)) {
                 }
                 pendingLock.remove(trackingID);
             } catch (InterruptedException e) {
