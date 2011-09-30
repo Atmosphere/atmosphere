@@ -15,6 +15,7 @@
     <name>atmosphere-extras</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <modules>
+        <module>gwt</module>
         <module>guice</module>
         <module>grizzly-adapter</module>
         <module>jgroups</module>
