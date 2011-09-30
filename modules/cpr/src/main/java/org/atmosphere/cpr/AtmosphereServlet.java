@@ -55,6 +55,7 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
+import org.atmosphere.websocket.WebSocketSupport;
 import org.eclipse.jetty.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -1401,7 +1402,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.info("WebSocket upgrade requested");
-
+        request.setAttribute(WebSocketSupport.WEBSOCKET_INITIATED, true);
         return new JettyWebSocketHandler(request, this, webSocketProcessorClassName);
     }
 }

@@ -48,6 +48,7 @@ import java.io.IOException;
  */
 public interface WebSocketSupport {
 
+    public final static String WEBSOCKET_INITIATED = WebSocketSupport.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocketSupport.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocketSupport.class.getName() + ".resume";
 
