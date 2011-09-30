@@ -117,12 +117,15 @@ public class AtmosphereProviders {
             public Object fromString(String topic) {
                 TrackableResource<?> trackableResource = null;
                 try {
+                    String transport = req.getHeader("X-Atmosphere-Transport");
                     String trackingId = req.getHeader(TrackableResource.TRACKING_HEADER);
                     if (trackingId == null) {
                         trackingId = (String) req.getAttribute(TrackableResource.TRACKING_HEADER);
                     }
+
                     if (trackingId != null) {
-                        trackableResource = TrackableSession.getDefault().lookupAndWait(trackingId);
+                        trackableResource =  transport != null ? TrackableSession.getDefault().lookupAndWait(trackingId)
+                                : TrackableSession.getDefault().lookup(trackingId);
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
                 } catch (Throwable ex) {
