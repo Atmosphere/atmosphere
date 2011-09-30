@@ -122,7 +122,7 @@ public class AtmosphereProviders {
                         trackingId = (String) req.getAttribute(TrackableResource.TRACKING_HEADER);
                     }
                     if (trackingId != null) {
-                        trackableResource = TrackableSession.getDefault().lookup(trackingId);
+                        trackableResource = TrackableSession.getDefault().lookupAndWait(trackingId);
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
                 } catch (Throwable ex) {

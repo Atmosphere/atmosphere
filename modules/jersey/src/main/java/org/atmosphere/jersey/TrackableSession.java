@@ -16,8 +16,13 @@
 package org.atmosphere.jersey;
 
 import org.atmosphere.cpr.Trackable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link TrackableSession} stores {@link TrackableResource} that can be retrieved when the http header called
@@ -27,8 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class TrackableSession {
 
+    private static final Logger logger = LoggerFactory.getLogger(TrackableSession.class);
     private final static TrackableSession factory = new TrackableSession();
     private final ConcurrentHashMap<String, TrackableResource> factoryCache = new ConcurrentHashMap<String, TrackableResource>();
+    private final ConcurrentHashMap<String, CountDownLatch> pendingLock = new ConcurrentHashMap<String, CountDownLatch>();
 
     private TrackableSession() {
     }
@@ -48,7 +55,12 @@ public class TrackableSession {
      * @param trackableResource a {@link TrackableResource}
      */
     public void track(TrackableResource<? extends Trackable> trackableResource) {
+        logger.info("Tracking {}", trackableResource.trackingID());
         factoryCache.put(trackableResource.trackingID(), trackableResource);
+        CountDownLatch latch = pendingLock.remove(trackableResource.trackingID());
+        if (latch != null) {
+            latch.countDown();
+        }
     }
 
     /**
@@ -61,5 +73,27 @@ public class TrackableSession {
         return factoryCache.get(trackingID);
     }
 
+    /**
+     * Return the {@link TrackableResource} associated with the trackingID
+     *
+     * @param trackingID a unique token.
+     * @return the {@link TrackableResource} associated with the trackingID
+     */
+    public TrackableResource<? extends Trackable> lookupAndWait(String trackingID) {
+        logger.info("Lookup trackinID {}", trackingID);
 
+        TrackableResource<? extends Trackable> r = factoryCache.get(trackingID);
+        if (r == null){
+            CountDownLatch latch = new CountDownLatch(1);
+            pendingLock.put(trackingID,latch);
+            try {
+                if (!latch.await(10, TimeUnit.SECONDS)) {
+                }
+                pendingLock.remove(trackingID);
+            } catch (InterruptedException e) {
+                logger.trace("",e);
+            }
+        }
+        return  factoryCache.get(trackingID);
+    }
 }
