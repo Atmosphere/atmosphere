@@ -84,7 +84,7 @@ public class WebSocketFactory {
      * @return A modifiable map of extension name to extension class
      */
     public Map<String, Class<? extends Extension>> getExtensionClassesMap() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -93,7 +93,7 @@ public class WebSocketFactory {
      * @return the maxIdleTime
      */
     public long getMaxIdleTime() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -102,7 +102,7 @@ public class WebSocketFactory {
      * @param maxIdleTime the maxIdleTime to set
      */
     public void setMaxIdleTime(int maxIdleTime) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -111,7 +111,7 @@ public class WebSocketFactory {
      * @return the bufferSize
      */
     public int getBufferSize() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -120,7 +120,7 @@ public class WebSocketFactory {
      * @param bufferSize the bufferSize to set
      */
     public void setBufferSize(int bufferSize) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
 
     }
 
@@ -128,7 +128,7 @@ public class WebSocketFactory {
      * @return The initial maximum text message size (in characters) for a connection
      */
     public int getMaxTextMessageSize() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -138,14 +138,14 @@ public class WebSocketFactory {
      * @param maxTextMessageSize The default maximum text message size (in characters) for a connection
      */
     public void setMaxTextMessageSize(int maxTextMessageSize) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
      * @return The initial maximum binary message size (in bytes)  for a connection
      */
     public int getMaxBinaryMessageSize() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -155,7 +155,7 @@ public class WebSocketFactory {
      * @param maxBinaryMessageSize The default maximum binary message size (in bytes) for a connection
      */
     public void setMaxBinaryMessageSize(int maxBinaryMessageSize) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     /**
@@ -172,26 +172,26 @@ public class WebSocketFactory {
      */
     public void upgrade(HttpServletRequest request, HttpServletResponse response, WebSocket websocket, String protocol)
             throws IOException {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     protected String[] parseProtocols(String protocol) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
     public boolean acceptWebSocket(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
 
     }
 
     public List<Extension> initExtensions(List<String> requested, int maxDataOpcodes, int maxControlOpcodes, int maxReservedBits) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
 
     }
 
     private Extension newExtension(String name) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-jetty from your classpath");
     }
 
 

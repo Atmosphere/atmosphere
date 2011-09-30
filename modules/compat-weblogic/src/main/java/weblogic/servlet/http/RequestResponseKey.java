@@ -63,14 +63,14 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class RequestResponseKey {
     public HttpServletRequest getRequest() {
-        throw new IllegalStateException("Not supported, must not ends here");
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
     }
 
     public HttpServletResponse getResponse() {
-        throw new IllegalStateException("Not supported, must not ends here");
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
     }
 
     public void setTimeout(int i) {
-        throw new IllegalStateException("Not supported, must not ends here");
+        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
     }
 }
