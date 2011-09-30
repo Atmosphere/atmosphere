@@ -40,8 +40,13 @@ public class TrackableResource<T extends Trackable> {
 
     private final Class<T> type;
     private T resource;
-    private final String trackingID;
+    private String trackingID = null;
     private final Object entity;
+
+    public TrackableResource(Class<T> type, Object entity) {
+        this.type = type;
+        this.entity = entity;
+    }
 
     public TrackableResource(Class<T> type, String trackingID, Object entity) {
         this.type = type;
@@ -54,6 +59,10 @@ public class TrackableResource<T extends Trackable> {
             throw new IllegalStateException(String.format("Unassignable %s to %s", type.toString(), resource.getClass().toString()));
         }
         this.resource = type.cast(resource);
+    }
+
+    protected void setTrackingID(String trackingID) {
+        this.trackingID = trackingID;
     }
 
     /**

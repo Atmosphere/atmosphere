@@ -286,8 +286,18 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     if (isTracked) {
                         trackableResource = TrackableResource.class.cast(response.getEntity());
-                        TrackableSession.getDefault().track(trackableResource);
                         response.setEntity(trackableResource.entity());
+
+                        String trackableUUID = request.getHeaderValue(TrackableResource.TRACKING_HEADER);
+                        if (trackableUUID == null && trackableResource.trackingID() != null) {
+                            trackableUUID = trackableResource.trackingID();
+                        } else if (trackableUUID == null) {
+                            trackableUUID = UUID.randomUUID().toString();
+                        }
+                        trackableResource.setTrackingID(trackableUUID);
+
+                        TrackableSession.getDefault().track(trackableResource);
+
                         response.getHttpHeaders().putSingle(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
                         servletReq.setAttribute(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
                     }
