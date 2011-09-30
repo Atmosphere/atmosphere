@@ -106,10 +106,9 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
         if (!webSocketEnabled) {
             return super.service(req, res);
         } else {
-            if (webSocketFactory != null && req.getAttribute("websocket") == null) {
-                req.setAttribute("websocket", "inprocess");
+            if (webSocketFactory != null && !(Boolean)req.getAttribute(WebSocketSupport.WEBSOCKET_INITIATED)) {
                 webSocketFactory.acceptWebSocket(req, res);
-                req.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, "true");
+                req.setAttribute(WebSocketSupport.WEBSOCKET_INITIATED, "true");
                 return new Action();
             }
 
