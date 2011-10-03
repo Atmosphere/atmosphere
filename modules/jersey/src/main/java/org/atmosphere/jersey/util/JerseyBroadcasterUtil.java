@@ -38,6 +38,7 @@ public final class JerseyBroadcasterUtil {
             if (cr == null) {
                 logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", res, cr);
                 logger.error("Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
+                r.getBroadcaster().removeAtmosphereResource(r);
                 return;
             }
 
