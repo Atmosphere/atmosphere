@@ -414,6 +414,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (enableAccessControl) {
                 response.getHttpHeaders().putSingle("Access-Control-Allow-Origin", "*");
+                response.getHttpHeaders().putSingle("Access-Control-Allow-Credentials", "true");
             }
         }
 
