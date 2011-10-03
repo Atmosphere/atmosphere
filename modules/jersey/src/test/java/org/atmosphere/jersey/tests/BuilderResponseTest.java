@@ -33,7 +33,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest {
         startServer();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 20000, enabled = false)
     public void test200WithNoContent() {
         logger.info("{}: running test: test200WithNoContent", getClass().getSimpleName());
 
