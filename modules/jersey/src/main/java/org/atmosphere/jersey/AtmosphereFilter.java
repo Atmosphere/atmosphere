@@ -580,9 +580,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     bc.setID(bc.getClass().getSimpleName() + "-" + UUID.randomUUID());
 
                     // Re-generate a new one with proper scope.
-                    bc = broadcasterFactory.get();
+                    Class<Broadcaster> c = null;
+                    try {
+                        c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                    } catch (Throwable e) {
+                        throw new IllegalStateException(e.getMessage());
+                    }
+                    bc = broadcasterFactory.get(c, id);
                     bc.setScope(Broadcaster.SCOPE.REQUEST);
-                    bc.setID(id);
                 } catch (Exception ex) {
                     logger.error("failed to instantiate broadcaster with factory: " + broadcasterFactory, ex);
                 }

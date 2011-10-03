@@ -878,6 +878,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                         isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
+                        broadcasterClassName = lookupDefaultBroadcasterType();
                     }
                     IntrospectionUtils.setProperty(handler, p.name, p.value);
                 }
