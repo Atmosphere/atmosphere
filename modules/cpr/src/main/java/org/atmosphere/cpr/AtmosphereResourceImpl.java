@@ -243,6 +243,7 @@ public class AtmosphereResourceImpl implements
 
             if (writeHeaders && enableAccessControl) {
                 response.setHeader("Access-Control-Allow-Origin", "*");
+                response.setHeader("Access-Control-Allow-Credentials", "true");
             }
 
             if (flushComment) {
