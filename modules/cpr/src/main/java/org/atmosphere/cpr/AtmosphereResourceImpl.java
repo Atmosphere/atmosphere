@@ -469,6 +469,7 @@ public class AtmosphereResourceImpl implements
      * Notify {@link AtmosphereResourceEventListener}.
      */
     public void notifyListeners(AtmosphereResourceEvent event) {
+        logger.debug("Invoking listener with {}", event);
         if (event.isResuming() || event.isResumedOnTimeout()) {
             onResume(event);
         } else if (event.isCancelled()) {
