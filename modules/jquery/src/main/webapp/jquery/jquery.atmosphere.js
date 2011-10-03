@@ -194,18 +194,6 @@ jQuery.atmosphere = function() {
                     var junkForWebkit = false;
                     var update = false;
 
-                    if (ajaxRequest.readyState == 2 && jQuery.atmosphere.opening) {
-                        response.status = 202;
-                        response.state = 'opening';
-                        response.responseBody = '';
-
-                        if (request.transport == 'streaming')
-                            jQuery.atmosphere.opening = false;
-
-                        jQuery.atmosphere.invokeCallback(response);
-                        return;
-                    }
-
                     if (ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.request = request;
                         if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
@@ -291,6 +279,16 @@ jQuery.atmosphere = function() {
                     }
                 };
                 ajaxRequest.send(request.data);
+                if (jQuery.atmosphere.opening) {
+                    response.status = 202;
+                    response.state = 'opening';
+                    response.responseBody = '';
+
+                    if (request.transport == 'streaming')
+                        jQuery.atmosphere.opening = false;
+
+                    jQuery.atmosphere.invokeCallback(response);
+                }
 
                 if (request.suspend) {
                     request.id = setTimeout(function() {
