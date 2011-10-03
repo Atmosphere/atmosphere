@@ -143,7 +143,7 @@ public class MeteorTest {
         server = null;
     }
 
-    @Test(timeOut = 20000, enabled = false)
+    @Test(timeOut = 20000, enabled = true)
     public void testSuspendTimeout() {
         logger.info("running test: testSuspendTimeout");
 
@@ -169,7 +169,7 @@ public class MeteorTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testResumeOnBroadcast() {
         logger.info("running test: testResumeOnBroadcast");
 
