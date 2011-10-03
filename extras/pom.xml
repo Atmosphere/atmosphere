@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.8.0-RC1</version>
+        <version>0.8.0-RC2-SNAPSHOT</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-extras</artifactId>
-    <version>0.8.0-RC1</version>
+    <version>0.8.0-RC2-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-extras</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
