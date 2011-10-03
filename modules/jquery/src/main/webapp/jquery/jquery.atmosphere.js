@@ -279,16 +279,6 @@ jQuery.atmosphere = function() {
                     }
                 };
                 ajaxRequest.send(request.data);
-                if (jQuery.atmosphere.opening) {
-                    response.status = 202;
-                    response.state = 'opening';
-                    response.responseBody = '';
-
-                    if (request.transport == 'streaming')
-                        jQuery.atmosphere.opening = false;
-
-                    jQuery.atmosphere.invokeCallback(response);
-                }
 
                 if (request.suspend) {
                     request.id = setTimeout(function() {
