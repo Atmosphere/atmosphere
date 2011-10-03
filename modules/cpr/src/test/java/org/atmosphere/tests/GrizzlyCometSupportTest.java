@@ -44,7 +44,6 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-
 public class GrizzlyCometSupportTest extends BaseTest {
 
     protected GrizzlyWebServer ws;
