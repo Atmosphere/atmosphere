@@ -57,7 +57,7 @@ public class PerRequestResourceTest extends BaseGrizzyTest {
         return "http://127.0.0.1:" + port + "/perrequest";
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 20000, enabled = false)
     public void testPerRequestSuspendTimeout() {
         logger.info("{}: running test:  testPerRequestSuspendTimeout", getClass().getSimpleName());
 
