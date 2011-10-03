@@ -395,7 +395,7 @@ jQuery.atmosphere = function() {
 
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
-            var success = false;
+            var webSocketSupported = false;
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
             jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
@@ -443,7 +443,7 @@ jQuery.atmosphere = function() {
 
             websocket.onopen = function(message) {
                 jQuery.atmosphere.debug("Websocket successfully opened");
-                success = true;
+                webSocketSupported = true;
                 jQuery.atmosphere.response.state = 'opening';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
@@ -469,7 +469,7 @@ jQuery.atmosphere = function() {
             };
 
             websocket.onclose = function(message) {
-                if (!success || !message.wasClean) {
+                if (!webSocketSupported || !message.wasClean) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
