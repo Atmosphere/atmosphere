@@ -147,7 +147,7 @@ public class BroadcasterScopeTest {
         server = null;
     }
 
-    @Test(timeOut = 20000, enabled = false)
+    @Test(timeOut = 20000, enabled = true)
     public void testBroadcasterScope() {
         logger.info("Running testBroadcasterScope");
         final CountDownLatch latch = new CountDownLatch(1);

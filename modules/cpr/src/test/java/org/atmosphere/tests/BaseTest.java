@@ -123,7 +123,7 @@ public abstract class BaseTest {
     @AfterMethod(alwaysRun = true)
     abstract public void unsetAtmosphereHandler() throws Exception;
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testSuspendTimeout() {
         logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
 
@@ -174,7 +174,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testSuspendWithCommentsTimeout() {
         logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
@@ -226,7 +226,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testProgrammaticDisconnection() {
         logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
 
@@ -272,7 +272,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testProgrammaticResume() {
         logger.info("{}: running test: testProgrammaticResume", getClass().getSimpleName());
 
@@ -341,7 +341,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testResumeOnBroadcast() {
         logger.info("{}: running test: testResumeOnBroadcast", getClass().getSimpleName());
 
@@ -414,7 +414,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testDelayBroadcast() {
         logger.info("{}: running test: testDelayBroadcast", getClass().getSimpleName());
 
@@ -494,7 +494,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testDelayNextBroadcast() {
         logger.info("{}: running test: testDelayNextBroadcast", getClass().getSimpleName());
 
@@ -563,7 +563,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testScheduleBroadcast() {
         logger.info("{}: running test: testScheduleBroadcast", getClass().getSimpleName());
 
@@ -644,7 +644,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testDelayScheduleBroadcast() {
         logger.info("{}: running test: testDelayScheduleBroadcast", getClass().getSimpleName());
 
@@ -725,7 +725,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testBroadcastFilter() {
         logger.info("{}: running test: testBroadcastFilter", getClass().getSimpleName());
 
@@ -806,7 +806,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testAggregateFilter() {
         logger.info("{}: running test: testAggregateFilter", getClass().getSimpleName());
 
@@ -881,7 +881,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
 
@@ -961,7 +961,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testSuspendRejectPolicy() {
         logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
 
@@ -1013,7 +1013,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testBroadcastOnResume() {
         logger.info("{}: running test: testScheduleBroadcast", getClass().getSimpleName());
 
@@ -1086,7 +1086,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testBroadcastOnResumeMsg() {
         logger.info("{}: running test: testBroadcastOnResumeMsg", getClass().getSimpleName());
 
@@ -1153,7 +1153,7 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testBroadcastFactoryNewBroadcasterTimeout() {
         logger.info("{}: running test: testBroadcastFactoryTimeout", getClass().getSimpleName());
 
@@ -1217,7 +1217,7 @@ public abstract class BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000, enabled = true)
     public void testConcurrentBroadcast() {
         logger.info("{}: running test: testConcurrentBroadcast", getClass().getSimpleName());
 

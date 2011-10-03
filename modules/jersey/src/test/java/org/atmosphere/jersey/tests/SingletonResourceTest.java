@@ -57,7 +57,7 @@ public class SingletonResourceTest extends BaseGrizzyTest {
         return "http://127.0.0.1:" + port + "/singleton";
     }
 
-    @Test(timeOut = 20000, enabled = false)
+    @Test(timeOut = 20000, enabled = true)
     public void testSingletonSuspendTimeout() {
         logger.info("{}: running test:  testSingletonSuspendTimeout", getClass().getSimpleName());
 
