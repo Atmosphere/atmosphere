@@ -30,13 +30,13 @@ public final class JerseyBroadcasterUtil {
     private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
 
     public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
-        HttpServletRequest res = (HttpServletRequest) r.getRequest();
+        HttpServletRequest request = (HttpServletRequest) r.getRequest();
 
         try {
-            ContainerResponse cr = (ContainerResponse) res.getAttribute(AtmosphereServlet.CONTAINER_RESPONSE);
+            ContainerResponse cr = (ContainerResponse) request.getAttribute(AtmosphereServlet.CONTAINER_RESPONSE);
 
             if (cr == null) {
-                logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", res, cr);
+                logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
                 logger.error("Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
                 r.getBroadcaster().removeAtmosphereResource(r);
                 return;
@@ -64,13 +64,13 @@ public final class JerseyBroadcasterUtil {
         } catch (Throwable t) {
             onException(t, r);
         } finally {
-            Boolean resumeOnBroadcast = (Boolean) res.getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            Boolean resumeOnBroadcast = (Boolean) request.getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
-                String uuid = (String) res.getAttribute(AtmosphereFilter.RESUME_UUID);
+                String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
                 if (uuid != null) {
-                    if (res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
-                        ((ConcurrentHashMap<String, AtmosphereResource<?, ?>>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                    if (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
+                        ((ConcurrentHashMap<String, AtmosphereResource<?, ?>>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                     }
                 }
                 r.resume();
