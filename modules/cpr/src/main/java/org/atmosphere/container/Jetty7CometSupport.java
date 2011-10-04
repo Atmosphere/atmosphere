@@ -38,6 +38,8 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
@@ -107,6 +109,19 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             timedout(req, res);
         }
         return action;
+    }
+
+    @Override
+    public Action resumed(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        logger.debug("(resumed) invoked:\n HttpServletRequest: {}\n HttpServletResponse: {}", request, response);
+        AtmosphereResourceImpl r =
+                (AtmosphereResourceImpl)request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+        AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
+                (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+                        request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+        return new Action(Action.TYPE.RESUME);
     }
 
     /**
