@@ -137,7 +137,6 @@ public class BuilderPubSubTest {
         SuspendResponse<String> r = new SuspendResponse.SuspendResponseBuilder<String>()
                 .outputComments(false)
                 .resumeOnBroadcast(true)
-                .entity("suspend")
                 .build();
 
         return r;
