@@ -226,7 +226,8 @@ public abstract class BaseTest {
 
     }
 
-    @Test(timeOut = 60000, enabled = true)
+    // TODO: Require to add an init-param and restart the server
+    @Test(timeOut = 60000, enabled = false)
     public void testProgrammaticDisconnection() {
         logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
 
@@ -1224,15 +1225,16 @@ public abstract class BaseTest {
         final AtomicInteger broadcastCount = new AtomicInteger(0);
         final AtomicReference<Response> response = new AtomicReference<Response>();
         final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch suspendedLatch = new CountDownLatch(1);
 
         atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
-            AtomicBoolean b = new AtomicBoolean(false);
 
             public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
-                if (!b.getAndSet(true)) {
+                if (event.getRequest().getHeader("yo") != null) {
                     try {
                         event.suspend(-1, false);
+                        suspendedLatch.countDown();
                     } finally {
                     }
                 } else {
@@ -1240,6 +1242,8 @@ public abstract class BaseTest {
                     event.getBroadcaster().broadcast("Message-2 ");
                     event.getBroadcaster().broadcast("Message-3 ");
                     event.getBroadcaster().broadcast("Message-4");
+                    logger.info(event.getResponse().toString());
+                    event.getResponse().getOutputStream().write("OK".getBytes());
                 }
             }
 
@@ -1262,7 +1266,7 @@ public abstract class BaseTest {
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
-            c.prepareGet(urlTarget).execute(new AsyncCompletionHandler<Object>() {
+            c.prepareGet(urlTarget).addHeader("yo", "yo").execute(new AsyncCompletionHandler<Object>() {
                 @Override
                 public Object onCompleted(Response r) throws Exception {
                     response.set(r);
@@ -1270,6 +1274,7 @@ public abstract class BaseTest {
                     return null;
                 }
             });
+            suspendedLatch.await(10, TimeUnit.SECONDS);
 
             c.prepareGet(urlTarget).execute();
             latch.await(10, TimeUnit.SECONDS);
