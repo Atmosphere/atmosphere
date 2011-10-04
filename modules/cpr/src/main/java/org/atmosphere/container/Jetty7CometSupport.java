@@ -53,6 +53,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -93,6 +94,12 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 }
                 c.suspend();
             } else if (action.type == Action.TYPE.RESUME) {
+                // If resume occurs during a suspend operation, stop processing.
+                Boolean resumeOnBroadcast = (Boolean) req.getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+                if (resumeOnBroadcast != null && resumeOnBroadcast) {
+                    return action;
+                }
+
                 logger.debug("Resume {}", res);
 
                 if (!resumed.remove(c)) {
