@@ -110,7 +110,7 @@ public abstract class BasePubSubTest extends BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 20000, enabled = true)
+    @Test(timeOut = 20000, enabled = false)
     public void testProgrammaticDisconnection() {
         logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
 
