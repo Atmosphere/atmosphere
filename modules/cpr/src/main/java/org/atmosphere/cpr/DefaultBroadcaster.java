@@ -75,6 +75,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DefaultBroadcaster implements Broadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
+    public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
@@ -538,6 +539,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
+            HttpServletRequest.class.cast(r.getRequest()).setAttribute(CACHED, "true");
             broadcast(r, e);
         }
     }

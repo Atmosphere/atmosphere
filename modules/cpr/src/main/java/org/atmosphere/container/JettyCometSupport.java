@@ -88,6 +88,18 @@ public class JettyCometSupport extends AsynchronousProcessor {
                 } else {
                     c.suspend(0);
                 }
+            } else if (action.type == Action.TYPE.RESUME) {
+                logger.debug("Resuming response: {}", response);
+
+                if (!resumed.remove(c)) {
+                    c.reset();
+
+                    if (req.getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) == null) {
+                        timedout(req, response);
+                    } else {
+                        resumed(req, response);
+                    }
+                }
             }
         } else {
             logger.debug("Resuming response: {}", response);

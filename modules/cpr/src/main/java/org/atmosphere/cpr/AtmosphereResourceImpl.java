@@ -171,7 +171,9 @@ public class AtmosphereResourceImpl implements
             } catch (Exception ex) {
                 logger.debug("Cannot resume an already resumed/cancelled request");
             }
-            cometSupport.action(this);
+            if (req.getAttribute(PRE_SUSPEND) == null) {
+                cometSupport.action(this);
+            }
         } else {
             logger.debug("Cannot resume an already resumed/cancelled request");
         }
@@ -215,6 +217,12 @@ public class AtmosphereResourceImpl implements
         if (req.getSession(false) != null && req.getSession().getMaxInactiveInterval() != -1 && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
+        }
+
+        if(req.getAttribute(DefaultBroadcaster.CACHED) != null) {
+            // Do nothing because we have found cached message which was written already, and the handler resumed.
+            req.removeAttribute(DefaultBroadcaster.CACHED);
+            return;
         }
 
         if (!event.isResumedOnTimeout()) {
