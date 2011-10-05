@@ -37,6 +37,7 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.JettyWebSocketHandler;
@@ -78,8 +79,18 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
                     return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
                 }
             });
-            webSocketFactory.setBufferSize(4096);
-            webSocketFactory.setMaxIdleTime(60000);
+
+            int bufferSize = 8192;
+            if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE) != null) {
+                bufferSize = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE));
+            }
+
+            webSocketFactory.setBufferSize(bufferSize);
+            int timeOut = 60000;
+            if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
+                timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
+            }
+            webSocketFactory.setMaxIdleTime(timeOut);
         } else {
             webSocketFactory = null;
         }
