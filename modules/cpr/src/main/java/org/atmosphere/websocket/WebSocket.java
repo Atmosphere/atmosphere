@@ -34,52 +34,34 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.websocket.container;
+package org.atmosphere.websocket;
 
-import org.atmosphere.websocket.WebSocketSupport;
-import org.eclipse.jetty.websocket.WebSocket.Outbound;
+import org.atmosphere.cpr.CometSupport;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Jetty 7.1/2 & 8 < M3 WebSocket support.
+ * All {@link CometSupport} implementation that support WebSocket must provide an implementation
+ * of this class, which is used for writing websocket message.
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyWebSocketSupport implements WebSocketSupport {
+public interface WebSocket {
 
-    private final Outbound outbound;
+    public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
+    public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
+    public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
 
-    private AtomicBoolean webSocketLatencyCheck = new AtomicBoolean(false);
+    void writeError(int errorCode, String message) throws IOException;
 
-    public JettyWebSocketSupport(Outbound outbound) {
-        this.outbound = outbound;
-    }
+    void redirect(String location) throws IOException;
 
-    public void writeError(int errorCode, String message) throws IOException {
-    }
+    void write(byte frame, String data) throws IOException;
 
-    public void redirect(String location) throws IOException {
-    }
+    void write(byte frame, byte[] data) throws IOException;
 
-    public void write(byte frame, String data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
-        outbound.sendMessage(frame, data);
-    }
+    void write(byte frame, byte[] data, int offset, int length) throws IOException;
 
-    public void write(byte frame, byte[] data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
-        outbound.sendMessage(frame, data, 0, data.length);
-    }
-
-    public void write(byte frame, byte[] data, int offset, int length) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
-        outbound.sendMessage(frame, data, offset, length);
-    }
-
-    public void close() throws IOException {
-        outbound.disconnect();
-    }
+    void close() throws IOException;
 
 }
