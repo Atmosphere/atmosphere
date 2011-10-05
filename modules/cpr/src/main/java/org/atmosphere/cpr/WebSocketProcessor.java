@@ -161,10 +161,10 @@ public abstract class WebSocketProcessor implements Serializable {
                         WebSocketEventListener.class.cast(l).onMessage(event);
                         break;
                     case HANDSHAKE:
-                        WebSocketEventListener.class.cast(l).onMessage(event);
+                        WebSocketEventListener.class.cast(l).onHandshake(event);
                         break;
                     case CLOSE:
-                        WebSocketEventListener.class.cast(l).onMessage(event);
+                        WebSocketEventListener.class.cast(l).onClose(event);
                         break;
                 }
             }
