@@ -386,10 +386,12 @@ jQuery.atmosphere = function() {
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
             var webSocketSupported = false;
-            jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
-            jQuery.atmosphere.response.transport = "websocket";
             var url = jQuery.atmosphere.request.url;
             var callback = jQuery.atmosphere.request.callback;
+
+            jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
+            jQuery.atmosphere.response.transport = "websocket";
+
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
                 url = jQuery.atmosphere.parseUri(document.location, url);
@@ -474,6 +476,10 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.debug("Websocket closed cleanly");
                     jQuery.atmosphere.response.state = 'closed';
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+                    jQuery.atmosphere.request.url = url;
+                    jQuery.atmosphere.request.data = "";
+                    jQuery.atmosphere.response.responseBody = "";
+                    jQuery.atmosphere.executeWebSocket();
                 }
             };
         }

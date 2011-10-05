@@ -126,6 +126,10 @@ public abstract class WebSocketProcessor implements Serializable {
             }
             logger.info("Failed invoking atmosphere handler onStateChange()", e);
         }
+
+        if (resource != null) {
+            resource.getBroadcaster().removeAtmosphereResource(resource);
+        }
     }
 
     @Override

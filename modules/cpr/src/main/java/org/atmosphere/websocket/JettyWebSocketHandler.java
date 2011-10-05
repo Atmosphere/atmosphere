@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.WebSocketProcessor;
 import org.atmosphere.websocket.container.Jetty8WebSocketSupport;
@@ -132,6 +133,10 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     @Override
     public void onClose(int closeCode, String message) {
         logger.debug("WebSocket.OnClose.");
+        AtmosphereResource<?,?> r = (AtmosphereResource<?,?>)request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+        if (r != null) {
+            r.getBroadcaster().removeAtmosphereResource(r);
+        }
         webSocketProcessor.close();
     }
 
