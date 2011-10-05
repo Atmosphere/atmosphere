@@ -606,7 +606,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public <T> Future<T> broadcast(T msg) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         Object newMsg = filter(msg);
@@ -637,7 +640,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         Object newMsg = filter(msg);
@@ -654,7 +660,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public <T> Future<T> broadcastOnResume(T msg) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         Object newMsg = filter(msg);
@@ -684,7 +693,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         Object newMsg = filter(msg);
@@ -701,7 +713,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return r;
+        }
 
         if (scope == SCOPE.REQUEST && requestScoped.getAndSet(true)) {
             throw new IllegalStateException("Broadcaster " + this
@@ -744,7 +759,10 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return r;
+        }
 
         if (!resources.contains(r)) {
             return null;
@@ -814,7 +832,10 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         final Object msg = filter(o);
@@ -867,7 +888,10 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public Future<?> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
-        if (destroyed.get()) throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
 
         start();
         if (period == 0 || t == null) {
