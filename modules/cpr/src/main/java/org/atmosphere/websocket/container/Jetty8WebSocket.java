@@ -15,7 +15,7 @@
 */
 package org.atmosphere.websocket.container;
 
-import org.atmosphere.websocket.WebSocketSupport;
+import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +27,12 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty8WebSocketSupport implements WebSocketSupport {
+public class Jetty8WebSocket implements WebSocket {
 
-    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocketSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
 
-    public Jetty8WebSocketSupport(Connection connection) {
+    public Jetty8WebSocket(Connection connection) {
         this.connection = connection;
     }
 
