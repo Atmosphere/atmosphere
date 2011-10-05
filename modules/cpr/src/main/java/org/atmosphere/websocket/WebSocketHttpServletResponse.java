@@ -50,12 +50,12 @@ import java.util.HashMap;
 import java.util.Locale;
 
 /**
- * Wrapper around an {@link HttpServletResponse} which use an instance of {@link WebSocketSupport}
+ * Wrapper around an {@link HttpServletResponse} which use an instance of {@link WebSocket}
  * as a writer.
  *
  * @param <A>
  */
-public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends HttpServletResponseWrapper {
+public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServletResponseWrapper {
 
     private final ArrayList<Cookie> cookies = new ArrayList<Cookie>();
     private final HashMap<String, String> headers = new HashMap<String, String>();
@@ -534,7 +534,7 @@ public class WebSocketHttpServletResponse<A extends WebSocketSupport> extends Ht
     }
 
     /**
-     * Return the underlying {@link WebSocketSupport}
+     * Return the underlying {@link WebSocket}
      *
      * @return
      */

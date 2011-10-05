@@ -533,6 +533,10 @@ public class AtmosphereResourceImpl implements
         }
     }
 
+    public ConcurrentLinkedQueue<AtmosphereResourceEventListener>  atmosphereResourceEventListener(){
+        return listeners;
+    }
+
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +

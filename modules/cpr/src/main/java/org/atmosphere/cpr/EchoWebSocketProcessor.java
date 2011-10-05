@@ -15,7 +15,7 @@
 */
 package org.atmosphere.cpr;
 
-import org.atmosphere.websocket.WebSocketSupport;
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +30,8 @@ import org.slf4j.LoggerFactory;
 public class EchoWebSocketProcessor extends WebSocketProcessor {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
-    public EchoWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
-        super(atmosphereServlet, webSocketSupport);
+    public EchoWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+        super(atmosphereServlet, webSocket);
     }
 
     public void broadcast(String data) {

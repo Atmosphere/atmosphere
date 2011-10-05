@@ -41,8 +41,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.JettyWebSocketHandler;
-import org.atmosphere.websocket.WebSocketSupport;
-import org.eclipse.jetty.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +73,7 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
                     return true;
                 }
 
-                public WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
+                public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                     logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
                     return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
                 }
@@ -114,14 +113,14 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
             }
         }
 
-        Boolean b = (Boolean)req.getAttribute(WebSocketSupport.WEBSOCKET_INITIATED);
+        Boolean b = (Boolean)req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
         if (!webSocketEnabled) {
             return super.service(req, res);
         } else {
             if (webSocketFactory != null && !b) {
-                req.setAttribute(WebSocketSupport.WEBSOCKET_INITIATED, true);
+                req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
                 return new Action();
             }
@@ -131,7 +130,7 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
                 logger.debug("Suspending response: {}", res);
             } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", res);
-                req.setAttribute(WebSocketSupport.WEBSOCKET_RESUME, true);
+                req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
 
             return action;

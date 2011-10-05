@@ -64,7 +64,7 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.websocket.WebSocketSupport;
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -387,7 +387,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void configureHeaders(ContainerResponse response) throws IOException {
-            boolean webSocketSupported = servletReq.getAttribute(WebSocketSupport.WEBSOCKET_SUSPEND) != null;
+            boolean webSocketSupported = servletReq.getAttribute(WebSocket.WEBSOCKET_SUSPEND) != null;
 
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
                 String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
