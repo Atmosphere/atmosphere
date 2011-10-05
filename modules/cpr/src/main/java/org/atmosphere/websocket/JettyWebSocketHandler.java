@@ -132,11 +132,6 @@ public class JettyWebSocketHandler implements WebSocket, WebSocket.OnFrame, WebS
     @Override
     public void onClose(int closeCode, String message) {
         logger.debug("WebSocket.OnClose.");
-        if (closeCode == 1006) {
-            webSocketProcessor.broadcast("<!-- WebSocket Remotely closed -->");
-        } else {
-            webSocketProcessor.broadcast("<!-- Websocket idle timeout reached. Increase " + AtmosphereServlet.WEBSOCKET_IDLETIME );
-        }
         webSocketProcessor.close();
     }
 
