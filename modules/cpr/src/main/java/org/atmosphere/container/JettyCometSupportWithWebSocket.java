@@ -86,7 +86,7 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
             }
 
             webSocketFactory.setBufferSize(bufferSize);
-            int timeOut = 60000;
+            int timeOut = 5 * 60000;
             if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
                 timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
             }
