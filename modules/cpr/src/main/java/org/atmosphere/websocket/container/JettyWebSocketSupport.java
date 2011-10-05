@@ -64,19 +64,16 @@ public class JettyWebSocketSupport implements WebSocketSupport {
     }
 
     public void write(byte frame, String data) throws IOException {
-        //checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data);
     }
 
     public void write(byte frame, byte[] data) throws IOException {
-        //checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data, 0, data.length);
     }
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
-        //checkWebSocketLatencyCheck();
         if (!outbound.isOpen()) throw new IOException("Connection closed");
         outbound.sendMessage(frame, data, offset, length);
     }
@@ -85,18 +82,4 @@ public class JettyWebSocketSupport implements WebSocketSupport {
         outbound.disconnect();
     }
 
-    /**
-     * There is an issue in Jetty where the Websocket connection gets closed just after the handshake and the
-     * first broadcast occurs quickly after the handshake. If Chrome is processing the handshake and received messages,
-     * it close the connection.
-     */
-    private void checkWebSocketLatencyCheck() {
-        if (!webSocketLatencyCheck.getAndSet(true)) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                ;
-            }
-        }
-    }
 }
