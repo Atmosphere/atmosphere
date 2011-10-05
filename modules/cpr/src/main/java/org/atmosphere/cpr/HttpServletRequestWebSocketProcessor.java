@@ -15,16 +15,14 @@
 */
 package org.atmosphere.cpr;
 
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
-import org.atmosphere.websocket.WebSocketSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,7 +34,7 @@ import java.util.Enumeration;
 
 /**
  * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
- * proper {@link org.atmosphere.websocket.WebSocketSupport} implementation by wrapping the Websocket message's bytes within
+ * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
  * an {@link javax.servlet.http.HttpServletRequest}.
  * <p/>
  * The content-type is defined using {@link AtmosphereServlet#WEBSOCKET_CONTENT_TYPE} property
@@ -51,8 +49,8 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
     private final String contentType;
     private final String methodType;
 
-    public HttpServletRequestWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
-        super(atmosphereServlet, webSocketSupport);
+    public HttpServletRequestWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+        super(atmosphereServlet, webSocket);
         String contentType = atmosphereServlet.config.getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
             contentType = "text/html";
@@ -141,7 +139,7 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     return br;
                 }
 
-            }, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport()));
+            }, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
         } catch (IOException e) {
             logger.warn(e.getMessage(), e);
         } catch (ServletException e) {
@@ -224,7 +222,7 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
                     return br;
                 }
 
-            }, new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport()));
+            }, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
         } catch (IOException e) {
             logger.warn(e.getMessage(), e);
         } catch (ServletException e) {

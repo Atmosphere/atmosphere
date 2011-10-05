@@ -37,8 +37,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
-import org.atmosphere.websocket.WebSocketSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
- * proper {@link WebSocketSupport} implementation.
+ * proper {@link org.atmosphere.websocket.WebSocket} implementation.
  *
  * @author Jeanfrancois Arcand
  */
@@ -60,27 +61,27 @@ public abstract class WebSocketProcessor implements Serializable {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessor.class);
 
     private final AtmosphereServlet atmosphereServlet;
-    private final WebSocketSupport webSocketSupport;
+    private final WebSocket webSocket;
 
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
     private AtmosphereHandler handler;
 
-    public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocketSupport webSocketSupport) {
-        this.webSocketSupport = webSocketSupport;
+    public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+        this.webSocket = webSocket;
         this.atmosphereServlet = atmosphereServlet;
     }
 
     public final void connect(final HttpServletRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
-            logger.info("Atmosphere detected WebSocketSupport: {}", webSocketSupport.getClass().getName());
+            logger.info("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocketSupport>(webSocketSupport);
-        request.setAttribute(WebSocketSupport.WEBSOCKET_SUSPEND, true);
+        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket);
+        request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
         try {
-            atmosphereServlet.doCometSupport(request, wsr );
+            atmosphereServlet.doCometSupport(request, wsr);
         } catch (IOException e) {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
@@ -91,7 +92,7 @@ public abstract class WebSocketProcessor implements Serializable {
         handler = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
         if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
             logger.error("No AtmosphereResource has been suspended. The WebSocket will be closed.");
-            webSocketSupport.close();
+            webSocket.close();
         }
     }
 
@@ -107,8 +108,8 @@ public abstract class WebSocketProcessor implements Serializable {
         return resource.getRequest();
     }
 
-    public WebSocketSupport webSocketSupport() {
-        return webSocketSupport;
+    public WebSocket webSocketSupport() {
+        return webSocket;
     }
 
     abstract public void broadcast(String data);
@@ -134,7 +135,39 @@ public abstract class WebSocketProcessor implements Serializable {
 
     @Override
     public String toString() {
-        return "WebSocketProcessor{ handler=" + handler + ", resource=" + resource + ", webSocketSupport=" +
-                webSocketSupport + " }";
+        return "WebSocketProcessor{ handler=" + handler + ", resource=" + resource + ", webSocket=" +
+                webSocket + " }";
+    }
+
+    public void notifyListener(WebSocketEventListener.WebSocketEvent event) {
+
+        if (resource == null) return;
+
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);
+
+        for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {
+            if (WebSocketEventListener.class.isAssignableFrom(l.getClass())) {
+                switch (event.type()) {
+                    case CONNECT:
+                        WebSocketEventListener.class.cast(l).onConnect(event);
+                        break;
+                    case DISCONNECT:
+                        WebSocketEventListener.class.cast(l).onDisconnect(event);
+                        break;
+                    case CONTROL:
+                        WebSocketEventListener.class.cast(l).onControl(event);
+                        break;
+                    case MESSAGE:
+                        WebSocketEventListener.class.cast(l).onMessage(event);
+                        break;
+                    case HANDSHAKE:
+                        WebSocketEventListener.class.cast(l).onMessage(event);
+                        break;
+                    case CLOSE:
+                        WebSocketEventListener.class.cast(l).onMessage(event);
+                        break;
+                }
+            }
+        }
     }
 }

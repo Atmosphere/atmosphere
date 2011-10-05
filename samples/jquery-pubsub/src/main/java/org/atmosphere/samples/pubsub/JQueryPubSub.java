@@ -62,6 +62,8 @@ public class JQueryPubSub {
     @PathParam("topic")
     Broadcaster topic;
 
+    private @Context WebSocket webSocket;
+
     @GET
     public SuspendResponse<String> subscribe() {
         return new SuspendResponse.SuspendResponseBuilder<String>()
@@ -72,8 +74,7 @@ public class JQueryPubSub {
     }
 
     @POST
-    @Broadcast
     public Broadcastable publish(@FormParam("message") String message) {
-        return new Broadcastable(message, "", topic);
+        webSocket.write(message);
     }
 }
