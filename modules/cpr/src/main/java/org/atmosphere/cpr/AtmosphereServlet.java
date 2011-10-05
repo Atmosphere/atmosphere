@@ -207,6 +207,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public static final String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
     public final static String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.cpr.webSocket.messageContentType";
     public final static String WEBSOCKET_METHOD = "org.atmosphere.cpr.webSocket.messageMethod";
+    public final static String WEBSOCKET_IDLETIME = "org.atmosphere.cpr.webSocket.maxIdleTime";
+    public final static String WEBSOCKET_BUFFER_SIZE = "org.atmosphere.cpr.webSocket.bufferSize";
 
 
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
