@@ -419,7 +419,7 @@ jQuery.atmosphere = function() {
             jQuery.atmosphere.response.push = function (url) {
                 var data;
                 try {
-                    if (webSocketUrl != null) {
+                    if (jQuery.atmosphere.request.webSocketUrl != null) {
                         data = jQuery.atmosphere.request.webSocketPathDelimiter
                             + jQuery.atmosphere.request.webSocketUrl
                             + jQuery.atmosphere.request.webSocketPathDelimiter
