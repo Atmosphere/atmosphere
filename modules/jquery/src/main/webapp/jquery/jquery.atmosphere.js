@@ -439,6 +439,11 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.response.state = 'opening';
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
+                if (jQuery.atmosphere.request.method == 'POST') {
+                    data = jQuery.atmosphere.request.data;
+                    jQuery.atmosphere.response.state = 'messageReceived';
+                    websocket.send(jQuery.atmosphere.request.data);
+                }
             };
 
             websocket.onmessage = function(message) {
