@@ -60,6 +60,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -97,7 +98,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
-    private long maxSuspendResource = -1;
+    private final AtomicLong maxSuspendResource = new AtomicLong(-1);
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
     private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
             .policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER).build();
@@ -596,7 +597,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public void setSuspendPolicy(long maxSuspendResource, POLICY policy) {
-        this.maxSuspendResource = maxSuspendResource;
+        this.maxSuspendResource.set(maxSuspendResource);
         this.policy = policy;
     }
 
@@ -723,7 +724,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     + " cannot be used as its scope is set to REQUEST");
         }
 
-        if (maxSuspendResource > 0 && resources.size() == maxSuspendResource) {
+        // To avoid excessive synchronization, we allow resources.size() to get larger that maxSuspendResource
+        if (maxSuspendResource.get() > 0 && resources.size() <= maxSuspendResource.get()) {
             // Resume the first in.
             if (policy == POLICY.FIFO) {
                 // TODO handle null return from poll()
