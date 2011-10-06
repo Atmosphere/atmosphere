@@ -57,7 +57,7 @@ import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.processor.EchoWebSocketProcessor;
+import org.atmosphere.websocket.protocol.EchoProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -204,13 +204,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public final static String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
-    public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
     public static final String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
-    public final static String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.cpr.webSocket.messageContentType";
-    public final static String WEBSOCKET_METHOD = "org.atmosphere.cpr.webSocket.messageMethod";
-    public final static String WEBSOCKET_IDLETIME = "org.atmosphere.cpr.webSocket.maxIdleTime";
-    public final static String WEBSOCKET_BUFFER_SIZE = "org.atmosphere.cpr.webSocket.bufferSize";
 
+    public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
+    public final static String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.webSocket.messageContentType";
+    public final static String WEBSOCKET_METHOD = "org.atmosphere.websocket.webSocket.messageMethod";
+    public final static String WEBSOCKET_IDLETIME = "org.atmosphere.websocket.webSocket.maxIdleTime";
+    public final static String WEBSOCKET_BUFFER_SIZE = "org.atmosphere.websocket.webSocket.bufferSize";
+    public static final String WEBSOCKET_PATH_DELIMITER = "org.atmosphere.websocket.webSocket.pathDelimiter";
 
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     private final HashMap<String, String> initParams = new HashMap<String, String>();
@@ -242,7 +243,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
     private String broadcasterLifeCyclePolicy = "NEVER";
-    private String webSocketProcessorClassName = EchoWebSocketProcessor.class.getName();
+    private String webSocketProcessorClassName = EchoProtocol.class.getName();
 
     public static final class AtmosphereHandlerWrapper {
 

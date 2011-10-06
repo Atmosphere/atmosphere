@@ -13,7 +13,7 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.websocket.processor;
+package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -33,6 +33,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
@@ -45,13 +46,14 @@ import java.util.Enumeration;
  *
  * @author Jeanfrancois Arcand
  */
-public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor implements Serializable {
+public class SimpleHttpProtocol extends WebSocketProcessor implements Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     private final String contentType;
     private final String methodType;
+    private final String delimiter;
 
-    public HttpServletRequestWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+    public SimpleHttpProtocol(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
         super(atmosphereServlet, webSocket);
         String contentType = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
@@ -64,18 +66,38 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
             methodType = "POST";
         }
         this.methodType = methodType;
+
+        String delimiter = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_PATH_DELIMITER);
+        if (delimiter == null) {
+            delimiter = "@@";
+        }
+        this.delimiter = delimiter;
     }
 
-    public void broadcast(final String data) {
+    public void broadcast(final String d) {
         try {
+
+            final AtomicReference<String> data = new AtomicReference<String>(d);
+            final AtomicReference<String> pathInfo = new AtomicReference<String>(request().getPathInfo());
+            if (data.get().startsWith(delimiter)) {
+                String[] token = data.get().split(delimiter);
+                pathInfo.set(token[1]);
+                data.set(token[2]);
+            }
+
             atmosphereServlet().doCometSupport(new HttpServletRequestWrapper(request()) {
 
-                private ByteInputStream bis = new ByteInputStream(data.getBytes(), 0, data.getBytes().length);
-                private BufferedReader br = new BufferedReader(new StringReader(data));
+                private ByteInputStream bis = new ByteInputStream(data.get().getBytes(), 0, data.get().getBytes().length);
+                private BufferedReader br = new BufferedReader(new StringReader(data.get()));
 
                 @Override
                 public String getMethod() {
                     return methodType;
+                }
+
+                @Override
+                public String getPathInfo() {
+                    return pathInfo.get();
                 }
 
                 @Override
@@ -150,12 +172,26 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
     }
 
     @Override
-    public void broadcast(final byte[] data, final int offset, final int length) {
+    public void broadcast(final byte[] d, final int offset, final int length) {
         try {
+            final AtomicReference<byte[]> data = new AtomicReference<byte[]>(d);
+            final AtomicReference<String> pathInfo = new AtomicReference<String>(request().getPathInfo());
+            // TODO: should not do String <-> byte conversion
+            if (d[0] == (byte)delimiter.charAt(0) && d[1] == (byte)delimiter.charAt(0)) {
+                final String s = new String(d, offset, length, "UTF-8");
+                String[] token = s.split(delimiter);
+                pathInfo.set(token[1]);
+                data.set(token[2].getBytes("UTF-8"));
+            }
             atmosphereServlet().doCometSupport(new HttpServletRequestWrapper(request()) {
 
-                private ByteInputStream bis = new ByteInputStream(data, offset, length);
-                private BufferedReader br = new BufferedReader(new StringReader(new String(data, "UTF-8")));
+                private ByteInputStream bis = new ByteInputStream(data.get(), offset, length);
+                private BufferedReader br = new BufferedReader(new StringReader(new String(d, offset, offset, "UTF-8")));
+
+                @Override
+                public String getPathInfo() {
+                    return pathInfo.get();
+                }
 
                 @Override
                 public String getMethod() {

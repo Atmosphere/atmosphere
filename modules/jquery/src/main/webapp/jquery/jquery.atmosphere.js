@@ -71,7 +71,9 @@ jQuery.atmosphere = function() {
                 fallbackMethod: 'GET',
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
-                webSocketImpl: null
+                webSocketImpl: null,
+                webSocketUrl: null,
+                webSocketPathDelimiter: "@@"
 
             }, request);
 
@@ -417,8 +419,16 @@ jQuery.atmosphere = function() {
             jQuery.atmosphere.response.push = function (url) {
                 var data;
                 try {
-                    data = jQuery.atmosphere.request.data;
-                    websocket.send(jQuery.atmosphere.request.data);
+                    if (webSocketUrl != null) {
+                        data = jQuery.atmosphere.request.webSocketPathDelimiter
+                            + jQuery.atmosphere.request.webSocketUrl
+                            + jQuery.atmosphere.request.webSocketPathDelimiter
+                            + jQuery.atmosphere.request.data;
+                    } else {
+                        data = jQuery.atmosphere.request.data;
+                    }
+
+                    websocket.send(data);
                 } catch (e) {
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
