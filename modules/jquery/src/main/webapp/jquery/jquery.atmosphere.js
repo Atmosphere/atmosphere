@@ -483,10 +483,16 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.debug("Websocket closed cleanly");
                     jQuery.atmosphere.response.state = 'closed';
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
-                    jQuery.atmosphere.request.url = url;
-                    jQuery.atmosphere.request.data = "";
-                    jQuery.atmosphere.response.responseBody = "";
-                    jQuery.atmosphere.executeWebSocket();
+
+                    if (jQuery.atmosphere.request.requestCount++ < jQuery.atmosphere.request.maxRequest) {
+                        jQuery.atmosphere.request.url = url;
+                        jQuery.atmosphere.request.data = "";
+                        jQuery.atmosphere.response.responseBody = "";
+                        jQuery.atmosphere.executeWebSocket();
+                    } else{
+                        jQuery.atmosphere.log(logLevel, ["Websocket reconnect maximum try "
+                            + jQuery.atmosphere.request.requestCount]);
+                    }
                 }
             };
         }
