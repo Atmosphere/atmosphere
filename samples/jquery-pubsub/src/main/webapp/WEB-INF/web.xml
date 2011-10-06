@@ -18,8 +18,8 @@
             <param-value>true</param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.cpr.WebSocketProcessor</param-name>
-            <param-value>org.atmosphere.websocket.processor.HttpServletRequestWebSocketProcessor</param-value>
+            <param-name>org.atmosphere.websocket.WebSocketProcessor</param-name>
+            <param-value>org.atmosphere.websocket.protocol.SimpleHttpProtocol</param-value>
         </init-param>
         <init-param>
             <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>

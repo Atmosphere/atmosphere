@@ -406,7 +406,7 @@ public class BroadcasterConfig {
     /**
      * Return the {@link ScheduledExecutorService} this {@link Broadcaster} support.
      * By default it returns {@link Executors#newScheduledThreadPool} and will use
-     * the underlying number of core/processor as an indication of the thread number.
+     * the underlying number of core/protocol as an indication of the thread number.
      *
      * @return An ExecutorService.
      */

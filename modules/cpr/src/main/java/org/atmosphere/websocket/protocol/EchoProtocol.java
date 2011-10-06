@@ -13,7 +13,7 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.websocket.processor;
+package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -29,10 +29,10 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
-public class EchoWebSocketProcessor extends WebSocketProcessor {
+public class EchoProtocol extends WebSocketProcessor {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
-    public EchoWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+    public EchoProtocol(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
         super(atmosphereServlet, webSocket);
     }
 
