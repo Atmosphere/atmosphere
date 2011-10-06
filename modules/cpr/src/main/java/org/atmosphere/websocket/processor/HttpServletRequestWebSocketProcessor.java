@@ -13,8 +13,10 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.cpr;
+package org.atmosphere.websocket.processor;
 
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.slf4j.Logger;
@@ -33,12 +35,12 @@ import java.util.Collections;
 import java.util.Enumeration;
 
 /**
- * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
+ * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
  * an {@link javax.servlet.http.HttpServletRequest}.
  * <p/>
- * The content-type is defined using {@link AtmosphereServlet#WEBSOCKET_CONTENT_TYPE} property
- * The method is defined using {@link AtmosphereServlet#WEBSOCKET_METHOD} property
+ * The content-type is defined using {@link org.atmosphere.cpr.AtmosphereServlet#WEBSOCKET_CONTENT_TYPE} property
+ * The method is defined using {@link org.atmosphere.cpr.AtmosphereServlet#WEBSOCKET_METHOD} property
  * <p/>
  *
  * @author Jeanfrancois Arcand

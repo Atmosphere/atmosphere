@@ -17,7 +17,6 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.WebSocketProcessor;
 import org.atmosphere.websocket.container.Jetty8WebSocket;
 import org.atmosphere.websocket.container.JettyWebSocket;
 import org.slf4j.Logger;

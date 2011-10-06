@@ -35,11 +35,14 @@
  * holder.
  *
  */
-package org.atmosphere.cpr;
+package org.atmosphere.websocket;
 
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketEventListener;
-import org.atmosphere.websocket.WebSocketHttpServletResponse;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +54,7 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Like the {@link AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
+ * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation.
  *
  * @author Jeanfrancois Arcand
