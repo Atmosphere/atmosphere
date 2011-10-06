@@ -13,14 +13,16 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.cpr;
+package org.atmosphere.websocket.processor;
 
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple {@link WebSocketProcessor} that invoke the {@link Broadcaster#broadcast} API when a WebSocket message
+ * Simple {@link org.atmosphere.websocket.WebSocketProcessor} that invoke the {@link org.atmosphere.cpr.Broadcaster#broadcast} API when a WebSocket message
  * is received.
  *
  * NOTE: If WebSocket frame are used
