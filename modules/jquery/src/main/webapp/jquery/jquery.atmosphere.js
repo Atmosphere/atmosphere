@@ -195,11 +195,6 @@ jQuery.atmosphere = function() {
                     var update = false;
 
                     if (ajaxRequest.readyState == 4) {
-                        jQuery.atmosphere.request = request;
-                        if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
-                            jQuery.atmosphere.executeRequest();
-                        }
-
                         if (jQuery.browser.msie) {
                             update = true;
                         }
@@ -275,6 +270,13 @@ jQuery.atmosphere = function() {
                             }
                         } else {
                             jQuery.atmosphere.invokeCallback(response);
+                        }
+                    }
+
+                    if (ajaxRequest.readyState == 4) {
+                        jQuery.atmosphere.request = request;
+                        if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
+                            jQuery.atmosphere.executeRequest();
                         }
                     }
                 };
