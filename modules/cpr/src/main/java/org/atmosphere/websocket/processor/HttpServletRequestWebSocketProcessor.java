@@ -53,13 +53,13 @@ public class HttpServletRequestWebSocketProcessor extends WebSocketProcessor imp
 
     public HttpServletRequestWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
         super(atmosphereServlet, webSocket);
-        String contentType = atmosphereServlet.config.getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
+        String contentType = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
             contentType = "text/html";
         }
         this.contentType = contentType;
 
-        String methodType = atmosphereServlet.config.getInitParameter(AtmosphereServlet.WEBSOCKET_METHOD);
+        String methodType = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_METHOD);
         if (methodType == null) {
             methodType = "POST";
         }

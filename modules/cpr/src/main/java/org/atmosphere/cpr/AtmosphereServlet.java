@@ -1152,7 +1152,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @throws IOException
      * @throws ServletException
      */
-    protected Action doCometSupport(HttpServletRequest req, HttpServletResponse res)
+    public Action doCometSupport(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
