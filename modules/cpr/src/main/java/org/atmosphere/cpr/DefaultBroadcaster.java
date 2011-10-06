@@ -725,7 +725,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         // To avoid excessive synchronization, we allow resources.size() to get larger that maxSuspendResource
-        if (maxSuspendResource.get() > 0 && resources.size() <= maxSuspendResource.get()) {
+        if (maxSuspendResource.get() > 0 && resources.size() >= maxSuspendResource.get()) {
             // Resume the first in.
             if (policy == POLICY.FIFO) {
                 // TODO handle null return from poll()
