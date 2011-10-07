@@ -56,7 +56,7 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.protocol.EchoProtocol;
+import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -89,8 +89,31 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.atmosphere.cpr.ApplicationConfig.*;
-import static org.atmosphere.cpr.FrameworkConfig.*;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
+import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
+import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_BLOCKING_COMETSUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_COMET_SUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
+import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
+import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
+import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
+import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.WEB_INF_CLASSES;
+import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
+import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -203,7 +226,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
     private String broadcasterLifeCyclePolicy = "NEVER";
-    private String webSocketProcessorClassName = EchoProtocol.class.getName();
+    private String webSocketProcessorClassName = SimpleHttpProtocol.class.getName();
 
     public static final class AtmosphereHandlerWrapper {
 
