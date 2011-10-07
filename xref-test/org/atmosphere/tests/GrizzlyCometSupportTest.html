@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>GrizzlyCometSupportTest xref</title>
+<link type="text/css" rel="stylesheet" href="../../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../testapidocs/org/atmosphere/tests/GrizzlyCometSupportTest.html">View Javadoc</a></div><pre>
+
+<a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.</em>
+<a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.</em>
+<a class="jxr_linenumber" name="6" href="#6">6</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="7" href="#7">7</a>   <em class="jxr_comment"> * The contents of this file are subject to the terms of either the GNU</em>
+<a class="jxr_linenumber" name="8" href="#8">8</a>   <em class="jxr_comment"> * General Public License Version 2 only ("GPL") or the Common Development</em>
+<a class="jxr_linenumber" name="9" href="#9">9</a>   <em class="jxr_comment"> * and Distribution License("CDDL") (collectively, the "License").  You</em>
+<a class="jxr_linenumber" name="10" href="#10">10</a>  <em class="jxr_comment"> * may not use this file except in compliance with the License. You can obtain</em>
+<a class="jxr_linenumber" name="11" href="#11">11</a>  <em class="jxr_comment"> * a copy of the License at https://jersey.dev.java.net/CDDL+GPL.html</em>
+<a class="jxr_linenumber" name="12" href="#12">12</a>  <em class="jxr_comment"> * or jersey/legal/LICENSE.txt.  See the License for the specific</em>
+<a class="jxr_linenumber" name="13" href="#13">13</a>  <em class="jxr_comment"> * language governing permissions and limitations under the License.</em>
+<a class="jxr_linenumber" name="14" href="#14">14</a>  <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="15" href="#15">15</a>  <em class="jxr_comment"> * When distributing the software, include this License Header Notice in each</em>
+<a class="jxr_linenumber" name="16" href="#16">16</a>  <em class="jxr_comment"> * file and include the License file at jersey/legal/LICENSE.txt.</em>
+<a class="jxr_linenumber" name="17" href="#17">17</a>  <em class="jxr_comment"> * Sun designates this particular file as subject to the "Classpath" exception</em>
+<a class="jxr_linenumber" name="18" href="#18">18</a>  <em class="jxr_comment"> * as provided by Sun in the GPL Version 2 section of the License file that</em>
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <em class="jxr_comment"> * accompanied this code.  If applicable, add the following below the License</em>
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_comment"> * Header, with the fields enclosed by brackets [] replaced by your own</em>
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_comment"> * identifying information: "Portions Copyrighted [year]</em>
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_comment"> * [name of copyright owner]"</em>
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_comment"> * Contributor(s):</em>
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_comment"> * If you wish your version of this file to be governed by only the CDDL or</em>
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_comment"> * only the GPL Version 2, indicate your decision by adding "[Contributor]</em>
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_comment"> * elects to include this software in this distribution under the [CDDL or GPL</em>
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_comment"> * Version 2] license."  If you don't indicate a single choice of license, a</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_comment"> * recipient has the option to distribute your version of this file under</em>
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_comment"> * either the CDDL, the GPL Version 2 or to extend the choice of license to</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_comment"> * its licensees as provided above.  However, if you add GPL Version 2 code</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_comment"> * and therefore, elected the GPL Version 2 license, then the option applies</em>
+<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_comment"> * only if the new code is made subject to such option by the copyright</em>
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_comment"> * holder.</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_comment"> */</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.tests;
+<a class="jxr_linenumber" name="38" href="#38">38</a>  
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <strong class="jxr_keyword">import</strong> com.sun.grizzly.comet.CometAsyncFilter;
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <strong class="jxr_keyword">import</strong> com.sun.grizzly.http.embed.GrizzlyWebServer;
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <strong class="jxr_keyword">import</strong> com.sun.grizzly.http.servlet.ServletAdapter;
+<a class="jxr_linenumber" name="42" href="#42">42</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.container.GrizzlyCometSupport;
+<a class="jxr_linenumber" name="43" href="#43">43</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereServlet;
+<a class="jxr_linenumber" name="44" href="#44">44</a>  <strong class="jxr_keyword">import</strong> org.testng.annotations.AfterMethod;
+<a class="jxr_linenumber" name="45" href="#45">45</a>  <strong class="jxr_keyword">import</strong> org.testng.annotations.BeforeMethod;
+<a class="jxr_linenumber" name="46" href="#46">46</a>  
+<a class="jxr_linenumber" name="47" href="#47">47</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/tests/GrizzlyCometSupportTest.html">GrizzlyCometSupportTest</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/tests/BaseTest.html">BaseTest</a> {
+<a class="jxr_linenumber" name="48" href="#48">48</a>  
+<a class="jxr_linenumber" name="49" href="#49">49</a>      <strong class="jxr_keyword">protected</strong> GrizzlyWebServer ws;
+<a class="jxr_linenumber" name="50" href="#50">50</a>  
+<a class="jxr_linenumber" name="51" href="#51">51</a>      @BeforeMethod(alwaysRun = <strong class="jxr_keyword">true</strong>)
+<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> startServer() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="53" href="#53">53</a>  
+<a class="jxr_linenumber" name="54" href="#54">54</a>          <strong class="jxr_keyword">int</strong> port = TestHelper.getEnvVariable(<span class="jxr_string">"ATMOSPHERE_HTTP_PORT"</span>, findFreePort());
+<a class="jxr_linenumber" name="55" href="#55">55</a>          urlTarget = <span class="jxr_string">"http://127.0.0.1:"</span> + port + <span class="jxr_string">"/invoke"</span>;
+<a class="jxr_linenumber" name="56" href="#56">56</a>  
+<a class="jxr_linenumber" name="57" href="#57">57</a>          ws = <strong class="jxr_keyword">new</strong> GrizzlyWebServer(port);
+<a class="jxr_linenumber" name="58" href="#58">58</a>          ServletAdapter sa = <strong class="jxr_keyword">new</strong> ServletAdapter();
+<a class="jxr_linenumber" name="59" href="#59">59</a>          sa.setProperty(<span class="jxr_string">"load-on-startup"</span>, 0);
+<a class="jxr_linenumber" name="60" href="#60">60</a>          ws.addAsyncFilter(<strong class="jxr_keyword">new</strong> CometAsyncFilter());
+<a class="jxr_linenumber" name="61" href="#61">61</a>  
+<a class="jxr_linenumber" name="62" href="#62">62</a>          atmoServlet = <strong class="jxr_keyword">new</strong> AtmosphereServlet();
+<a class="jxr_linenumber" name="63" href="#63">63</a>          <em class="jxr_comment">//atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");</em>
+<a class="jxr_linenumber" name="64" href="#64">64</a>          sa.setServletInstance(atmoServlet);
+<a class="jxr_linenumber" name="65" href="#65">65</a>          configureCometSupport();
+<a class="jxr_linenumber" name="66" href="#66">66</a>  
+<a class="jxr_linenumber" name="67" href="#67">67</a>          ws.addGrizzlyAdapter(sa, <strong class="jxr_keyword">new</strong> String[]{ROOT});
+<a class="jxr_linenumber" name="68" href="#68">68</a>          ws.start();
+<a class="jxr_linenumber" name="69" href="#69">69</a>      }
+<a class="jxr_linenumber" name="70" href="#70">70</a>  
+<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> configureCometSupport() {
+<a class="jxr_linenumber" name="72" href="#72">72</a>          atmoServlet.setCometSupport(<strong class="jxr_keyword">new</strong> GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+<a class="jxr_linenumber" name="73" href="#73">73</a>      }
+<a class="jxr_linenumber" name="74" href="#74">74</a>  
+<a class="jxr_linenumber" name="75" href="#75">75</a>      @AfterMethod(alwaysRun = <strong class="jxr_keyword">true</strong>)
+<a class="jxr_linenumber" name="76" href="#76">76</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> unsetAtmosphereHandler() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="77" href="#77">77</a>          atmoServlet.destroy();
+<a class="jxr_linenumber" name="78" href="#78">78</a>          ws.stop();
+<a class="jxr_linenumber" name="79" href="#79">79</a>      }
+<a class="jxr_linenumber" name="80" href="#80">80</a>  }
+</pre>
+<hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
+</html>
+

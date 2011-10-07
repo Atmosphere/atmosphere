@@ -1,0 +1,5 @@
+org.atmosphere.tests
+org.atmosphere.jersey.tests
+org.atmosphere.tests.guice
+org.atmosphere.samples.test
+start
