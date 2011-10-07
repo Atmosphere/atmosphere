@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * Simple {@link org.atmosphere.websocket.WebSocketProcessor} that invoke the {@link org.atmosphere.cpr.Broadcaster#broadcast} API when a WebSocket message
  * is received.
  *
- * NOTE: If WebSocket frame are used
+ * NOTE: If WebSocket frame are used the bytes will be decoded into a String, which reduce performance.
  *
  * @author Jeanfrancois Arcand
  */
