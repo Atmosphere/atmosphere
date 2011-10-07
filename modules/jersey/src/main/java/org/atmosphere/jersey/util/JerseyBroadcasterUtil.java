@@ -1,13 +1,14 @@
 package org.atmosphere.jersey.util;
 
 import com.sun.jersey.spi.container.ContainerResponse;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.jersey.AtmosphereFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,7 @@ public final class JerseyBroadcasterUtil {
         HttpServletRequest request = (HttpServletRequest) r.getRequest();
 
         try {
-            ContainerResponse cr = (ContainerResponse) request.getAttribute(AtmosphereServlet.CONTAINER_RESPONSE);
+            ContainerResponse cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
 
             if (cr == null) {
                 logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
@@ -64,7 +65,7 @@ public final class JerseyBroadcasterUtil {
         } catch (Throwable t) {
             onException(t, r);
         } finally {
-            Boolean resumeOnBroadcast = (Boolean) request.getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
                 String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);

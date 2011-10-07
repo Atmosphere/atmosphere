@@ -187,15 +187,15 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
         }
 
-        req.setAttribute(AtmosphereServlet.SUPPORT_SESSION, supportSession());
+        req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
         AtmosphereHandlerWrapper handlerWrapper = map(req);
         AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
 
         handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
 
-        req.setAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE, resource);
-        req.setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
         try {
             handlerWrapper.atmosphereHandler.onRequest(resource);
@@ -324,7 +324,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             return timedoutAction;
         }
 
-        re = (AtmosphereResourceImpl) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+        re = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
         if (re != null) {
             re.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
@@ -334,9 +334,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 ((DefaultBroadcaster) b).broadcastOnResume(re);
             }
 
-            if (re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) != null) {
+            if (re.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
                 re.getAtmosphereResourceEvent().setIsResumedOnTimeout(
-                        (Boolean) re.getRequest().getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT));
+                        (Boolean) re.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
             }
             invokeAtmosphereHandler(re);
         }
@@ -347,7 +347,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         HttpServletRequest req = r.getRequest();
         HttpServletResponse response = r.getResponse();
-        String disableOnEvent = r.getAtmosphereConfig().getInitParameter(AtmosphereServlet.DISABLE_ONSTATE_EVENT);
+        String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
 
         try {
             if (!r.getResponse().equals(response)) {
@@ -355,7 +355,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             } else if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                 AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                         (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
-                                req.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+                                req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
                 atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
             } else {
                 r.getResponse().flushBuffer();
@@ -411,7 +411,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         req.setAttribute(MAX_INACTIVE, (long) -1);
 
         try {
-            re = (AtmosphereResourceImpl) req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+            re = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             if (re != null) {
                 re.getAtmosphereResourceEvent().setCancelled(true);
                 invokeAtmosphereHandler(re);

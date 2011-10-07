@@ -17,6 +17,7 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.container.Jetty8WebSocket;
 import org.atmosphere.websocket.container.JettyWebSocket;
 import org.slf4j.Logger;
@@ -180,7 +181,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onClose(int closeCode, String message) {
         logger.debug("WebSocket.OnClose.");
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocketSupport()));
-        AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+        AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         if (r != null) {
             r.getBroadcaster().removeAtmosphereResource(r);
         }

@@ -42,6 +42,7 @@ import com.sun.grizzly.tcp.http11.GrizzlyAdapter;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.ServletContext;
 import java.io.File;
@@ -131,11 +132,11 @@ public class AtmosphereAdapter extends ServletAdapter {
                 return;
             }
 
-            String realPath = servletContext.getRealPath(WEB_INF_CLASSES);
+            String realPath = servletContext.getRealPath(FrameworkConfig.WEB_INF_CLASSES);
 
             // Weblogic bug
             if (realPath == null) {
-                URL u = servletContext.getResource(WEB_INF_CLASSES);
+                URL u = servletContext.getResource(FrameworkConfig.WEB_INF_CLASSES);
                 if (u == null) return;
                 realPath = u.getPath();
             }
@@ -153,7 +154,7 @@ public class AtmosphereAdapter extends ServletAdapter {
                     index = realPath.length();
                 }
                 String trailer = realPath.substring(0, index);
-                f = new File(trailer + servletContext.getContextPath() + WEB_INF_CLASSES);
+                f = new File(trailer + servletContext.getContextPath() + FrameworkConfig.WEB_INF_CLASSES);
             }
 
             loadAtmosphereHandlersFromPath(classLoader, realPath);

@@ -38,10 +38,11 @@ package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.StringReader;
 import com.sun.jersey.spi.StringReaderProvider;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -82,9 +83,9 @@ public class AtmosphereProviders {
                 try {
                     AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
                             (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                                    req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                                    req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     BroadcasterFactory bp = (BroadcasterFactory)
-                            req.getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
+                            req.getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
 
                     broadcaster = bp.lookup(r.getBroadcaster().getClass(), topic, true);
                 } catch (Throwable ex) {

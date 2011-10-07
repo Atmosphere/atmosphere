@@ -56,7 +56,6 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.protocol.EchoProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -89,6 +88,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.atmosphere.cpr.ApplicationConfig.*;
+import static org.atmosphere.cpr.FrameworkConfig.*;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -160,6 +162,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </pre></blockquote>
+ * All the property available are defined in {@link ApplicationConfig}
  * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
  * <p/>
  * If you are planning to use JSP, Servlet or JSF, you can instead use the
@@ -172,60 +175,17 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
-    public final static String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
-    public final static String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
-    public final static String JMS_BROADCASTER = "org.atmosphere.plugin.jms.JMSBroadcaster";
-    public final static String JGROUPS_BROADCASTER = "org.atmosphere.plugin.jgroups.JGroupsBroadcaster";
-    public final static String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
-
-    public final static String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
-    public final static String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
-    public final static String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
-    public final static String PROPERTY_NATIVE_COMETSUPPORT = "org.atmosphere.useNative";
-    public final static String WEBSOCKET_SUPPORT = "org.atmosphere.useWebSocket";
-    public final static String PROPERTY_USE_STREAM = "org.atmosphere.useStream";
-    public final static String BROADCASTER_FACTORY = "org.atmosphere.cpr.broadcasterFactory";
-    public final static String BROADCASTER_CLASS = "org.atmosphere.cpr.broadcasterClass";
-    public final static String BROADCASTER_CACHE = "org.atmosphere.cpr.broadcasterCacheClass";
-    public final static String PROPERTY_COMET_SUPPORT = "org.atmosphere.cpr.cometSupport";
-    public final static String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
-    public final static String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
-    public final static String WEB_INF_CLASSES = "/WEB-INF/classes/";
-    public final static String RESUME_ON_BROADCAST = "org.atmosphere.resumeOnBroadcast";
-    public final static String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
-    public final static String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
-    public final static String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
-    public final static String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
-    public final static String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
-    public final static String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
-    public final static String DEFAULT_NAMED_DISPATCHER = "default";
-    public final static String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
-    public final static String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
-    public final static String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
-    public final static String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
-    public final static String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
-    public static final String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
-
-    public final static String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
-    public final static String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.messageContentType";
-    public final static String WEBSOCKET_METHOD = "org.atmosphere.websocket.messageMethod";
-    public final static String WEBSOCKET_IDLETIME = "org.atmosphere.websocket.maxIdleTime";
-    public final static String WEBSOCKET_BUFFER_SIZE = "org.atmosphere.websocket.bufferSize";
-    public static final String WEBSOCKET_PATH_DELIMITER = "org.atmosphere.websocket.pathDelimiter";
-
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     private final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config = new AtmosphereConfig();
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
     public static String[] broadcasterFilters = new String[0];
-
     /**
      * The list of {@link AtmosphereHandler} and their associated mapping.
      */
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers =
             new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
-
     private final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
 
     // If we detect Servlet 3.0, should we still use the default

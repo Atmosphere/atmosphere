@@ -37,9 +37,9 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.slf4j.Logger;
@@ -93,8 +93,8 @@ public class WebLogicCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
         if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
-                (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                        || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+                (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
+                        || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             try {
                 RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest().getSession().getAttribute(RRK);
                 AbstractAsyncServlet.notify(rrk, null);

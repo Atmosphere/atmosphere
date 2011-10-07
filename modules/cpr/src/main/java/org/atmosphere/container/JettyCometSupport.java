@@ -37,9 +37,9 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.mortbay.util.ajax.Continuation;
@@ -94,7 +94,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
                 if (!resumed.remove(c)) {
                     c.reset();
 
-                    if (req.getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) == null) {
+                    if (req.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) == null) {
                         timedout(req, response);
                     } else {
                         resumed(req, response);
@@ -107,7 +107,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
             if (!resumed.remove(c)) {
                 c.reset();
 
-                if (req.getAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT) == null) {
+                if (req.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) == null) {
                     timedout(req, response);
                 } else {
                     resumed(req, response);
@@ -126,8 +126,8 @@ public class JettyCometSupport extends AsynchronousProcessor {
         if (r.action().type == Action.TYPE.RESUME && r.isInScope()) {
             Continuation c = ContinuationSupport.getContinuation(r.getRequest(), null);
             resumed.offer(c);
-            if (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                    || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
+            if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
+                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
                 c.resume();
             } else {
                 try {

@@ -15,6 +15,7 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
@@ -40,8 +41,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
  * an {@link javax.servlet.http.HttpServletRequest}.
  * <p/>
- * The content-type is defined using {@link org.atmosphere.cpr.AtmosphereServlet#WEBSOCKET_CONTENT_TYPE} property
- * The method is defined using {@link org.atmosphere.cpr.AtmosphereServlet#WEBSOCKET_METHOD} property
+ * The content-type is defined using {@link org.atmosphere.cpr.ApplicationConfig#WEBSOCKET_CONTENT_TYPE} property
+ * The method is defined using {@link org.atmosphere.cpr.ApplicationConfig#WEBSOCKET_METHOD} property
  * <p/>
  *
  * @author Jeanfrancois Arcand
@@ -55,19 +56,19 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
 
     public SimpleHttpProtocol(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
         super(atmosphereServlet, webSocket);
-        String contentType = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_CONTENT_TYPE);
+        String contentType = atmosphereServlet.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
             contentType = "text/html";
         }
         this.contentType = contentType;
 
-        String methodType = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_METHOD);
+        String methodType = atmosphereServlet.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_METHOD);
         if (methodType == null) {
             methodType = "POST";
         }
         this.methodType = methodType;
 
-        String delimiter = atmosphereServlet.getAtmosphereConfig().getInitParameter(AtmosphereServlet.WEBSOCKET_PATH_DELIMITER);
+        String delimiter = atmosphereServlet.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_PATH_DELIMITER);
         if (delimiter == null) {
             delimiter = "@@";
         }

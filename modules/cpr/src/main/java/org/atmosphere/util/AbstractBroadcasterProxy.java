@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     @Override
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         if (r.getRequest() instanceof HttpServletRequest) {
-            if (((HttpServletRequest) r.getRequest()).getAttribute(AtmosphereServlet.CONTAINER_RESPONSE) != null) {
+            if (((HttpServletRequest) r.getRequest()).getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
                 try {
                     if (jerseyBroadcast == null) {
                         Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");

@@ -16,6 +16,7 @@
 package org.atmosphere.container;
 
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.JettyWebSocketHandler;
@@ -87,15 +88,15 @@ public class JettyWebSocketUtil {
         });
 
         int bufferSize = 8192;
-        if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE) != null) {
-            bufferSize = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE));
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE) != null) {
+            bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
         }
         logger.info("WebSocket Buffer side {}", bufferSize);
 
         webSocketFactory.setBufferSize(bufferSize);
         int timeOut = 5 * 60000;
-        if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
-            timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME) != null) {
+            timeOut = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
         }
         logger.info("WebSocket idle timeout {}", timeOut);
 

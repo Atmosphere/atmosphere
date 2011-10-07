@@ -43,6 +43,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,8 +92,8 @@ public abstract class WebSocketProcessor implements Serializable {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
         }
 
-        resource = (AtmosphereResource) request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
-        handler = (AtmosphereHandler) request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+        resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        handler = (AtmosphereHandler) request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
             logger.error("No AtmosphereResource has been suspended. The WebSocket will be closed.");
             webSocket.close();
