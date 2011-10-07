@@ -83,12 +83,15 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
             if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE) != null) {
                 bufferSize = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE));
             }
+            logger.debug("WebSocket Buffer side {}", bufferSize);
 
             webSocketFactory.setBufferSize(bufferSize);
             int timeOut = 5 * 60000;
             if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
                 timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
             }
+            logger.debug("WebSocket idle timeout {}", timeOut);
+
             webSocketFactory.setMaxIdleTime(timeOut);
         } else {
             webSocketFactory = null;
