@@ -95,6 +95,9 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             config.testOnBorrow = true;
             config.testWhileIdle = true;
             jedisPool = new JedisPool(config, uri.getHost(), uri.getPort());
+        } else {
+            jedisPool.returnResource(jedisPublisher);
+            jedisPool.returnResource(jedisSubscriber);
         }
 
         jedisSubscriber = jedisPool.getResource();
@@ -122,6 +125,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     public synchronized void setID(String id) {
         super.setID(id);
         setUp();
+
         reconfigure();
     }
 
