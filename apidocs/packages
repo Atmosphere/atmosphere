@@ -6,9 +6,9 @@ org.atmosphere.cpr
 org.atmosphere.di
 org.atmosphere.handler
 org.atmosphere.util
-org.atmosphere.util.gae
 org.atmosphere.websocket.container
 org.atmosphere.websocket
+org.atmosphere.websocket.protocol
 org.atmosphere.annotation
 org.atmosphere.jersey
 org.atmosphere.jersey.util
@@ -22,16 +22,12 @@ org.atmosphere.gwt.poll
 org.atmosphere.gwt.server
 org.atmosphere.gwt.server.deflate
 org.atmosphere.gwt.server.impl
+org.atmosphere.guice
 org.atmosphere.grizzly
-org.atmosphere.plugin.bayeux
 org.atmosphere.plugin.jgroups
 org.atmosphere.plugin.jms
 org.atmosphere.plugin.redis
 org.atmosphere.plugin.xmpp
-org.atmosphere.plugin.guice
-org.atmosphere.grizzly.conf
-org.atmosphere.spade
-org.atmosphere.guice
 org.atmosphere.commons.jersey
 org.atmosphere.commons.util
 org.atmosphere.samples.chat
@@ -43,7 +39,6 @@ org.atmosphere.samples.rest.counter
 org.atmosphere.samples.tictactoe
 org.atmosphere.samples.client
 org.atmosphere.samples.server
-org.atmosphere.samples.spade
 org.atmosphere.samples.pubsub
 org.atmosphere.samples.guice
 org.atmosphere.samples.wicket
