@@ -112,17 +112,17 @@ public class AtmosphereResourceImpl implements
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
-        String nocache = config.getInitParameter(AtmosphereServlet.NO_CACHE_HEADERS);
+        String nocache = config.getInitParameter(ApplicationConfig.NO_CACHE_HEADERS);
         injectCacheHeaders = nocache != null ? false : true;
 
-        String ac = config.getInitParameter(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+        String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
         enableAccessControl = ac != null ? false : true;
 
-        String wh = config.getInitParameter(AtmosphereServlet.WRITE_HEADERS);
+        String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
         writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
 
-        req.setAttribute(AtmosphereServlet.NO_CACHE_HEADERS, injectCacheHeaders);
-        req.setAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
+        req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
+        req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
     }
 
     /**
@@ -167,7 +167,7 @@ public class AtmosphereResourceImpl implements
             }
 
             try {
-                req.setAttribute(AtmosphereServlet.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+                req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
             } catch (Exception ex) {
                 logger.debug("Cannot resume an already resumed/cancelled request");
             }
@@ -280,7 +280,7 @@ public class AtmosphereResourceImpl implements
 
     void write() {
         try {
-            if (useWriter && !((Boolean) req.getAttribute(AtmosphereServlet.PROPERTY_USE_STREAM))) {
+            if (useWriter && !((Boolean) req.getAttribute(ApplicationConfig.PROPERTY_USE_STREAM))) {
                 try {
                     response.getWriter();
                 } catch (IllegalStateException e) {
@@ -503,7 +503,7 @@ public class AtmosphereResourceImpl implements
     void onThrowable(AtmosphereResourceEvent e) {
         AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                 (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
-                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+                        req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
         }

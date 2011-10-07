@@ -39,7 +39,7 @@ package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.inject.InjectableProvider;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
@@ -58,7 +58,7 @@ abstract class BaseInjectableProvider implements InjectableProvider<Context, Typ
 
         try {
             if (session) {
-                if ((Boolean) req.getAttribute(AtmosphereServlet.SUPPORT_SESSION)) {
+                if ((Boolean) req.getAttribute(FrameworkConfig.SUPPORT_SESSION)) {
                     r = (AtmosphereResource) req.getSession().
                             getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
                 }
@@ -66,7 +66,7 @@ abstract class BaseInjectableProvider implements InjectableProvider<Context, Typ
 
             if (r == null) {
                 r = (AtmosphereResource)
-                        req.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                        req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             }
 
             return r;

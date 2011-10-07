@@ -26,9 +26,9 @@ import com.google.gwt.user.server.rpc.SerializationPolicyLoader;
 import com.google.gwt.user.server.rpc.SerializationPolicyProvider;
 import com.google.gwt.user.server.rpc.UnexpectedException;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
 
 import javax.servlet.ServletContext;
@@ -157,7 +157,7 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
         AtmosphereResource<HttpServletRequest, HttpServletResponse> atm =
                 (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
-                        getThreadLocalRequest().getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                        getThreadLocalRequest().getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         if (atm == null) {
             throw new UnexpectedException("Failed to find Atmosphere resource have you setup Atmosphere?", null);
         }

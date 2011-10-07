@@ -56,7 +56,9 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +147,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
         setUseStreamForFlushingComments(false);
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
-        setDefaultBroadcasterClassName(JERSEY_BROADCASTER);
+        setDefaultBroadcasterClassName(FrameworkConfig.JERSEY_BROADCASTER);
         setUseStreamForFlushingComments(true);
 
         rsp.setServlet(guiceServlet);
@@ -154,7 +156,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
         }
         getAtmosphereConfig().setSupportSession(false);
 
-        String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
+        String mapping = sc.getInitParameter(ApplicationConfig.PROPERTY_SERVLET_MAPPING);
         if (mapping == null) {
             mapping = "/*";
         }

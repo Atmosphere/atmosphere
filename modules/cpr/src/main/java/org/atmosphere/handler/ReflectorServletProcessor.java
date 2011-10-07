@@ -38,8 +38,8 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
@@ -137,7 +137,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     /**
      * Delegate the request to the Servlet.service method, and add the {@link AtmosphereResource}
      * to the {@link HttpServletRequest#setAttribute(java.lang.String, java.lang.Object))}.
-     * The {@link AtmosphereResource} can ve retrieved using {@link AtmosphereServlet#ATMOSPHERE_RESOURCE}
+     * The {@link AtmosphereResource} can ve retrieved using {@link org.atmosphere.cpr.FrameworkConfig#ATMOSPHERE_RESOURCE}
      * value.
      *
      * @param r The {@link AtmosphereResource}
@@ -145,8 +145,8 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      */
     public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r)
             throws IOException {
-        r.getRequest().setAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE, r);
-        r.getRequest().setAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER, this);
+        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
+        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, this);
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {

@@ -37,13 +37,13 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationSupport;
 import org.slf4j.Logger;
@@ -53,7 +53,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -95,7 +94,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 c.suspend();
             } else if (action.type == Action.TYPE.RESUME) {
                 // If resume occurs during a suspend operation, stop processing.
-                Boolean resumeOnBroadcast = (Boolean) req.getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+                Boolean resumeOnBroadcast = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
                 if (resumeOnBroadcast != null && resumeOnBroadcast) {
                     return action;
                 }
@@ -123,10 +122,10 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
         logger.debug("(resumed) invoked:\n HttpServletRequest: {}\n HttpServletResponse: {}", request, response);
         AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl)request.getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                 (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
-                        request.getAttribute(AtmosphereServlet.ATMOSPHERE_HANDLER);
+                        request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
         return new Action(Action.TYPE.RESUME);
     }
@@ -138,8 +137,8 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
         if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
-                (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
-                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+                (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null ||
+                        config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             Continuation c = ContinuationSupport.getContinuation(actionEvent.getRequest());
             if (c != null) {
                 try {

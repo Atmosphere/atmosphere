@@ -37,6 +37,7 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -157,8 +158,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                         .getAttribute("org.atmosphere.container.asyncContext");
             }
 
-            if (asyncContext != null && (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null
-                    || config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+            if (asyncContext != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
+                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
                 asyncContext.complete();
             }
         } else {

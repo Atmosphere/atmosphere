@@ -37,9 +37,9 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.jboss.servlet.http.HttpEvent;
@@ -170,8 +170,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
                 resumed.offer(event);
                 // Resume without closing the underlying suspended connection.
-                if (config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE) == null ||
-                        config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
+                if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null ||
+                        config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
                     event.close();
                 }
             } catch (IOException ex) {

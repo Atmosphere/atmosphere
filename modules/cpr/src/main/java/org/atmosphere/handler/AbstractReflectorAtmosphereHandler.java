@@ -37,9 +37,9 @@
 
 package org.atmosphere.handler;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +115,7 @@ public abstract class AbstractReflectorAtmosphereHandler
             }
 
             Boolean resumeOnBroadcast = false;
-            Object o = event.getResource().getRequest().getAttribute(AtmosphereServlet.RESUME_ON_BROADCAST);
+            Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
                 resumeOnBroadcast = Boolean.class.cast(o);
             }

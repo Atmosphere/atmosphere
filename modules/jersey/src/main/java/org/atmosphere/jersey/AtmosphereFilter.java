@@ -51,17 +51,18 @@ import org.atmosphere.annotation.Resume;
 import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Subscribe;
 import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
@@ -105,7 +106,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     public final static String INJECTED_TRACKABLE = AtmosphereFilter.class.getName() + "injectedTrackable";
 
     // For backward compatibility
-    public final static String CONTAINER_RESPONSE = AtmosphereServlet.CONTAINER_RESPONSE;
+    public final static String CONTAINER_RESPONSE = FrameworkConfig.CONTAINER_RESPONSE;
 
     enum Action {
         SUSPEND, RESUME, BROADCAST, SUSPEND_RESUME,
@@ -220,10 +221,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
-                            .getAttribute(AtmosphereServlet.ATMOSPHERE_RESOURCE);
+                            .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
             boolean sessionSupported = (Boolean) servletReq.getAttribute
-                    (AtmosphereServlet.SUPPORT_SESSION);
+                    (FrameworkConfig.SUPPORT_SESSION);
 
             switch (action) {
                 case SUSPEND_RESPONSE:
@@ -273,7 +274,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.SUBSCRIBE) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -348,7 +349,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.PUBLISH) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -400,8 +401,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(AtmosphereServlet.NO_CACHE_HEADERS);
-            boolean enableAccessControl = (Boolean) servletReq.getAttribute(AtmosphereServlet.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+            boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(ApplicationConfig.NO_CACHE_HEADERS);
+            boolean enableAccessControl = (Boolean) servletReq.getAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
@@ -422,7 +423,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Iterator<AtmosphereResource<?, ?>> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
                 HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
-                r.setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, true);
+                r.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true);
             }
         }
 
@@ -535,7 +536,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             BroadcasterFactory broadcasterFactory = (BroadcasterFactory) servletReq
-                    .getAttribute(AtmosphereServlet.BROADCASTER_FACTORY);
+                    .getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
 
             // Do not add location header if already there.
             if (!sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
@@ -582,7 +583,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     // Re-generate a new one with proper scope.
                     Class<Broadcaster> c = null;
                     try {
-                        c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(AtmosphereServlet.BROADCASTER_CLASS));
+                        c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
                     } catch (Throwable e) {
                         throw new IllegalStateException(e.getMessage());
                     }
@@ -597,16 +598,16 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (sessionSupported) {
                 servletReq.getSession().setAttribute(SUSPENDED_RESOURCE, r);
-                servletReq.getSession().setAttribute(AtmosphereServlet.CONTAINER_RESPONSE, response);
+                servletReq.getSession().setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
             }
 
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
-            servletReq.setAttribute(AtmosphereServlet.CONTAINER_RESPONSE, response);
+            servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
 
             logger.debug("Linking HttpServletRequest {} with ContainerResponse {}", servletReq, response);
 
             if (resumeOnBroadcast) {
-                servletReq.setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, new Boolean(true));
+                servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
             }
 
             // Set the content-type based on the returned entity.

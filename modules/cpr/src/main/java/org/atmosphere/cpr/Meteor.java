@@ -45,7 +45,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import static org.atmosphere.cpr.AtmosphereServlet.ATMOSPHERE_RESOURCE;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * A {@link Meteor} is a simple class that can be used from a {@link javax.servlet.Servlet}

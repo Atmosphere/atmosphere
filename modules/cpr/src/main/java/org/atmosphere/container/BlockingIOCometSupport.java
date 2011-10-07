@@ -38,6 +38,7 @@
 package org.atmosphere.container;
 
 import org.apache.catalina.CometEvent;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -200,7 +201,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                     }
                 }
 
-                String s = config.getInitParameter(AtmosphereServlet.RESUME_AND_KEEPALIVE);
+                String s = config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE);
                 if (latchId != -1 && (s == null || s.equalsIgnoreCase("false"))) {
                     CountDownLatch latch = latchs.remove(latchId);
                     if (latch == null) {
