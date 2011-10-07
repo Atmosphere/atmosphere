@@ -9,6 +9,7 @@ Atmosphere ships with a JQuery Plug In that can be used with any Comet or WebSoc
 Download Atmosphere Whitepaper
 
 [White paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
+
 [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
 
 If you are using Maven, just add the following dependency:
