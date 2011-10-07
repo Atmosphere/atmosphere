@@ -93,7 +93,7 @@ public class JettyWebSocketUtil {
         logger.info("WebSocket Buffer side {}", bufferSize);
 
         webSocketFactory.setBufferSize(bufferSize);
-        int timeOut = 5 * 60000;
+        int timeOut = 5000;
         if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
             timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
         }

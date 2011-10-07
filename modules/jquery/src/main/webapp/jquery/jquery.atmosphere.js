@@ -495,6 +495,7 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                     if (request.requestCount++ < request.maxRequest) {
+                        jQuery.atmosphere.request.method = request.method;
                         jQuery.atmosphere.request.url = url;
                         jQuery.atmosphere.request.data = "";
                         jQuery.atmosphere.request.requestCount = request.requestCount;
