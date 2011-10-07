@@ -16,10 +16,13 @@
 package org.atmosphere.plugin.redis;
 
 
+import org.apache.commons.pool.impl.GenericObjectPool;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisException;
+import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
@@ -39,6 +42,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private Jedis jedisSubscriber;
     private Jedis jedisPublisher;
+    private JedisPool jedisPool;
     private URI uri;
     private String authToken = "atmosphere";
 
@@ -72,7 +76,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         super.start();
     }
 
-    public void setUp() {
+    public synchronized void setUp() {
         if (uri == null) return;
 
         if (config != null) {
@@ -85,7 +89,16 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             }
         }
 
-        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
+        // setup is synchronized, no need to sync here as well.
+        if (jedisPool == null) {
+            GenericObjectPool.Config config = new GenericObjectPool.Config();
+            config.testOnBorrow = true;
+            config.testWhileIdle = true;
+            jedisPool = new JedisPool(config, uri.getHost(), uri.getPort());
+        }
+
+        jedisSubscriber = jedisPool.getResource();
+
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
@@ -95,7 +108,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         jedisSubscriber.auth(authToken);
         jedisSubscriber.flushAll();
 
-        jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
+        jedisPublisher = jedisPool.getResource();
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
@@ -106,10 +119,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     }
 
     @Override
-    public void setID(String id) {
+    public synchronized void setID(String id) {
         super.setID(id);
-        disconnectPublisher();
-        disconnectSubscriber();
         setUp();
         reconfigure();
     }
@@ -118,10 +129,15 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      * {@inheritDoc}
      */
     @Override
-    public void destroy() {
+    public synchronized void destroy() {
         super.destroy();
-        disconnectPublisher();
-        disconnectSubscriber();
+        try {
+            disconnectPublisher();
+            disconnectSubscriber();
+            jedisPool.destroy();
+        } catch (Throwable t) {
+            logger.warn("Jedis error on close", t);
+        }
     }
 
     /**
@@ -164,7 +180,17 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void outgoingBroadcast(Object message) {
-        jedisPublisher.publish(getID(), message.toString());
+        try {
+            jedisPublisher.publish(getID(), message.toString());
+        } catch (JedisException e) {
+            logger.warn("outgoingBroadcast exception, retying a connection", e);
+            synchronized (jedisPublisher) {
+                jedisPool.returnBrokenResource(jedisPublisher);
+                jedisPublisher = jedisPool.getResource();
+                // Try a second time.
+                jedisPublisher.publish(getID(), message.toString());
+            }
+        }
     }
 
     private void disconnectSubscriber() {
@@ -172,7 +198,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             try {
                 jedisSubscriber.disconnect();
             } catch (IOException e) {
-                logger.error("failed to disconnect subscriber", e);
+                logger.warn("failed to disconnect subscriber", e);
             }
         }
     }
@@ -182,7 +208,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             try {
                 jedisPublisher.disconnect();
             } catch (IOException e) {
-                logger.error("failed to disconnect publisher", e);
+                logger.warn("failed to disconnect publisher", e);
             }
         }
     }
