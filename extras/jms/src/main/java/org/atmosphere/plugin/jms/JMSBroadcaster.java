@@ -234,7 +234,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      * Close all related JMS factory, connection, etc.
      */
     @Override
-    public void releaseExternalResources() {
+    public synchronized void releaseExternalResources() {
         try {
             connection.close();
             session.close();

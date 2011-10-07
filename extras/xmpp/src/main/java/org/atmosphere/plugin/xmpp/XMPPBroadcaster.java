@@ -64,7 +64,7 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
         this.uri = uri;
     }
 
-    private void setUp() {
+    private synchronized void setUp() {
         if (uri == null) return;
 
         try {
@@ -136,8 +136,10 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void destroy() {
         super.destroy();
-        if (xmppConnection != null) {
-            xmppConnection.disconnect();
+        synchronized (xmppConnection) {
+            if (xmppConnection != null) {
+                xmppConnection.disconnect();
+            }
         }
     }
 

@@ -113,8 +113,9 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
      * {@inheritDoc}
      */
     @Override
-    public void destroy() {
+    public synchronized void destroy() {
         super.destroy();
+        if (!jchannel.isOpen()) return;
         jchannel.shutdown();
     }
 
