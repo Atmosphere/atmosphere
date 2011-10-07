@@ -8,23 +8,24 @@ Atmosphere ships with a JQuery Plug In that can be used with any Comet or WebSoc
 
 Download Atmosphere Whitepaper
 
-[white paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
+[White paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
+[Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
 
 If you are using Maven, just add the following dependency:
 
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>0.7.2</version>
+         <version>0.8.0-RC1</version>
       </dependency>
 
 Where atmosphere-module can be: jersey, runtime, guice, jquery, cluster or gwt,. Our official release are available from Maven Central. For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds:
 
-[browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
+[Browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
 
 Download samples
 
-[download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
+[Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
 Atmosphere 0.7.2 is our official release, and our work in progress version is 0.8, targeted for end of October 2011
 
