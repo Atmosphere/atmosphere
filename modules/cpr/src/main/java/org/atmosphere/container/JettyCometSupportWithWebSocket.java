@@ -37,11 +37,14 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.cpr.CometSupport;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.container.JettyWebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,33 +69,7 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
 
         String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
         if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-            webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
-                public boolean checkOrigin(HttpServletRequest request, String origin) {
-                    // Allow all origins
-                    logger.debug("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
-                    return true;
-                }
-
-                public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
-                    logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                    return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProcessorClassName());
-                }
-            });
-
-            int bufferSize = 8192;
-            if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE) != null) {
-                bufferSize = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_BUFFER_SIZE));
-            }
-            logger.info("WebSocket Buffer side {}", bufferSize);
-
-            webSocketFactory.setBufferSize(bufferSize);
-            int timeOut = 5 * 60000;
-            if (config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME) != null) {
-                timeOut = Integer.valueOf(config.getInitParameter(AtmosphereServlet.WEBSOCKET_IDLETIME));
-            }
-            logger.info("WebSocket idle timeout {}", timeOut);
-
-            webSocketFactory.setMaxIdleTime(timeOut);
+            webSocketFactory = JettyWebSocketUtil.getFactory(config);
         } else {
             webSocketFactory = null;
         }
@@ -104,40 +81,8 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
     @Override
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-
-        boolean webSocketEnabled = false;
-        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().split(",");
-            for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
-
-        Boolean b = (Boolean)req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
-        if (b == null) b = Boolean.FALSE;
-
-        if (!webSocketEnabled) {
-            return super.service(req, res);
-        } else {
-            if (webSocketFactory != null && !b) {
-                req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-                webSocketFactory.acceptWebSocket(req, res);
-                return new Action();
-            }
-
-            Action action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
-            } else if (action.type == Action.TYPE.RESUME) {
-                logger.debug("Resume response: {}", res);
-                req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
-            }
-
-            return action;
-        }
+        Action action = JettyWebSocketUtil.doService(this,req,res,webSocketFactory);
+        return action == null? super.service(req,res) : action;
     }
 
     /**
