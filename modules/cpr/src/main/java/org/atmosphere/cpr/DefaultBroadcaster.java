@@ -119,6 +119,9 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public synchronized void destroy() {
+
+        if (destroyed.get()) return;
+
         started.set(false);
         destroyed.set(true);
         releaseExternalResources();
