@@ -26,7 +26,10 @@
             <param-value>org.atmosphere.client.FormParamFilter,org.atmosphere.client.JavascriptClientFilter
             </param-value>
         </init-param>
-
+        <init-param>
+            <param-name>org.atmosphere.websocket.WebSocketProcessor</param-name>
+            <param-value>org.atmosphere.websocket.protocol.EchoProtocol</param-value>
+        </init-param>
         <!--<init-param>-->
         <!--<param-name>org.atmosphere.plugin.xmpp.XMPPBroadcaster.authorization</param-name>-->
         <!--<param-value>me@gmail.com:password</param-value>-->
