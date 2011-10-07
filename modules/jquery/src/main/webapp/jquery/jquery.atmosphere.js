@@ -478,7 +478,10 @@ jQuery.atmosphere = function() {
             };
 
             websocket.onclose = function(message) {
-                if (!webSocketSupported || !message.wasClean) {
+                jQuery.atmosphere.warn("Websocket closed, reason: " + message.reason);
+                jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
+
+                if (!webSocketSupported) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
@@ -504,7 +507,7 @@ jQuery.atmosphere = function() {
 
                         jQuery.atmosphere.response.responseBody = "";
                         jQuery.atmosphere.executeWebSocket();
-                    } else{
+                    } else {
                         jQuery.atmosphere.log(logLevel, ["Websocket reconnect maximum try reached "
                             + request.requestCount]);
                     }
