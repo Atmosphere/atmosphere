@@ -65,8 +65,6 @@ import java.io.IOException;
  */
 public interface CometSupport<E extends AtmosphereResource> {
 
-    final String MAX_INACTIVE = CometSupport.class.getName() + ".maxInactiveActivity";
-
     /**
      * Return the name of the Java Web Server.
      *

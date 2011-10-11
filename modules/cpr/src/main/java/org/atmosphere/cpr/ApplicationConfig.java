@@ -128,4 +128,9 @@ public interface ApplicationConfig {
      * Disable invoking {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} when the connection times out or get cancelled
      */
     String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
+    /**
+     * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)
+     */
+    String MAX_INACTIVE = CometSupport.class.getName() + ".maxInactiveActivity";
+
 }
