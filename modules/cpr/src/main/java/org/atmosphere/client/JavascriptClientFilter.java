@@ -33,17 +33,6 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
 
     @Override
     public BroadcastAction filter(Object originalMessage, Object message) {
-
-        if (message instanceof String) {
-            StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
-                    .append(uniqueScriptToken.getAndIncrement())
-                    .append("\">")
-                    .append("parent.callback")
-                    .append("('")
-                    .append(message.toString())
-                    .append("');</script>");
-            message = sb.toString();
-        }
         return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
     }
 

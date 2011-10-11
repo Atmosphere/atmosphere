@@ -13,6 +13,7 @@
  */
 jQuery.atmosphere = function() {
     var activeRequest;
+    var ieStream;
     jQuery(window).unload(function() {
         if (activeRequest) {
             activeRequest.abort();
@@ -73,7 +74,8 @@ jQuery.atmosphere = function() {
                 transport : 'long-polling',
                 webSocketImpl: null,
                 webSocketUrl: null,
-                webSocketPathDelimiter: "@@"
+                webSocketPathDelimiter: "@@",
+                enableXDR : false
 
             }, request);
 
@@ -132,7 +134,7 @@ jQuery.atmosphere = function() {
 
             if (jQuery.atmosphere.request.transport == 'streaming') {
                 if (jQuery.browser.msie) {
-                    jQuery.atmosphere.ieStreaming();
+                    jQuery.atmosphere.request.enableXDR && window.XDomainRequest ?  jQuery.atmosphere.xhr() : jQuery.atmosphere.ieStreaming();
                     return;
                 } else if (jQuery.browser.opera) {
                     jQuery.atmosphere.operaStreaming();
@@ -349,14 +351,18 @@ jQuery.atmosphere = function() {
 
         },
 
+        // From jquery-stream, which is APL2 licensed as well.
         ieStreaming : function() {
+            ieStream =  jQuery.atmosphere.configureIE();
+            ieStream.open();
+        },
 
-            if (!(typeof(transferDoc) == 'undefined')) {
-                if (transferDoc != null) {
-                    transferDoc = null;
-                    CollectGarbage();
-                }
-            }
+        configureIE : function() {
+            var stop,
+                doc = new window.ActiveXObject("htmlfile");
+
+            doc.open();
+            doc.close();
 
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function (url) {
@@ -364,17 +370,97 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
+            var request = jQuery.atmosphere.request;
 
-            //Must not use var here to avoid IE from disconnecting
-            transferDoc = new ActiveXObject("htmlfile");
-            transferDoc.open();
-            transferDoc.close();
-            var ifrDiv = transferDoc.createElement("div");
-            transferDoc.body.appendChild(ifrDiv);
-            ifrDiv.innerHTML = "<iframe src='" + url + "'></iframe>";
-            transferDoc.parentWindow.callback = jQuery.atmosphere.streamingCallback;
-        }
-        ,
+            return {
+                open: function() {
+                    var iframe = doc.createElement("iframe");
+                    iframe.src = url;
+
+                    doc.body.appendChild(iframe);
+
+                    // For the server to respond in a consistent format regardless of user agent, we polls response text
+                    var cdoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                    stop = jQuery.atmosphere.iterate(function() {
+                        if (!cdoc.firstChild) {
+                            return;
+                        }
+
+                        // Detects connection failure
+                        if (cdoc.readyState === "complete") {
+                            try {
+                                $.noop(cdoc.fileSize);
+                            } catch(e) {
+                                jQuery.atmosphere.ieCallback ("", "error");
+                                return false;
+                            }
+                        }
+
+                        var res = cdoc.body ? cdoc.body.lastChild : cdoc,
+                            readResponse = function() {
+                                // Clones the element not to disturb the original one
+                                var clone = res.cloneNode(true);
+
+                                // If the last character is a carriage return or a line feed, IE ignores it in the innerText property
+                                // therefore, we add another non-newline character to preserve it
+                                clone.appendChild(cdoc.createTextNode("."));
+
+                                var text = clone.innerText;
+                                return text.substring(0, text.length - 1);
+                            };
+
+                        // To support text/html content type
+                        if (!$.nodeName(res, "pre")) {
+                            // Injects a plaintext element which renders text without interpreting the HTML and cannot be stopped
+                            // it is deprecated in HTML5, but still works
+                            var head = cdoc.head || cdoc.getElementsByTagName("head")[0] || cdoc.documentElement || cdoc,
+                                script = cdoc.createElement("script");
+
+                            script.text = "document.write('<plaintext>')";
+
+                            head.insertBefore(script, head.firstChild);
+                            head.removeChild(script);
+
+                            // The plaintext element will be the response container
+                            res = cdoc.body.lastChild;
+                        }
+
+                        // Handles open event
+                        jQuery.atmosphere.ieCallback (readResponse(), "messageReceived");
+
+                        // Handles message and close event
+                        stop = jQuery.atmosphere.iterate(function() {
+                            var text = readResponse();
+                            if (text.length > request.lastIndex) {
+                                jQuery.atmosphere.ieCallback(text, "messageReceived");
+
+                                // Empties response every time that it is handled
+                                res.innerText = "";
+                                request.lastIndex = 0;
+                            }
+
+                            if (cdoc.readyState === "complete") {
+                                jQuery.atmosphere.ieCallback ("", "closed");
+                                return false;
+                            }
+                        }, null);
+
+                        return false;
+                    });
+                },
+
+                close: function() {
+					if (stop) {
+						stop();
+					}
+
+					doc.execCommand("Stop");
+                    jQuery.atmosphere.ieCallback ("", "closed");
+				}
+
+            };
+        },
 
         streamingCallback : function(args) {
             var response = jQuery.atmosphere.response;
@@ -386,6 +472,68 @@ jQuery.atmosphere = function() {
             jQuery.atmosphere.invokeCallback(response);
         }
         ,
+
+        ieCallback : function(messageBody, state) {
+            var response = jQuery.atmosphere.response;
+            response.transport = "streaming";
+            response.status = 200;
+            response.responseBody = messageBody;
+            response.state = state;
+
+            jQuery.atmosphere.invokeCallback(response);
+        }
+        ,
+
+        // From jquery-stream
+        xdr: function(request) {
+            var xdr = new window.XDomainRequest(),
+                rewriteURL = request.rewriteURL || function(url) {
+                    // Maintaining session by rewriting URL
+                    // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
+                    var rewriters = {
+                        JSESSIONID: function(sid) {
+                            return url.replace(/;jsessionid=[^\?]*|(\?)|$/, ";jsessionid=" + sid + "$1");
+                        },
+                        PHPSESSID: function(sid) {
+                            return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + sid + "&").replace(/&$/, "");
+                        }
+                    };
+
+                    for (var name in rewriters) {
+                        // Finds session id from cookie
+                        var matcher = new RegExp("(?:^|;\\s*)" + encodeURIComponent(name) + "=([^;]*)").exec(document.cookie);
+                        if (matcher) {
+                            return rewriters[name](matcher[1]);
+                        }
+                    }
+
+                    return url;
+                };
+
+            // Handles open and message event
+            xdr.onprogress = function() {
+                jQuery.atmosphere.ieCallback (xdr.responseText, "messageReceived");
+            };
+            // Handles error event
+            xdr.onerror = function() {
+                jQuery.atmosphere.ieCallback (xdr.responseText, "error");
+            };
+            // Handles close event
+            xdr.onload = function() {
+                jQuery.atmosphere.ieCallback (xdr.responseText, "closed");
+            };
+
+            return {
+                open: function() {
+                    xdr.open("GET", rewriteURL(request.url));
+                    xdr.send();
+                },
+                close: function() {
+                    xdr.abort();
+                    jQuery.atmosphere.ieCallback (xdr.responseText, "closed");
+                }
+            };
+        },
 
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
@@ -643,6 +791,8 @@ jQuery.atmosphere = function() {
 
         close : function() {
             jQuery.atmosphere.closeSuspendedConnection();
+            if (ieStream != null)
+                ieStream.close();
         },
 
         S4 : function() {
@@ -651,6 +801,28 @@ jQuery.atmosphere = function() {
 
         guid : function() {
             return (jQuery.atmosphere.S4() + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + jQuery.atmosphere.S4() + jQuery.atmosphere.S4());
+        },
+
+        iterate : function (fn, interval) {
+            var timeoutId;
+
+            // Though the interval is 0 for real-time application, there is a delay between setTimeout calls
+            // For detail, see https://developer.mozilla.org/en/window.setTimeout#Minimum_delay_and_timeout_nesting
+            interval = interval || 0;
+
+            (function loop() {
+                timeoutId = setTimeout(function() {
+                    if (fn() === false) {
+                        return;
+                    }
+
+                    loop();
+                }, interval);
+            })();
+
+            return function() {
+                clearTimeout(timeoutId);
+            };
         },
 
         parseUri : function(baseUrl, uri) {
