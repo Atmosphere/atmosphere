@@ -69,7 +69,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     public final static String SERVLET_30 = "javax.servlet.AsyncListener";
     public final static String GLASSFISH_V2 = "com.sun.enterprise.web.PEWebContainer";
-    public final static String TOMCAT_7 = "org.apache.catalina.core.StuckThreadDetectionValve";
+    public final static String TOMCAT_7 = "org.apache.catalina.comet.CometFilterChain";
     public final static String TOMCAT = "org.apache.coyote.http11.Http11NioProcessor";
     public final static String JBOSS_5 = "org.jboss.";
     public final static String JETTY = "org.mortbay.util.ajax.Continuation";
