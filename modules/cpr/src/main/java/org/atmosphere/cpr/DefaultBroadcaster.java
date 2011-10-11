@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * {@link Broadcaster} implementation.
@@ -495,7 +496,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
                     && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
                 HttpServletRequest.class.cast(resource.getRequest())
-                        .setAttribute(CometSupport.MAX_INACTIVE, System.currentTimeMillis());
+                        .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             }
         } catch (Exception t) {
             // Shield us from any corrupted Request

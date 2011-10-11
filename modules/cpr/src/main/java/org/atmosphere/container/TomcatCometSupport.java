@@ -52,6 +52,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * Comet Portable Runtime implementation on top of Tomcat AIO.

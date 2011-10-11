@@ -116,9 +116,27 @@ public abstract class WebSocketProcessor implements Serializable {
         return webSocket;
     }
 
-    abstract public void broadcast(String data);
+    /**
+     * Parse the WebSocket message, and delegate the processing to the {@link AtmosphereServlet#cometSupport} or
+     * to any existing technology. Invoking  {@link AtmosphereServlet#cometSupport} will delegate the request processing
+     * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
+     * Jersey runtime.
+     *
+     * @param data  The Websocket message
+     */
+    abstract public void parseMessage(String data);
 
-    abstract public void broadcast(byte[] data, int offset, int length);
+    /**
+     * Parse the WebSocket message, and delegate the processing to the {@link AtmosphereServlet#cometSupport} or
+     * to any existing technology. Invoking  {@link AtmosphereServlet#cometSupport} will delegate the request processing
+     * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
+     * Jersey runtime.
+     *
+     * @param data The Websocket message
+     * @param offset offset message index
+     * @param length length of the message.
+     */
+    abstract public void parseMessage(byte[] data, int offset, int length);
 
     public void close() {
         try {
