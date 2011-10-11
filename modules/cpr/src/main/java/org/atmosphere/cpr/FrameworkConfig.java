@@ -60,7 +60,7 @@ public interface FrameworkConfig {
     /**
      * Tell a {@link CometSupport} it can support session or not
      */
-    String SUPPORT_SESSION = "org.atmosphere.cpr.AsynchronousProcessor.supportSession";
+    String SUPPORT_SESSION = AsynchronousProcessor.class.getName() + ".supportSession";
     /**
      * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator and not recommend for normal application.
      */

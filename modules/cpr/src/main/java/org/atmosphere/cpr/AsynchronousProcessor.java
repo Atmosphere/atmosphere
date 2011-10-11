@@ -56,6 +56,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+
 /**
  * Base class which implement the semantics of suspending and resuming of a
  * Comet Request.
