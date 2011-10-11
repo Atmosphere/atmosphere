@@ -740,25 +740,6 @@ jQuery.atmosphere = function() {
         }
         ,
 
-        kill_load_bar : function() {
-            if (jQuery.atmosphere.killHiddenIFrame == null) {
-                jQuery.atmosphere.killHiddenIFrame = document.createElement('iframe');
-                var ifr = jQuery.atmosphere.killHiddenIFrame;
-                ifr.style.display = 'block';
-                ifr.style.width = '0';
-                ifr.style.height = '0';
-                ifr.style.border = '0';
-                ifr.style.margin = '0';
-                ifr.style.padding = '0';
-                ifr.style.overflow = 'hidden';
-                ifr.style.visibility = 'hidden';
-            }
-            document.body.appendChild(ifr);
-            ifr.src = 'about:blank';
-            document.body.removeChild(ifr);
-        }
-        ,
-
         log: function (level, args) {
             if (window.console) {
                 var logger = window.console[level];
