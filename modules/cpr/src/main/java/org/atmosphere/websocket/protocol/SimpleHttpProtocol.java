@@ -75,7 +75,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
         this.delimiter = delimiter;
     }
 
-    public void broadcast(final String d) {
+    public void parseMessage(final String d) {
         try {
 
             final AtomicReference<String> data = new AtomicReference<String>(d);
@@ -173,7 +173,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
     }
 
     @Override
-    public void broadcast(final byte[] d, final int offset, final int length) {
+    public void parseMessage(final byte[] d, final int offset, final int length) {
         try {
             final AtomicReference<byte[]> data = new AtomicReference<byte[]>(d);
             final AtomicReference<String> pathInfo = new AtomicReference<String>(request().getPathInfo());

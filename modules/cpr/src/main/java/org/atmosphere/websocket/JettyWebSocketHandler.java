@@ -66,14 +66,14 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onMessage(byte frame, String data) {
         logger.debug("WebSocket.onMessage (frame/string)");
-        webSocketProcessor.broadcast(data);
+        webSocketProcessor.parseMessage(data);
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocketSupport()));
     }
 
     @Override
     public void onMessage(byte frame, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onMessage (frame)");
-        webSocketProcessor.broadcast(new String(data, offset, length));
+        webSocketProcessor.parseMessage(new String(data, offset, length));
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
         } catch (UnsupportedEncodingException e) {
@@ -85,7 +85,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onFragment");
-        webSocketProcessor.broadcast(new String(data, offset, length));
+        webSocketProcessor.parseMessage(new String(data, offset, length));
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
         } catch (UnsupportedEncodingException e) {
@@ -104,7 +104,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onMessage(byte[] data, int offset, int length) {
         logger.debug("WebSocket.onMessage (bytes)");
-        webSocketProcessor.broadcast(data, offset, length);
+        webSocketProcessor.parseMessage(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
         } catch (UnsupportedEncodingException e) {
@@ -116,7 +116,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onControl.");
-        webSocketProcessor.broadcast(data, offset, length);
+        webSocketProcessor.parseMessage(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocketSupport()));
         } catch (UnsupportedEncodingException e) {
@@ -158,7 +158,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onMessage(String data) {
         logger.debug("WebSocket.onMessage");
-        webSocketProcessor.broadcast(data);
+        webSocketProcessor.parseMessage(data);
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocketSupport()));
     }
 

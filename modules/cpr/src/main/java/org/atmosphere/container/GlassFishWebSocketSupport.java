@@ -146,7 +146,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         }
 
         public void onMessage(com.sun.grizzly.websockets.WebSocket webSocket, DataFrame dataFrame) {
-            webSocketProcessor.broadcast(dataFrame.getTextPayload());
+            webSocketProcessor.parseMessage(dataFrame.getTextPayload());
         }
 
         public void onClose(com.sun.grizzly.websockets.WebSocket webSocket) {

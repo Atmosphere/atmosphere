@@ -36,12 +36,12 @@ public class EchoProtocol extends WebSocketProcessor {
         super(atmosphereServlet, webSocket);
     }
 
-    public void broadcast(String data) {
+    public void parseMessage(String data) {
         logger.trace("broadcast String");
         resource().getBroadcaster().broadcast(data);
     }
 
-    public void broadcast(byte[] data, int offset, int length) {
+    public void parseMessage(byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
