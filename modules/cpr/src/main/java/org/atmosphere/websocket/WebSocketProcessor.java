@@ -56,7 +56,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
- * proper {@link org.atmosphere.websocket.WebSocket} implementation.
+ * proper {@link org.atmosphere.websocket.WebSocket} implementation. This class can be extended in order to support any protocol
+ * running on top  websocket.
  *
  * @author Jeanfrancois Arcand
  */

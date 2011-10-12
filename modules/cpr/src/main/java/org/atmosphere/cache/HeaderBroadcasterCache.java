@@ -56,6 +56,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
+
 /**
  * Simple header based {@link org.atmosphere.cpr.BroadcasterCache}. The returned header is "X-Cache-Date" and
  * containg the time, in milliseconds, of the last broadcasted message.
@@ -64,14 +66,12 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class HeaderBroadcasterCache extends BroadcasterCacheBase {
 
-    public static final String HEADER_CACHE = "X-Cache-Date";
-
     /**
      * {@inheritDoc}
      */
     public void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm) {
         long time = cm.next() == null ? cm.currentTime() : cm.next().currentTime();
-        r.getResponse().addHeader(HEADER_CACHE, String.valueOf(time));
+        r.getResponse().addHeader(X_CACHE_DATE, String.valueOf(time));
     }
 
     /**
@@ -79,7 +79,7 @@ public class HeaderBroadcasterCache extends BroadcasterCacheBase {
      */
     public CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
         HttpServletRequest request = r.getRequest();
-        return retrieveUsingHeader(request.getHeader(HEADER_CACHE));
+        return retrieveUsingHeader(request.getHeader(X_CACHE_DATE));
     }
 
     public CachedMessage retrieveUsingHeader(final String dateString) {

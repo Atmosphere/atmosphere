@@ -42,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 public class TrackableResource<T extends Trackable> {
 
     private static final Logger logger = LoggerFactory.getLogger(TrackableResource.class);
-    public static final String TRACKING_HEADER = "X-Atmosphere-tracking-id";
 
     private final Class<T> type;
     private T resource;

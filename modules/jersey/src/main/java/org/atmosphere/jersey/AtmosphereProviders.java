@@ -51,6 +51,8 @@ import javax.ws.rs.core.Context;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+
 /**
  * Placeholder for injection of Atmosphere object based on
  * any parameter value (header, cookie, query, matrix or path)
@@ -118,9 +120,9 @@ public class AtmosphereProviders {
             public Object fromString(String topic) {
                 TrackableResource<?> trackableResource = null;
                 try {
-                    String trackingId = req.getHeader(TrackableResource.TRACKING_HEADER);
+                    String trackingId = req.getHeader(X_ATMOSPHERE_TRANSPORT);
                     if (trackingId == null) {
-                        trackingId = (String) req.getAttribute(TrackableResource.TRACKING_HEADER);
+                        trackingId = (String) req.getAttribute(X_ATMOSPHERE_TRANSPORT);
                     }
 
                     if (trackingId != null) {

@@ -52,6 +52,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+
 /**
  * {@link AtmosphereResource} implementation for supporting {@link HttpServletRequest}
  * and {@link HttpServletResponse}.
@@ -232,7 +234,7 @@ public class AtmosphereResourceImpl implements
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
                         if (writeHeaders && !cometSupport.supportWebSocket()) {
-                            response.addHeader("X-Atmosphere-error", "Websocket protocol not supported");
+                            response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
                             flushComment = false;
                         }

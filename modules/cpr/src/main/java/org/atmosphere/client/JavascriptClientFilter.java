@@ -22,6 +22,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.atmosphere.cpr.HeaderConfig.STREAMING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+
 /**
  * Filter that inject Javascript code to a broadcast so it can be used with the Atmosphere JQuery Plugin.
  *
@@ -40,8 +43,8 @@ public class JavascriptClientFilter implements PerRequestBroadcastFilter {
     public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
 
         String userAgent = request.getHeader("User-Agent") == null ? "" : request.getHeader("User-Agent").toLowerCase();
-        String transport = request.getHeader("X-Atmosphere-Transport") == null ? "streaming" : request.getHeader("X-Atmosphere-Transport").toString();
-        if (transport.equals("streaming") && userAgent.startsWith("opera")) {
+        String transport = request.getHeader(X_ATMOSPHERE_TRANSPORT) == null ? STREAMING_TRANSPORT : request.getHeader(X_ATMOSPHERE_TRANSPORT).toString();
+        if (transport.equals(STREAMING_TRANSPORT) && userAgent.startsWith("opera")) {
             StringBuilder sb = new StringBuilder("<script id=\"atmosphere_")
                     .append(uniqueScriptToken.getAndIncrement())
                     .append("\">")
