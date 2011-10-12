@@ -57,7 +57,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                     .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
                     .newInstance(new Object[]{atmosphereServlet, new JettyWebSocket(outbound)});
 
-            webSocketProcessor.connect(request);
+            webSocketProcessor.dispatch(request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -170,7 +170,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                     .loadClass(webSocketProcessorClassName)
                     .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
                     .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocket(connection)});
-            webSocketProcessor.connect(request);
+            webSocketProcessor.dispatch(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocketSupport()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);

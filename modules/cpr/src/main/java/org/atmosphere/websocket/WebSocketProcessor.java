@@ -83,7 +83,7 @@ public abstract class WebSocketProcessor implements Serializable {
         this.atmosphereServlet = atmosphereServlet;
     }
 
-    public final void connect(final HttpServletRequest request) throws IOException {
+    public final void dispatch(final HttpServletRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.info("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
@@ -95,13 +95,7 @@ public abstract class WebSocketProcessor implements Serializable {
                 .build();
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
-        try {
-            atmosphereServlet.doCometSupport( r, wsr);
-        } catch (IOException e) {
-            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
-        } catch (ServletException e) {
-            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
-        }
+        dispatch(r, wsr);
 
         resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         handler = (AtmosphereHandler) request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
@@ -111,12 +105,24 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
-    public AtmosphereResource resource() {
-        return resource;
+    /**
+     * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
+     *
+     * @param request a {@link HttpServletRequest}
+     * @param response a {@link HttpServletResponse}
+     */
+    protected final void dispatch(final HttpServletRequest request, final HttpServletResponse response) {
+        try {
+            atmosphereServlet.doCometSupport(request, response);
+        } catch (IOException e) {
+            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+        } catch (ServletException e) {
+            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+        }
     }
 
-    public AtmosphereServlet atmosphereServlet() {
-        return atmosphereServlet;
+    public AtmosphereResource resource() {
+        return resource;
     }
 
     public HttpServletRequest request() {
@@ -133,7 +139,7 @@ public abstract class WebSocketProcessor implements Serializable {
      * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      *
-     * @param data  The Websocket message
+     * @param data The Websocket message
      */
     abstract public void parseMessage(String data);
 
@@ -143,7 +149,7 @@ public abstract class WebSocketProcessor implements Serializable {
      * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      *
-     * @param data The Websocket message
+     * @param data   The Websocket message
      * @param offset offset message index
      * @param length length of the message.
      */
@@ -204,8 +210,8 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
-    protected Map<String,String> configureHeader(HttpServletRequest request) {
-         Map<String,String> headers = new HashMap<String,String>();
+    protected Map<String, String> configureHeader(HttpServletRequest request) {
+        Map<String, String> headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();
         String s;
