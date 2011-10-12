@@ -103,6 +103,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
+import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
@@ -335,7 +336,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public static class Action {
 
         public enum TYPE {
-            SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED
+            SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED, CREATED
         }
 
         public long timeout = -1L;
@@ -343,7 +344,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public TYPE type;
 
         public Action() {
-            type = TYPE.CANCELLED;
+            type = TYPE.CREATED;
         }
 
         public Action(TYPE type) {
@@ -1141,6 +1142,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
+        req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
             return cometSupport.service(req, res);

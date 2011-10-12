@@ -57,18 +57,21 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.WebApplicationException;
@@ -125,9 +128,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         SUSPEND_TRACKABLE, SUBSCRIBE, SUBSCRIBE_TRACKABLE, PUBLISH
     }
 
-    private
-    @Context
-    HttpServletRequest servletReq;
+    private @Context HttpServletRequest servletReq;
 
     private
     @Context
@@ -255,12 +256,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     }
 
+                    boolean supportTrackable = servletReq.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null;
                     // Register our TrackableResource
-                    boolean isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : false;
-                    TrackableResource<? extends Trackable> trackableResource = null;
+                    boolean isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : supportTrackable;
 
+                    TrackableResource<? extends Trackable> trackableResource = null;
                     if (isTracked) {
-                        trackableResource = preTrack(request,response);
+                        trackableResource = preTrack(request, response);
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk,
@@ -305,12 +307,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         broadcaster = BroadcasterFactory.getDefault().lookup(c, topic, true);
                     }
 
+                    // Tracking is enabled by default
+                    supportTrackable = servletReq.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null;
                     // Register our TrackableResource
-                    isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : false;
-                    trackableResource = null;
+                    isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : supportTrackable;
 
                     if (isTracked) {
-                        trackableResource = preTrack(request,response);
+                        trackableResource = preTrack(request, response);
+                    } else {
+                        trackableResource = null;
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
@@ -396,9 +401,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return response;
         }
 
-        TrackableResource preTrack(ContainerRequest request, ContainerResponse response){
+        TrackableResource preTrack(ContainerRequest request, ContainerResponse response) {
             TrackableResource<? extends Trackable> trackableResource = TrackableResource.class.cast(response.getEntity());
-            response.setEntity(trackableResource.entity());
+
+            if (trackableResource == null) {
+                trackableResource = new TrackableResource<AtmosphereResource>(AtmosphereResource.class, servletReq.getHeader(X_ATMOSPHERE_TRACKING_ID), "");
+            } else {
+                response.setEntity(trackableResource.entity());
+            }
 
             String trackableUUID = request.getHeaderValue(X_ATMOSPHERE_TRACKING_ID);
             if (trackableUUID == null && trackableResource.trackingID() != null) {
@@ -415,7 +425,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return trackableResource;
         }
 
-        void postTrack(TrackableResource trackableResource, AtmosphereResource r){
+        void postTrack(TrackableResource trackableResource, AtmosphereResource r) {
             boolean isAresource = AtmosphereResource.class.isAssignableFrom(trackableResource.type()) ? true : false;
             trackableResource.setResource(isAresource ? r : r.getBroadcaster());
         }
