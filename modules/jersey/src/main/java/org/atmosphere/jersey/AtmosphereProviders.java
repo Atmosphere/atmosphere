@@ -40,6 +40,7 @@ import com.sun.jersey.spi.StringReader;
 import com.sun.jersey.spi.StringReaderProvider;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -51,7 +52,9 @@ import javax.ws.rs.core.Context;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * Placeholder for injection of Atmosphere object based on
@@ -118,15 +121,21 @@ public class AtmosphereProviders {
         public class TrackableResourceStringReader implements StringReader {
             @Override
             public Object fromString(String topic) {
-                TrackableResource<?> trackableResource = null;
+                TrackableResource<AtmosphereResourceImpl> trackableResource = null;
                 try {
-                    String trackingId = req.getHeader(X_ATMOSPHERE_TRANSPORT);
+                    String trackingId = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
                     if (trackingId == null) {
-                        trackingId = (String) req.getAttribute(X_ATMOSPHERE_TRANSPORT);
+                        trackingId = (String) req.getAttribute(X_ATMOSPHERE_TRACKING_ID);
                     }
 
                     if (trackingId != null) {
-                        trackableResource = TrackableSession.getDefault().lookupAndWait(trackingId);
+                        trackableResource = (TrackableResource<AtmosphereResourceImpl>)TrackableSession.getDefault().lookup(trackingId);
+
+                        AtmosphereResource<?,?> r = (AtmosphereResource<?,?> ) req.getAttribute(ATMOSPHERE_RESOURCE);
+                        if (trackableResource == null &&  r != null && r.getAtmosphereResourceEvent().isSuspended()) {
+                            trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
+                            trackableResource.setResource(r);
+                        }
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
                 } catch (Throwable ex) {

@@ -255,8 +255,21 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     }
 
+                    // Register our TrackableResource
+                    boolean isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : false;
+                    TrackableResource<? extends Trackable> trackableResource = null;
+
+                    if (isTracked) {
+                        trackableResource = preTrack(request,response);
+                    }
+
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk,
                             translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r);
+
+                    // Associate the tracked resource.
+                    if (isTracked && trackableResource != null) {
+                        postTrack(trackableResource, r);
+                    }
 
                     break;
                 case SUBSCRIBE_TRACKABLE:
@@ -293,25 +306,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     // Register our TrackableResource
-                    boolean isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : false;
-                    TrackableResource<? extends Trackable> trackableResource = null;
+                    isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : false;
+                    trackableResource = null;
 
                     if (isTracked) {
-                        trackableResource = TrackableResource.class.cast(response.getEntity());
-                        response.setEntity(trackableResource.entity());
-
-                        String trackableUUID = request.getHeaderValue(X_ATMOSPHERE_TRACKING_ID);
-                        if (trackableUUID == null && trackableResource.trackingID() != null) {
-                            trackableUUID = trackableResource.trackingID();
-                        } else if (trackableUUID == null) {
-                            trackableUUID = UUID.randomUUID().toString();
-                        }
-                        trackableResource.setTrackingID(trackableUUID);
-
-                        TrackableSession.getDefault().track(trackableResource);
-
-                        response.getHttpHeaders().putSingle(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
-                        servletReq.setAttribute(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
+                        trackableResource = preTrack(request,response);
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
@@ -319,8 +318,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
-                        boolean isAresource = AtmosphereResource.class.isAssignableFrom(trackableResource.type()) ? true : false;
-                        trackableResource.setResource(isAresource ? r : r.getBroadcaster());
+                        postTrack(trackableResource, r);
                     }
                     break;
                 case RESUME:
@@ -396,6 +394,30 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             return response;
+        }
+
+        TrackableResource preTrack(ContainerRequest request, ContainerResponse response){
+            TrackableResource<? extends Trackable> trackableResource = TrackableResource.class.cast(response.getEntity());
+            response.setEntity(trackableResource.entity());
+
+            String trackableUUID = request.getHeaderValue(X_ATMOSPHERE_TRACKING_ID);
+            if (trackableUUID == null && trackableResource.trackingID() != null) {
+                trackableUUID = trackableResource.trackingID();
+            } else if (trackableUUID == null) {
+                trackableUUID = UUID.randomUUID().toString();
+            }
+            trackableResource.setTrackingID(trackableUUID);
+
+            TrackableSession.getDefault().track(trackableResource);
+
+            response.getHttpHeaders().putSingle(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
+            servletReq.setAttribute(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
+            return trackableResource;
+        }
+
+        void postTrack(TrackableResource trackableResource, AtmosphereResource r){
+            boolean isAresource = AtmosphereResource.class.isAssignableFrom(trackableResource.type()) ? true : false;
+            trackableResource.setResource(isAresource ? r : r.getBroadcaster());
         }
 
         void configureHeaders(ContainerResponse response) throws IOException {

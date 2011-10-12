@@ -132,5 +132,9 @@ public interface ApplicationConfig {
      * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)
      */
     String MAX_INACTIVE = CometSupport.class.getName() + ".maxInactiveActivity";
+    /**
+     * Support {@link Trackable} by default and create instance of those objects on the fly
+     */
+    String SUPPORT_TRACKABLE = "org.atmosphere.cpr.Trackable";
 
 }
