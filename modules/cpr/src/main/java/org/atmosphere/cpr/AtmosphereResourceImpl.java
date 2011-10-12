@@ -52,6 +52,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
+import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
+import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
+import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
@@ -232,7 +238,7 @@ public class AtmosphereResourceImpl implements
             if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
                 String[] e = req.getHeaders("Connection").nextElement().split(",");
                 for (String upgrade : e) {
-                    if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                    if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (writeHeaders && !cometSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
@@ -244,16 +250,16 @@ public class AtmosphereResourceImpl implements
 
             if (writeHeaders && injectCacheHeaders) {
                 // Set to expire far in the past.
-                response.setHeader("Expires", "-1");
+                response.setHeader(EXPIRES, "-1");
                 // Set standard HTTP/1.1 no-cache headers.
-                response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
                 // Set standard HTTP/1.0 no-cache header.
-                response.setHeader("Pragma", "no-cache");
+                response.setHeader(PRAGMA, "no-cache");
             }
 
             if (writeHeaders && enableAccessControl) {
-                response.setHeader("Access-Control-Allow-Origin", "*");
-                response.setHeader("Access-Control-Allow-Credentials", "true");
+                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
             if (flushComment) {

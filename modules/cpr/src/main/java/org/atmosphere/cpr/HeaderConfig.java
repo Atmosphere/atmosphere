@@ -53,4 +53,16 @@ public interface HeaderConfig {
      * The message size sent by Atmosphere
      */
     String X_ATMOSPHERE_TRACKMESSAGESIZE = "X-Atmosphere-TrackMessageSize";
+
+    String ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
+
+    String ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials";
+
+    String PRAGMA = "Pragma";
+
+    String CACHE_CONTROL = "Cache-Control";
+
+    String EXPIRES = "Expires";
+
+    String WEBSOCKET_UPGRADE = "Upgrade";
 }

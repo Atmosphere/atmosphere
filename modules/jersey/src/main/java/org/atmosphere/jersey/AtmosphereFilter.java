@@ -89,10 +89,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
+import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
+import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * {@link ResourceFilterFactory} which intercept the response and appropriately
@@ -194,7 +200,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
                 String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
                 for (String upgrade : e) {
-                    if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                    if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         webSocketEnabled = true;
                         break;
                     }
@@ -398,7 +404,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
                 String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
                 for (String upgrade : e) {
-                    if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
+                    if (upgrade != null && upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (!webSocketSupported) {
                             response.getHttpHeaders().putSingle(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         }
@@ -411,16 +417,16 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
-                response.getHttpHeaders().putSingle("Expires", "-1");
+                response.getHttpHeaders().putSingle(EXPIRES, "-1");
                 // Set standard HTTP/1.1 no-cache headers.
-                response.getHttpHeaders().putSingle("Cache-Control", "no-store, no-cache, must-revalidate");
+                response.getHttpHeaders().putSingle(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
                 // Set standard HTTP/1.0 no-cache header.
-                response.getHttpHeaders().putSingle("Pragma", "no-cache");
+                response.getHttpHeaders().putSingle(PRAGMA, "no-cache");
             }
 
             if (enableAccessControl) {
-                response.getHttpHeaders().putSingle("Access-Control-Allow-Origin", "*");
-                response.getHttpHeaders().putSingle("Access-Control-Allow-Credentials", "true");
+                response.getHttpHeaders().putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                response.getHttpHeaders().putSingle(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
         }
 

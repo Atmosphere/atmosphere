@@ -30,6 +30,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
+
 public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
@@ -42,7 +44,7 @@ public class JettyWebSocketUtil {
         if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
             String[] e = req.getHeaders("Connection").nextElement().split(",");
             for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase("Upgrade")) {
+                if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;
                     break;
                 }

@@ -56,6 +56,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
@@ -87,7 +88,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
             String[] e = request.getHeaders("Connection").nextElement().split(",");
             for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase("Upgrade")) {
+                if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;
                     break;
                 }
