@@ -60,7 +60,12 @@
                 callbackAdded = true;
             }
 
+            function unsubscribe(){
+                $.atmosphere.close();
+            }
+
             function connect() {
+                unsubscribe();
                 getElementById('phrase').value = '';
                 getElementById('sendMessage').className = '';
                 getElementById('phrase').focus();
