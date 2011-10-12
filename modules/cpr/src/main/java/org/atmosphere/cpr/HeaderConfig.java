@@ -22,6 +22,10 @@ package org.atmosphere.cpr;
  */
 public interface HeaderConfig {
     /**
+     * If long-polling is used during a POST, this header get added after the first successful response.
+     */
+    String X_ATMOSPHERE_FIRSTLONGPOLLING_DONE = "X-Atmosphere-first-long-polling-done";
+    /**
      * The current transport used.
      */
     String X_ATMOSPHERE_TRANSPORT = "X-Atmosphere-Transport";
@@ -65,4 +69,5 @@ public interface HeaderConfig {
     String EXPIRES = "Expires";
 
     String WEBSOCKET_UPGRADE = "Upgrade";
+
 }

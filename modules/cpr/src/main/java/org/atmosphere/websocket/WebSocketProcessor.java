@@ -48,10 +48,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -84,9 +89,14 @@ public abstract class WebSocketProcessor implements Serializable {
         }
 
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket);
+        WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
+                .request(request)
+                .headers(configureHeader(request))
+                .build();
+
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
         try {
-            atmosphereServlet.doCometSupport(request, wsr);
+            atmosphereServlet.doCometSupport( r, wsr);
         } catch (IOException e) {
             logger.info("failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
@@ -192,5 +202,17 @@ public abstract class WebSocketProcessor implements Serializable {
                 }
             }
         }
+    }
+
+    protected Map<String,String> configureHeader(HttpServletRequest request) {
+         Map<String,String> headers = new HashMap<String,String>();
+
+        Enumeration<String> e = request.getParameterNames();
+        String s;
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            headers.put(s, request.getParameter(s));
+        }
+        return headers;
     }
 }
