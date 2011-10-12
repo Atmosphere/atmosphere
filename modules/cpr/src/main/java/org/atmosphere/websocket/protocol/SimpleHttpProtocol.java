@@ -68,35 +68,30 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
     }
 
     public void parseMessage(String d) {
-        try {
-            String pathInfo = request().getPathInfo();
-            if (d.startsWith(delimiter)) {
-                String[] token = d.split(delimiter);
-                pathInfo = token[1];
-                d = token[2];
-            }
-
-            WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
-                    .request(request())
-                    .method(methodType)
-                    .contentType(contentType)
-                    .body(d)
-                    .pathInfo(pathInfo)
-                    .headers(configureHeader(request()))
-                    .build();
-            atmosphereServlet().doCometSupport(r, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
-        } catch (IOException e) {
-            logger.warn(e.getMessage(), e);
-        } catch (ServletException e) {
-            logger.warn(e.getMessage(), e);
+        String pathInfo = request().getPathInfo();
+        if (d.startsWith(delimiter)) {
+            String[] token = d.split(delimiter);
+            pathInfo = token[1];
+            d = token[2];
         }
+
+        WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
+                .request(request())
+                .method(methodType)
+                .contentType(contentType)
+                .body(d)
+                .pathInfo(pathInfo)
+                .headers(configureHeader(request()))
+                .build();
+        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
+
     }
 
     @Override
     public void parseMessage(byte[] d, final int offset, final int length) {
         try {
             String pathInfo = request().getPathInfo();
-            if (d[0] == (byte)delimiter.charAt(0) && d[1] == (byte)delimiter.charAt(0)) {
+            if (d[0] == (byte) delimiter.charAt(0) && d[1] == (byte) delimiter.charAt(0)) {
                 final String s = new String(d, offset, length, "UTF-8");
                 String[] token = s.split(delimiter);
                 pathInfo = token[1];
@@ -111,10 +106,8 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                     .pathInfo(pathInfo)
                     .headers(configureHeader(request()))
                     .build();
-            atmosphereServlet().doCometSupport(r, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
+            dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocketSupport()));
         } catch (IOException e) {
-            logger.warn(e.getMessage(), e);
-        } catch (ServletException e) {
             logger.warn(e.getMessage(), e);
         }
     }
