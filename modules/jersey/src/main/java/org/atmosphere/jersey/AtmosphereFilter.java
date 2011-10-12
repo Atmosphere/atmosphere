@@ -89,6 +89,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
+
 /**
  * {@link ResourceFilterFactory} which intercept the response and appropriately
  * set the {@link AtmosphereResourceEvent} filed based on the annotation the application
@@ -177,8 +182,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast) {
-            String transport = request.getHeaderValue("X-Atmosphere-Transport");
-            if (transport != null && transport.equals("long-polling")) {
+            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
+            if (transport != null && transport.equals(LONG_POLLING_TRANSPORT)) {
                 return true;
             }
             return resumeOnBroadcast;
@@ -196,10 +201,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            String transport = request.getHeaderValue("X-Atmosphere-Transport");
+            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
             if (webSocketEnabled) {
                 return false;
-            } else if (transport != null && transport.equals("long-polling")) {
+            } else if (transport != null && transport.equals(LONG_POLLING_TRANSPORT)) {
                 return false;
             }
 
@@ -289,7 +294,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         trackableResource = TrackableResource.class.cast(response.getEntity());
                         response.setEntity(trackableResource.entity());
 
-                        String trackableUUID = request.getHeaderValue(TrackableResource.TRACKING_HEADER);
+                        String trackableUUID = request.getHeaderValue(X_ATMOSPHERE_TRACKING_ID);
                         if (trackableUUID == null && trackableResource.trackingID() != null) {
                             trackableUUID = trackableResource.trackingID();
                         } else if (trackableUUID == null) {
@@ -299,8 +304,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                         TrackableSession.getDefault().track(trackableResource);
 
-                        response.getHttpHeaders().putSingle(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
-                        servletReq.setAttribute(TrackableResource.TRACKING_HEADER, trackableResource.trackingID());
+                        response.getHttpHeaders().putSingle(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
+                        servletReq.setAttribute(X_ATMOSPHERE_TRACKING_ID, trackableResource.trackingID());
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
@@ -395,7 +400,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (String upgrade : e) {
                     if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
                         if (!webSocketSupported) {
-                            response.getHttpHeaders().putSingle("X-Atmosphere-error", "Websocket protocol not supported");
+                            response.getHttpHeaders().putSingle(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         }
                     }
                 }

@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link TrackableSession} stores {@link TrackableResource} that can be retrieved when the http header called
- * X-Atmosphere-tracking-id is added to a request.
+ * {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKING_ID} is added to a request.
  *
  * @author Jeanfrancois Arcand
  */

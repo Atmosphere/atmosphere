@@ -28,6 +28,10 @@ import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_TRANSPORT;
+
 /**
  * Suspend the response using the {@link Meteor} API.
  *
@@ -61,18 +65,18 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
         meteor.addListener(this);
 
         // Depending on the connection
-        String transport = req.getHeader("X-Atmosphere-Transport");
+        String transport = req.getHeader(X_ATMOSPHERE_TRANSPORT);
 
         // Suspend the connection. Could be long-polling, streaming or websocket.
-        meteor.suspend(-1, !(transport != null && transport.equalsIgnoreCase("long-polling")));
+        meteor.suspend(-1, !(transport != null && transport.equalsIgnoreCase(LONG_POLLING_TRANSPORT)));
     }
 
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
         logger.info("onBroadcast(): {}", event.getMessage());
 
         // If we are using long-polling, resume the connection as soon as we get an event.
-        String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
-        if (transport != null && transport.equalsIgnoreCase("long-polling")) {
+        String transport = event.getResource().getRequest().getHeader(X_ATMOSPHERE_TRANSPORT);
+        if (transport != null && transport.equalsIgnoreCase(LONG_POLLING_TRANSPORT)) {
             Meteor meteor = Meteor.lookup(event.getResource().getRequest());
 
             meteor.removeListener(this);
@@ -81,24 +85,24 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
     }
 
     public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
+        String transport = event.getResource().getRequest().getHeader(X_ATMOSPHERE_TRANSPORT);
         HttpServletRequest req = event.getResource().getRequest();
         logger.info("Suspending the %s response from ip {}:{}",
-                new Object[]{transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()});
+                new Object[]{transport == null ? WEBSOCKET_TRANSPORT : transport, req.getRemoteAddr(), req.getRemotePort()});
     }
 
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
+        String transport = event.getResource().getRequest().getHeader(X_ATMOSPHERE_TRANSPORT);
         HttpServletRequest req = event.getResource().getRequest();
         logger.info("Resuming the {} response from ip {}:{}",
-                new Object[]{transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()});
+                new Object[]{transport == null ? WEBSOCKET_TRANSPORT : transport, req.getRemoteAddr(), req.getRemotePort()});
     }
 
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        String transport = event.getResource().getRequest().getHeader("X-Atmosphere-Transport");
+        String transport = event.getResource().getRequest().getHeader(X_ATMOSPHERE_TRANSPORT);
         HttpServletRequest req = event.getResource().getRequest();
         logger.info("{} connection dropped from ip {}:{}",
-                new Object[]{transport == null ? "websocket" : transport, req.getRemoteAddr(), req.getRemotePort()});
+                new Object[]{transport == null ? WEBSOCKET_TRANSPORT : transport, req.getRemoteAddr(), req.getRemotePort()});
     }
 
     public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {

@@ -36,6 +36,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
+
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
@@ -113,7 +115,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                         list.add(contentType);
                     }
 
-                    if (list.size() == 0 && name.startsWith("X-Atmosphere")) {
+                    if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
                         if (request().getAttribute(name) != null) {
                             list.add(request().getAttribute(name));
                         }
@@ -129,7 +131,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                     Enumeration e = request().getAttributeNames();
                     while (e.hasMoreElements()) {
                         String name = e.nextElement().toString();
-                        if (name.startsWith("X-Atmosphere")) {
+                        if (name.startsWith(X_ATMOSPHERE)) {
                             list.add(name);
                         }
                     }
@@ -146,7 +148,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                     } else {
                         String name = super.getHeader(s);
                         if (name != null) {
-                            if (name.startsWith("X-Atmosphere")) {
+                            if (name.startsWith(X_ATMOSPHERE)) {
                                 return (String) request().getAttribute(s);
                             }
                         }
@@ -211,7 +213,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                         list.add(contentType);
                     }
 
-                    if (list.size() == 0 && name.startsWith("X-Atmosphere")) {
+                    if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
                         if (request().getAttribute(name) != null) {
                             list.add(request().getAttribute(name));
                         }
@@ -226,7 +228,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                     Enumeration e = request().getAttributeNames();
                     while (e.hasMoreElements()) {
                         String name = e.nextElement().toString();
-                        if (name.startsWith("X-Atmosphere")) {
+                        if (name.startsWith(X_ATMOSPHERE)) {
                             list.add(name);
                         }
                     }
@@ -243,7 +245,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                     } else {
                         String name = super.getHeader(s);
                         if (name != null) {
-                            if (name.startsWith("X-Atmosphere")) {
+                            if (name.startsWith(X_ATMOSPHERE)) {
                                 return (String) request().getAttribute(s);
                             }
                         }

@@ -30,7 +30,7 @@ import java.lang.annotation.Target;
  * the Broadcaster automatically from the value.
  * <p/>
  * That annotation doesn't allow configuring the {@link org.atmosphere.annotation.Suspend#outputComments()} value. The
- * default value is set to false. If you want to support http-streaming, make sure your client set the X-Atmosphere-Transport
+ * default value is set to false. If you want to support http-streaming, make sure your client set the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT}
  * header to "streaming".
  *
  * @author Jeanfrancois Arcand
