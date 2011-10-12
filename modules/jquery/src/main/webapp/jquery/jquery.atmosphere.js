@@ -11,6 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// THE IE support has been adapted from jqeury-stream
+/*
+ * jQuery Stream @VERSION
+ * Comet Streaming JavaScript Library
+ * http://code.google.com/p/jquery-stream/
+ *
+ * Copyright 2011, Donghwan Kim
+ * Licensed under the Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Compatible with jQuery 1.5+
+ */
 jQuery.atmosphere = function() {
     var activeRequest;
     var ieStream;
