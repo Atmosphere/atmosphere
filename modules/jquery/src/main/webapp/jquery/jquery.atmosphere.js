@@ -626,10 +626,40 @@ jQuery.atmosphere = function() {
             };
 
             websocket.onclose = function(message) {
-                jQuery.atmosphere.warn("Websocket closed, reason: " + message.reason);
+                var reason = message.reason
+                if (reason === "") {
+                    switch (message.code) {
+                    case 1000:
+                        reason = "Normal closure; the connection successfully completed whatever purpose for which " +
+                                    "it was created.";
+                        break;
+                    case 1001:
+                        reason = "The endpoint is going away, either because of a server failure or because the " +
+                                    "browser is navigating away from the page that opened the connection."
+                        break;
+                    case 1002:
+                        reason = "The endpoint is terminating the connection due to a protocol error."
+                        break;
+                    case 1003:
+                        reason = "The connection is being terminated because the endpoint received data of a type it " +
+                                    "cannot accept (for example, a text-only endpoint received binary data)."
+                        break;
+                    case 1004:
+                        reason = "The endpoint is terminating the connection because a data frame was received that " +
+                                    "is too large."
+                        break;
+                    case 1005:
+                        reason = "Unknown: no status code was provided even though one was expected."
+                        break;
+                    case 1006:
+                        reason = "Connection was closed abnormally (that is, with no close frame being sent)."
+                        break;
+                   }
+                }
+                jQuery.atmosphere.warn("Websocket closed, reason: " + reason);
                 jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
 
-                if (!webSocketSupported) {
+                if (!webSocketSupported || !message.wasClean) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
