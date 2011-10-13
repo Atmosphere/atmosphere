@@ -46,23 +46,23 @@ public interface ApplicationConfig {
     /**
      * The default {@link org.atmosphere.cpr.BroadcasterFactory} class.
      */
-    String BROADCASTER_FACTORY = "org.atmosphere.cpr.broadcasterFactory";
+    String BROADCASTER_FACTORY = ApplicationConfig.class.getPackage().getName() + ".broadcasterFactory";
     /**
      * The default {@link org.atmosphere.cpr.Broadcaster} class.
      */
-    String BROADCASTER_CLASS = "org.atmosphere.cpr.broadcasterClass";
+    String BROADCASTER_CLASS = ApplicationConfig.class.getPackage().getName() + ".broadcasterClass";
     /**
      * The default {@link org.atmosphere.cpr.BroadcasterCache} class.
      */
-    String BROADCASTER_CACHE = "org.atmosphere.cpr.broadcasterCacheClass";
+    String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
     /**
      * Tell Atmosphere which {@link org.atmosphere.cpr.CometSupport} implementation to use.
      */
-    String PROPERTY_COMET_SUPPORT = "org.atmosphere.cpr.cometSupport";
+    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".cometSupport";
     /**
      * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.
      */
-    String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
+    String PROPERTY_SESSION_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".sessionSupport";
     /**
      * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invokation.
      */
@@ -74,15 +74,15 @@ public interface ApplicationConfig {
     /**
      * Tell Atmosphere to not write the no-cache header. Default is false, e.g Atmosphere will write them.
      */
-    String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
+    String NO_CACHE_HEADERS = ApplicationConfig.class.getPackage().getName() + ".noCacheHeaders";
     /**
      * Tell Atmosphere to not write the access-control header. Default is false, e.g Atmosphere will write them.
      */
-    String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
+    String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = ApplicationConfig.class.getPackage().getName() + ".dropAccessControlAllowOriginHeader";
     /**
      * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use
      */
-    String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
+    String BROADCASTER_LIFECYCLE_POLICY = ApplicationConfig.class.getPackage().getName() + ".broadcasterLifeCyclePolicy";
     /**
      * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.
      */
@@ -115,7 +115,7 @@ public interface ApplicationConfig {
     /**
      * A list of {@link BroadcastFilter} separated with coma that will be added to every new {@link Broadcaster}
      */
-    String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
+    String BROADCAST_FILTER_CLASSES = ApplicationConfig.class.getPackage().getName() + ".broadcastFilterClasses";
     /**
      * A request attribute used to tell {@link org.atmosphere.cpr.CometSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
      */
@@ -135,6 +135,10 @@ public interface ApplicationConfig {
     /**
      * Support {@link Trackable} by default and create instance of those objects on the fly
      */
-    String SUPPORT_TRACKABLE = "org.atmosphere.cpr.Trackable";
+    String SUPPORT_TRACKABLE = ApplicationConfig.class.getPackage().getName() + ".Trackable";
+    /**
+     * Allow query string as set as request's header. 
+     */
+    String ALLOW_QUERYSTRING_AS_HEADER =  ApplicationConfig.class.getPackage().getName() + ".allowQueryStringAsHeader";
 
 }
