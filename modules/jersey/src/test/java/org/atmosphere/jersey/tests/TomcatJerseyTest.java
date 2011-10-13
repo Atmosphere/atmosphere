@@ -44,6 +44,7 @@ import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Embedded;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.atmosphere.container.TomcatCometSupport;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.CometSupport;
 import org.testng.annotations.BeforeMethod;
@@ -60,7 +61,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
     public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+            addInitParameter(ApplicationConfig.MAX_INACTIVE, "20000");
             addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
             addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
             cometSupport = new TomcatCometSupport(getAtmosphereConfig());
