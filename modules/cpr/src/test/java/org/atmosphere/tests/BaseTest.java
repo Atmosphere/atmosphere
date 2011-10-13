@@ -69,6 +69,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -894,7 +896,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
                 try {
-                    if (event.getRequest().getHeader(HeaderBroadcasterCache.HEADER_CACHE) != null) {
+                    if (event.getRequest().getHeader(X_CACHE_DATE) != null) {
                         event.suspend(-1, false);
                         return;
                     }
@@ -933,7 +935,7 @@ public abstract class BaseTest {
             c.prepareGet(urlTarget).execute().get();
 
             //Suspend
-            Response r = c.prepareGet(urlTarget).addHeader(HeaderBroadcasterCache.HEADER_CACHE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
+            Response r = c.prepareGet(urlTarget).addHeader(X_CACHE_DATE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
 
                 @Override
                 public Response onCompleted(Response r) throws Exception {

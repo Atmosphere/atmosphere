@@ -53,6 +53,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -456,7 +458,7 @@ public abstract class BasePubSubTest extends BaseTest {
             c.preparePost(urlTarget).addParameter("message", "cachememe").execute().get();
 
             //Suspend
-            Response r = c.prepareGet(urlTarget + "/subscribeAndResume").addHeader(HeaderBroadcasterCache.HEADER_CACHE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
+            Response r = c.prepareGet(urlTarget + "/subscribeAndResume").addHeader(X_CACHE_DATE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
 
                 @Override
                 public Response onCompleted(Response r) throws Exception {
