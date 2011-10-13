@@ -37,6 +37,7 @@
  */
 package org.atmosphere.websocket;
 
+import com.sun.xml.internal.ws.api.message.Headers;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -44,6 +45,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -219,6 +221,8 @@ public abstract class WebSocketProcessor implements Serializable {
             s = e.nextElement();
             headers.put(s, request.getParameter(s));
         }
+
+        headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
         return headers;
     }
 }
