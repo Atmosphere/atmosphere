@@ -51,6 +51,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -143,7 +146,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
         return action(request, response);
     }
-
 
     /**
      * Invoke the {@link AtmosphereHandler#onRequest} method.

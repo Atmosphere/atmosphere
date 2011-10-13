@@ -16,15 +16,15 @@
 package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketHttpServletRequest;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -75,7 +75,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
             d = token[2];
         }
 
-        WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
+        AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request())
                 .method(methodType)
                 .contentType(contentType)
@@ -98,7 +98,7 @@ public class SimpleHttpProtocol extends WebSocketProcessor implements Serializab
                 d = token[2].getBytes("UTF-8");
             }
 
-            WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
+            AtmosphereRequest r = new AtmosphereRequest.Builder()
                     .request(request())
                     .method(methodType)
                     .contentType(contentType)

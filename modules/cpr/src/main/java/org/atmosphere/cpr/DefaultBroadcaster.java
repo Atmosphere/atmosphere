@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
@@ -153,7 +154,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
-    }
+        }
     }
 
     /**
