@@ -131,10 +131,12 @@ public class AtmosphereProviders {
                     if (trackingId != null) {
                         trackableResource = (TrackableResource<AtmosphereResourceImpl>)TrackableSession.getDefault().lookup(trackingId);
 
-                        AtmosphereResource<?,?> r = (AtmosphereResource<?,?> ) req.getAttribute(ATMOSPHERE_RESOURCE);
-                        if (trackableResource == null &&  r != null && r.getAtmosphereResourceEvent().isSuspended()) {
-                            trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
-                            trackableResource.setResource(r);
+                        if (req.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null) {
+                            AtmosphereResource<?,?> r = (AtmosphereResource<?,?> ) req.getAttribute(ATMOSPHERE_RESOURCE);
+                            if (trackableResource == null &&  r != null && r.getAtmosphereResourceEvent().isSuspended()) {
+                                trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
+                                trackableResource.setResource(r);
+                            }
                         }
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
