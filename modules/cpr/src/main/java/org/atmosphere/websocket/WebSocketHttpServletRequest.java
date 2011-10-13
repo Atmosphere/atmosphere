@@ -172,7 +172,7 @@ public class WebSocketHttpServletRequest extends HttpServletRequestWrapper {
         public byte[] dataBytes;
         public int offset;
         public int length;
-        public String encoding;
+        public String encoding = "UTF-8";
         public String methodType;
         public String contentType;
         public String data;
