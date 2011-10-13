@@ -317,8 +317,7 @@ jQuery.atmosphere = function() {
                 if (request.suspend) {
                     request.id = setTimeout(function() {
                         ajaxRequest.abort();
-                        jQuery.atmosphere.subscribe(request.
-                            , null, request);
+                        jQuery.atmosphere.subscribe(request, null, request);
 
                     }, request.timeout);
                 }
