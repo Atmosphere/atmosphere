@@ -317,7 +317,8 @@ jQuery.atmosphere = function() {
                 if (request.suspend) {
                     request.id = setTimeout(function() {
                         ajaxRequest.abort();
-                        jQuery.atmosphere.subscribe(request.url, null, request);
+                        jQuery.atmosphere.subscribe(request.
+                            , null, request);
 
                     }, request.timeout);
                 }
@@ -413,7 +414,7 @@ jQuery.atmosphere = function() {
             doc.close();
 
             var url = jQuery.atmosphere.request.url;
-            jQuery.atmosphere.response.push = function request(url) {
+            jQuery.atmosphere.response.push = function(url) {
                 jQuery.atmosphere.request.transport = 'polling';
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
