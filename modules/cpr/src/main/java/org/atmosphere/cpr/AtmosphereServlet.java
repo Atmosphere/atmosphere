@@ -1147,7 +1147,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
-            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_HEADER) != null) {
+            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_HEADER) != null && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
                 return cometSupport.service(new AtmosphereRequest.Builder().headers(configureHeader(req)).request(req).build(), res);
             } else {
                 return cometSupport.service(req, res);
