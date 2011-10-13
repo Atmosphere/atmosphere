@@ -37,8 +37,8 @@
  */
 package org.atmosphere.websocket;
 
-import com.sun.xml.internal.ws.api.message.Headers;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -50,10 +50,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Enumeration;
@@ -91,7 +89,7 @@ public abstract class WebSocketProcessor implements Serializable {
         }
 
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket);
-        WebSocketHttpServletRequest r = new WebSocketHttpServletRequest.Builder()
+        AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .headers(configureHeader(request))
                 .build();

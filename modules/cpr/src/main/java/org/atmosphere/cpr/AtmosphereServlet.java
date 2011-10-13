@@ -56,6 +56,7 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -106,6 +107,7 @@ import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_HEADER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
@@ -1145,7 +1147,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
-            return cometSupport.service(req, res);
+            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_HEADER) != null) {
+                return cometSupport.service(new AtmosphereRequest.Builder().headers(configureHeader(req)).request(req).build(), res);
+            } else {
+                return cometSupport.service(req, res);
+            }
         } catch (IllegalStateException ex) {
             logger.warn(ex.getMessage(), ex);
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
@@ -1380,6 +1386,18 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     public void setWebSocketProcessorClassName(String webSocketProcessorClassName) {
         this.webSocketProcessorClassName = webSocketProcessorClassName;
+    }
+
+    protected Map<String, String> configureHeader(HttpServletRequest request) {
+        Map<String, String> headers = new HashMap<String, String>();
+
+        Enumeration<String> e = request.getParameterNames();
+        String s;
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            headers.put(s, request.getParameter(s));
+        }
+        return headers;
     }
 
 

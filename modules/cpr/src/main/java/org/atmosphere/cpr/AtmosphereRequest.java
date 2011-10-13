@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.cpr;
 
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -33,7 +33,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 /**
  * A Builder for constructing {@link HttpServletRequest}
  */
-public class WebSocketHttpServletRequest extends HttpServletRequestWrapper {
+public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private final ByteInputStream bis;
     private final BufferedReader br;
@@ -43,7 +43,7 @@ public class WebSocketHttpServletRequest extends HttpServletRequestWrapper {
     private final String contentType;
     private final HttpServletRequest request;
 
-    private WebSocketHttpServletRequest(Builder b) {
+    private AtmosphereRequest(Builder b) {
         super(b.request);
         pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
         request = b.request;
@@ -223,8 +223,8 @@ public class WebSocketHttpServletRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public WebSocketHttpServletRequest build(){
-            return new WebSocketHttpServletRequest(this);
+        public AtmosphereRequest build(){
+            return new AtmosphereRequest(this);
         }
     }
 
