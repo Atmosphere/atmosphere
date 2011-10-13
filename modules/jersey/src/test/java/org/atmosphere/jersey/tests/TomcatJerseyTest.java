@@ -52,6 +52,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.File;
 
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 public class TomcatJerseyTest extends BasePubSubTest {
 
@@ -60,7 +61,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
     public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+            addInitParameter(MAX_INACTIVE, "20000");
             addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
             addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
             cometSupport = new TomcatCometSupport(getAtmosphereConfig());
