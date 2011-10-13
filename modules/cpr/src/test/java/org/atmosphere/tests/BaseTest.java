@@ -48,6 +48,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.StringFilterAggregator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -894,7 +895,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
                 try {
-                    if (event.getRequest().getHeader(HeaderBroadcasterCache.HEADER_CACHE) != null) {
+                    if (event.getRequest().getHeader(HeaderConfig.X_CACHE_DATE) != null) {
                         event.suspend(-1, false);
                         return;
                     }
@@ -933,7 +934,7 @@ public abstract class BaseTest {
             c.prepareGet(urlTarget).execute().get();
 
             //Suspend
-            Response r = c.prepareGet(urlTarget).addHeader(HeaderBroadcasterCache.HEADER_CACHE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
+            Response r = c.prepareGet(urlTarget).addHeader(HeaderConfig.X_CACHE_DATE, String.valueOf(t1)).execute(new AsyncCompletionHandler<Response>() {
 
                 @Override
                 public Response onCompleted(Response r) throws Exception {
