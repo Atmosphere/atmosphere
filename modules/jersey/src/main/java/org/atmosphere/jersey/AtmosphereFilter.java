@@ -252,7 +252,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     Broadcaster bc = s.broadcaster();
-                    if (bc == null) {
+                    if (bc == null && s.scope() != Suspend.SCOPE.REQUEST) {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     }
 
@@ -266,7 +266,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk,
-                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r);
+                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope());
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -319,7 +319,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
-                            broadcaster, r);
+                            broadcaster, r, scope);
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -571,7 +571,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      ContainerRequest request,
                      ContainerResponse response,
                      Broadcaster bc,
-                     AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+                     AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
+                     Suspend.SCOPE localScope) {
 
             // Force the status code to 200 events independently of the value of the entity (null or not)
             if (response.getStatus() == 204) {
@@ -594,7 +595,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(RESUME_CANDIDATES, resumeCandidates);
             }
 
-            if (bc == null) {
+            if (bc == null && localScope != Suspend.SCOPE.REQUEST) {
                 bc = r.getBroadcaster();
             }
 
@@ -614,26 +615,27 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 Broadcastable b = (Broadcastable) response.getEntity();
                 bc = b.getBroadcaster();
                 response.setEntity(b.getResponseMessage());
+            }
 
-                if ((scope == Suspend.SCOPE.REQUEST) && (bc.getScope() != Broadcaster.SCOPE.REQUEST)) {
-                    bc.setScope(Broadcaster.SCOPE.REQUEST);
-                }
-            } else if ((scope == Suspend.SCOPE.REQUEST) && (bc.getScope() != Broadcaster.SCOPE.REQUEST)) {
-                try {
-                    String id = bc.getID();
-                    bc.setID(bc.getClass().getSimpleName() + "-" + UUID.randomUUID());
-
-                    // Re-generate a new one with proper scope.
-                    Class<Broadcaster> c = null;
+            if ((localScope == Suspend.SCOPE.REQUEST) && bc == null) {
+                if (bc == null) {
                     try {
-                        c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
-                    } catch (Throwable e) {
-                        throw new IllegalStateException(e.getMessage());
+                        String id = UUID.randomUUID().toString();
+
+                        // Re-generate a new one with proper scope.
+                        Class<Broadcaster> c = null;
+                        try {
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
+                        } catch (Throwable e) {
+                            throw new IllegalStateException(e.getMessage());
+                        }
+                        bc = broadcasterFactory.get(c, id);
+                        bc.setScope(Broadcaster.SCOPE.REQUEST);
+                    } catch (Exception ex) {
+                        logger.error("failed to instantiate broadcaster with factory: " + broadcasterFactory, ex);
                     }
-                    bc = broadcasterFactory.get(c, id);
+                } else {
                     bc.setScope(Broadcaster.SCOPE.REQUEST);
-                } catch (Exception ex) {
-                    logger.error("failed to instantiate broadcaster with factory: " + broadcasterFactory, ex);
                 }
             }
             configureFilter(bc);
