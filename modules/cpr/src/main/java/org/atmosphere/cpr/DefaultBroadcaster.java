@@ -123,6 +123,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) return;
 
+        if (currentLifecycleTask != null) {
+            currentLifecycleTask.cancel(true);
+        }
         started.set(false);
         destroyed.set(true);
         releaseExternalResources();
@@ -150,11 +153,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (BroadcasterFactory.getDefault() != null) {
             BroadcasterFactory.getDefault().remove(this, name);
-        }
-
-        if (currentLifecycleTask != null) {
-            currentLifecycleTask.cancel(true);
-        }
+    }
     }
 
     /**
