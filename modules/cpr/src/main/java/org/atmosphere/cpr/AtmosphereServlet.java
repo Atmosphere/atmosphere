@@ -1148,7 +1148,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         try {
             if ( config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
-                    && isCandidate(req.getHeader("User-Agent"))
+                    && isIECandidate(req)
                     && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
 
                 Map<String,String> headers = configureQueryStringAsRequest(req);
@@ -1409,11 +1409,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         return headers;
     }
 
-    protected boolean isCandidate(String userAgent) {
+    protected boolean isIECandidate(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
         if (userAgent == null) return false;
 
         if (userAgent.contains("MSIE") || userAgent.contains(".NET")) {
-            return true;
+            // Now check the header
+            String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+            if (transport != null) {
+                return false;
+            }
         }
         return false;
     }
