@@ -778,7 +778,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // Will help preventing OOM.
         if (resources.isEmpty()) {
             notifyEmptyListener();
-            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
+            if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
                 releaseExternalResources();
             } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
                 notifyDestroyListener();

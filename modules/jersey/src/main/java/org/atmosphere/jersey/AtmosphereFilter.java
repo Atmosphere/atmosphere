@@ -235,8 +235,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-            boolean sessionSupported = (Boolean) servletReq.getAttribute
-                    (FrameworkConfig.SUPPORT_SESSION);
+            boolean sessionSupported = (Boolean)servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
 
             switch (action) {
                 case SUSPEND_RESPONSE:
@@ -599,7 +598,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 bc = r.getBroadcaster();
             }
 
-            if (sessionSupported && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
+            if (sessionSupported && localScope != Suspend.SCOPE.REQUEST && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
                 AtmosphereResource<HttpServletRequest, HttpServletResponse> cached =
                         (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
                 bc = cached.getBroadcaster();
