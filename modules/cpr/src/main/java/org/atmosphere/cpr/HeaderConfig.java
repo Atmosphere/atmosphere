@@ -70,4 +70,6 @@ public interface HeaderConfig {
 
     String WEBSOCKET_UPGRADE = "Upgrade";
 
+    String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
+
 }

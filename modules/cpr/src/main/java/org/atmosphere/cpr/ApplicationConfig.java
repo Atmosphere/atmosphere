@@ -139,6 +139,6 @@ public interface ApplicationConfig {
     /**
      * Allow query string as set as request's header. 
      */
-    String ALLOW_QUERYSTRING_AS_HEADER =  ApplicationConfig.class.getPackage().getName() + ".allowQueryStringAsHeader";
+    String ALLOW_QUERYSTRING_AS_REQUEST =  ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
 
 }
