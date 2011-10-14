@@ -1147,8 +1147,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
-            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
-                Map<String,String> headers = configureQueryStringAsPost(req);
+            if ( config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
+                    && isCandidate(req.getHeader("User-Agent"))
+                    && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
+
+                Map<String,String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 return cometSupport.service(new AtmosphereRequest.Builder()
                         .headers(headers)
@@ -1394,7 +1397,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         this.webSocketProcessorClassName = webSocketProcessorClassName;
     }
 
-    protected Map<String, String> configureQueryStringAsPost(HttpServletRequest request) {
+    protected Map<String, String> configureQueryStringAsRequest(HttpServletRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();
@@ -1404,6 +1407,15 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             headers.put(s, request.getParameter(s));
         }
         return headers;
+    }
+
+    protected boolean isCandidate(String userAgent) {
+        if (userAgent == null) return false;
+
+        if (userAgent.contains("MSIE") || userAgent.contains(".NET")) {
+            return true;
+        }
+        return false;
     }
 
     /**
