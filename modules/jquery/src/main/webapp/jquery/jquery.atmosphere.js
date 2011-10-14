@@ -390,11 +390,11 @@ jQuery.atmosphere = function() {
             url += "&X-Cache-Date=" + new Date().getTime();
 
             if (jQuery.atmosphere.request.contentType != '') {
-                url += ";Content-Type=" + jQuery.atmosphere.request.contentType;
+                url += "&Content-Type=" + jQuery.atmosphere.request.contentType;
             }
 
             for (var x in request.headers) {
-                url += ";" + x + "=" + request.headers[x];
+                url += "&" + x + "=" + request.headers[x];
             }
 
             return url;
@@ -426,7 +426,8 @@ jQuery.atmosphere = function() {
                     var fakePost = false;
                     var iframe = doc.createElement("iframe");
                     if (request.method == 'POST') {
-                        url = jQuery.atmosphere.prepareURL(jQuery.atmosphere.attachHeaders(request));
+                        url = jQuery.atmosphere.attachHeaders(request);
+                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
                     }
                     iframe.src = url;
                     doc.body.appendChild(iframe);
