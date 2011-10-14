@@ -56,7 +56,6 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -107,7 +106,7 @@ import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
-import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_HEADER;
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
@@ -117,6 +116,7 @@ import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.WEB_INF_CLASSES;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
+import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -1147,8 +1147,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
-            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_HEADER) != null && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
-                return cometSupport.service(new AtmosphereRequest.Builder().headers(configureHeader(req)).request(req).build(), res);
+            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
+                Map<String,String> headers = configureQueryStringAsPost(req);
+                String body = headers.remove(ATMOSPHERE_POST_BODY);
+                return cometSupport.service(new AtmosphereRequest.Builder()
+                        .headers(headers)
+                        .method(body != null ? "POST" : "GET")
+                        .body(body)
+                        .request(req).build(), res);
             } else {
                 return cometSupport.service(req, res);
             }
@@ -1388,7 +1394,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         this.webSocketProcessorClassName = webSocketProcessorClassName;
     }
 
-    protected Map<String, String> configureHeader(HttpServletRequest request) {
+    protected Map<String, String> configureQueryStringAsPost(HttpServletRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();
@@ -1399,7 +1405,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         return headers;
     }
-
 
     /**
      * Jetty 7.2 & 8.0.0-M1/M2and up WebSocket support.
