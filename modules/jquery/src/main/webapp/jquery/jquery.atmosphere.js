@@ -882,6 +882,25 @@ jQuery.atmosphere = function() {
             return (jQuery.atmosphere.S4() + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + "-" + jQuery.atmosphere.S4() + jQuery.atmosphere.S4() + jQuery.atmosphere.S4());
         },
 
+        // From jQuery-Stream
+        prepareURL: function(url, data) {
+            // Converts data into a query string
+            if (data && typeof data !== "string") {
+                data = param(data);
+            }
+
+            // Attaches a time stamp to prevent caching
+            var ts = $.now(),
+                ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
+
+            return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "") + (data ? ("&" + data) : "");
+        },
+
+        // From jQuery-Stream
+        param : function(data) {
+            return $.param(data, $.ajaxSettings.traditional);
+        },
+
         iterate : function (fn, interval) {
             var timeoutId;
 
