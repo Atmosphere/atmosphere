@@ -396,6 +396,7 @@ jQuery.atmosphere = function() {
             for (var x in request.headers) {
                 url += ";" + x + "=" + request.headers[x];
             }
+
             return url;
         },
 
@@ -424,7 +425,10 @@ jQuery.atmosphere = function() {
                 open: function() {
                     var fakePost = false;
                     var iframe = doc.createElement("iframe");
-                    iframe.src = jQuery.atmosphere.attachHeaders(request);
+                    if (request.method == 'POST') {
+                        url = jQuery.atmosphere.prepareURL(jQuery.atmosphere.attachHeaders(request));
+                    }
+                    iframe.src = url;
                     doc.body.appendChild(iframe);
 
                     // For the server to respond in a consistent format regardless of user agent, we polls response text
@@ -606,7 +610,10 @@ jQuery.atmosphere = function() {
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
             var webSocketSupported = false;
-            var url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+            var url = jQuery.atmosphere.request.url;
+            if (request.method == 'POST') {
+                jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+            }
             var callback = jQuery.atmosphere.request.callback;
 
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
@@ -697,32 +704,32 @@ jQuery.atmosphere = function() {
                 var reason = message.reason
                 if (reason === "") {
                     switch (message.code) {
-                    case 1000:
-                        reason = "Normal closure; the connection successfully completed whatever purpose for which " +
-                                    "it was created.";
-                        break;
-                    case 1001:
-                        reason = "The endpoint is going away, either because of a server failure or because the " +
-                                    "browser is navigating away from the page that opened the connection."
-                        break;
-                    case 1002:
-                        reason = "The endpoint is terminating the connection due to a protocol error."
-                        break;
-                    case 1003:
-                        reason = "The connection is being terminated because the endpoint received data of a type it " +
-                                    "cannot accept (for example, a text-only endpoint received binary data)."
-                        break;
-                    case 1004:
-                        reason = "The endpoint is terminating the connection because a data frame was received that " +
-                                    "is too large."
-                        break;
-                    case 1005:
-                        reason = "Unknown: no status code was provided even though one was expected."
-                        break;
-                    case 1006:
-                        reason = "Connection was closed abnormally (that is, with no close frame being sent)."
-                        break;
-                   }
+                        case 1000:
+                            reason = "Normal closure; the connection successfully completed whatever purpose for which " +
+                                "it was created.";
+                            break;
+                        case 1001:
+                            reason = "The endpoint is going away, either because of a server failure or because the " +
+                                "browser is navigating away from the page that opened the connection."
+                            break;
+                        case 1002:
+                            reason = "The endpoint is terminating the connection due to a protocol error."
+                            break;
+                        case 1003:
+                            reason = "The connection is being terminated because the endpoint received data of a type it " +
+                                "cannot accept (for example, a text-only endpoint received binary data)."
+                            break;
+                        case 1004:
+                            reason = "The endpoint is terminating the connection because a data frame was received that " +
+                                "is too large."
+                            break;
+                        case 1005:
+                            reason = "Unknown: no status code was provided even though one was expected."
+                            break;
+                        case 1006:
+                            reason = "Connection was closed abnormally (that is, with no close frame being sent)."
+                            break;
+                    }
                 }
                 jQuery.atmosphere.warn("Websocket closed, reason: " + reason);
                 jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
@@ -893,7 +900,7 @@ jQuery.atmosphere = function() {
             var ts = $.now(),
                 ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
 
-            return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "") + (data ? ("&" + data) : "");
+            return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "") + (data ? ("&X-Atmosphere-Post-Body=" + data) : "");
         },
 
         // From jQuery-Stream
