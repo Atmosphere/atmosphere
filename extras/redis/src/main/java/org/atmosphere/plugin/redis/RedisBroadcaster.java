@@ -90,7 +90,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             jedisSubscriber.connect();
 
-
             if (authToken != null) {
                 jedisSubscriber.auth(authToken);
             }
@@ -135,7 +134,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      * {@inheritDoc}
      */
     @Override
-    public synchronized void destroy() {
+    public void destroy() {
         super.destroy();
         try {
             disconnectPublisher();
@@ -198,21 +197,26 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     }
 
     private void disconnectSubscriber() {
-        if (jedisSubscriber != null) {
-            try {
-                jedisSubscriber.disconnect();
-            } catch (IOException e) {
-                logger.error("failed to disconnect subscriber", e);
+        synchronized (jedisSubscriber) {
+            if (jedisSubscriber != null) {
+                try {
+                    jedisSubscriber.disconnect();
+                } catch (IOException e) {
+                    logger.error("failed to disconnect subscriber", e);
+                }
             }
+
         }
     }
 
     private void disconnectPublisher() {
-        if (jedisPublisher != null) {
-            try {
-                jedisPublisher.disconnect();
-            } catch (IOException e) {
-                logger.error("failed to disconnect publisher", e);
+        synchronized (jedisPublisher) {
+            if (jedisPublisher != null) {
+                try {
+                    jedisPublisher.disconnect();
+                } catch (IOException e) {
+                    logger.error("failed to disconnect publisher", e);
+                }
             }
         }
     }
