@@ -267,7 +267,7 @@ jQuery.atmosphere = function() {
                             response.state = "messagePublished";
                         }
 
-                        reconnect(request);
+                        this.reconnect(request);
 
                         // For backward compatibility with Atmosphere < 0.8
                         if (response.responseBody.indexOf("parent.callback") != -1) {
@@ -292,7 +292,7 @@ jQuery.atmosphere = function() {
                         } else {
                             jQuery.atmosphere.invokeCallback(response);
 
-                            reconnect(request);
+                            this.reconnect(request);
 
                             if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                                 // Close and reopen connection on large data received
