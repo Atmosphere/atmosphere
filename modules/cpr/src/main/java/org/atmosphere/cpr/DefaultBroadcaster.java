@@ -485,34 +485,37 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
-        if (resource.getAtmosphereResourceEvent().isCancelled()) {
-            return;
-        }
-
-        final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
-        event.setMessage(msg);
-
         try {
-            if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
-                    && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                HttpServletRequest.class.cast(resource.getRequest())
-                        .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+            if (resource.getAtmosphereResourceEvent().isCancelled()) {
+                return;
             }
-        } catch (Exception t) {
-            // Shield us from any corrupted Request
-            logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
-            removeAtmosphereResource(resource);
-            BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
-            return;
-        }
 
-        broadcast(resource, event);
-        if (resource instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) resource).notifyListeners();
-        }
+            final AtmosphereResourceEvent event = resource.getAtmosphereResourceEvent();
+            event.setMessage(msg);
 
-        if (future != null) {
-            future.done();
+            try {
+                if (resource.getAtmosphereResourceEvent() != null && !resource.getAtmosphereResourceEvent().isCancelled()
+                        && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                    HttpServletRequest.class.cast(resource.getRequest())
+                            .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                }
+            } catch (Exception t) {
+                logger.warn("executeAsyncWrite exception", t);
+                // Shield us from any corrupted Request
+                logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
+                removeAtmosphereResource(resource);
+                BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
+                return;
+            }
+
+            broadcast(resource, event);
+            if (resource instanceof AtmosphereEventLifecycle) {
+                ((AtmosphereEventLifecycle) resource).notifyListeners();
+            }
+        } finally {
+            if (future != null) {
+                future.done();
+            }
         }
     }
 
