@@ -421,6 +421,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h);
         atmosphereHandlers.put(mapping, w);
+        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
 
     /**
@@ -439,6 +440,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h);
         w.broadcaster.setID(broadcasterId);
         atmosphereHandlers.put(mapping, w);
+        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
 
     /**
@@ -456,6 +458,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, broadcaster);
         atmosphereHandlers.put(mapping, w);
+        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
 
     /**
@@ -578,7 +581,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 logger.warn("Unable to load WebSocketHandle instance", ex);
             }
         }
-        logger.info("Installed AtmosphereHandler {} mapped to context-path: /*", s);
     }
 
     protected void configureBroadcaster(ServletContext sc) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
