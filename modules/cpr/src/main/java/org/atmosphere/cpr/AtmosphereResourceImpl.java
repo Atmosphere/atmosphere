@@ -124,7 +124,7 @@ public class AtmosphereResourceImpl implements
         injectCacheHeaders = nocache != null ? false : true;
 
         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-        enableAccessControl = ac != null ? false : true;
+        enableAccessControl = ac != null ? Boolean.parseBoolean(ac) : true;
 
         String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
         writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
