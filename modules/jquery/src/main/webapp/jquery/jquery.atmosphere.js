@@ -148,12 +148,17 @@ jQuery.atmosphere = function() {
 
             if (jQuery.atmosphere.request.transport == 'streaming') {
                 if (jQuery.browser.msie) {
-                    jQuery.atmosphere.request.enableXDR && window.XDomainRequest ? jQuery.atmosphere.ieXDRstreaming() : jQuery.atmosphere.ieStreaming();
+                    jQuery.atmosphere.request.enableXDR && window.XDomainRequest ? jQuery.atmosphere.ieXDR() : jQuery.atmosphere.ieStreaming();
                     return;
                 } else if (jQuery.browser.opera) {
                     jQuery.atmosphere.operaStreaming();
                     return;
                 }
+            }
+
+            if (jQuery.atmosphere.request.enableXDR && window.XDomainRequest) {
+                jQuery.atmosphere.ieXDR();
+                return;
             }
 
             if (jQuery.atmosphere.request.requestCount++ < jQuery.atmosphere.request.maxRequest) {
@@ -450,7 +455,7 @@ jQuery.atmosphere = function() {
                         // Detects connection failure
                         if (cdoc.readyState === "complete") {
                             try {
-                                $.noop(cdoc.fileSize);
+                                jQuery.noop(cdoc.fileSize);
                             } catch(e) {
                                 jQuery.atmosphere.ieCallback("", "error");
                                 return false;
@@ -471,7 +476,7 @@ jQuery.atmosphere = function() {
                             };
 
                         //To support text/html content type
-                        if (!$.nodeName(res, "pre")) {
+                        if (!jQuery.nodeName(res, "pre")) {
                             // Injects a plaintext element which renders text without interpreting the HTML and cannot be stopped
                             // it is deprecated in HTML5, but still works
                             var head = cdoc.head || cdoc.getElementsByTagName("head")[0] || cdoc.documentElement || cdoc,
@@ -534,7 +539,7 @@ jQuery.atmosphere = function() {
         ,
 
         // From jquery-stream, which is APL2 licensed as well.
-        ieXDRstreaming : function() {
+        ieXDR : function() {
             ieStream = jQuery.atmosphere.configureXDR();
             ieStream.open();
         },
@@ -589,12 +594,32 @@ jQuery.atmosphere = function() {
             };
             // Handles close event
             xdr.onload = function() {
-                jQuery.atmosphere.ieCallback(xdr.responseText, "closed");
+                var isJunkEnded = true;
+                var responseBody = xdr.responseText;
+
+                if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
+                    isJunkEnded = false;
+                }
+
+                if (isJunkEnded) {
+                    var endOfJunk = "<!-- EOD -->";
+                    var endOfJunkLenght = endOfJunk.length;
+                    var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+
+                    responseBody = responseBody.substring(junkEnd);
+                }
+                jQuery.atmosphere.ieCallback(responseBody, "messageReceived");
             };
 
             return {
                 open: function() {
-                    xdr.open(jQuery.atmosphere.request.method, rewriteURL(jQuery.atmosphere.request.url));
+
+                    var url = jQuery.atmosphere.request.url;
+                    if (jQuery.atmosphere.request.method == 'POST') {
+                        url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                    }
+                    xdr.open(jQuery.atmosphere.request.method, rewriteURL(url));
                     xdr.send();
                 },
                 close: function() {
@@ -889,7 +914,7 @@ jQuery.atmosphere = function() {
         // From jQuery-Stream
         prepareURL: function(url) {
             // Attaches a time stamp to prevent caching
-            var ts = $.now(),
+            var ts = jQuery.now(),
                 ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
 
             return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "");
@@ -897,7 +922,7 @@ jQuery.atmosphere = function() {
 
         // From jQuery-Stream
         param : function(data) {
-            return $.param(data, $.ajaxSettings.traditional);
+            return jQuery.param(data, jQuery.ajaxSettings.traditional);
         },
 
         iterate : function (fn, interval) {
