@@ -267,12 +267,7 @@ jQuery.atmosphere = function() {
                             response.state = "messagePublished";
                         }
 
-                        if (!jQuery.atmosphere.request.executeCallbackBeforeReconnect && ajaxRequest.readyState == 4) {
-                            jQuery.atmosphere.request = request;
-                            if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
-                                jQuery.atmosphere.executeRequest();
-                            }
-                        }
+                        reconnect(request);
 
                         // For backward compatibility with Atmosphere < 0.8
                         if (response.responseBody.indexOf("parent.callback") != -1) {
@@ -297,12 +292,7 @@ jQuery.atmosphere = function() {
                         } else {
                             jQuery.atmosphere.invokeCallback(response);
 
-                            if (jQuery.atmosphere.request.executeCallbackBeforeReconnect && ajaxRequest.readyState == 4) {
-                                jQuery.atmosphere.request = request;
-                                if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
-                                    jQuery.atmosphere.executeRequest();
-                                }
-                            }
+                            reconnect(request);
 
                             if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                                 // Close and reopen connection on large data received
@@ -317,7 +307,7 @@ jQuery.atmosphere = function() {
                 if (request.suspend) {
                     request.id = setTimeout(function() {
                         ajaxRequest.abort();
-                        jQuery.atmosphere.subscribe(request, null, request);
+                        jQuery.atmosphere.subscribe(request.url, null, request);
 
                     }, request.timeout);
                 }
@@ -330,7 +320,7 @@ jQuery.atmosphere = function() {
             // Prevent Android to cacbe request
             var url = jQuery.atmosphere.prepareURL(request.url);
 
-            ajaxRequest.open(request.method, url , true);
+            ajaxRequest.open(request.method, url, true);
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
             ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
@@ -342,6 +332,17 @@ jQuery.atmosphere = function() {
 
             for (var x in request.headers) {
                 ajaxRequest.setRequestHeader(x, request.headers[x]);
+            }
+        },
+
+        reconnect : function (request) {
+            if (jQuery.atmosphere.request.executeCallbackBeforeReconnect && ajaxRequest.readyState == 4) {
+                jQuery.atmosphere.request = request;
+                if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
+                    jQuery.atmosphere.request.method = 'GET';
+                    jQuery.atmosphere.request.data = "";
+                    jQuery.atmosphere.executeRequest();
+                }
             }
         },
 
