@@ -529,7 +529,7 @@ jQuery.atmosphere = function() {
 
         ieCallback : function(messageBody, state) {
             var response = jQuery.atmosphere.response;
-            response.transport = "streaming";
+            response.transport = jQuery.atmosphere.request.transport;
             response.status = 200;
             response.responseBody = messageBody;
             response.state = state;
