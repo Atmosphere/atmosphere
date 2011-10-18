@@ -327,7 +327,10 @@ jQuery.atmosphere = function() {
         },
 
         doRequest : function(ajaxRequest, request) {
-            ajaxRequest.open(request.method, request.url, true);
+            // Prevent Android to cacbe request
+            var url = jQuery.atmosphere.prepareURL(request.url);
+
+            ajaxRequest.open(request.method, url , true);
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
             ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
@@ -423,12 +426,15 @@ jQuery.atmosphere = function() {
 
             return {
                 open: function() {
-                    var fakePost = false;
                     var iframe = doc.createElement("iframe");
                     if (request.method == 'POST') {
                         url = jQuery.atmosphere.attachHeaders(request);
                         url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
                     }
+
+                    // Finally attach a timestamp to prevent Android and IE caching.
+                    url = jQuery.atmosphere.prepareURL(url);
+
                     iframe.src = url;
                     doc.body.appendChild(iframe);
 
@@ -514,17 +520,6 @@ jQuery.atmosphere = function() {
 
             };
         },
-
-        streamingCallback : function(args) {
-            var response = jQuery.atmosphere.response;
-            response.transport = "streaming";
-            response.status = 200;
-            response.responseBody = args;
-            response.state = "messageReceived";
-
-            jQuery.atmosphere.invokeCallback(response);
-        }
-        ,
 
         ieCallback : function(messageBody, state) {
             var response = jQuery.atmosphere.response;
@@ -891,17 +886,12 @@ jQuery.atmosphere = function() {
         },
 
         // From jQuery-Stream
-        prepareURL: function(url, data) {
-            // Converts data into a query string
-            if (data && typeof data !== "string") {
-                data = param(data);
-            }
-
+        prepareURL: function(url) {
             // Attaches a time stamp to prevent caching
             var ts = $.now(),
                 ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
 
-            return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "") + (data ? ("&X-Atmosphere-Post-Body=" + data) : "");
+            return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "");
         },
 
         // From jQuery-Stream
