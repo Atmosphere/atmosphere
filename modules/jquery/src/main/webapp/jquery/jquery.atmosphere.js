@@ -767,9 +767,9 @@ jQuery.atmosphere = function() {
 
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
-                } else {
-                    jQuery.atmosphere.debug("Websocket closed cleanly");
+                } else if (jQuery.atmosphere.abordingConnection) {
                     jQuery.atmosphere.response.state = 'closed';
+
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                     if (request.requestCount++ < request.maxRequest) {
