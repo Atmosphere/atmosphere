@@ -1420,6 +1420,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
             if (transport != null) {
                 return false;
+            } else {
+                return true;
             }
         }
         return false;
