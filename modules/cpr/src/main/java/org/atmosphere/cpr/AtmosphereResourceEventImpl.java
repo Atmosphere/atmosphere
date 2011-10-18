@@ -57,7 +57,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     // Is Resumed on Timeout?
     private final AtomicBoolean isResumedOnTimeout = new AtomicBoolean(false);
 
-    private final Throwable throwable;
+    private Throwable throwable;
 
     // The current message
     protected Object message;
@@ -159,6 +159,10 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
      */
     public void write(OutputStream os, Object o) throws IOException {
         resource.write(os, o);
+    }
+
+    public void setThrowable(Throwable t) {
+        this.throwable = throwable;
     }
 
     @Override
