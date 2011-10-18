@@ -166,7 +166,8 @@ public class AtmosphereResourceImpl implements
             try {
                 broadcaster.removeAtmosphereResource(this);
             } catch (IllegalStateException ex) {
-                logger.trace(ex.getMessage(), ex);
+                logger.warn("Unable to resume", this);
+                logger.debug(ex.getMessage(), ex);
             }
 
             // Resuming here means we need to pull away from all other Broadcaster, if they exists.
