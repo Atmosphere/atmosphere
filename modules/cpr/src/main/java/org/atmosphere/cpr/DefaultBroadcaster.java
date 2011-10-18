@@ -489,7 +489,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) resource.getAtmosphereResourceEvent();
 
-            // Any of there condition stop the write operations
+            // Any of these conditions stop the write operations
             boolean isVoid = event.isCancelled() || event.isResumedOnTimeout() || event.isResuming() || !event.isSuspended();
             if (isVoid) {
                 logger.debug("Resource {} has been already processed", event);
@@ -579,25 +579,23 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereHandler().onStateChange(e);
-        } catch (IOException ex) {
-            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
-            }
-            onException(ex, r);
-        } catch (RuntimeException ex) {
-            if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-                AtmosphereResourceImpl.class.cast(r).notifyListeners(e);
-            }
-            onException(ex, r);
+        } catch (Throwable t) {
+            onException(t, r);
         }
     }
 
     protected void onException(Throwable t, final AtmosphereResource<?, ?> r) {
         logger.debug("onException()", t);
 
+        // Remove to prevent other broadcast to re-use it.
+        removeAtmosphereResource(r);
+
+        final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) r.getAtmosphereResourceEvent();
+        event.setThrowable(t);
+
         if (r instanceof AtmosphereEventLifecycle) {
             ((AtmosphereEventLifecycle) r)
-                    .notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false, t));
+                    .notifyListeners(event);
             ((AtmosphereEventLifecycle) r).removeEventListeners();
         }
 
@@ -607,7 +605,12 @@ public class DefaultBroadcaster implements Broadcaster {
         bc.getAsyncWriteService().execute(new Runnable() {
             @Override
             public void run() {
-                r.resume();
+                try {
+                    r.resume();
+                } catch (Throwable t) {
+                    logger.warn("Was unable to resume a corrupted AtmosphereResource {}" , r);
+                    logger.warn("Cause", t);
+                }
             }
         });
 
