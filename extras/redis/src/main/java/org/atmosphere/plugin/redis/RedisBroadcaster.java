@@ -118,7 +118,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                 }
 
                 if (jedisSubscriber != null) {
-                    jedisPool.returnResource(jedisSubscriber);
+                    disconnectSubscriber();
                 }
             }
         }
