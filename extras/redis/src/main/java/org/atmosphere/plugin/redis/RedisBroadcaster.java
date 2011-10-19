@@ -226,7 +226,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             try {
                 jedisPublisher.publish(getID(), message.toString());
             } catch (JedisException e) {
-                logger.warn("outgoingBroadcast exception, retying a connection", e);
+                logger.warn("outgoingBroadcast exception, retrying a connection", e);
                 // Try a second time.
                 jedisPublisher = sharedPool ? jedisPool.getResource() : new Jedis(uri.getHost(), uri.getPort());
             }
