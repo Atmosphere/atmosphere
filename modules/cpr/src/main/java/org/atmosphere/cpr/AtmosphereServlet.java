@@ -271,6 +271,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         private boolean supportSession = true;
         private BroadcasterFactory broadcasterFactory;
         private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
+        private Map<String, Object> properties = new HashMap<String,Object>();
 
         protected Map<String, AtmosphereHandlerWrapper> handlers() {
             return AtmosphereServlet.this.atmosphereHandlers;
@@ -329,6 +330,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         public AtmosphereServlet getServlet() {
             return AtmosphereServlet.this;
+        }
+
+        public Map<String,Object> properties(){
+            return properties;
         }
     }
 
