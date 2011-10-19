@@ -119,9 +119,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     public final static String INJECTED_BROADCASTER = AtmosphereFilter.class.getName() + "injectedBroadcaster";
     public final static String INJECTED_TRACKABLE = AtmosphereFilter.class.getName() + "injectedTrackable";
 
-    // For backward compatibility
-    public final static String CONTAINER_RESPONSE = FrameworkConfig.CONTAINER_RESPONSE;
-
     enum Action {
         SUSPEND, RESUME, BROADCAST, SUSPEND_RESUME,
         SCHEDULE_RESUME, RESUME_ON_BROADCAST, NONE, SCHEDULE, SUSPEND_RESPONSE,
@@ -648,7 +645,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
             servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
 
-            logger.debug("Linking HttpServletRequest {} with ContainerResponse {}", servletReq, response);
+            logger.debug("Linked HttpServletRequest {} with ContainerResponse {}", servletReq, response);
 
             if (resumeOnBroadcast) {
                 servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));

@@ -384,7 +384,7 @@ public class AtmosphereResourceImpl implements
     /**
      * Is the {@link HttpServletRequest} still valid.
      *
-     * @return true if the {@link HttpServletRequest} still vali
+     * @return true if the {@link HttpServletRequest} still valid
      */
     public boolean isInScope() {
         return isInScope;

@@ -580,7 +580,10 @@ public class DefaultBroadcaster implements Broadcaster {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
             HttpServletRequest.class.cast(r.getRequest()).setAttribute(CACHED, "true");
-            broadcast(r, e);
+            // Must make sure execute only one thread
+            synchronized (r) {
+                broadcast(r, e);
+            }
         }
     }
 
