@@ -99,7 +99,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         logger.info("{} shared connection pool {}", getClass().getName(), sharedPool);
 
         if (sharedPool) {
-            if (config.properties().get(REDIS_SHARED_POOL) == null) {
+            if (config.properties().get(REDIS_SHARED_POOL) != null) {
                 jedisPool = (JedisPool) config.properties().get(REDIS_SHARED_POOL);
             }
 
