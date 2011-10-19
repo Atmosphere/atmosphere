@@ -276,35 +276,18 @@ jQuery.atmosphere = function() {
 
                         // For backward compatibility with Atmosphere < 0.8
                         if (response.responseBody.indexOf("parent.callback") != -1) {
-                            var index = 0;
-                            var responseBody = response.responseBody;
-                            while (responseBody.indexOf("('", index) != -1) {
-                                var start = responseBody.indexOf("('", index) + 2;
-                                var end = responseBody.indexOf("')", index);
-                                if (end < 0) {
-                                    request.lastIndex = this.previousLastIndex;
-                                    return;
-                                }
-                                response.responseBody = responseBody.substring(start, end);
-                                index = end + 2;
-                                jQuery.atmosphere.invokeCallback(response);
-                                if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
-                                    // Close and reopen connection on large data received
-                                    ajaxRequest.abort();
-                                    jQuery.atmosphere.doRequest(ajaxRequest, request);
-                                }
-                            }
-                        } else {
-                            jQuery.atmosphere.invokeCallback(response);
-
-                            jQuery.atmosphere.reconnect(request);
-
-                            if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
-                                // Close and reopen connection on large data received
-                                ajaxRequest.abort();
-                                jQuery.atmosphere.doRequest(ajaxRequest, request);
-                            }
+                            jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                         }
+
+                        jQuery.atmosphere.invokeCallback(response);
+                        jQuery.atmosphere.reconnect(request);
+
+                        if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
+                            // Close and reopen connection on large data received
+                            ajaxRequest.abort();
+                            jQuery.atmosphere.doRequest(ajaxRequest, request);
+                        }
+
                     }
                 };
                 ajaxRequest.send(request.data);
@@ -706,13 +689,10 @@ jQuery.atmosphere = function() {
             websocket.onmessage = function(message) {
                 var data = message.data;
                 if (data.indexOf("parent.callback") != -1) {
-                    var start = data.indexOf("('") + 2;
-                    var end = data.indexOf("')");
-                    jQuery.atmosphere.response.responseBody = data.substring(start, end);
+                    jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                 }
-                else {
-                    jQuery.atmosphere.response.responseBody = data;
-                }
+                jQuery.atmosphere.response.responseBody = data;
+
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
