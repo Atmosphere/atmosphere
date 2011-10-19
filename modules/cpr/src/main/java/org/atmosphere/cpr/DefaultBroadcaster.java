@@ -420,12 +420,23 @@ public class DefaultBroadcaster implements Broadcaster {
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource<?, ?> r : resources) {
                     finalMsg = perRequestFilter(r, entry);
+
+                    if (finalMsg == null) {
+                        logger.debug("Skipping broadcast delivery resource {} " , r);
+                        continue;
+                    }
+
                     if (entry.writeLocally) {
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
                 finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
+
+                if (finalMsg == null) {
+                    logger.debug("Skipping broadcast delivery resource {} " , entry.multipleAtmoResources);
+                    return;
+                }
 
                 if (entry.writeLocally) {
                     queueWriteIO((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
@@ -434,6 +445,12 @@ public class DefaultBroadcaster implements Broadcaster {
                 Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
                 for (AtmosphereResource<?, ?> r : sub) {
                     finalMsg = perRequestFilter(r, entry);
+
+                    if (finalMsg == null) {
+                        logger.debug("Skipping broadcast delivery resource {} " , r);
+                        continue;
+                    }
+
                     if (entry.writeLocally) {
                         queueWriteIO(r, finalMsg, entry);
                     }
@@ -457,8 +474,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
                     Object message = msg.originalMessage;
                     BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
-                    if (a.action() == BroadcastAction.ACTION.ABORT
-                            || a.message() != msg.originalMessage) {
+                    if (a.action() == BroadcastAction.ACTION.ABORT) {
+                        return null;
+                    }
+                    if (a.message() != msg.originalMessage) {
                         finalMsg = a.message();
                     }
                 }
