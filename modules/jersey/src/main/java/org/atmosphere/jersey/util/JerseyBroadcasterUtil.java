@@ -35,33 +35,43 @@ public final class JerseyBroadcasterUtil {
 
         try {
             ContainerResponse cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
+            boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
-            if (cr == null) {
-                logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
-                logger.error("Unexpected state. ContainerResponse cannot be null. The connection hasn't been suspended yet");
+            if (cr == null ||  isCancelled ) {
+                logger.error("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
+                if (!isCancelled) {
+                    logger.error("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
+                } else {
+                    logger.error("ContainerResponse already resumed or cancelled. Ignoring");
+                }
                 r.getBroadcaster().removeAtmosphereResource(r);
                 return;
             }
 
-            MediaType m = (MediaType) cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE);
             if (e.getMessage() instanceof Response) {
                 cr.setResponse((Response) e.getMessage());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
-                cr.getOutputStream().flush();
+                if (!cr.isCommitted()) {
+                    cr.getOutputStream().flush();
+                }
             } else if (e.getMessage() instanceof List) {
                 for (Object msg : (List<Object>) e.getMessage()) {
                     cr.setResponse(Response.ok(msg).build());
-                    cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
-                    cr.getOutputStream().flush();
+                    if (!cr.isCommitted()) {
+                        cr.getOutputStream().flush();
+                    }
                 }
             } else {
+                if (e.getMessage() == null) {
+                    logger.warn("Broadcasted message is null");
+                }
+
                 cr.setResponse(Response.ok(e.getMessage()).build());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
-                cr.getOutputStream().flush();
-            }
+                if (!cr.isCommitted()) {
+                    cr.getOutputStream().flush();
+                }            }
         } catch (Throwable t) {
             onException(t, r);
         } finally {
