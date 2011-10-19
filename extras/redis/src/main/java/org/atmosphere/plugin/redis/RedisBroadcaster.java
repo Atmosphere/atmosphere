@@ -16,11 +16,13 @@
 package org.atmosphere.plugin.redis;
 
 
+import org.apache.commons.pool.impl.GenericObjectPool;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisException;
+import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
@@ -37,11 +39,15 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private static final String REDIS_AUTH = RedisBroadcaster.class.getName() + ".authorization";
     private static final String REDIS_SERVER = RedisBroadcaster.class.getName() + ".server";
+    private static final String REDIS_SHARED_POOL = RedisBroadcaster.class.getName() + ".sharedPool";
 
     private Jedis jedisSubscriber;
     private Jedis jedisPublisher;
     private URI uri;
     private String authToken = null;
+
+    private boolean sharedPool = false;
+    private JedisPool jedisPool;
 
     public RedisBroadcaster() {
         this(RedisBroadcaster.class.getSimpleName(), URI.create("http://localhost:6379"));
@@ -84,9 +90,40 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             if (config.getServletConfig().getInitParameter(REDIS_SERVER) != null) {
                 uri = URI.create(config.getServletConfig().getInitParameter(REDIS_SERVER));
             }
+
+            if (config.getServletConfig().getInitParameter(REDIS_SHARED_POOL) != null) {
+                sharedPool = Boolean.parseBoolean(config.getServletConfig().getInitParameter(REDIS_SHARED_POOL));
+            }
         }
 
-        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
+        logger.info("{} shared connection pool {}", getClass().getName(), sharedPool);
+
+        if (sharedPool) {
+            if (config.properties().get(REDIS_SHARED_POOL) == null) {
+                jedisPool = (JedisPool) config.properties().get(REDIS_SHARED_POOL);
+            }
+
+            // setup is synchronized, no need to sync here as well.
+            if (jedisPool == null) {
+                GenericObjectPool.Config gConfig = new GenericObjectPool.Config();
+                gConfig.testOnBorrow = true;
+                gConfig.testWhileIdle = true;
+
+                jedisPool = new JedisPool(gConfig, uri.getHost(), uri.getPort());
+
+                config.properties().put(REDIS_SHARED_POOL, jedisPool);
+            } else {
+                if (jedisPublisher != null) {
+                    jedisPool.returnResource(jedisPublisher);
+                }
+
+                if (jedisSubscriber != null) {
+                    jedisPool.returnResource(jedisSubscriber);
+                }
+            }
+        }
+
+        jedisSubscriber = sharedPool ? jedisPool.getResource() : new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
 
@@ -103,7 +140,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             }
         }
 
-        jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
+        jedisPublisher = sharedPool ? jedisPool.getResource() : new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisPublisher.connect();
 
@@ -191,7 +228,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             } catch (JedisException e) {
                 logger.warn("outgoingBroadcast exception, retying a connection", e);
                 // Try a second time.
-                jedisPublisher.publish(getID(), message.toString());
+                jedisPublisher = sharedPool ? jedisPool.getResource() : new Jedis(uri.getHost(), uri.getPort());
             }
         }
     }

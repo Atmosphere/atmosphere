@@ -26,6 +26,10 @@
             <param-name>org.atmosphere.websocket.WebSocketProcessor</param-name>
             <param-value>org.atmosphere.websocket.protocol.EchoProtocol</param-value>
         </init-param>
+        <init-param>
+            <param-name>org.atmosphere.plugin.redis.RedisBroadcaster.sharedPool</param-name>
+            <param-value>true</param-value>
+        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
