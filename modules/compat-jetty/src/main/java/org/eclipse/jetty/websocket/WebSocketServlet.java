@@ -30,7 +30,7 @@ package org.eclipse.jetty.websocket;
 import javax.servlet.http.HttpServlet;
 
 /**
- * Fake class for portability across servers.
+ * Fake class for portability across servers. Required to support jetty 7.2 and lower
  */
 public abstract class WebSocketServlet extends HttpServlet {
 }
