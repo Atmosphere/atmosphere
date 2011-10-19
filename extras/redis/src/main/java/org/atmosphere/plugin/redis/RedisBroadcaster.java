@@ -197,26 +197,25 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     }
 
     private void disconnectSubscriber() {
-        synchronized (jedisSubscriber) {
-            if (jedisSubscriber != null) {
-                try {
-                    jedisSubscriber.disconnect();
-                } catch (IOException e) {
-                    logger.error("failed to disconnect subscriber", e);
-                }
-            }
+        if (jedisSubscriber == null) return;
 
+        synchronized (jedisSubscriber) {
+            try {
+                jedisSubscriber.disconnect();
+            } catch (IOException e) {
+                logger.error("failed to disconnect subscriber", e);
+            }
         }
     }
 
     private void disconnectPublisher() {
+        if (jedisPublisher == null) return;
+
         synchronized (jedisPublisher) {
-            if (jedisPublisher != null) {
-                try {
-                    jedisPublisher.disconnect();
-                } catch (IOException e) {
-                    logger.error("failed to disconnect publisher", e);
-                }
+            try {
+                jedisPublisher.disconnect();
+            } catch (IOException e) {
+                logger.error("failed to disconnect publisher", e);
             }
         }
     }
