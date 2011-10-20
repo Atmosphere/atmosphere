@@ -121,12 +121,14 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
-    public AtmosphereResource resource() {
+    public AtmosphereResource<HttpServletRequest,HttpServletResponse> resource() {
+        if (resource == null) throw new IllegalStateException("No AtmosphereResource has been suspended.");
+
         return resource;
     }
 
     public HttpServletRequest request() {
-        return resource.getRequest();
+        return resource().getRequest();
     }
 
     public WebSocket webSocketSupport() {
