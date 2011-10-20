@@ -555,11 +555,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 AsyncWriteToken token;
                 try {
                     token = asyncWriteQueue.take();
-
-                    // We don't want this thread to wait for the write operation to happens.
-                    bc.getAsyncWriteService().submit(this);
-
                     synchronized (token.resource) {
+
+                        // We want this thread to wait for the write operation to happens to kept the order
+                        bc.getAsyncWriteService().submit(this);
+
                         // If the resource is no longer in scope, skip the processing.
                         if (AtmosphereResourceImpl.class.cast(token.resource).isInScope()) {
                             executeAsyncWrite(token.resource, token.msg, token.future);
