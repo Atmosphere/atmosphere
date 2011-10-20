@@ -175,7 +175,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+    public synchronized Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
         Broadcaster b = getBroadcaster(id);
         if (b != null && !c.isAssignableFrom(b.getClass())) {
             String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
@@ -200,7 +200,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public synchronized void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
         // Remove inside all Broadcaster as well.
         try {
             synchronized (r) {
