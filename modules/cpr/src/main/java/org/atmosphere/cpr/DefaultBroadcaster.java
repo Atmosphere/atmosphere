@@ -518,12 +518,19 @@ public class DefaultBroadcaster implements Broadcaster {
 
             event.setMessage(msg);
 
+            HttpServletResponse response = HttpServletResponse.class.cast(resource.getResponse());
             try {
-                if (resource.getAtmosphereResourceEvent() != null
-                        && !resource.getAtmosphereResourceEvent().isCancelled()
-                        && HttpServletRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                if (!response.isCommitted()
+                        && resource.getAtmosphereResourceEvent() != null
+                        && resource.getAtmosphereResourceEvent().isSuspended()) {
+
                     HttpServletRequest.class.cast(resource.getRequest())
                             .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                } else {
+                    // The Request/Response associated with the AtmosphereResource has already been written and commited
+                    removeAtmosphereResource(resource);
+                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
+                    return;
                 }
             } catch (Exception t) {
                 logger.warn("executeAsyncWrite exception.", t);
@@ -632,7 +639,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     r.resume();
                 } catch (Throwable t) {
-                    logger.warn("Was unable to resume a corrupted AtmosphereResource {}" , r);
+                    logger.warn("Was unable to resume a corrupted AtmosphereResource {}", r);
                     logger.warn("Cause", t);
                 }
             }
