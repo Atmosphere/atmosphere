@@ -29,13 +29,6 @@ jQuery.atmosphere = function() {
         if (activeRequest) {
             activeRequest.abort();
         }
-
-        if (!(typeof(transferDoc) == 'undefined')) {
-            if (transferDoc != null) {
-                transferDoc = null;
-                CollectGarbage();
-            }
-        }
     });
 
     return {
@@ -53,13 +46,12 @@ jQuery.atmosphere = function() {
 
         request : {},
         abordingConnection: false,
+        subscribed: true,
         logLevel : 'info',
         callbacks: [],
         activeTransport : null,
         websocket : null,
-        killHiddenIFrame : null,
         uuid : 0,
-        opening : true,
 
         subscribe: function(url, callback, request) {
             jQuery.atmosphere.request = jQuery.extend({
@@ -104,7 +96,10 @@ jQuery.atmosphere = function() {
             }
             jQuery.atmosphere.activeTransport = jQuery.atmosphere.request.transport;
 
-            jQuery.atmosphere.uuid = jQuery.atmosphere.guid();
+            if (jQuery.atmosphere.uuid == 0) {
+                jQuery.atmosphere.uuid = jQuery.atmosphere.guid();
+            }
+
             if (jQuery.atmosphere.request.transport != 'websocket') {
                 jQuery.atmosphere.executeRequest();
             } else if (jQuery.atmosphere.request.transport == 'websocket') {
@@ -136,12 +131,6 @@ jQuery.atmosphere = function() {
             }
             jQuery.atmosphere.abordingConnection = false;
 
-            if (!(typeof(transferDoc) == 'undefined')) {
-                if (transferDoc != null) {
-                    transferDoc = null;
-                    CollectGarbage();
-                }
-            }
         },
 
         executeRequest: function() {
@@ -278,7 +267,6 @@ jQuery.atmosphere = function() {
                         if (response.responseBody.indexOf("parent.callback") != -1) {
                             jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                         }
-
                         jQuery.atmosphere.invokeCallback(response);
                         jQuery.atmosphere.reconnect(request);
 
@@ -287,7 +275,6 @@ jQuery.atmosphere = function() {
                             ajaxRequest.abort();
                             jQuery.atmosphere.doRequest(ajaxRequest, request);
                         }
-
                     }
                 };
                 ajaxRequest.send(request.data);
@@ -299,6 +286,7 @@ jQuery.atmosphere = function() {
 
                     }, request.timeout);
                 }
+                jQuery.atmosphere.subscribed = true;
             } else {
                 jQuery.atmosphere.log(logLevel, ["Max re-connection reached."]);
             }
@@ -616,14 +604,11 @@ jQuery.atmosphere = function() {
             var request = jQuery.atmosphere.request;
             var webSocketSupported = false;
             var url = jQuery.atmosphere.request.url;
-            if (request.method == 'POST') {
-                jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
-            }
+            url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
             var callback = jQuery.atmosphere.request.callback;
 
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
             jQuery.atmosphere.response.transport = "websocket";
-
 
             if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
                 url = jQuery.atmosphere.parseUri(document.location, url);
@@ -690,9 +675,10 @@ jQuery.atmosphere = function() {
                 var data = message.data;
                 if (data.indexOf("parent.callback") != -1) {
                     jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
-                }
-                jQuery.atmosphere.response.responseBody = data;
 
+                }
+                jQuery.atmosphere.response.state = 'messageReceived';
+                jQuery.atmosphere.response.responseBody = message.data;
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
@@ -747,17 +733,13 @@ jQuery.atmosphere = function() {
 
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
-                } else if (jQuery.atmosphere.abordingConnection) {
+                } else if (!jQuery.atmosphere.subscribed) {
+                    jQuery.atmosphere.debug("Websocket closed cleanly");
                     jQuery.atmosphere.response.state = 'closed';
-
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                     if (request.requestCount++ < request.maxRequest) {
-                        jQuery.atmosphere.request.method = request.method;
-                        jQuery.atmosphere.request.url = url;
-                        jQuery.atmosphere.request.data = "";
                         jQuery.atmosphere.request.requestCount = request.requestCount;
-                        jQuery.atmosphere.request.callback = request.callback;
                         jQuery.atmosphere.request.maxRequest = request.maxRequest;
 
                         jQuery.atmosphere.response.responseBody = "";
@@ -822,6 +804,11 @@ jQuery.atmosphere = function() {
             if (callback != null) {
                 jQuery.atmosphere.addCallback(callback);
             }
+
+            if (jQuery.atmosphere.uuid == 0) {
+                jQuery.atmosphere.uuid = jQuery.atmosphere.guid();
+            }
+
             jQuery.atmosphere.request.transport = 'polling';
             if (jQuery.atmosphere.request.transport != 'websocket') {
                 jQuery.atmosphere.executeRequest();
@@ -877,7 +864,8 @@ jQuery.atmosphere = function() {
         }
         ,
 
-        close : function() {
+        unsubscribe : function() {
+            jQuery.atmosphere.subscribed = false;
             jQuery.atmosphere.closeSuspendedConnection();
             if (ieStream != null)
                 ieStream.close();
@@ -1010,3 +998,5 @@ jQuery.atmosphere = function() {
     }
 
 }();
+
+
