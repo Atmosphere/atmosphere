@@ -16,7 +16,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-samples-commons</artifactId>
+            <artifactId>atmosphere-runtime</artifactId>
             <version>${pom.version}</version>
         </dependency>
         <dependency>

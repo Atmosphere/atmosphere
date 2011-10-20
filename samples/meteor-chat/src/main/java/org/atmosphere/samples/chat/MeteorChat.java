@@ -37,8 +37,6 @@
  */
 package org.atmosphere.samples.chat;
 
-import org.atmosphere.commons.jersey.JsonpFilter;
-import org.atmosphere.commons.util.EventsLogger;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Meteor;
 import org.atmosphere.util.XSSHtmlFilter;
