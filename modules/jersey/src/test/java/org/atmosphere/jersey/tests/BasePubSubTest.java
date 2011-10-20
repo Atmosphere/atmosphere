@@ -44,7 +44,6 @@ import com.ning.http.client.HttpResponseHeaders;
 import com.ning.http.client.HttpResponseStatus;
 import com.ning.http.client.Response;
 import org.atmosphere.cache.HeaderBroadcasterCache;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
@@ -103,7 +102,7 @@ public abstract class BasePubSubTest extends BaseTest {
             String[] ct = r.getContentType().toLowerCase().split(";");
             assertEquals(ct[0].trim(), "text/plain");
             assertEquals(ct[1].trim(), "charset=iso-8859-1");
-            assertEquals(resume, AtmosphereResourceImpl.createCompatibleStringJunk());
+            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -240,7 +239,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foo\nbar\n");
+            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foo\nbar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
             logger.error("test failed", e);
@@ -287,7 +286,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foo\nbar\n");
+            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foo\nbar\n");
             assertEquals(r.getStatusCode(), 200);
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
@@ -522,7 +521,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createCompatibleStringJunk() + "foobar\n");
+            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foobar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
             logger.error("test failed", e);

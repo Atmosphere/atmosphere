@@ -87,7 +87,7 @@ public class AtmosphereResourceImpl implements
     private Serializer serializer;
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
-    private final static String beginCompatibleData = createCompatibleStringJunk();
+    private String beginCompatibleData;
     private boolean useWriter = true;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
@@ -131,6 +131,11 @@ public class AtmosphereResourceImpl implements
 
         req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
+
+        String padding =  config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
+        beginCompatibleData = createStreamingPadding(padding);
+
+        req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
     }
 
     /**
@@ -431,21 +436,27 @@ public class AtmosphereResourceImpl implements
      *
      * @return message when Atmosphere suspend a connection.
      */
-    public static String createCompatibleStringJunk() {
+    public static String createStreamingPadding(String padding) {
         StringBuilder s = new StringBuilder();
 
-        s.append("<!-- ----------------------------------------------------------" +
-                "------ http://github.com/Atmosphere ----------------------------" +
-                "-------------------------------------------- -->\n");
-        s.append("<!-- Welcome to the Atmosphere Framework. To work with all the" +
-                " browsers when suspending connection, Atmosphere must output some" +
-                " data to makes WebKit based browser working.-->\n");
-        for (int i = 0; i < 10; i++) {
+        if (padding == null || padding.equalsIgnoreCase("atmosphere")) {
             s.append("<!-- ----------------------------------------------------------" +
-                    "---------------------------------------------------------------" +
+                    "------ http://github.com/Atmosphere ----------------------------" +
                     "-------------------------------------------- -->\n");
+            s.append("<!-- Welcome to the Atmosphere Framework. To work with all the" +
+                    " browsers when suspending connection, Atmosphere must output some" +
+                    " data to makes WebKit based browser working.-->\n");
+            for (int i = 0; i < 10; i++) {
+                s.append("<!-- ----------------------------------------------------------" +
+                        "---------------------------------------------------------------" +
+                        "-------------------------------------------- -->\n");
+            }
+            s.append("<!-- EOD -->");
+        } else {
+            for (int i=0; i < 2048; i++) {
+                s.append(" ");
+            }
         }
-        s.append("<!-- EOD -->");
         return s.toString();
     }
 

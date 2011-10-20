@@ -218,7 +218,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             String resume = r.getResponseBody();
-            assertEquals(resume, AtmosphereResourceImpl.createCompatibleStringJunk());
+            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -317,7 +317,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -389,7 +389,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -471,7 +471,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -620,7 +620,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -701,7 +701,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -781,7 +781,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -855,7 +855,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -1062,7 +1062,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }
@@ -1129,7 +1129,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createCompatibleStringJunk());
+                                AtmosphereResourceImpl.createStreamingPadding(null));
                     } finally {
                         latch.countDown();
                     }

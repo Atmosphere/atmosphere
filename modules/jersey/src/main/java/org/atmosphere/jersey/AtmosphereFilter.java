@@ -57,21 +57,18 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.WebApplicationException;
@@ -677,7 +674,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                 configureHeaders(response);
                 if (comments && !resumeOnBroadcast) {
-                    response.setEntity(AtmosphereResourceImpl.createCompatibleStringJunk());
+                    String padding = (String)servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
+                    String paddingData = AtmosphereResourceImpl.createStreamingPadding(padding);
+
+                    response.setEntity(paddingData);
                     response.write();
                 }
 
