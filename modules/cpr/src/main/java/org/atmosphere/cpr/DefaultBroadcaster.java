@@ -518,11 +518,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
             event.setMessage(msg);
 
-            HttpServletResponse response = HttpServletResponse.class.cast(resource.getResponse());
             try {
-                if (!response.isCommitted()
-                        && resource.getAtmosphereResourceEvent() != null
-                        && resource.getAtmosphereResourceEvent().isSuspended()) {
+                if (resource.getAtmosphereResourceEvent() != null && resource.getAtmosphereResourceEvent().isSuspended()) {
 
                     HttpServletRequest.class.cast(resource.getRequest())
                             .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
