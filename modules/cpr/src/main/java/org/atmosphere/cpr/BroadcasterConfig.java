@@ -37,6 +37,7 @@
 
 package org.atmosphere.cpr;
 
+import com.apple.eawt.Application;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -119,32 +121,92 @@ public class BroadcasterConfig {
         this.config = config;
     }
 
-    protected void configExecutors() {
-        executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
+    protected synchronized void configExecutors() {
+        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
+        if (Boolean.parseBoolean(s)) {
+            isExecutorShared = true;
+            isAsyncExecutorShared = true;
+        }
 
-            private final AtomicInteger count = new AtomicInteger();
-
-            @Override
-            public Thread newThread(final Runnable runnable) {
-                Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
-                t.setDaemon(true);
-                return t;
+        if (config.properties().get("executorService") == null) {
+            int numberOfMessageProcessingThread = 1;
+            s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
+            if (s != null) {
+                numberOfMessageProcessingThread = Integer.parseInt(s);
             }
-        });
-        defaultExecutorService = executorService;
 
-        asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
-
-            private final AtomicInteger count = new AtomicInteger();
-
-            @Override
-            public Thread newThread(final Runnable runnable) {
-                Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
-                t.setDaemon(true);
-                return t;
+            int numberOfAsyncThread = -1;
+            s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+            if (s != null) {
+                numberOfAsyncThread = Integer.parseInt(s);
             }
-        });
-        defaultAsyncWriteService = asyncWriteService;
+
+            if (numberOfMessageProcessingThread == -1) {
+                executorService = Executors.newCachedThreadPool(new ThreadFactory() {
+
+                    private final AtomicInteger count = new AtomicInteger();
+
+                    @Override
+                    public Thread newThread(final Runnable runnable) {
+                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+            } else {
+                executorService = Executors.newFixedThreadPool(numberOfMessageProcessingThread, new ThreadFactory() {
+
+                    private final AtomicInteger count = new AtomicInteger();
+
+                    @Override
+                    public Thread newThread(final Runnable runnable) {
+                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + +count.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+            }
+            defaultExecutorService = executorService;
+
+            if (numberOfAsyncThread == -1) {
+                asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
+
+                    private final AtomicInteger count = new AtomicInteger();
+
+                    @Override
+                    public Thread newThread(final Runnable runnable) {
+                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+            } else {
+                asyncWriteService = Executors.newFixedThreadPool(numberOfAsyncThread, new ThreadFactory() {
+
+                    private final AtomicInteger count = new AtomicInteger();
+
+                    @Override
+                    public Thread newThread(final Runnable runnable) {
+                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+            }
+            defaultAsyncWriteService = asyncWriteService;
+
+            if (isExecutorShared) {
+                config.properties().put("executorService", executorService);
+                config.properties().put("asyncWriteService", asyncWriteService);
+            }
+
+        } else {
+            executorService = (ExecutorService) config.properties().get("executorService");
+            defaultExecutorService = executorService;
+
+            asyncWriteService = (ExecutorService) config.properties().get("asyncWriteService");
+            defaultAsyncWriteService = asyncWriteService;
+        }
     }
 
     /**
@@ -163,9 +225,9 @@ public class BroadcasterConfig {
      * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
      * of size 1 is used if that method is not invoked.
      *
-     * @param executorService to be used when broadcasting.
+     * @param executorService  to be used when broadcasting.
      * @param isExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
-     * That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     *                         That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
      */
     public BroadcasterConfig setExecutorService(ExecutorService executorService, boolean isExecutorShared) {
         if (!this.isExecutorShared && this.executorService != null) {
@@ -202,9 +264,9 @@ public class BroadcasterConfig {
      * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
      * is used if that method is not invoked.
      *
-     * @param asyncWriteService to be used when writing events .
+     * @param asyncWriteService     to be used when writing events .
      * @param isAsyncExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
-     * That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     *                              That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
      */
     public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService, boolean isAsyncExecutorShared) {
         if (!this.isAsyncExecutorShared && this.asyncWriteService != null) {
