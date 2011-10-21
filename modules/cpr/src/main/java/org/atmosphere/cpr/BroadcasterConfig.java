@@ -135,10 +135,22 @@ public class BroadcasterConfig {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
             }
 
+            if (isExecutorShared && numberOfMessageProcessingThread == 1) {
+                logger.warn("Not enought numberOfMessageProcessingThread for a shareable thread pool {}, " +
+                        "Setting it to a newCachedThreadPool", numberOfMessageProcessingThread);
+                numberOfMessageProcessingThread = -1;
+            }
+
             int numberOfAsyncThread = 1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
+            }
+
+            if (isAsyncExecutorShared && numberOfAsyncThread == 1) {
+                logger.warn("Not enought numberOfAsyncThread for a shareable thread pool {}, " +
+                        "Setting it to a newCachedThreadPool", numberOfAsyncThread);
+                numberOfAsyncThread = -1;
             }
 
             if (numberOfMessageProcessingThread == -1) {
