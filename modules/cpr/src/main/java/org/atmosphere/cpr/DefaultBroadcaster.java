@@ -116,6 +116,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         broadcasterCache = new DefaultBroadcasterCache();
         bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+        initialId = name;
     }
 
     public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
@@ -773,6 +774,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return r;
         }
 
+        start();
         if (scope == SCOPE.REQUEST && requestScoped.getAndSet(true)) {
             throw new IllegalStateException("Broadcaster " + this
                     + " cannot be used as its scope is set to REQUEST");
@@ -954,7 +956,6 @@ public class DefaultBroadcaster implements Broadcaster {
             return null;
         }
 
-        start();
         final Object msg = filter(o);
         if (msg == null) return null;
 
