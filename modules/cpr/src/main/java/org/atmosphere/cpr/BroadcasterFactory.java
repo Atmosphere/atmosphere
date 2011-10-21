@@ -55,7 +55,7 @@ public abstract class BroadcasterFactory {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    abstract public Broadcaster get() throws IllegalAccessException, InstantiationException;
+    abstract public Broadcaster get();
 
     /**
      * Create a new instance of {@link Broadcaster} and store it for
@@ -64,7 +64,7 @@ public abstract class BroadcasterFactory {
      * @param id The unique ID used to retrieve {@link Broadcaster}
      * @return a new instance of {@link Broadcaster}
      */
-    abstract public Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException;
+    abstract public Broadcaster get(Class<? extends Broadcaster> c, Object id);
 
     /**
      * Shutdown all {@link Broadcaster}

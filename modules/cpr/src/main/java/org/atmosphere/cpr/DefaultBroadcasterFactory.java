@@ -44,6 +44,7 @@ import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -103,14 +104,15 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public synchronized final Broadcaster get() throws IllegalAccessException, InstantiationException {
-        Broadcaster b = clazz.newInstance();
-        InjectorProvider.getInjector().inject(b);
-        if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
-            AbstractBroadcasterProxy.class.cast(b).configure(config);
+    public synchronized final Broadcaster get() {
+        Broadcaster b = null;
+        try {
+            b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(clazz.getSimpleName() + "-" + UUID.randomUUID(), config);
+        } catch (Throwable t) {
+            throw new BroadcasterCreationException(t);
         }
+        InjectorProvider.getInjector().inject(b);
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-        b.setID(clazz.getSimpleName() + "-" + UUID.randomUUID());
         b.setBroadcasterLifeCyclePolicy(policy);
         store.put(b.getID(), b);
         return b;
@@ -119,7 +121,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public synchronized final Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException {
+    public synchronized final Broadcaster get(Class<? extends Broadcaster> c, Object id) {
 
         if (id == null) throw new NullPointerException("id is null");
         if (c == null) throw new NullPointerException("Class is null");
@@ -127,13 +129,15 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (getBroadcaster(id) != null)
             throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
 
-        Broadcaster b = c.newInstance();
-        InjectorProvider.getInjector().inject(b);
-        if (AbstractBroadcasterProxy.class.isAssignableFrom(b.getClass())) {
-            AbstractBroadcasterProxy.class.cast(b).configure(config);
+        Broadcaster b = null;
+
+        try {
+            b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
+        } catch (Throwable t) {
+            throw new BroadcasterCreationException(t);
         }
+        InjectorProvider.getInjector().inject(b);
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-        b.setID(id.toString());
         b.setBroadcasterLifeCyclePolicy(policy);
 
         store.put(id, b);
@@ -184,13 +188,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
 
         if (b == null && createIfNull) {
-            try {
-                b = get(c, id);
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            } catch (InstantiationException e) {
-                throw new IllegalStateException(e);
-            }
+            b = get(c, id);
         }
 
         return b;
@@ -256,4 +254,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         return factory;
     }
 
+    public static final class BroadcasterCreationException extends RuntimeException {
+        public BroadcasterCreationException(Throwable t) {
+            super(t);
+        }
+    }
 }
