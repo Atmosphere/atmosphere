@@ -17,6 +17,7 @@ package org.atmosphere.plugin.redis;
 
 
 import org.apache.commons.pool.impl.GenericObjectPool;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -44,28 +46,18 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private Jedis jedisSubscriber;
     private Jedis jedisPublisher;
-    private URI uri;
     private String authToken = null;
 
     private boolean sharedPool = false;
     private JedisPool jedisPool;
     private AtomicInteger pubTry = new AtomicInteger();
 
-    public RedisBroadcaster() {
-        this(RedisBroadcaster.class.getSimpleName(), URI.create("http://localhost:6379"));
+    public RedisBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        this(id, URI.create("http://localhost:6379"), config);
     }
 
-    public RedisBroadcaster(String id) {
-        this(id, URI.create("http://localhost:6379"));
-    }
-
-    public RedisBroadcaster(URI uri) {
-        this(RedisBroadcaster.class.getSimpleName(), uri);
-    }
-
-    public RedisBroadcaster(String id, URI uri) {
-        super(id);
-        this.uri = uri;
+    public RedisBroadcaster(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, uri, config);
     }
 
     public String getAuth() {
@@ -76,26 +68,20 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         authToken = auth;
     }
 
-    @Override
-    protected void start() {
-        super.start();
-    }
-
     public synchronized void setUp() {
-        if (uri == null) return;
 
-        if (config != null) {
-            if (config.getServletConfig().getInitParameter(REDIS_AUTH) != null) {
-                authToken = config.getServletConfig().getInitParameter(REDIS_AUTH);
-            }
+        if (config.getServletConfig().getInitParameter(REDIS_AUTH) != null) {
+            authToken = config.getServletConfig().getInitParameter(REDIS_AUTH);
+        }
 
-            if (config.getServletConfig().getInitParameter(REDIS_SERVER) != null) {
-                uri = URI.create(config.getServletConfig().getInitParameter(REDIS_SERVER));
-            }
+        if (config.getServletConfig().getInitParameter(REDIS_SERVER) != null) {
+            uri = URI.create(config.getServletConfig().getInitParameter(REDIS_SERVER));
+        } else if (uri == null) {
+            throw new NullPointerException("uri cannot be null");
+        }
 
-            if (config.getServletConfig().getInitParameter(REDIS_SHARED_POOL) != null) {
-                sharedPool = Boolean.parseBoolean(config.getServletConfig().getInitParameter(REDIS_SHARED_POOL));
-            }
+        if (config.getServletConfig().getInitParameter(REDIS_SHARED_POOL) != null) {
+            sharedPool = Boolean.parseBoolean(config.getServletConfig().getInitParameter(REDIS_SHARED_POOL));
         }
 
         logger.info("{} shared connection pool {}", getClass().getName(), sharedPool);
@@ -129,11 +115,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
-
-            if (authToken != null) {
-                jedisSubscriber.auth(authToken);
-            }
-            jedisSubscriber.flushAll();
+            auth(jedisSubscriber);
         } catch (IOException e) {
             logger.error("failed to connect subscriber", e);
             try {
@@ -148,10 +130,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             try {
                 jedisPublisher.connect();
 
-                if (authToken != null) {
-                    jedisPublisher.auth(authToken);
-                }
-                jedisPublisher.flushAll();
+                auth(jedisPublisher);
             } catch (IOException e) {
                 logger.error("failed to connect publisher", e);
                 try {
@@ -228,29 +207,39 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     public void outgoingBroadcast(Object message) {
         // One thread at a time can use a Jedis Connection.
         Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
+        boolean valid = true;
         synchronized (lockingObject) {
             try {
                 if (sharedPool) {
                     jedisPublisher = jedisPool.getResource();
-                    if (authToken != null) {
-                        jedisPublisher.auth(authToken);
-                    }
-                    jedisPublisher.flushAll();
+                    auth(jedisPublisher);
                 }
                 jedisPublisher.publish(getID(), message.toString());
-                jedisPool.returnResource(jedisPublisher);
             } catch (JedisException e) {
                 logger.warn("outgoingBroadcast exception", e);
+                valid = false;
+            } finally {
                 if (sharedPool) {
-                    jedisPool.returnBrokenResource(jedisPublisher);
-                    if (pubTry.getAndIncrement() < 10) {
-                        outgoingBroadcast(message);
+                    if (!valid) {
+                        jedisPool.returnBrokenResource(jedisPublisher);
                     } else {
-                        logger.error("Redis connections brokens");
+                        jedisPool.returnResource(jedisPublisher);
+                    }
+
+                    // This is dangerous to loop.
+                    if (!valid) {
+                        outgoingBroadcast(message);
                     }
                 }
             }
         }
+    }
+
+    private void auth(Jedis jedis) {
+        if (authToken != null) {
+            jedis.auth(authToken);
+        }
+        jedis.flushAll();
     }
 
     private void disconnectSubscriber() {
