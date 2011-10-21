@@ -86,14 +86,21 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     private void configure(String broadcasterLifeCyclePolicy) {
+
+        int maxIdleTime = 5 * 60 * 100;
+        String idleTime = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
+        if (idleTime != null) {
+            maxIdleTime = Integer.parseInt(idleTime);
+        }
+
         if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY).build();
         } else if (EMPTY_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY_DESTROY).build();
         } else if (IDLE.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
-            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(5 * 60 * 100).build();
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(maxIdleTime).build();
         } else if (IDLE_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
-            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(5 * 60 * 100).build();
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(maxIdleTime).build();
         } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
         } else {
@@ -246,8 +253,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public synchronized void destroy() {
         Enumeration<Broadcaster> e = store.elements();
+        Broadcaster b;
         while (e.hasMoreElements()) {
-            e.nextElement().destroy();
+            b = e.nextElement();
+            b.resumeAll();
+            b.destroy();
         }
         store.clear();
         factory = null;
