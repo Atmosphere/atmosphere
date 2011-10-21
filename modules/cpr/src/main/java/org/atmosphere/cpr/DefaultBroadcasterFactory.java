@@ -254,11 +254,27 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public synchronized void destroy() {
         Enumeration<Broadcaster> e = store.elements();
         Broadcaster b;
+        // We just need one when shared.
+        BroadcasterConfig bc = null;
         while (e.hasMoreElements()) {
-            b = e.nextElement();
-            b.resumeAll();
-            b.destroy();
+            try {
+                b = e.nextElement();
+                b.resumeAll();
+                b.destroy();
+                bc = b.getBroadcasterConfig();
+            } catch (Throwable t) {
+                // Shield us from any bad behaviour
+                logger.trace("destroy",t);
+            }
         }
+
+        try {
+            if (bc != null) bc.forceDestroy();
+        } catch (Throwable t) {
+            logger.trace("destroy",t);
+
+        }
+
         store.clear();
         factory = null;
     }
