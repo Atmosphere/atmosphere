@@ -104,10 +104,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                 if (jedisPublisher != null) {
                     jedisPool.returnResource(jedisPublisher);
                 }
+                disconnectSubscriber();
 
-                if (jedisSubscriber != null) {
-                    disconnectSubscriber();
-                }
             }
         }
 
@@ -118,11 +116,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             auth(jedisSubscriber);
         } catch (IOException e) {
             logger.error("failed to connect subscriber", e);
-            try {
-                jedisSubscriber.disconnect();
-            } catch (IOException e1) {
-                logger.error("failed to disconnect subscriber", e);
-            }
+            disconnectSubscriber();
         }
 
         jedisPublisher = sharedPool ? null : new Jedis(uri.getHost(), uri.getPort());
@@ -133,11 +127,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                 auth(jedisPublisher);
             } catch (IOException e) {
                 logger.error("failed to connect publisher", e);
-                try {
-                    jedisPublisher.disconnect();
-                } catch (IOException e1) {
-                    logger.error("failed to disconnect publisher", e);
-                }
+                disconnectPublisher();
             }
         }
     }
