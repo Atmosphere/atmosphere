@@ -160,4 +160,8 @@ public interface ApplicationConfig {
      * BroadcasterLifecycle max idle time before executing. Default is 5 minutes
      */
     String BROADCASTER_LIFECYCLE_POLICY_IDLETIME = ApplicationConfig.class.getPackage().getName() + ".maxBroadcasterLifeCyclePolicyIdleTime";
+    /**
+     * Recover from a {@link Broadcaster} that has been destroyed. Default is true.
+     */
+    String RECOVER_DEAD_BROADCASTER = ApplicationConfig.class.getPackage().getName() + ".recoverFromDestroyedBroadcaster";
 }

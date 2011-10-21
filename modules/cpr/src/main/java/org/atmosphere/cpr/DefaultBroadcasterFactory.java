@@ -76,9 +76,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy) {
+    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereServlet.AtmosphereConfig c) {
         this.clazz = clazz;
-
+        config = c;
         if (factory == null) {
             this.factory = this;
         }
@@ -291,8 +291,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereServlet.AtmosphereConfig c)
             throws InstantiationException, IllegalAccessException {
 
-        factory = new DefaultBroadcasterFactory(clazz, "NEVER");
-        config = c;
+        factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);
         return factory;
     }
 

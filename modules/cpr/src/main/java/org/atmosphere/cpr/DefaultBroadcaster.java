@@ -316,14 +316,28 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
         lifeCycleListeners.add(b);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
         lifeCycleListeners.remove(b);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isDestroyed() {
+        return destroyed.get();
     }
 
     public static final class Entry {
