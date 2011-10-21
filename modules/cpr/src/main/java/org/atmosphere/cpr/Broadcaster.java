@@ -288,4 +288,10 @@ public interface Broadcaster extends Trackable {
      */
     void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
 
+    /**
+     * Return true if that {@link Broadcaster} has been destroyed
+     * @return true if that {@link Broadcaster} has been destroyed
+     */
+    boolean isDestroyed();
+
 }

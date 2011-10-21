@@ -398,7 +398,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         Class bc = (b == null ? DefaultBroadcaster.class : b);
-        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy), config);
+        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config), config);
     }
 
 
@@ -602,7 +602,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                             .loadClass(broadcasterClassName);
 
-            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy);
+            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         }
 
         // http://java.net/jira/browse/ATMOSPHERE-157

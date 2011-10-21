@@ -132,7 +132,7 @@ public class AtmosphereResourceImpl implements
         req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
-        String padding =  config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
+        String padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         beginCompatibleData = createStreamingPadding(padding);
 
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
@@ -233,7 +233,7 @@ public class AtmosphereResourceImpl implements
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
 
-        if(req.getAttribute(DefaultBroadcaster.CACHED) != null) {
+        if (req.getAttribute(DefaultBroadcaster.CACHED) != null) {
             // Do nothing because we have found cached message which was written already, and the handler resumed.
             req.removeAttribute(DefaultBroadcaster.CACHED);
             return;
@@ -347,6 +347,22 @@ public class AtmosphereResourceImpl implements
         if (broadcaster == null) {
             throw new IllegalStateException("No Broadcaster associated with this AtmosphereResource.");
         }
+
+        String s = config.getInitParameter(ApplicationConfig.RECOVER_DEAD_BROADCASTER);
+        boolean autoCreate = true;
+        if (s != null) {
+            autoCreate = Boolean.parseBoolean(s);
+        }
+
+        if (autoCreate && broadcaster.isDestroyed()) {
+            logger.warn("The current Broadcaster has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
+                    " mechanism by adding, in web.xml, " + ApplicationConfig.RECOVER_DEAD_BROADCASTER + " set to false");
+            synchronized (this) {
+                String id = broadcaster.getScope() != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
+                broadcaster = BroadcasterFactory.getDefault().get(id);
+            }
+
+        }
         return broadcaster;
     }
 
@@ -453,7 +469,7 @@ public class AtmosphereResourceImpl implements
             }
             s.append("<!-- EOD -->");
         } else {
-            for (int i=0; i < 2048; i++) {
+            for (int i = 0; i < 2048; i++) {
                 s.append(" ");
             }
         }
@@ -553,7 +569,7 @@ public class AtmosphereResourceImpl implements
         }
     }
 
-    public ConcurrentLinkedQueue<AtmosphereResourceEventListener>  atmosphereResourceEventListener(){
+    public ConcurrentLinkedQueue<AtmosphereResourceEventListener> atmosphereResourceEventListener() {
         return listeners;
     }
 
