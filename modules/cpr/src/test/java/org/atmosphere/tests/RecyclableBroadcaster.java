@@ -54,6 +54,9 @@ public class RecyclableBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
+        resumeAll();
+        notifierFuture.cancel(true);
+        asyncWriteFuture.cancel(true) ;
         broadcasterCache = new BroadcasterConfig.DefaultBroadcasterCache();
         setScope(Broadcaster.SCOPE.APPLICATION);
     }

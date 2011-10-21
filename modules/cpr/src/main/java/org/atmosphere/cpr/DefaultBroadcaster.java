@@ -133,6 +133,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         started.set(false);
         destroyed.set(true);
+
         releaseExternalResources();
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
@@ -240,7 +241,11 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public void resumeAll() {
         for (AtmosphereResource<?, ?> r : resources) {
-            r.resume();
+            try {
+                r.resume();
+            } catch (Throwable t) {
+                logger.trace("resumeAll", t);
+            }
         }
     }
 
@@ -298,7 +303,11 @@ public class DefaultBroadcaster implements Broadcaster {
                             }
                         }
                     } catch (Throwable t) {
-                        logger.warn("Scheduled BroadcasterLifeCyclePolicy exception", t);
+                        if (destroyed.get()) {
+                            logger.trace("Scheduled BroadcasterLifeCyclePolicy exception", t);
+                        } else {
+                            logger.warn("Scheduled BroadcasterLifeCyclePolicy exception", t);
+                        }
                     }
                 }
 
@@ -359,7 +368,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         msg = messages.take();
                         push(msg);
                     } catch (Throwable ex) {
-                        if (!started.get()) {
+                        if (!started.get() || destroyed.get()) {
                             logger.trace("Failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
                         } else {
                             logger.warn("This message {} will be lost", msg);
@@ -576,7 +585,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                 } catch (Throwable ex) {
-                    if (!started.get()) {
+                    if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to submit async write task on shutdown", ex);
                     } else {
                         logger.warn("Failed to write {}", token);

@@ -817,29 +817,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
 
-        // We just need one bc to shutdown the shared thread pool
-        BroadcasterConfig bc = null;
-        for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
-            AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
-            handlerWrapper.atmosphereHandler.destroy();
-
-            Broadcaster broadcaster = handlerWrapper.broadcaster;
-            if (broadcaster != null) {
-                broadcaster.destroy();
-                bc = broadcaster.getBroadcasterConfig();
-            }
-        }
-
         BroadcasterFactory factory = BroadcasterFactory.getDefault();
         if (factory != null) {
             factory.destroy();
             BroadcasterFactory.factory = null;
         }
 
-        // Force destroy
-        if (bc != null) {
-            bc.forceDestroy();
-        }
     }
 
     /**
