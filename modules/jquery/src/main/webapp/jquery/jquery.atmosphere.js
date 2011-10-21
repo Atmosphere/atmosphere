@@ -311,7 +311,7 @@ jQuery.atmosphere = function() {
             }
         },
 
-        reconnect : function (request) {
+        reconnect : function (ajaxRequest, request) {
             if (jQuery.atmosphere.request.executeCallbackBeforeReconnect && ajaxRequest.readyState == 4) {
                 jQuery.atmosphere.request = request;
                 if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
