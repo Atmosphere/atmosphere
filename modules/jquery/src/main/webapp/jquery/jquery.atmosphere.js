@@ -261,14 +261,14 @@ jQuery.atmosphere = function() {
                             response.state = "messagePublished";
                         }
 
-                        jQuery.atmosphere.reconnect(request);
+                        jQuery.atmosphere.reconnect(ajaxRequest, request);
 
                         // For backward compatibility with Atmosphere < 0.8
                         if (response.responseBody.indexOf("parent.callback") != -1) {
                             jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                         }
                         jQuery.atmosphere.invokeCallback(response);
-                        jQuery.atmosphere.reconnect(request);
+                        jQuery.atmosphere.reconnect(ajaxRequest, request);
 
                         if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                             // Close and reopen connection on large data received
