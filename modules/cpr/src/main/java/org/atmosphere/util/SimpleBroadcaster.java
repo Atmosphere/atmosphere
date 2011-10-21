@@ -43,6 +43,8 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -53,6 +55,8 @@ import java.util.concurrent.Future;
  * @author Jeanfrancois Arcand
  */
 public class SimpleBroadcaster extends DefaultBroadcaster {
+
+    private static final Logger logger = LoggerFactory.getLogger(SimpleBroadcaster.class);
 
     public SimpleBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         super(id, config);
@@ -72,6 +76,14 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg) {
+
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
+
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -85,6 +97,14 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
+
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
+
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -98,6 +118,14 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+
+        if (destroyed.get()) {
+            logger.error("This Broadcaster has been destroyed and cannot be used");
+            return null;
+        }
+
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
