@@ -271,7 +271,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         private boolean supportSession = true;
         private BroadcasterFactory broadcasterFactory;
         private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
-        private Map<String, Object> properties = new HashMap<String,Object>();
+        private Map<String, Object> properties = new HashMap<String, Object>();
 
         protected Map<String, AtmosphereHandlerWrapper> handlers() {
             return AtmosphereServlet.this.atmosphereHandlers;
@@ -332,7 +332,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             return AtmosphereServlet.this;
         }
 
-        public Map<String,Object> properties(){
+        public Map<String, Object> properties() {
             return properties;
         }
     }
@@ -741,11 +741,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         String broadcasterClassNameTmp = null;
-        
+
         try {
             cl.loadClass(JERSEY_CONTAINER);
-            
-            if (!isBroadcasterSpecified){
+
+            if (!isBroadcasterSpecified) {
                 broadcasterClassNameTmp = lookupDefaultBroadcasterType();
 
                 cl.loadClass(broadcasterClassNameTmp);
@@ -761,7 +761,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
-        if (broadcasterClassNameTmp!=null) broadcasterClassName = broadcasterClassNameTmp;
+        if (broadcasterClassNameTmp != null) broadcasterClassName = broadcasterClassNameTmp;
         rsp.setServletClassName(JERSEY_CONTAINER);
         sessionSupport(false);
         initParams.put(DISABLE_ONSTATE_EVENT, "true");
@@ -817,6 +817,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
 
+        // We just need one bc to shutdown the shared thread pool
+        BroadcasterConfig bc = null;
         for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             handlerWrapper.atmosphereHandler.destroy();
@@ -824,6 +826,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             Broadcaster broadcaster = handlerWrapper.broadcaster;
             if (broadcaster != null) {
                 broadcaster.destroy();
+                bc = broadcaster.getBroadcasterConfig();
             }
         }
 
@@ -831,6 +834,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (factory != null) {
             factory.destroy();
             BroadcasterFactory.factory = null;
+        }
+
+        // Force destroy
+        if (bc != null) {
+            bc.forceDestroy();
         }
     }
 
@@ -1153,11 +1161,11 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
 
         try {
-            if ( config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
+            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
                     && isIECandidate(req)
                     && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
 
-                Map<String,String> headers = configureQueryStringAsRequest(req);
+                Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 return cometSupport.service(new AtmosphereRequest.Builder()
                         .headers(headers)
