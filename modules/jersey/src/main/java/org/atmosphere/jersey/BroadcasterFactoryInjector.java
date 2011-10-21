@@ -56,6 +56,9 @@ import java.util.Collection;
  */
 abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
 
+    protected BroadcasterFactoryInjector() {
+    }
+
     boolean isValidType(Type t) {
         return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class) t);
     }
@@ -107,6 +110,11 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             @Override
             public Broadcaster get() {
                 return _get().get();
+            }
+
+            @Override
+            public Broadcaster get(Object id) {
+                return _get().get(id);
             }
 
             @Override
