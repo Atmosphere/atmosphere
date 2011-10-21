@@ -105,15 +105,27 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public synchronized final Broadcaster get() {
+        return get(clazz.getSimpleName() + "-" + UUID.randomUUID());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public synchronized final Broadcaster get(Object id) {
         Broadcaster b = null;
         try {
-            b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(clazz.getSimpleName() + "-" + UUID.randomUUID(), config);
+            b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
         } catch (Throwable t) {
             throw new BroadcasterCreationException(t);
         }
         InjectorProvider.getInjector().inject(b);
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setBroadcasterLifeCyclePolicy(policy);
+
+        if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
+            DefaultBroadcaster.class.cast(b).start();
+        }
+
         store.put(b.getID(), b);
         return b;
     }
@@ -139,6 +151,10 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         InjectorProvider.getInjector().inject(b);
         b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
         b.setBroadcasterLifeCyclePolicy(policy);
+
+        if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
+            DefaultBroadcaster.class.cast(b).start();
+        }
 
         store.put(id, b);
         return b;

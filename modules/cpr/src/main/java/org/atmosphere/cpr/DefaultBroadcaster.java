@@ -212,16 +212,12 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public synchronized void setID(String id) {
-        setID(id, false);
-    }
-
-    protected void setID(String id, boolean check) {
         if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
 
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
-        if (check && b != null && b.getScope() == SCOPE.REQUEST) {
+        if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
         }  else if (b != null) {
             return;
@@ -363,11 +359,11 @@ public class DefaultBroadcaster implements Broadcaster {
                         msg = messages.take();
                         push(msg);
                     } catch (Throwable ex) {
-                        logger.warn("This message {} will be lost", msg);
                         if (!started.get()) {
-                            logger.trace("failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
+                            logger.trace("Failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
                         } else {
-                            logger.debug("failed to submit broadcast handler runnable to broadcast executor service", ex);
+                            logger.warn("This message {} will be lost", msg);
+                            logger.debug("Failed to submit broadcast handler runnable to broadcast executor service", ex);
                         }
                     }
                 }
@@ -377,7 +373,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(name, false);
+            setID(name);
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
@@ -580,11 +576,11 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                 } catch (Throwable ex) {
-                    logger.warn("Failed to write {}", token);
                     if (!started.get()) {
-                        logger.trace("failed to submit async write task on shutdown", ex);
+                        logger.trace("Failed to submit async write task on shutdown", ex);
                     } else {
-                        logger.debug("failed to submit async write task", ex);
+                        logger.warn("Failed to write {}", token);
+                        logger.debug("Failed to submit async write task", ex);
                     }
                 }
             }

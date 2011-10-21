@@ -49,13 +49,21 @@ public abstract class BroadcasterFactory {
     protected static AtmosphereServlet.AtmosphereConfig config;
 
     /**
-     * Return an instance of the default {@link Broadcaster}
+     * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
      *
      * @return an instance of the default {@link Broadcaster}
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
     abstract public Broadcaster get();
+
+    /**
+     * Create a new instance of {@link Broadcaster} and store it for
+     *
+     * @param id The unique ID used to retrieve {@link Broadcaster}
+     * @return a new instance of {@link Broadcaster}
+     */
+    abstract public Broadcaster get(Object id);
 
     /**
      * Create a new instance of {@link Broadcaster} and store it for

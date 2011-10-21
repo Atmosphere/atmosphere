@@ -236,10 +236,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
 
-        public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler) {
+        public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                broadcaster = BroadcasterFactory.getDefault().get();
+                broadcaster = BroadcasterFactory.getDefault().get(mapping);
             } catch (Exception t) {
                 throw new RuntimeException(t);
             }
@@ -424,7 +424,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             mapping = "/" + mapping;
         }
 
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h);
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
         atmosphereHandlers.put(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
@@ -442,7 +442,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             mapping = "/" + mapping;
         }
 
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h);
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
         w.broadcaster.setID(broadcasterId);
         atmosphereHandlers.put(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
@@ -874,7 +874,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handlerPath);
 
-                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler);
+                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, handlerPath);
                 atmosphereHandlers.put(handlerPath, wrapper);
                 boolean isJersey = false;
                 for (Property p : reader.getProperty(handlerPath)) {
@@ -1017,7 +1017,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                         AtmosphereHandler handler = (AtmosphereHandler) clazz.newInstance();
                         InjectorProvider.getInjector().inject(handler);
                         atmosphereHandlers.put("/" + handler.getClass().getSimpleName(),
-                                new AtmosphereHandlerWrapper(handler, null));
+                                new AtmosphereHandlerWrapper(handler, "/" + handler.getClass().getSimpleName()));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
                     }
                 } catch (Throwable t) {
