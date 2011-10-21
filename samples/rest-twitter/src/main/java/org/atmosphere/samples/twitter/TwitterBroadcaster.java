@@ -39,6 +39,7 @@ package org.atmosphere.samples.twitter;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.JerseyBroadcaster;
 
@@ -52,7 +53,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class TwitterBroadcaster extends JerseyBroadcaster {
 
-    public TwitterBroadcaster() {
+    public TwitterBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, config);
     }
 
 

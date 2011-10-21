@@ -16,6 +16,7 @@
 package org.atmosphere.plugin.xmpp;
 
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ConnectionConfiguration;
@@ -42,30 +43,19 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
     private static final String XMPP_SERVER = XMPPBroadcaster.class.getName() + ".server";
     private static final String XMPP_DEBUG = XMPPBroadcaster.class.getName() + ".debug";
 
-    private URI uri;
     private String authToken;
     private XMPPConnection xmppConnection;
     private Chat channel;
 
-    public XMPPBroadcaster() {
-        this("atmosphere", URI.create("http://gmail.com"));
+    public XMPPBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        this(id, URI.create("http://gmail.com"), config);
     }
 
-    public XMPPBroadcaster(String id) {
-        this(id, URI.create("http://gmail.com"));
-    }
-
-    public XMPPBroadcaster(URI uri) {
-        this(XMPPBroadcaster.class.getSimpleName(), uri);
-    }
-
-    public XMPPBroadcaster(String id, URI uri) {
-        super(id);
-        this.uri = uri;
+    public XMPPBroadcaster(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, uri, config);
     }
 
     private synchronized void setUp() {
-        if (uri == null) return;
 
         try {
 
@@ -82,6 +72,8 @@ public class XMPPBroadcaster extends AbstractBroadcasterProxy {
 
                 if (config.getServletConfig().getInitParameter(XMPP_SERVER) != null) {
                     uri = URI.create(config.getServletConfig().getInitParameter(XMPP_SERVER));
+                } else if (uri == null) {
+                    throw new NullPointerException("uri cannot be null");
                 }
 
                 if (config.getServletConfig().getInitParameter(XMPP_DEBUG) != null) {

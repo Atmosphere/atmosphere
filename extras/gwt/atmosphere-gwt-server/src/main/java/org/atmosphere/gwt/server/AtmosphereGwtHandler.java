@@ -71,13 +71,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
         if (broadcaster == null) {
-            try {
-                broadcaster = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, GWT_BROADCASTER_ID);
-            } catch (IllegalAccessException ex) {
-                logger.error("Failed to get broadcaster", ex);
-            } catch (InstantiationException ex) {
-                logger.error("Failed to get broadcaster", ex);
-            }
+            broadcaster = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, GWT_BROADCASTER_ID);
         }
         resource.getAtmosphereResource().setBroadcaster(broadcaster);
         return NO_TIMEOUT;

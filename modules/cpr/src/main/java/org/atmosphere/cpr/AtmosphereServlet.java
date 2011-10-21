@@ -553,8 +553,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
             };
             doInitParams(scFacade);
-            configureDefaultBroadcasterFactory();
             doInitParamsForWebSocket(scFacade);
+            configureDefaultBroadcasterFactory();
             loadConfiguration(scFacade);
 
             autoDetectContainer();
@@ -631,7 +631,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     broadcasterConfig.setBroadcasterCache(cache);
                 }
             }
-            w.broadcaster.setID(e.getKey());
         }
     }
 

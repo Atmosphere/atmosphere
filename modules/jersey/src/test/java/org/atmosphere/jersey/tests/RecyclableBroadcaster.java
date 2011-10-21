@@ -36,6 +36,7 @@
  */
 package org.atmosphere.jersey.tests;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.jersey.JerseyBroadcaster;
 
@@ -44,12 +45,8 @@ import org.atmosphere.jersey.JerseyBroadcaster;
  */
 public class RecyclableBroadcaster extends JerseyBroadcaster {
 
-    public RecyclableBroadcaster() {
-        super();
-    }
-
-    public RecyclableBroadcaster(String name) {
-        super(name);
+    public RecyclableBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
+        super(name, config);
     }
 
     /**

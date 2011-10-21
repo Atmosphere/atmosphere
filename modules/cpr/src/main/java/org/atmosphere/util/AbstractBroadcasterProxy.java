@@ -19,13 +19,16 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -39,25 +42,9 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterProxy.class);
 
     private Method jerseyBroadcast;
-    protected AtmosphereServlet.AtmosphereConfig config;
 
-    public AbstractBroadcasterProxy() {
-        this(AbstractBroadcasterProxy.class.getSimpleName());
-    }
-
-    public AbstractBroadcasterProxy(String id) {
-        super(id);
-        start();
-    }
-
-    /**
-     * Allow this Broadcaster to configure itself using the {@link AtmosphereServlet.AtmosphereConfig} or the
-     * {@link javax.servlet.ServletContext}.
-     *
-     * @param config the {@link AtmosphereServlet.AtmosphereConfig}
-     */
-    public void configure(AtmosphereServlet.AtmosphereConfig config) {
-        this.config = config;
+    public AbstractBroadcasterProxy(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, uri, config);
     }
 
     /**
@@ -79,18 +66,26 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected Runnable getBroadcastHandler() {
         return new Runnable() {
             public void run() {
-                incomingBroadcast();
+                try {
+                    incomingBroadcast();
+                } catch (Throwable t) {
+                    logger.trace("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
+                    return;
+                }
             }
         };
     }
 
     protected void reconfigure() {
+        if (!started.get()) {
+            return;
+        }
+
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
         }
         notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
     }
-
 
     /**
      * {@inheritDoc}
@@ -128,6 +123,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg) {
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -145,6 +142,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
@@ -162,6 +161,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      */
     @Override
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+        start();
+
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 

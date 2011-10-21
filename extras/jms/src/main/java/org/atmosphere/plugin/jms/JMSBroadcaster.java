@@ -81,34 +81,27 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private String factoryName = "atmosphereFactory";
     private String namespace = "jms/";
 
-    public JMSBroadcaster() {
-        super(JMSBroadcaster.class.getSimpleName());
-    }
-
-    public JMSBroadcaster(String id) {
-        super(id);
+    public JMSBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, null, config);
     }
 
     public synchronized void configure(AtmosphereServlet.AtmosphereConfig config) {
         try {
-            if (config != null) {
+            // For backward compatibility.
+            if (config.getInitParameter(JMS_TOPIC) != null) {
+                topicId = config.getInitParameter(JMS_TOPIC);
+            }
 
-                // For backward compatibility.
-                if (config.getInitParameter(JMS_TOPIC) != null) {
-                    topicId = config.getInitParameter(JMS_TOPIC);
-                }
+            if (config.getInitParameter(JNDI_NAMESPACE) != null) {
+                namespace = config.getInitParameter(JNDI_NAMESPACE);
+            }
 
-                if (config.getInitParameter(JNDI_NAMESPACE) != null) {
-                    namespace = config.getInitParameter(JNDI_NAMESPACE);
-                }
+            if (config.getInitParameter(JNDI_FACTORY_NAME) != null) {
+                factoryName = config.getInitParameter(JNDI_FACTORY_NAME);
+            }
 
-                if (config.getInitParameter(JNDI_FACTORY_NAME) != null) {
-                    factoryName = config.getInitParameter(JNDI_FACTORY_NAME);
-                }
-
-                if (config.getInitParameter(JNDI_TOPIC) != null) {
-                    topicId = config.getInitParameter(JNDI_TOPIC);
-                }
+            if (config.getInitParameter(JNDI_TOPIC) != null) {
+                topicId = config.getInitParameter(JNDI_TOPIC);
             }
 
             logger.info("Looking up Connection Factory {}", namespace + factoryName);

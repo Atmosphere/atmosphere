@@ -39,6 +39,7 @@ package org.atmosphere.util;
 
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -53,13 +54,8 @@ import java.util.concurrent.Future;
  */
 public class SimpleBroadcaster extends DefaultBroadcaster {
 
-
-    public SimpleBroadcaster() {
-        this(SimpleBroadcaster.class.getSimpleName());
-    }
-
-    public SimpleBroadcaster(String id) {
-        super(id);
+    public SimpleBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, config);
     }
 
     /**

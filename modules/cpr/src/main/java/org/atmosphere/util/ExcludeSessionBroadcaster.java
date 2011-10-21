@@ -16,6 +16,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
@@ -40,12 +41,8 @@ public class ExcludeSessionBroadcaster
 
     private static final Logger logger = LoggerFactory.getLogger(ExcludeSessionBroadcaster.class);
 
-    public ExcludeSessionBroadcaster() {
-        setID(ExcludeSessionBroadcaster.class.getSimpleName());
-    }
-
-    public ExcludeSessionBroadcaster(String id) {
-        super(id);
+    public ExcludeSessionBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, config);
     }
 
     /**

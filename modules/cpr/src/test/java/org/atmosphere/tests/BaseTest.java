@@ -153,7 +153,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+        }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend"));
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -203,7 +203,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -255,7 +255,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -307,7 +307,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -379,7 +379,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -461,7 +461,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -537,7 +537,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -610,7 +610,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -691,7 +691,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -771,7 +771,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -845,7 +845,7 @@ public abstract class BaseTest {
                 event.getResource().resume();
                 latch.countDown();
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -926,7 +926,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -993,7 +993,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -1052,7 +1052,7 @@ public abstract class BaseTest {
                     latch.countDown();
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -1119,7 +1119,7 @@ public abstract class BaseTest {
                     assertEquals(event.getMessage(), "broadcastOnResume");
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -1196,7 +1196,7 @@ public abstract class BaseTest {
                     }
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -1263,7 +1263,7 @@ public abstract class BaseTest {
                     }
                 }
             }
-        }, new RecyclableBroadcaster("suspend"));
+                }, BroadcasterFactory.getDefault().get(RecyclableBroadcaster.class, "suspend")); 
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
