@@ -135,7 +135,7 @@ public class BroadcasterConfig {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
             }
 
-            int numberOfAsyncThread = -1;
+            int numberOfAsyncThread = 1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
@@ -160,7 +160,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + +count.getAndIncrement());
+                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -317,20 +317,24 @@ public class BroadcasterConfig {
     }
 
     public void destroy() {
+        destroy(false);
+    }
+
+    protected void destroy(boolean force) {
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
 
-        if (!isExecutorShared && executorService != null) {
+        if ((force || !isExecutorShared) && executorService != null) {
             executorService.shutdownNow();
         }
-        if (!isAsyncExecutorShared && asyncWriteService != null) {
+        if ((force || !isAsyncExecutorShared) && asyncWriteService != null) {
             asyncWriteService.shutdownNow();
         }
-        if (!isExecutorShared && defaultExecutorService != null) {
+        if ((force || !isExecutorShared) && defaultExecutorService != null) {
             defaultExecutorService.shutdownNow();
         }
-        if (!isAsyncExecutorShared && defaultAsyncWriteService != null) {
+        if ((force || !isAsyncExecutorShared) && defaultAsyncWriteService != null) {
             defaultAsyncWriteService.shutdownNow();
         }
 
@@ -344,6 +348,13 @@ public class BroadcasterConfig {
             }
         }
         removeAllFilters();
+    }
+
+    /**
+     * Force shutdown of all {@link ExecutorService}
+     */
+    public void forceDestroy(){
+        destroy(true);
     }
 
     /**

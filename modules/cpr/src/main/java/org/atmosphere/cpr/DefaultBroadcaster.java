@@ -116,7 +116,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
         broadcasterCache = new DefaultBroadcasterCache();
         bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
-        initialId = name;
     }
 
     public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
@@ -213,13 +212,19 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public synchronized void setID(String id) {
+        setID(id, false);
+    }
+
+    protected void setID(String id, boolean check) {
         if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
 
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
-        if (b != null && b.getScope() == SCOPE.REQUEST) {
+        if (check && b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
+        }  else if (b != null) {
+            return;
         }
 
         BroadcasterFactory.getDefault().remove(this, name);
@@ -372,7 +377,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(initialId);
+            setID(name, false);
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
