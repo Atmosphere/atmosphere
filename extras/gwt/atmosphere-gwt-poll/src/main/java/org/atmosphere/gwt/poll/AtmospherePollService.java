@@ -28,8 +28,8 @@ import com.google.gwt.user.server.rpc.UnexpectedException;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -72,14 +72,9 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
         }
 
         public Broadcaster createBroadcaster(String ID) {
-            try {
-                Broadcaster b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, ID);
-                atm.setBroadcaster(b);
-                return b;
-            } catch (IllegalAccessException e) {
-            } catch (InstantiationException e) {
-            }
-            return null;
+            Broadcaster b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, ID);
+            atm.setBroadcaster(b);
+            return b;
         }
     }
 

@@ -105,12 +105,12 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             }
 
             @Override
-            public Broadcaster get() throws IllegalAccessException, InstantiationException {
+            public Broadcaster get() {
                 return _get().get();
             }
 
             @Override
-            public Broadcaster get(Class<? extends Broadcaster> c, Object id) throws IllegalAccessException, InstantiationException {
+            public Broadcaster get(Class<? extends Broadcaster> c, Object id)  {
                 return _get().get(c, id);
             }
 

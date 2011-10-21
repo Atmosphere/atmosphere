@@ -37,6 +37,7 @@
  */
 package org.atmosphere.plugin.jgroups;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
@@ -60,12 +61,8 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     private JChannel jchannel;
     private final CountDownLatch ready = new CountDownLatch(1);
 
-    public JGroupsBroadcaster() {
-        this(JGroupsBroadcaster.class.getSimpleName());
-    }
-
-    public JGroupsBroadcaster(String id) {
-        super(id);
+    public JGroupsBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, null, config);
     }
 
     @Override

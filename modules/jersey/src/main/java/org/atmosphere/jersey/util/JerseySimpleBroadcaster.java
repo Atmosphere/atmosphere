@@ -40,6 +40,7 @@ package org.atmosphere.jersey.util;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.SimpleBroadcaster;
 
 /**
@@ -49,13 +50,8 @@ import org.atmosphere.util.SimpleBroadcaster;
  */
 public class JerseySimpleBroadcaster extends SimpleBroadcaster {
 
-    public JerseySimpleBroadcaster() {
-        super();
-        setID(SimpleBroadcaster.class.getSimpleName());
-    }
-
-    public JerseySimpleBroadcaster(String id) {
-        super(id);
+    public JerseySimpleBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, config);
     }
 
     @Override

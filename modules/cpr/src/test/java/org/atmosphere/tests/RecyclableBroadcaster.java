@@ -36,6 +36,7 @@
  */
 package org.atmosphere.tests;
 
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -45,12 +46,8 @@ import org.atmosphere.cpr.DefaultBroadcaster;
  */
 public class RecyclableBroadcaster extends DefaultBroadcaster {
 
-    public RecyclableBroadcaster() {
-        super();
-    }
-
-    public RecyclableBroadcaster(String name) {
-        super(name);
+    public RecyclableBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
+        super(name, config);
     }
 
     /**

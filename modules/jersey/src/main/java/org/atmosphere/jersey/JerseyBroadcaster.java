@@ -38,10 +38,7 @@
 package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.container.ContainerResponse;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.*;
 import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
 
 /**
@@ -52,13 +49,8 @@ import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
  */
 public class JerseyBroadcaster extends DefaultBroadcaster {
 
-    public JerseyBroadcaster() {
-        super();
-        setID(JerseyBroadcaster.class.getSimpleName());
-    }
-
-    public JerseyBroadcaster(String id) {
-        super(id);
+    public JerseyBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+        super(id, config);
     }
 
     @Override
