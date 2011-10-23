@@ -66,6 +66,8 @@ public class BroadcasterLifecycleTest {
     protected Context root;
     private final static AtomicReference<AtmosphereResource<?,?>> ref = new AtomicReference<AtmosphereResource<?,?>>();
     private final static CountDownLatch suspended = new CountDownLatch(2);
+    private final static CountDownLatch broadcasterCreated = new CountDownLatch(1);
+
 
     public static class TestHelper {
 
@@ -198,6 +200,12 @@ public class BroadcasterLifecycleTest {
 
         @Override
         public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+            try {
+                broadcasterCreated.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
+
             BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "Test-Destroy").destroy();
         }
 
