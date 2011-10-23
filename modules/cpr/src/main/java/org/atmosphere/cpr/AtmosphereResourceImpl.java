@@ -360,6 +360,7 @@ public class AtmosphereResourceImpl implements
             synchronized (this) {
                 String id = broadcaster.getScope() != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
                 broadcaster = BroadcasterFactory.getDefault().get(id);
+                broadcaster.addAtmosphereResource(this);
             }
 
         }
