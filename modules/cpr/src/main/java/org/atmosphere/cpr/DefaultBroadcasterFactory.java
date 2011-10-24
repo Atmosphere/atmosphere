@@ -119,7 +119,12 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public synchronized final Broadcaster get(Object id) {
-        Broadcaster b = null;
+
+        Broadcaster b = store.get(id);
+        if (b != null){
+            return b;
+        }
+
         try {
             b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
         } catch (Throwable t) {
