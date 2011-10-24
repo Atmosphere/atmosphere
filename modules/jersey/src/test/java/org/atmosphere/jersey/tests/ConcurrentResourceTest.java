@@ -140,7 +140,7 @@ public class ConcurrentResourceTest extends BaseJettyTest {
             }
 
             //All Broadcaster will be destroyed after 10 second, so let's wait a little.
-            Thread.sleep(15000);
+            Thread.sleep(30000);
 
             assertEquals(r.get().toString(), b2.toString());
             // Scope == REQUEST
@@ -188,7 +188,7 @@ public class ConcurrentResourceTest extends BaseJettyTest {
             }
 
             //All Broadcaster will be destroyed after 10 second, so let's wait a little.
-            Thread.sleep(15000);
+            Thread.sleep(40000);
 
             assertEquals(r.get().toString(), b2.toString());
             // Scope == REQUEST
