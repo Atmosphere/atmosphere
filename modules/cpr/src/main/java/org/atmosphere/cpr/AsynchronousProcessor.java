@@ -329,7 +329,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         re = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-        if (re != null) {
+        if (re != null && re.getAtmosphereResourceEvent().isSuspended()) {
             re.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
 
             Broadcaster b = re.getBroadcaster();
