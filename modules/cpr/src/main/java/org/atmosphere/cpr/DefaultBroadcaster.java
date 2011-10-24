@@ -128,37 +128,43 @@ public class DefaultBroadcaster implements Broadcaster {
     public synchronized void destroy() {
         if (destroyed.get()) return;
 
-        if (currentLifecycleTask != null) {
-            currentLifecycleTask.cancel(true);
-        }
-        started.set(false);
-        destroyed.set(true);
+        try {
+            logger.debug("Broadcaster {} is being destroyed and cannot be re-used", getID());
 
-        releaseExternalResources();
-        if (notifierFuture != null) {
-            notifierFuture.cancel(true);
-        }
+            if (BroadcasterFactory.getDefault() != null) {
+                BroadcasterFactory.getDefault().remove(this, this.getID());
+            }
 
-        if (asyncWriteFuture != null) {
-            asyncWriteFuture.cancel(true);
-        }
+            if (currentLifecycleTask != null) {
+                currentLifecycleTask.cancel(true);
+            }
+            started.set(false);
+            destroyed.set(true);
 
-        if (bc != null) {
-            bc.destroy();
-        }
+            releaseExternalResources();
+            if (notifierFuture != null) {
+                notifierFuture.cancel(true);
+            }
 
-        if (broadcasterCache != null) {
-            broadcasterCache.stop();
-        }
-        resources.clear();
-        broadcastOnResume.clear();
-        messages.clear();
-        asyncWriteQueue.clear();
-        delayedBroadcast.clear();
-        broadcasterCache = null;
+            if (asyncWriteFuture != null) {
+                asyncWriteFuture.cancel(true);
+            }
 
-        if (BroadcasterFactory.getDefault() != null) {
-            BroadcasterFactory.getDefault().remove(this, name);
+            if (bc != null) {
+                bc.destroy();
+            }
+
+            if (broadcasterCache != null) {
+                broadcasterCache.stop();
+            }
+            resources.clear();
+            broadcastOnResume.clear();
+            messages.clear();
+            asyncWriteQueue.clear();
+            delayedBroadcast.clear();
+            broadcasterCache = null;
+        } catch (Throwable t) {
+            logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
     }
 
@@ -178,27 +184,32 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
-        try {
-            for (AtmosphereResource<?, ?> resource : resources) {
-                Broadcaster b = BroadcasterFactory.getDefault()
-                        .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
+        logger.debug("Changing broadcaster scope for {}. This broadcaster will be destroyed.", getID());
 
-                if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
-                    BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
-                    InjectorProvider.getInjector().inject(cache);
-                    DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
-                }
-                resource.setBroadcaster(b);
-                if (resource.getAtmosphereResourceEvent().isSuspended()) {
-                    b.addAtmosphereResource(resource);
-                }
-            }
+        synchronized (resources) {
+            try {
+                // Next, we need to create a new broadcaster per resource.
+                for (AtmosphereResource<?, ?> resource : resources) {
+                    Broadcaster b = BroadcasterFactory.getDefault()
+                            .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
-            if (!resources.isEmpty()) {
+                    if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
+                        BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
+                        InjectorProvider.getInjector().inject(cache);
+                        DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
+                    }
+                    resource.setBroadcaster(b);
+                    if (resource.getAtmosphereResourceEvent().isSuspended()) {
+                        b.addAtmosphereResource(resource);
+                    }
+                    logger.debug("Resource {} not using broadcaster {}", resource, b.getID());
+                }
+
+
                 destroy();
+            } catch (Exception e) {
+                logger.error("Failed to set request scope for current resources", e);
             }
-        } catch (Exception e) {
-            logger.error("failed to set request scope for current resources", e);
         }
     }
 
@@ -220,7 +231,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
-        }  else if (b != null) {
+        } else if (b != null) {
             return;
         }
 
@@ -240,11 +251,13 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void resumeAll() {
-        for (AtmosphereResource<?, ?> r : resources) {
-            try {
-                r.resume();
-            } catch (Throwable t) {
-                logger.trace("resumeAll", t);
+        synchronized (resources) {
+            for (AtmosphereResource<?, ?> r : resources) {
+                try {
+                    r.resume();
+                } catch (Throwable t) {
+                    logger.trace("resumeAll", t);
+                }
             }
         }
     }
@@ -286,21 +299,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
                             if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE) {
                                 releaseExternalResources();
-                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy");
+                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy to Broadcaster {}", getID());
                             } else {
-                                notifyDestroyListener();
-
-                                destroy();
-                                /**
-                                 * The value may be null if the timeout is too low. Hopefully next execution will
-                                 * cancel the task properly.
-                                 */
-                                if (ref.get() != null) {
-                                    currentLifecycleTask.cancel(true);
-                                }
-
-                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy");
+                                destroy(false);
+                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy to Broadcaster {}", getID());
                             }
+                        } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME) {
+                            destroy(true);
+                            logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_RESUME policy to Broadcaster {}", getID());
                         }
                     } catch (Throwable t) {
                         if (destroyed.get()) {
@@ -308,6 +314,24 @@ public class DefaultBroadcaster implements Broadcaster {
                         } else {
                             logger.warn("Scheduled BroadcasterLifeCyclePolicy exception", t);
                         }
+                    }
+                }
+
+                void destroy(boolean resume) {
+                    notifyDestroyListener();
+
+                    if (resume) {
+                        logger.info("All AtmosphereResource will now be resumed from Broadcaster {}", getID());
+                        resumeAll();
+                    }
+
+                    DefaultBroadcaster.this.destroy();
+                    /**
+                     * The value may be null if the timeout is too low. Hopefully next execution will
+                     * cancel the task properly.
+                     */
+                    if (ref.get() != null) {
+                        currentLifecycleTask.cancel(true);
                     }
                 }
 
@@ -846,20 +870,23 @@ public class DefaultBroadcaster implements Broadcaster {
             return r;
         }
 
-        if (!resources.contains(r)) {
-            return null;
-        }
-        resources.remove(r);
+        // Prevent two thread to mix operation
+        synchronized (resources) {
+            if (!resources.contains(r)) {
+                return null;
+            }
+            resources.remove(r);
 
-        // Will help preventing OOM.
-        if (resources.isEmpty()) {
-            notifyEmptyListener();
-            if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
-                releaseExternalResources();
-            } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
-                notifyDestroyListener();
-                BroadcasterFactory.getDefault().remove(this, name);
-                destroy();
+            // Will help preventing OOM.
+            if (resources.isEmpty()) {
+                notifyEmptyListener();
+                if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
+                    releaseExternalResources();
+                } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
+                    notifyDestroyListener();
+                    BroadcasterFactory.getDefault().remove(this, name);
+                    destroy();
+                }
             }
         }
         return r;
