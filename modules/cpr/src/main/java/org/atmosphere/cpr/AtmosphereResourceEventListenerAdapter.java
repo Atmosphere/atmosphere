@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,43 +22,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * An implementation of {@link WebSocketEventListener} with just log event as trace.
+ * An implementation of {@link AtmosphereResourceEventListener} with just log event as trace.
  *
  * @author Jeanfrancois Arcand
  */
-public class WebSocketEventListenerBase implements WebSocketEventListener {
+public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourceEventListener {
 
-    private final static Logger logger = LoggerFactory.getLogger(WebSocketEventListenerBase.class);
-
-    @Override
-    public void onHandshake(WebSocketEvent event) {
-        logger.trace("", event);
-    }
-
-    @Override
-    public void onMessage(WebSocketEvent event) {
-        logger.trace("", event);
-    }
-
-    @Override
-    public void onClose(WebSocketEvent event) {
-        logger.trace("", event);
-    }
-
-    @Override
-    public void onControl(WebSocketEvent event) {
-        logger.trace("", event);
-    }
-
-    @Override
-    public void onDisconnect(WebSocketEvent event) {
-        logger.trace("", event);
-    }
-
-    @Override
-    public void onConnect(WebSocketEvent event) {
-        logger.trace("", event);
-    }
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListener.class);
 
     @Override
     public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {

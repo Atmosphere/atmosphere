@@ -17,7 +17,7 @@ package org.atmosphere.jersey.tests;
 
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerBase;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterLifeCyclePolicy;
@@ -47,7 +47,7 @@ public class ConcurrentResource {
         return new Broadcastable(BroadcasterFactory.getDefault().get(UUID.randomUUID().toString()));
     }
 
-    public final static class SuspendListener extends AtmosphereResourceEventListenerBase {
+    public final static class SuspendListener extends AtmosphereResourceEventListenerAdapter {
         @Override
         public void onSuspend(AtmosphereResourceEvent event) {
             event.getResource().getBroadcaster().setBroadcasterLifeCyclePolicy(
@@ -69,7 +69,7 @@ public class ConcurrentResource {
         return new Broadcastable(b);
     }
 
-    public final static class DestroyListener extends AtmosphereResourceEventListenerBase {
+    public final static class DestroyListener extends AtmosphereResourceEventListenerAdapter {
         @Override
         public void onSuspend(AtmosphereResourceEvent event) {
             event.getResource().getBroadcaster().broadcast("foo");
@@ -89,7 +89,7 @@ public class ConcurrentResource {
         return new Broadcastable(b);
     }
 
-    public final static class ResumeListener extends AtmosphereResourceEventListenerBase {
+    public final static class ResumeListener extends AtmosphereResourceEventListenerAdapter {
         @Override
         public void onSuspend(AtmosphereResourceEvent event) {
             event.getResource().getBroadcaster().broadcast("foo");
