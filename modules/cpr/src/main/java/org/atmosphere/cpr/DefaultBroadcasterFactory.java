@@ -145,7 +145,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public synchronized final Broadcaster get(Class<? extends Broadcaster> c, Object id) {
+    public final Broadcaster get(Class<? extends Broadcaster> c, Object id) {
 
         if (id == null) throw new NullPointerException("id is null");
         if (c == null) throw new NullPointerException("Class is null");
@@ -155,20 +155,22 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         Broadcaster b = null;
 
-        try {
-            b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
-        } catch (Throwable t) {
-            throw new BroadcasterCreationException(t);
-        }
-        InjectorProvider.getInjector().inject(b);
-        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-        b.setBroadcasterLifeCyclePolicy(policy);
+        synchronized (id) {
+            try {
+                b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
+            } catch (Throwable t) {
+                throw new BroadcasterCreationException(t);
+            }
+            InjectorProvider.getInjector().inject(b);
+            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+            b.setBroadcasterLifeCyclePolicy(policy);
 
-        if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
-            DefaultBroadcaster.class.cast(b).start();
-        }
+            if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
+                DefaultBroadcaster.class.cast(b).start();
+            }
 
-        store.put(id, b);
+            store.put(id, b);
+        }
         return b;
     }
 
