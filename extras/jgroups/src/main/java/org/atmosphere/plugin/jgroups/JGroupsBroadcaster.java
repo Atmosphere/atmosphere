@@ -56,7 +56,6 @@ import java.util.concurrent.CountDownLatch;
 public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
 
     private static final Logger logger = LoggerFactory.getLogger(JGroupsBroadcaster.class);
-    public static final String CLUSTER_NAME = "atmosphere-cluster";
 
     private JChannel jchannel;
     private final CountDownLatch ready = new CountDownLatch(1);
@@ -68,7 +67,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void incomingBroadcast() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", CLUSTER_NAME);
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", getID());
 
             jchannel = new JChannel();
             jchannel.setReceiver(new ReceiverAdapter() {
@@ -84,7 +83,7 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
                     }
                 }
             });
-            jchannel.connect(CLUSTER_NAME);
+            jchannel.connect(getID());
         } catch (Throwable t) {
             logger.warn("failed to connect to JGroups channel", t);
         } finally {
