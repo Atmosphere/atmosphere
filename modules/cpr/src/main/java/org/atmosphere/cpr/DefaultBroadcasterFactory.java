@@ -121,7 +121,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public synchronized final Broadcaster get(Object id) {
 
         Broadcaster b = store.get(id);
-        if (b != null){
+        if (b != null) {
             throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
         }
 
@@ -194,7 +194,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public boolean remove(Broadcaster b, Object id) {
         logger.debug("Removing Broadcaster {} which internal ref is {} ", id, b.getID());
-        return store.remove(id) != null ? true: (store.remove(b.getID()) != null);
+        return store.remove(id) != null ? true : (store.remove(b.getID()) != null);
     }
 
     /**
@@ -227,17 +227,18 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public synchronized void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
         // Remove inside all Broadcaster as well.
         try {
-            synchronized (r) {
-                if (store.size() > 0) {
-                    for (Broadcaster b : lookupAll()) {
-                        try {
+            if (store.size() > 0) {
+                for (Broadcaster b : lookupAll()) {
+                    try {
+                        // Prevent deadlock
+                        if (!b.getAtmosphereResources().contains(r)) {
                             b.removeAtmosphereResource(r);
-                        } catch (IllegalStateException ex) {
-                            logger.trace(ex.getMessage(), ex);
                         }
+                    } catch (IllegalStateException ex) {
+                        logger.trace(ex.getMessage(), ex);
                     }
                 }
             }
@@ -270,14 +271,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 bc = b.getBroadcasterConfig();
             } catch (Throwable t) {
                 // Shield us from any bad behaviour
-                logger.trace("destroy",t);
+                logger.trace("destroy", t);
             }
         }
 
         try {
             if (bc != null) bc.forceDestroy();
         } catch (Throwable t) {
-            logger.trace("destroy",t);
+            logger.trace("destroy", t);
 
         }
 

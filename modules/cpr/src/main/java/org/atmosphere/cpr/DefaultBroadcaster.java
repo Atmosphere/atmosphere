@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.*;
 
 /**
  * {@link Broadcaster} implementation.
@@ -104,7 +105,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
     private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
-            .policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER).build();
+            .policy(NEVER).build();
     private Future<?> currentLifecycleTask;
     protected URI uri;
     protected AtmosphereServlet.AtmosphereConfig config;
@@ -279,8 +280,9 @@ public class DefaultBroadcaster implements Broadcaster {
             currentLifecycleTask.cancel(false);
         }
 
-        if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE
-                || lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY) {
+        if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE
+                || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME
+                || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
 
             int time = lifeCyclePolicy.getTimeout();
             if (time == -1) {
@@ -297,14 +299,14 @@ public class DefaultBroadcaster implements Broadcaster {
                             notifyEmptyListener();
                             notifyIdleListener();
 
-                            if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE) {
+                            if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE) {
                                 releaseExternalResources();
                                 logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy to Broadcaster {}", getID());
                             } else {
                                 destroy(false);
                                 logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy to Broadcaster {}", getID());
                             }
-                        } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME) {
+                        } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME) {
                             destroy(true);
                             logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_RESUME policy to Broadcaster {}", getID());
                         }
@@ -596,8 +598,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
             broadcast(resource, event);
         } finally {
-            if (notifyListeners && resource instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) resource).notifyListeners();
+            if (notifyListeners) {
+                resource.notifyListeners();
             }
 
             if (future != null) {
@@ -675,11 +677,8 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) r.getAtmosphereResourceEvent();
         event.setThrowable(t);
 
-        if (r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r)
-                    .notifyListeners(event);
-            ((AtmosphereEventLifecycle) r).removeEventListeners();
-        }
+        r.notifyListeners(event);
+        r.removeEventListeners();
 
         /**
          * Make sure we resume the connection on every IOException.
@@ -870,19 +869,19 @@ public class DefaultBroadcaster implements Broadcaster {
             return r;
         }
 
+        if (!resources.contains(r)) {
+            return null;
+        }
         // Prevent two thread to mix operation
         synchronized (resources) {
-            if (!resources.contains(r)) {
-                return null;
-            }
             resources.remove(r);
 
             // Will help preventing OOM.
             if (resources.isEmpty()) {
                 notifyEmptyListener();
-                if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY) {
+                if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
                     releaseExternalResources();
-                } else if (lifeCyclePolicy.getLifeCyclePolicy() == BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY) {
+                } else if (lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
                     notifyDestroyListener();
                     BroadcasterFactory.getDefault().remove(this, name);
                     destroy();
