@@ -1166,13 +1166,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 return cometSupport.service(req, res);
             }
         } catch (IllegalStateException ex) {
-            logger.warn(ex.getMessage(), ex);
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
                 if (!isFilter) {
-                    logger.warn("Failed using comet support: {}, error: {}", cometSupport.getClass().getName(),
+                    logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", cometSupport.getClass().getName(),
                             ex.getMessage());
                     logger.warn("Using BlockingIOCometSupport.");
                 }
+                logger.trace(ex.getMessage(), ex);
 
                 cometSupport = new BlockingIOCometSupport(config);
                 service(req, res);
