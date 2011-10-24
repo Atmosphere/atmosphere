@@ -157,39 +157,47 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public void resume() {
-        if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
-            action.type = AtmosphereServlet.Action.TYPE.RESUME;
+        // Stragely but possible two thread try to resume at the same time.
+        synchronized (event) {
+            if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
+                action.type = AtmosphereServlet.Action.TYPE.RESUME;
 
-            // We need it as Jetty doesn't support timeout
-            Broadcaster b = getBroadcaster();
-            if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster) b).broadcastOnResume(this);
-            }
+                // We need it as Jetty doesn't support timeout
+                Broadcaster b = getBroadcaster();
+                if (b instanceof DefaultBroadcaster) {
+                    ((DefaultBroadcaster) b).broadcastOnResume(this);
+                }
 
-            notifyListeners();
-            listeners.clear();
-            try {
-                broadcaster.removeAtmosphereResource(this);
-            } catch (IllegalStateException ex) {
-                logger.warn("Unable to resume", this);
-                logger.debug(ex.getMessage(), ex);
-            }
+                notifyListeners();
+                listeners.clear();
+                try {
+                    broadcaster.removeAtmosphereResource(this);
+                } catch (IllegalStateException ex) {
+                    logger.warn("Unable to resume", this);
+                    logger.debug(ex.getMessage(), ex);
+                }
 
-            // Resuming here means we need to pull away from all other Broadcaster, if they exists.
-            if (BroadcasterFactory.getDefault() != null) {
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
-            }
+                if (b.getScope() == Broadcaster.SCOPE.REQUEST) {
+                    logger.debug("Broadcaster's scope is set to request, destroying it {}", b.getID());
+                    b.destroy();
+                }
 
-            try {
-                req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
-            } catch (Exception ex) {
+                // Resuming here means we need to pull away from all other Broadcaster, if they exists.
+                if (BroadcasterFactory.getDefault() != null) {
+                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+                }
+
+                try {
+                    req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+                } catch (Exception ex) {
+                    logger.debug("Cannot resume an already resumed/cancelled request");
+                }
+                if (req.getAttribute(PRE_SUSPEND) == null) {
+                    cometSupport.action(this);
+                }
+            } else {
                 logger.debug("Cannot resume an already resumed/cancelled request");
             }
-            if (req.getAttribute(PRE_SUSPEND) == null) {
-                cometSupport.action(this);
-            }
-        } else {
-            logger.debug("Cannot resume an already resumed/cancelled request");
         }
     }
 
@@ -355,14 +363,14 @@ public class AtmosphereResourceImpl implements
         }
 
         if (autoCreate && broadcaster.isDestroyed()) {
-            logger.warn("The current Broadcaster has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
-                    " mechanism by adding, in web.xml, " + ApplicationConfig.RECOVER_DEAD_BROADCASTER + " set to false");
+            logger.warn("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
+                    " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
+
             synchronized (this) {
                 String id = broadcaster.getScope() != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
                 broadcaster = BroadcasterFactory.getDefault().get(id);
                 broadcaster.addAtmosphereResource(this);
             }
-
         }
         return broadcaster;
     }
@@ -372,9 +380,6 @@ public class AtmosphereResourceImpl implements
      */
     public void setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
-        if (broadcaster != null) {
-            broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
-        }
     }
 
     /**
