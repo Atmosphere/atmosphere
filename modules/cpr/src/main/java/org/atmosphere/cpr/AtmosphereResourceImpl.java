@@ -163,15 +163,18 @@ public class AtmosphereResourceImpl implements
                 action.type = AtmosphereServlet.Action.TYPE.RESUME;
 
                 // We need it as Jetty doesn't support timeout
-                Broadcaster b = getBroadcaster();
-                if (b instanceof DefaultBroadcaster) {
+                Broadcaster b = getBroadcaster(false);
+                if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
                     ((DefaultBroadcaster) b).broadcastOnResume(this);
                 }
 
                 notifyListeners();
                 listeners.clear();
+
                 try {
-                    broadcaster.removeAtmosphereResource(this);
+                    if (!b.isDestroyed()) {
+                        broadcaster.removeAtmosphereResource(this);
+                    }
                 } catch (IllegalStateException ex) {
                     logger.warn("Unable to resume", this);
                     logger.debug(ex.getMessage(), ex);
@@ -352,12 +355,15 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public Broadcaster getBroadcaster() {
+        return getBroadcaster(true);
+    }
+
+    private Broadcaster getBroadcaster(boolean autoCreate) {
         if (broadcaster == null) {
             throw new IllegalStateException("No Broadcaster associated with this AtmosphereResource.");
         }
 
         String s = config.getInitParameter(ApplicationConfig.RECOVER_DEAD_BROADCASTER);
-        boolean autoCreate = true;
         if (s != null) {
             autoCreate = Boolean.parseBoolean(s);
         }
