@@ -188,7 +188,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public boolean remove(Broadcaster b, Object id) {
-        return (store.remove(id) != null);
+        logger.debug("Removing Broadcaster {} which internal ref is {} ", id, b.getID());
+        return store.remove(id) != null ? true: (store.remove(b.getID()) != null);
     }
 
     /**
