@@ -82,14 +82,14 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      */
     public void init() {
         try {
-            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", JGroupsBroadcaster.CLUSTER_NAME);
+            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", bc.getID());
 
             //initialize jgroups channel
             jchannel = new JChannel();
             //register for Group Events
             jchannel.setReceiver(this);
             //join group
-            jchannel.connect(JGroupsBroadcaster.CLUSTER_NAME);
+            jchannel.connect(bc.getID());
         } catch (Throwable t) {
             logger.warn("failed to connect to cluser", t);
         }
