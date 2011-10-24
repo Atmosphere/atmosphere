@@ -41,10 +41,12 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,8 +66,8 @@ public class ConcurrentResourceTest extends BaseGrizzyTest {
     }
 
     @Test(timeOut = 60000, enabled = true)
-    public void testConcurrentSuspendAndBroadcast() {
-        logger.info("Running testConcurrentSuspendAndBroadcast");
+    public void testConcurrentAndEmptyDestroyPolicy() {
+        logger.info("Running testConcurrentAndEmptyDestroyPolicy");
 
         AsyncHttpClient c = new AsyncHttpClient();
         Broadcaster b = null;
@@ -93,6 +95,11 @@ public class ConcurrentResourceTest extends BaseGrizzyTest {
             }
 
             assertEquals(r.get().toString(), b2.toString());
+            // Scope == REQUEST
+            assertEquals(1, BroadcasterFactory.getDefault().lookupAll().size());
+            Iterator<Broadcaster> i = BroadcasterFactory.getDefault().lookupAll().iterator();
+            // Since the policy is EMPTY_DESTROY, only one broadcaster (the default one) will be there..
+            assertEquals("/*", i.next().getID());
 
         } catch (Exception e) {
             logger.error("test failed", e);
@@ -103,5 +110,52 @@ public class ConcurrentResourceTest extends BaseGrizzyTest {
         c.close();
     }
 
+    @Test(timeOut = 60000, enabled = true)
+    public void testConcurrentAndIdleDestroyPolicy() {
+        logger.info("Running testConcurrentAndIdleDestroyPolicy");
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        Broadcaster b = null;
+        try {
+            final AtomicReference<StringBuffer> r = new AtomicReference<StringBuffer>(new StringBuffer());
+            for (int i = 0; i < MAX_CLIENT; i++) {
+
+                c.prepareGet(urlTarget + "/idleDestroyPolicy").execute(new AsyncCompletionHandler<Response>() {
+
+                    @Override
+                    public Response onCompleted(Response response) throws Exception {
+                        r.get().append(response.getResponseBody());
+                        suspended.countDown();
+                        logger.info("suspendedCount" + suspended.getCount());
+                        return response;
+                    }
+                });
+            }
+
+            suspended.await(60, TimeUnit.SECONDS);
+
+            StringBuffer b2 = new StringBuffer();
+            for (int i = 0; i < MAX_CLIENT; i++) {
+                b2.append("foo");
+            }
+
+            //All Broadcaster will be destroyed after 10 second, so let's wait a little.
+            Thread.sleep(20000);
+
+            assertEquals(r.get().toString(), b2.toString());
+            // Scope == REQUEST
+            assertEquals(BroadcasterFactory.getDefault().lookupAll().size(), 1);
+            Iterator<Broadcaster> i = BroadcasterFactory.getDefault().lookupAll().iterator();
+            // Since the policy is IDLE_DESTROY, only one broadcaster (the default one) will be there..
+            assertEquals("/*", i.next().getID());
+
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        } finally {
+            if (b != null) b.destroy();
+        }
+        c.close();
+    }
 
 }
