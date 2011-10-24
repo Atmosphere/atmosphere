@@ -118,27 +118,29 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public synchronized final Broadcaster get(Object id) {
+    public final Broadcaster get(Object id) {
 
         Broadcaster b = store.get(id);
         if (b != null) {
             throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
         }
 
-        try {
-            b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
-        } catch (Throwable t) {
-            throw new BroadcasterCreationException(t);
-        }
-        InjectorProvider.getInjector().inject(b);
-        b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-        b.setBroadcasterLifeCyclePolicy(policy);
+        synchronized (id) {
+            try {
+                b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
+            } catch (Throwable t) {
+                throw new BroadcasterCreationException(t);
+            }
+            InjectorProvider.getInjector().inject(b);
+            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+            b.setBroadcasterLifeCyclePolicy(policy);
 
-        if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
-            DefaultBroadcaster.class.cast(b).start();
-        }
+            if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
+                DefaultBroadcaster.class.cast(b).start();
+            }
 
-        store.put(b.getID(), b);
+            store.put(b.getID(), b);
+        }
         return b;
     }
 
