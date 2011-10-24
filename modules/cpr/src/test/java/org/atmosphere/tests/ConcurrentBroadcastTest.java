@@ -123,7 +123,7 @@ public class ConcurrentBroadcastTest {
 
     @Test(timeOut = 60000, enabled = true)
     public void testConcurrentSuspendAndBroadcast() {
-        logger.info("Running testBroadcasterLifecylePolicy");
+        logger.info("Running testConcurrentSuspendAndBroadcast");
 
         AsyncHttpClient c = new AsyncHttpClient();
         Broadcaster b = null;
