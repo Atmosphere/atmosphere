@@ -64,7 +64,7 @@ public class ConcurrentResource {
         b.setBroadcasterLifeCyclePolicy(
                 new BroadcasterLifeCyclePolicy.Builder()
                         .policy(IDLE_DESTROY)
-                        .idleTime(10, TimeUnit.SECONDS)
+                        .idleTime(20, TimeUnit.SECONDS)
                         .build());
         return new Broadcastable(b);
     }
@@ -84,7 +84,7 @@ public class ConcurrentResource {
         b.setBroadcasterLifeCyclePolicy(
                 new BroadcasterLifeCyclePolicy.Builder()
                         .policy(IDLE_RESUME)
-                        .idleTime(10, TimeUnit.SECONDS)
+                        .idleTime(30, TimeUnit.SECONDS)
                         .build());
         return new Broadcastable(b);
     }
