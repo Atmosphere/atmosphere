@@ -29,7 +29,8 @@ public class BroadcasterLifeCyclePolicy {
     public enum ATMOSPHERE_RESOURCE_POLICY {
 
         /**
-         * Release all resources associated with the Broadcaster when the idle time expires.
+         * Release all resources associated with the Broadcaster when the idle time expires. Suspended {@link AtmosphereResource}
+         * will NOT get resumed.
          * {@link org.atmosphere.cpr.Broadcaster#releaseExternalResources()} will be invoked.
          */
         IDLE,
@@ -37,9 +38,18 @@ public class BroadcasterLifeCyclePolicy {
         /**
          * Release all resources associated with the Broadcaster when the idle time expires, release all resources,
          * and destroy the Broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}
-         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked
+         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. Suspended {@link AtmosphereResource}
+         * will NOT get resumed.
          */
         IDLE_DESTROY,
+
+        /**
+         * Release all resources associated with the Broadcaster when the idle time expires, release all resources,
+         * and destroy the Broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}
+         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. All associated {@link AtmosphereResource}
+         * WILL BE resumed.
+         */
+        IDLE_RESUME,
 
         /**
          * If there is no {@link org.atmosphere.cpr.AtmosphereResource} associated with the Broadcaster,
