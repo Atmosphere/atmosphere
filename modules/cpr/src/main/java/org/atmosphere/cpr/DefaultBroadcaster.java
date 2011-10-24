@@ -79,6 +79,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
+    private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {}";
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
@@ -711,7 +712,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
@@ -745,7 +746,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
@@ -765,7 +766,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcastOnResume(T msg) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
@@ -798,7 +799,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
@@ -818,7 +819,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return r;
         }
 
@@ -866,7 +867,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return r;
         }
 
@@ -942,7 +943,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
@@ -998,7 +999,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public Future<?> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.debug(DESTROYED, getID());
             return null;
         }
 
