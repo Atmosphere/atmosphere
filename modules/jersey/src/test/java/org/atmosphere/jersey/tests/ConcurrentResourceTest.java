@@ -140,7 +140,55 @@ public class ConcurrentResourceTest extends BaseGrizzyTest {
             }
 
             //All Broadcaster will be destroyed after 10 second, so let's wait a little.
-            Thread.sleep(20000);
+            Thread.sleep(15000);
+
+            assertEquals(r.get().toString(), b2.toString());
+            // Scope == REQUEST
+            assertEquals(BroadcasterFactory.getDefault().lookupAll().size(), 1);
+            Iterator<Broadcaster> i = BroadcasterFactory.getDefault().lookupAll().iterator();
+            // Since the policy is IDLE_DESTROY, only one broadcaster (the default one) will be there..
+            assertEquals("/*", i.next().getID());
+
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        } finally {
+            if (b != null) b.destroy();
+        }
+        c.close();
+    }
+
+    @Test(timeOut = 60000, enabled = true)
+    public void testConcurrentAndIdleResumePolicy() {
+        logger.info("Running testConcurrentAndIdleResumePolicy");
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        Broadcaster b = null;
+        try {
+            final AtomicReference<StringBuffer> r = new AtomicReference<StringBuffer>(new StringBuffer());
+            for (int i = 0; i < MAX_CLIENT; i++) {
+
+                c.prepareGet(urlTarget + "/idleDestroyResumePolicy").execute(new AsyncCompletionHandler<Response>() {
+
+                    @Override
+                    public Response onCompleted(Response response) throws Exception {
+                        r.get().append(response.getResponseBody());
+                        suspended.countDown();
+                        logger.info("suspendedCount" + suspended.getCount());
+                        return response;
+                    }
+                });
+            }
+
+            suspended.await(60, TimeUnit.SECONDS);
+
+            StringBuffer b2 = new StringBuffer();
+            for (int i = 0; i < MAX_CLIENT; i++) {
+                b2.append("foo");
+            }
+
+            //All Broadcaster will be destroyed after 10 second, so let's wait a little.
+            Thread.sleep(15000);
 
             assertEquals(r.get().toString(), b2.toString());
             // Scope == REQUEST

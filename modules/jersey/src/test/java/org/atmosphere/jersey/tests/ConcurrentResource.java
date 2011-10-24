@@ -75,4 +75,24 @@ public class ConcurrentResource {
             event.getResource().getBroadcaster().broadcast("foo");
         }
     }
+
+    @Path("idleDestroyResumePolicy")
+    @GET
+    @Suspend(listeners = {ResumeListener.class}, outputComments = false)
+    public Broadcastable suspendForever(@Context BroadcasterFactory f) {
+        Broadcaster b = f.get(UUID.randomUUID().toString());
+        b.setBroadcasterLifeCyclePolicy(
+                new BroadcasterLifeCyclePolicy.Builder()
+                        .policy(IDLE_RESUME)
+                        .idleTime(10, TimeUnit.SECONDS)
+                        .build());
+        return new Broadcastable(b);
+    }
+
+    public final static class ResumeListener extends AtmosphereResourceEventListenerBase {
+        @Override
+        public void onSuspend(AtmosphereResourceEvent event) {
+            event.getResource().getBroadcaster().broadcast("foo");
+        }
+    }
 }
