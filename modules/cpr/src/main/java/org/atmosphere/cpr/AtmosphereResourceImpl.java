@@ -67,7 +67,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereResourceImpl implements
-        AtmosphereResource<HttpServletRequest, HttpServletResponse>, AtmosphereEventLifecycle {
+        AtmosphereResource<HttpServletRequest, HttpServletResponse> {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceImpl.class);
 
@@ -162,6 +162,8 @@ public class AtmosphereResourceImpl implements
             if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
                 action.type = AtmosphereServlet.Action.TYPE.RESUME;
 
+                logger.debug("Resuming {}", getRequest());
+
                 // We need it as Jetty doesn't support timeout
                 Broadcaster b = getBroadcaster(false);
                 if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
@@ -199,7 +201,7 @@ public class AtmosphereResourceImpl implements
                     cometSupport.action(this);
                 }
             } else {
-                logger.debug("Cannot resume an already resumed/cancelled request");
+                logger.debug("Cannot resume an already resumed/cancelled request {}", getRequest());
             }
         }
     }
@@ -525,7 +527,12 @@ public class AtmosphereResourceImpl implements
      * Notify {@link AtmosphereResourceEventListener}.
      */
     public void notifyListeners(AtmosphereResourceEvent event) {
-        logger.debug("Invoking listener with {}", event);
+        if (listeners.size() > 0) {
+            logger.debug("Invoking listener with {}", event);
+        } else {
+            return;
+        }
+
         if (event.isResuming() || event.isResumedOnTimeout()) {
             onResume(event);
         } else if (event.isCancelled()) {
@@ -588,6 +595,7 @@ public class AtmosphereResourceImpl implements
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
+                ", hasCode" + hashCode() +
                 ", action=" + action +
                 ", broadcaster=" + broadcaster.getClass().getName() +
                 ", cometSupport=" + cometSupport +
