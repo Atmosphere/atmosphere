@@ -108,7 +108,6 @@ public class DefaultBroadcaster implements Broadcaster {
     private Future<?> currentLifecycleTask;
     protected URI uri;
     protected AtmosphereServlet.AtmosphereConfig config;
-    private String initialId;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         this.name = name;

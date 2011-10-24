@@ -14,7 +14,7 @@
         </encoder>
     </appender>
 
-    <logger name="org" level="DEBUG"/>
+    <logger name="org.atmosphere" level="DEBUG"/>
     <logger name="com" level="INFO"/>
     <logger name="org" level="INFO"/>
 

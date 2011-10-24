@@ -18,13 +18,19 @@ package org.atmosphere.jersey.tests;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerBase;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterLifeCyclePolicy;
 import org.atmosphere.jersey.Broadcastable;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.*;
 
 /**
  * Concurrent Resource Test case.
@@ -43,9 +49,30 @@ public class ConcurrentResource {
 
     public final static class SuspendListener extends AtmosphereResourceEventListenerBase {
         @Override
-        public void onSuspend(AtmosphereResourceEvent event){
+        public void onSuspend(AtmosphereResourceEvent event) {
+            event.getResource().getBroadcaster().setBroadcasterLifeCyclePolicy(
+                    new BroadcasterLifeCyclePolicy.Builder().policy(EMPTY_DESTROY).build());
             event.getResource().getBroadcaster().broadcast("foo");
         }
     }
 
+    @Path("idleDestroyPolicy")
+    @GET
+    @Suspend(resumeOnBroadcast = true, listeners = {DestroyListener.class})
+    public Broadcastable suspend(@Context BroadcasterFactory f) {
+        Broadcaster b = f.get(UUID.randomUUID().toString());
+        b.setBroadcasterLifeCyclePolicy(
+                new BroadcasterLifeCyclePolicy.Builder()
+                        .policy(IDLE_DESTROY)
+                        .idleTime(10, TimeUnit.SECONDS)
+                        .build());
+        return new Broadcastable(b);
+    }
+
+    public final static class DestroyListener extends AtmosphereResourceEventListenerBase {
+        @Override
+        public void onSuspend(AtmosphereResourceEvent event) {
+            event.getResource().getBroadcaster().broadcast("foo");
+        }
+    }
 }

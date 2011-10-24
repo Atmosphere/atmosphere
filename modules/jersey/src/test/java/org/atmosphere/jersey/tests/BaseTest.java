@@ -37,6 +37,7 @@
 package org.atmosphere.jersey.tests;
 
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -99,7 +100,6 @@ public abstract class BaseTest {
         urlTarget = getUrlTarget(port);
         atmoServlet = new AtmosphereServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
-        atmoServlet.addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
 
         configureCometSupport();
         startServer();
