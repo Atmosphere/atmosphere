@@ -122,7 +122,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         Broadcaster b = store.get(id);
         if (b != null){
-            return b;
+            throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
         }
 
         try {
