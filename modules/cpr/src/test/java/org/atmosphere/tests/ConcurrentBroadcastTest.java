@@ -18,13 +18,16 @@ package org.atmosphere.tests;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
-import org.atmosphere.container.JettyCometSupport;
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerBase;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
@@ -40,6 +43,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
@@ -49,14 +53,15 @@ public class ConcurrentBroadcastTest {
 
     private static final Logger logger = LoggerFactory.getLogger(ConcurrentBroadcastTest.class);
 
+    private static final int MAX_CLIENT = 100;
+
     protected AtmosphereServlet atmoServlet;
     protected final static String ROOT = "/*";
     protected String urlTarget;
     protected Server server;
     protected Context root;
-    private final static AtomicReference<AtmosphereResource<?, ?>> ref = new AtomicReference<AtmosphereResource<?, ?>>();
-    private final static CountDownLatch suspended = new CountDownLatch(50);
-    private final static CountDownLatch broadcasterCreated = new CountDownLatch(1);
+    private final static CountDownLatch suspended = new CountDownLatch(MAX_CLIENT);
+    private final static CountDownLatch broadcasterReady = new CountDownLatch(MAX_CLIENT);
 
 
     public static class TestHelper {
@@ -108,7 +113,7 @@ public class ConcurrentBroadcastTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -118,32 +123,40 @@ public class ConcurrentBroadcastTest {
         server = null;
     }
 
-    @Test(timeOut = 20000, enabled = true)
-    public void testBroadcasterLifecylePolicy() {
+    @Test(timeOut = 60000, enabled = true)
+    public void testConcurrentSuspendAndBroadcast() {
         logger.info("Running testBroadcasterLifecylePolicy");
 
         AsyncHttpClient c = new AsyncHttpClient();
         Broadcaster b = null;
         try {
-            final AtomicReference<Response> r = new AtomicReference();
-            c.prepareGet(urlTarget + "/suspend").execute(new AsyncCompletionHandler<Response>() {
+            final AtomicReference<StringBuffer> r = new AtomicReference<StringBuffer>(new StringBuffer());
+            for (int i = 0; i < MAX_CLIENT; i++) {
 
-                @Override
-                public Response onCompleted(Response response) throws Exception {
-                    r.set(response);
-                    suspended.countDown();
-                    return response;
-                }
-            });
+                c.prepareGet(urlTarget + "/suspend").execute(new AsyncCompletionHandler<Response>() {
 
-            // Destroy the Broadcaster
-            for (int i = 0; i < 50; i++) {
-                c.prepareGet(urlTarget + "/suspend").execute();
+                    @Override
+                    public Response onCompleted(Response response) throws Exception {
+                        r.get().append(response.getResponseBody());
+                        suspended.countDown();
+                        logger.info("suspendedCount" + suspended.getCount());
+                        return response;
+                    }
+                });
             }
 
-            suspended.await(20, TimeUnit.SECONDS);
+            broadcasterReady.await(10, TimeUnit.SECONDS);
 
-            assertEquals(r.get().getResponseBody(), "Recovering a dead broadcasted");
+            BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "/suspend").broadcast("foo").get();
+
+            suspended.await(60, TimeUnit.SECONDS);
+
+            StringBuffer b2 = new StringBuffer();
+            for (int i=0; i < MAX_CLIENT; i++) {
+                b2.append("foo");
+            }
+
+            assertEquals(r.get().toString(), b2.toString());
 
         } catch (Exception e) {
             logger.error("test failed", e);
@@ -156,19 +169,21 @@ public class ConcurrentBroadcastTest {
 
     private static final class SuspendAndResume implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
 
-        private Broadcaster broadcaster;
-
         @Override
         public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
-            broadcaster = BroadcasterFactory.getDefault().get("stress");
-            broadcasterCreated.countDown();
-            r.setBroadcaster(broadcaster);
-            r.suspend(10, false);
+            r.addEventListener(new AtmosphereResourceEventListenerBase() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                    broadcasterReady.countDown();
+                }
+            });
+            r.suspend(-1, false);
         }
 
         @Override
         public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> r) throws IOException {
-            if (r.isSuspended()) {
+            if (r.isSuspended() && !r.isResuming()) {
+                logger.info("Resumed");
                 r.getResource().getResponse().getWriter().print(r.getMessage());
                 r.getResource().getResponse().getWriter().flush();
                 r.getResource().resume();
