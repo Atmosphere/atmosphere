@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-public class ConcurrentResourceTest extends BaseGrizzyTest {
+public class ConcurrentResourceTest extends BaseJettyTest {
     private static final Logger logger = LoggerFactory.getLogger(ConcurrentResourceTest.class);
 
     private static final int MAX_CLIENT = 100;
