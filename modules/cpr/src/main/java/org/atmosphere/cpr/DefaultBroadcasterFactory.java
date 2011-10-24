@@ -234,7 +234,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 for (Broadcaster b : lookupAll()) {
                     try {
                         // Prevent deadlock
-                        if (!b.getAtmosphereResources().contains(r)) {
+                        if (b.getAtmosphereResources().contains(r)) {
                             b.removeAtmosphereResource(r);
                         }
                     } catch (IllegalStateException ex) {
