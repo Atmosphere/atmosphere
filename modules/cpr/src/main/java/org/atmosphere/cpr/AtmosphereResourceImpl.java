@@ -158,6 +158,7 @@ public class AtmosphereResourceImpl implements
      */
     public void resume() {
         // Stragely but possible two thread try to resume at the same time.
+        try {
         synchronized (event) {
             if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
                 action.type = AtmosphereServlet.Action.TYPE.RESUME;
@@ -203,6 +204,9 @@ public class AtmosphereResourceImpl implements
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", getRequest());
             }
+        }
+        } catch (Throwable t) {
+            logger.trace("Wasn't able to resume a connection {}", this, t);
         }
     }
 
