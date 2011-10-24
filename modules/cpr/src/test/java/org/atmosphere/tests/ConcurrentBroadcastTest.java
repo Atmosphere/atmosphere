@@ -22,7 +22,7 @@ import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerBase;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -169,7 +169,7 @@ public class ConcurrentBroadcastTest {
 
         @Override
         public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
-            r.addEventListener(new AtmosphereResourceEventListenerBase() {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
                     broadcasterReady.countDown();
