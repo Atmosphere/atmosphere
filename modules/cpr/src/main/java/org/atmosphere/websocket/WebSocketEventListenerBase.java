@@ -22,62 +22,67 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * An implementation of {@link WebSocketEventListener} with just log event as trace.
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class WebSocketEventListenerBase implements WebSocketEventListener {
 
     private final static Logger logger = LoggerFactory.getLogger(WebSocketEventListenerBase.class);
 
     @Override
     public void onHandshake(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onMessage(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onClose(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onControl(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onDisconnect(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onConnect(WebSocketEvent event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 
     @Override
     public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-        logger.trace("",event);
+        logger.trace("", event);
     }
 }
