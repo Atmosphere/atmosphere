@@ -163,7 +163,14 @@ public class AtmosphereResourceImpl implements
             if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
                 action.type = AtmosphereServlet.Action.TYPE.RESUME;
 
-                logger.debug("Resuming {}", getRequest());
+                try {
+                    logger.debug("Resuming {}", getRequest());
+                } catch (Throwable ex) {
+                    // Jetty NPE toString()
+                    // Ignore
+                    // Stop here as the request object as becomes invalid.
+                    return;
+                }
 
                 // We need it as Jetty doesn't support timeout
                 Broadcaster b = getBroadcaster(false);
