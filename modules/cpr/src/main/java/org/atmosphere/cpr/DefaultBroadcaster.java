@@ -873,9 +873,9 @@ public class DefaultBroadcaster implements Broadcaster {
             return null;
         }
         // Prevent two thread to mix operation
-        synchronized (resources) {
-            resources.remove(r);
+        boolean removed = resources.remove(r);
 
+        if (removed) {
             // Will help preventing OOM.
             if (resources.isEmpty()) {
                 notifyEmptyListener();
