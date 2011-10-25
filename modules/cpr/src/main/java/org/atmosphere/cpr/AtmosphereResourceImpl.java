@@ -381,13 +381,15 @@ public class AtmosphereResourceImpl implements
             autoCreate = Boolean.parseBoolean(s);
         }
 
-        if (autoCreate && broadcaster.isDestroyed()) {
+        if (autoCreate && broadcaster.isDestroyed() && BroadcasterFactory.getDefault() != null) {
             logger.warn("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
                     " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
 
             synchronized (this) {
                 String id = broadcaster.getScope() != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
-                broadcaster = BroadcasterFactory.getDefault().get(id);
+
+                // Another Thread may have added the Broadcaster.
+                broadcaster = BroadcasterFactory.getDefault().lookup(id, true);
                 broadcaster.addAtmosphereResource(this);
             }
         }

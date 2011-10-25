@@ -117,6 +117,26 @@ public abstract class BroadcasterFactory {
      */
     abstract public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull);
 
+     /**
+     * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
+     * used when invoking {@link BroadcasterFactory#getDefault()}
+     *
+     * @param id The Broadcaster's unique ID, or name.
+     * @return a Broadcaster, or null if not found.
+     */
+    abstract public Broadcaster lookup(Object id);
+
+    /**
+     * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
+     * used when invoking {@link BroadcasterFactory#getDefault()}
+     *
+     * @param id           The Broadcaster's unique ID, or name.
+     * @param createIfNull If the broadcaster is not found, create it.
+     * @return a Broadcaster, or null if not found.
+     */
+    abstract public Broadcaster lookup(Object id, boolean createIfNull);
+
+
     /**
      * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}
      *

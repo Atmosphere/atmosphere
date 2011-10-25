@@ -211,6 +211,20 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
+    public final Broadcaster lookup(Object id) {
+        return lookup(clazz, id, false);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public final Broadcaster lookup(Object id, boolean createIfNull) {
+        return lookup(clazz, id, createIfNull);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
         Broadcaster b = getBroadcaster(id);
