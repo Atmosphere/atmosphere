@@ -122,7 +122,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         Broadcaster b = store.get(id);
         if (b != null) {
-            throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
+            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
         }
 
         synchronized (id) {
@@ -153,7 +153,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if (c == null) throw new NullPointerException("Class is null");
 
         if (getBroadcaster(id) != null)
-            throw new IllegalStateException("Broadcaster already existing. Use BroadcasterFactory.lookup instead");
+            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
 
         Broadcaster b = null;
 
