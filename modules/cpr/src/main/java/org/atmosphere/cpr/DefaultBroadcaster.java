@@ -409,10 +409,10 @@ public class DefaultBroadcaster implements Broadcaster {
                         push(msg);
                     } catch (Throwable ex) {
                         if (!started.get() || destroyed.get()) {
-                            logger.trace("Failed to submit broadcast handler runnable to broadcast executor service on shutdown", ex);
+                            logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
                         } else {
                             logger.warn("This message {} will be lost", msg);
-                            logger.debug("Failed to submit broadcast handler runnable to broadcast executor service", ex);
+                            logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
                         }
                     }
                 }
@@ -626,10 +626,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
-                        logger.trace("Failed to submit async write task on shutdown", ex);
+                        logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
                     } else {
-                        logger.warn("Failed to write {}", token);
-                        logger.debug("Failed to submit async write task", ex);
+                        logger.warn("This message {} will be lost", token.msg);
+                        logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                     }
                 }
             }
