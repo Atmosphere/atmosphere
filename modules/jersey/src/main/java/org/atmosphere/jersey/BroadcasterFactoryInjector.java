@@ -148,6 +148,16 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             }
 
             @Override
+            public Broadcaster lookup(Object id) {
+                return _get().lookup(id);
+            }
+
+            @Override
+            public Broadcaster lookup(Object id, boolean createIfNull) {
+                return _get().lookup(id, createIfNull);
+            }
+
+            @Override
             public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
                 _get().removeAllAtmosphereResource(r);
             }
