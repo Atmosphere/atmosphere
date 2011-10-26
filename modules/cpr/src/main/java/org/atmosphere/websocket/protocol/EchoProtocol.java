@@ -15,11 +15,15 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * Simple {@link org.atmosphere.websocket.WebSocketProcessor} that invoke the {@link org.atmosphere.cpr.Broadcaster#broadcast} API when a WebSocket message
@@ -29,22 +33,26 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
-public class EchoProtocol extends WebSocketProcessor {
+public class EchoProtocol implements WebSocketProtocol {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
-    public EchoProtocol(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
-        super(atmosphereServlet, webSocket);
-    }
-
-    public void parseMessage(String data) {
+    @Override
+    public HttpServletRequest parseMessage(AtmosphereResource resource, String data) {
         logger.trace("broadcast String");
-        resource().getBroadcaster().broadcast(data);
+        resource.getBroadcaster().broadcast(data);
+        return null;
     }
 
-    public void parseMessage(byte[] data, int offset, int length) {
+    @Override
+    public HttpServletRequest parseMessage(AtmosphereResource resource, byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
-        resource().getBroadcaster().broadcast(b);
+        resource.getBroadcaster().broadcast(b);
+        return null;
+    }
+
+    @Override
+    public void configure(AtmosphereServlet.AtmosphereConfig config) {
     }
 }

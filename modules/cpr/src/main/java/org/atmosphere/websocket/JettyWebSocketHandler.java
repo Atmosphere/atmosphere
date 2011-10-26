@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.container.Jetty8WebSocket;
 import org.atmosphere.websocket.container.JettyWebSocket;
+import org.atmosphere.websocket.protocol.EchoProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,23 +41,26 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     private WebSocketProcessor webSocketProcessor;
     private final HttpServletRequest request;
     private final AtmosphereServlet atmosphereServlet;
-    private final String webSocketProcessorClassName;
+    private WebSocketProtocol webSocketProtocol;
 
-    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProcessorClassName) {
+    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProtocolClassName) {
         this.request = new JettyRequestFix(request, request.getServletPath(), request.getContextPath(), request.getPathInfo(), request.getRequestURI());
         this.atmosphereServlet = atmosphereServlet;
-        this.webSocketProcessorClassName = webSocketProcessorClassName;
+
+        try {
+            this.webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
+                    .loadClass(webSocketProtocolClassName).newInstance();
+            webSocketProtocol.configure(atmosphereServlet.getAtmosphereConfig());
+        } catch (Exception ex) {
+            logger.error("Cannot load the WebSocketProtocol {}", webSocketProtocolClassName, ex);
+        }
     }
 
     @Override
     public void onConnect(org.eclipse.jetty.websocket.WebSocket.Outbound outbound) {
         logger.debug("WebSocket.onConnect (outbound)");
         try {
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
-                    .loadClass(webSocketProcessorClassName)
-                    .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
-                    .newInstance(new Object[]{atmosphereServlet, new JettyWebSocket(outbound)});
-
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new JettyWebSocket(outbound), webSocketProtocol);
             webSocketProcessor.dispatch(request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
@@ -66,16 +70,16 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onMessage(byte frame, String data) {
         logger.debug("WebSocket.onMessage (frame/string)");
-        webSocketProcessor.parseMessage(data);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocketSupport()));
+        webSocketProcessor.invokeWebSocketProtocol(data);
+        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onMessage(byte frame, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onMessage (frame)");
-        webSocketProcessor.parseMessage(new String(data, offset, length));
+        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -85,9 +89,9 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onFragment");
-        webSocketProcessor.parseMessage(new String(data, offset, length));
+        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -98,15 +102,15 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onDisconnect() {
         logger.debug("WebSocket.onDisconnect");
         webSocketProcessor.close();
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocketSupport()));
+        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onMessage(byte[] data, int offset, int length) {
         logger.debug("WebSocket.onMessage (bytes)");
-        webSocketProcessor.parseMessage(data, offset, length);
+        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -116,9 +120,9 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
         logger.debug("WebSocket.onControl.");
-        webSocketProcessor.parseMessage(data, offset, length);
+        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocketSupport()));
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -131,8 +135,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         logger.debug("WebSocket.onFrame.");
         // TODO: onMessage is always invoked after that method gets called, so no need to enable for now.
         //       webSocketProcessor.broadcast(data, offset, length);
-       /* try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocketSupport()));
+        /* try {
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -144,34 +148,29 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
         logger.debug("WebSocket.onHandshake");
         try {
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
-                    .loadClass(webSocketProcessorClassName)
-                    .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
-                    .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocket(connection)});
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
 
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", HANDSHAKE, webSocketProcessor.webSocketSupport()));
+        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", HANDSHAKE, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onMessage(String data) {
         logger.debug("WebSocket.onMessage");
-        webSocketProcessor.parseMessage(data);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocketSupport()));
+        webSocketProcessor.invokeWebSocketProtocol(data);
+        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.debug("WebSocket.onOpen.");
         try {
-            webSocketProcessor = (WebSocketProcessor) JettyWebSocketHandler.class.getClassLoader()
-                    .loadClass(webSocketProcessorClassName)
-                    .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
-                    .newInstance(new Object[]{atmosphereServlet, new Jetty8WebSocket(connection)});
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
+
             webSocketProcessor.dispatch(request);
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocketSupport()));
+            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -180,7 +179,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onClose(int closeCode, String message) {
         logger.debug("WebSocket.OnClose.");
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocketSupport()));
+        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         if (r != null) {
             r.getBroadcaster().removeAtmosphereResource(r);

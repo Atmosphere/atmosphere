@@ -23,11 +23,6 @@
             <param-value>org.atmosphere.client.JavascriptClientFilter</param-value>
         </init-param>
         <!-- shared thread pool across Broadcaster -->
-        <init-param>
-            <param-name>org.atmosphere.cpr.broadcaster.shareableThreadPool</param-name>
-            <param-value>true</param-value>
-        </init-param>
-
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
