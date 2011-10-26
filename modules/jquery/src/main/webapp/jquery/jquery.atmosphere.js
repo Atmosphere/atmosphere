@@ -672,8 +672,7 @@ jQuery.atmosphere = function() {
             };
 
             websocket.onmessage = function(message) {
-                var data = message.data;
-                if (data.indexOf("parent.callback") != -1) {
+                if (message.data.indexOf("parent.callback") != -1) {
                     jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
 
                 }
