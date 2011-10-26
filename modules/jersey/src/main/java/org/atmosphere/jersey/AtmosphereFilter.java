@@ -679,6 +679,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     response.setEntity(paddingData);
                     response.write();
+                    response.setEntity(null);
                 }
 
                 if (entity != null) {
