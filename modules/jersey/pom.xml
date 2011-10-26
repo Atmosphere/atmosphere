@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.8.0-RC3-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-jersey</artifactId>
     <packaging>bundle</packaging>
-    <version>0.9-SNAPSHOT</version>
+    <version>0.8.0-RC3-SNAPSHOT</version>
     <name>atmosphere-jersey</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
