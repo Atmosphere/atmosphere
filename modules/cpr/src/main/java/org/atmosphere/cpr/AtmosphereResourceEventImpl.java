@@ -140,8 +140,36 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
         this.isResumedOnTimeout.set(isResumedOnTimeout);
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AtmosphereResourceEventImpl that = (AtmosphereResourceEventImpl) o;
+
+        if (isCancelled != null ? !isCancelled.equals(that.isCancelled) : that.isCancelled != null) return false;
+        if (isResumedOnTimeout != null ? !isResumedOnTimeout.equals(that.isResumedOnTimeout) : that.isResumedOnTimeout != null)
+            return false;
+        if (message != null ? !message.equals(that.message) : that.message != null) return false;
+        if (resource != null ? !resource.equals(that.resource) : that.resource != null) return false;
+        if (throwable != null ? !throwable.equals(that.throwable) : that.throwable != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = isCancelled != null ? isCancelled.hashCode() : 0;
+        result = 31 * result + (isResumedOnTimeout != null ? isResumedOnTimeout.hashCode() : 0);
+        result = 31 * result + (throwable != null ? throwable.hashCode() : 0);
+        result = 31 * result + (message != null ? message.hashCode() : 0);
+        result = 31 * result + (resource != null ? resource.hashCode() : 0);
+        return result;
+    }
+
     /**
      * {@inheritDoc}
+
      */
     public Throwable throwable() {
         return throwable;
