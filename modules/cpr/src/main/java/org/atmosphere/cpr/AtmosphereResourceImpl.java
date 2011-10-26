@@ -606,6 +606,42 @@ public class AtmosphereResourceImpl implements
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
+
+        if (enableAccessControl != that.enableAccessControl) return false;
+        if (injectCacheHeaders != that.injectCacheHeaders) return false;
+        if (isInScope != that.isInScope) return false;
+        if (writeHeaders != that.writeHeaders) return false;
+        if (atmosphereHandler != null ? !atmosphereHandler.equals(that.atmosphereHandler) : that.atmosphereHandler != null)
+            return false;
+        if (broadcaster != null ? !broadcaster.equals(that.broadcaster) : that.broadcaster != null) return false;
+        if (isSuspendEvent != null ? !isSuspendEvent.equals(that.isSuspendEvent) : that.isSuspendEvent != null)
+            return false;
+        if (req != null ? !req.equals(that.req) : that.req != null) return false;
+        if (response != null ? !response.equals(that.response) : that.response != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = req != null ? req.hashCode() : 0;
+        result = 31 * result + (response != null ? response.hashCode() : 0);
+        result = 31 * result + (broadcaster != null ? broadcaster.hashCode() : 0);
+        result = 31 * result + (isInScope ? 1 : 0);
+        result = 31 * result + (injectCacheHeaders ? 1 : 0);
+        result = 31 * result + (enableAccessControl ? 1 : 0);
+        result = 31 * result + (isSuspendEvent != null ? isSuspendEvent.hashCode() : 0);
+        result = 31 * result + (atmosphereHandler != null ? atmosphereHandler.hashCode() : 0);
+        result = 31 * result + (writeHeaders ? 1 : 0);
+        return result;
+    }
+
+    @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
                 ", hasCode" + hashCode() +
