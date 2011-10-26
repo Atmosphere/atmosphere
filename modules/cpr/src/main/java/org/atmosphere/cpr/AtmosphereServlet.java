@@ -104,7 +104,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
-import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
+import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
@@ -229,7 +229,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
     private String broadcasterLifeCyclePolicy = "NEVER";
-    private String webSocketProcessorClassName = SimpleHttpProtocol.class.getName();
+    private String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -640,9 +640,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             webSocketEnabled = true;
             sessionSupport(false);
         }
-        s = sc.getInitParameter(WEBSOCKET_PROCESSOR);
+        s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
         if (s != null) {
-            webSocketProcessorClassName = s;
+            webSocketProtocolClassName = s;
         }
     }
 
@@ -1393,12 +1393,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         broadcasterTypes.add(broadcasterTypeString);
     }
 
-    public String getWebSocketProcessorClassName() {
-        return webSocketProcessorClassName;
+    public String getWebSocketProtocolClassName() {
+        return webSocketProtocolClassName;
     }
 
-    public void setWebSocketProcessorClassName(String webSocketProcessorClassName) {
-        this.webSocketProcessorClassName = webSocketProcessorClassName;
+    public void setWebSocketProtocolClassName(String webSocketProtocolClassName) {
+        this.webSocketProtocolClassName = webSocketProtocolClassName;
     }
 
     protected Map<String, String> configureQueryStringAsRequest(HttpServletRequest request) {
@@ -1439,6 +1439,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.info("WebSocket upgrade requested");
         request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-        return new JettyWebSocketHandler(request, this, webSocketProcessorClassName);
+        return new JettyWebSocketHandler(request, this, webSocketProtocolClassName);
     }
 }

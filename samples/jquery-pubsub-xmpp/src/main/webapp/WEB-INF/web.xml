@@ -27,7 +27,7 @@
             </param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.websocket.WebSocketProcessor</param-name>
+            <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
             <param-value>org.atmosphere.websocket.protocol.EchoProtocol</param-value>
         </init-param>
         <!--<init-param>-->

@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.websocket.WebSocketProcessor;
+import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
  * Web.xml init-param configuration supported by Atmosphere.
@@ -86,7 +87,7 @@ public interface ApplicationConfig {
     /**
      * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.
      */
-    String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
+    String WEBSOCKET_PROTOCOL = WebSocketProtocol.class.getName();
     /**
      * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an HTTPServletRequest
      */
