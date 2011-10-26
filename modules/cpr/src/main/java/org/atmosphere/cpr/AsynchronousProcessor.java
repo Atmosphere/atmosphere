@@ -105,7 +105,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                                 cancelled(req, aliveRequests.get(req).getResponse());
                                 req.setAttribute(MAX_INACTIVE, (long) -1);
                             } catch (IOException e) {
+                                logger.trace("closedDetector", e);
                             } catch (ServletException e) {
+                                logger.trace("closedDetector", e);
                             }
                         }
                     }
@@ -402,7 +404,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+    public synchronized Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
         AtmosphereResourceImpl re = null;
