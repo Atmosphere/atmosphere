@@ -69,14 +69,14 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onMessage(byte frame, String data) {
-        logger.debug("WebSocket.onMessage (frame/string)");
+        logger.trace("WebSocket.onMessage (frame/string)");
         webSocketProcessor.invokeWebSocketProtocol(data);
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onMessage(byte frame, byte[] data, int offset, int length) {
-        logger.debug("WebSocket.onMessage (frame)");
+        logger.trace("WebSocket.onMessage (frame)");
         webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
@@ -88,7 +88,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
-        logger.debug("WebSocket.onFragment");
+        logger.trace("WebSocket.onFragment");
         webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
@@ -100,14 +100,14 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onDisconnect() {
-        logger.debug("WebSocket.onDisconnect");
+        logger.trace("WebSocket.onDisconnect");
         webSocketProcessor.close();
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onMessage(byte[] data, int offset, int length) {
-        logger.debug("WebSocket.onMessage (bytes)");
+        logger.trace("WebSocket.onMessage (bytes)");
         webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
@@ -119,7 +119,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
-        logger.debug("WebSocket.onControl.");
+        logger.trace("WebSocket.onControl.");
         webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocket()));
@@ -132,7 +132,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public boolean onFrame(byte flags, byte opcode, byte[] data, int offset, int length) {
-        logger.debug("WebSocket.onFrame.");
+        logger.trace("WebSocket.onFrame.");
         // TODO: onMessage is always invoked after that method gets called, so no need to enable for now.
         //       webSocketProcessor.broadcast(data, offset, length);
         /* try {
@@ -146,7 +146,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
-        logger.debug("WebSocket.onHandshake");
+        logger.trace("WebSocket.onHandshake");
         try {
             webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
         } catch (Exception e) {
@@ -158,14 +158,14 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onMessage(String data) {
-        logger.debug("WebSocket.onMessage");
+        logger.trace("WebSocket.onMessage");
         webSocketProcessor.invokeWebSocketProtocol(data);
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
     }
 
     @Override
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
-        logger.debug("WebSocket.onOpen.");
+        logger.trace("WebSocket.onOpen.");
         try {
             webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
 
@@ -178,7 +178,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onClose(int closeCode, String message) {
-        logger.debug("WebSocket.OnClose.");
+        logger.trace("WebSocket.OnClose.");
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         if (r != null) {
