@@ -81,7 +81,8 @@ jQuery.atmosphere = function() {
                 enableXDR : false,
                 rewriteURL : false,
                 attachHeadersAsQueryString : false,
-                executeCallbackBeforeReconnect : true
+                executeCallbackBeforeReconnect : true,
+                readyState : 0
 
             }, request);
 
@@ -198,6 +199,8 @@ jQuery.atmosphere = function() {
                         ajaxRequest.abort();
                         activeRequest = null;
                     };
+
+
                 }
 
                 ajaxRequest.onreadystatechange = function() {
@@ -205,6 +208,12 @@ jQuery.atmosphere = function() {
 
                     var junkForWebkit = false;
                     var update = false;
+
+                    // Remote server disconnected us, reconnect.
+                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4){
+                        jQuery.atmosphere.reconnect(ajaxRequest, request);
+                    }
+                    request.readyState = ajaxRequest.readyState;
 
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
