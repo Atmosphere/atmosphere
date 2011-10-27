@@ -62,6 +62,14 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         super(id, config);
     }
 
+    protected void start() {
+        if (!started.getAndSet(true)) {
+            setID(name);
+            broadcasterCache = bc.getBroadcasterCache();
+            broadcasterCache.start();
+        }
+    }
+
     /**
      * {@inheritDoc}
      */
