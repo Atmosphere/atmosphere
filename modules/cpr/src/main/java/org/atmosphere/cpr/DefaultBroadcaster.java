@@ -200,6 +200,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
                     }
                     resource.setBroadcaster(b);
+                    b.setScope(SCOPE.REQUEST);
                     if (resource.getAtmosphereResourceEvent().isSuspended()) {
                         b.addAtmosphereResource(resource);
                     }
@@ -280,7 +281,7 @@ public class DefaultBroadcaster implements Broadcaster {
             currentLifecycleTask.cancel(false);
         }
 
-        if (bc.getScheduledExecutorService() == null ) {
+        if (bc.getScheduledExecutorService() == null) {
             logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. BroadcasterLifeCyclePolicy won't work.", getID());
             return;
         }
@@ -581,7 +582,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     HttpServletRequest.class.cast(resource.getRequest())
                             .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-                } catch(Exception ex) {
+                } catch (Exception ex) {
                     logger.warn("Invalid AtmosphereResource state {}", event);
                     // The Request/Response associated with the AtmosphereResource has already been written and commited
                     removeAtmosphereResource(resource);
@@ -820,7 +821,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(),  "addAtmosphereResource(AtmosphereResource<?, ?> r");
+            logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource<?, ?> r");
             return r;
         }
 
