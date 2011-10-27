@@ -124,6 +124,7 @@ public class WebSocketProcessor implements Serializable {
      * @param response a {@link HttpServletResponse}
      */
     protected final void dispatch(final HttpServletRequest request, final HttpServletResponse response) {
+        if (request == null) return;
         try {
             atmosphereServlet.doCometSupport(request, response);
         } catch (IOException e) {
