@@ -261,14 +261,19 @@ jQuery.atmosphere = function() {
                             response.state = "messagePublished";
                         }
 
-                        jQuery.atmosphere.reconnect(ajaxRequest, request);
+                        if (request.executeCallbackBeforeReconnect) {
+                            jQuery.atmosphere.reconnect(ajaxRequest, request);
+                        }
 
                         // For backward compatibility with Atmosphere < 0.8
                         if (response.responseBody.indexOf("parent.callback") != -1) {
                             jQuery.atmosphere.log(logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                         }
                         jQuery.atmosphere.invokeCallback(response);
-                        jQuery.atmosphere.reconnect(ajaxRequest, request);
+
+                        if (!request.executeCallbackBeforeReconnect) {
+                            jQuery.atmosphere.reconnect(ajaxRequest, request);
+                        }
 
                         if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                             // Close and reopen connection on large data received
@@ -312,13 +317,11 @@ jQuery.atmosphere = function() {
         },
 
         reconnect : function (ajaxRequest, request) {
-            if (jQuery.atmosphere.request.executeCallbackBeforeReconnect && ajaxRequest.readyState == 4) {
-                jQuery.atmosphere.request = request;
-                if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
-                    jQuery.atmosphere.request.method = 'GET';
-                    jQuery.atmosphere.request.data = "";
-                    jQuery.atmosphere.executeRequest();
-                }
+            jQuery.atmosphere.request = request;
+            if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
+                jQuery.atmosphere.request.method = 'GET';
+                jQuery.atmosphere.request.data = "";
+                jQuery.atmosphere.executeRequest();
             }
         },
 
