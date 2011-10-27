@@ -577,24 +577,17 @@ public class DefaultBroadcaster implements Broadcaster {
             final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) resource.getAtmosphereResourceEvent();
             event.setMessage(msg);
 
+            // Check again to make sure we are suspended
             try {
-                // Check again to make sure we are suspended
-                try {
-                    HttpServletRequest.class.cast(resource.getRequest())
-                            .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-                } catch (Exception ex) {
-                    logger.warn("Invalid AtmosphereResource state {}", event);
-                    // The Request/Response associated with the AtmosphereResource has already been written and commited
-                    removeAtmosphereResource(resource);
-                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
-                    return;
-                }
-            } catch (Exception t) {
-                // Shield us from any corrupted Request
-                logger.debug("Preventing corruption of a recycled request: resource" + resource, event);
+                HttpServletRequest.class.cast(resource.getRequest())
+                        .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+            } catch (Throwable t) {
+                logger.error("Invalid AtmosphereResource state {}", event);
+                logger.error("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
+                logger.error("", t);
+                // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(resource);
                 BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
-
                 event.setCancelled(true);
                 event.setThrowable(t);
                 return;
