@@ -80,7 +80,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
-    private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {}";
+    private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
             new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
@@ -280,6 +280,11 @@ public class DefaultBroadcaster implements Broadcaster {
             currentLifecycleTask.cancel(false);
         }
 
+        if (bc.getScheduledExecutorService() == null ) {
+            logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. BroadcasterLifeCyclePolicy won't work.", getID());
+            return;
+        }
+
         if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE
                 || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME
                 || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
@@ -296,17 +301,22 @@ public class DefaultBroadcaster implements Broadcaster {
                 public void run() {
                     try {
                         if (resources.isEmpty()) {
-                            notifyEmptyListener();
-                            notifyIdleListener();
-
                             if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE) {
+                                notifyEmptyListener();
+                                notifyIdleListener();
+
                                 releaseExternalResources();
                                 logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy to Broadcaster {}", getID());
-                            } else {
+                            } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
+                                notifyEmptyListener();
+                                notifyIdleListener();
+
                                 destroy(false);
                                 logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy to Broadcaster {}", getID());
                             }
                         } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME) {
+                            notifyIdleListener();
+
                             destroy(true);
                             logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_RESUME policy to Broadcaster {}", getID());
                         }
@@ -463,6 +473,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         if (resources.isEmpty()) {
+            logger.debug("Broadcaster {} doesn't have any associated resource", getID());
             trackBroadcastMessage(null, entry.message);
             if (entry.future != null) {
                 entry.future.done();
@@ -563,23 +574,15 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean notifyListeners = true;
         try {
             final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) resource.getAtmosphereResourceEvent();
-
-            // Any of these conditions stop the write operations
-            boolean isVoid = event.isCancelled() || event.isResumedOnTimeout() || event.isResuming() || !event.isSuspended();
-            if (isVoid) {
-                logger.debug("Resource {} has been already processed", event);
-                notifyListeners = false;
-                return;
-            }
-
             event.setMessage(msg);
 
             try {
                 // Check again to make sure we are suspended
-                if (event.isSuspended()) {
+                try {
                     HttpServletRequest.class.cast(resource.getRequest())
                             .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-                } else {
+                } catch(Exception ex) {
+                    logger.warn("Invalid AtmosphereResource state {}", event);
                     // The Request/Response associated with the AtmosphereResource has already been written and commited
                     removeAtmosphereResource(resource);
                     BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
@@ -710,7 +713,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "broadcast(T msg)");
             return null;
         }
 
@@ -744,7 +747,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource<?, ?> r");
             return null;
         }
 
@@ -764,7 +767,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcastOnResume(T msg) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "broadcastOnResume(T msg)");
             return null;
         }
 
@@ -797,7 +800,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource<?, ?>> subset)");
             return null;
         }
 
@@ -817,7 +820,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(),  "addAtmosphereResource(AtmosphereResource<?, ?> r");
             return r;
         }
 
@@ -865,7 +868,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "removeAtmosphereResource(AtmosphereResource r)");
             return r;
         }
 
@@ -941,7 +944,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "delayBroadcast(final T o, long delay, TimeUnit t)");
             return null;
         }
 
@@ -997,7 +1000,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public Future<?> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID());
+            logger.debug(DESTROYED, getID(), "scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t)");
             return null;
         }
 
@@ -1033,10 +1036,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
     public String toString() {
         return new StringBuilder(this.getClass().getName()).append("@").append(this.hashCode()).append("\n")
-                .append("\tName: ").append(name).append("\n")
-                .append("\tScope: ").append(scope).append("\n")
-                .append("\tBroasdcasterCache ").append(broadcasterCache).append("\n")
-                .append("\tAtmosphereResource: ").append(resources.size()).append("\n")
+                .append("\n\tName: ").append(name).append("\n")
+                .append("\n\tScope: ").append(scope).append("\n")
+                .append("\n\tBroasdcasterCache ").append(broadcasterCache).append("\n")
+                .append("\n\tAtmosphereResource: ").append(resources.size()).append("\n")
                 .toString();
     }
 

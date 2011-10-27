@@ -86,7 +86,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     public <T> Future<T> broadcast(T msg) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used");
             return null;
         }
 
@@ -107,7 +107,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used");
             return null;
         }
 
@@ -128,7 +128,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
 
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used");
             return null;
         }
 

@@ -122,29 +122,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public final Broadcaster get(Object id) {
-
-        Broadcaster b = store.get(id);
-        if (b != null) {
-            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
-        }
-
-        synchronized (id) {
-            try {
-                b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
-            } catch (Throwable t) {
-                throw new BroadcasterCreationException(t);
-            }
-            InjectorProvider.getInjector().inject(b);
-            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-            b.setBroadcasterLifeCyclePolicy(policy);
-
-            if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
-                DefaultBroadcaster.class.cast(b).start();
-            }
-
-            store.put(b.getID(), b);
-        }
-        return b;
+        return get(clazz , id);
     }
 
     /**
@@ -159,7 +137,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
 
         Broadcaster b = null;
-
         synchronized (id) {
             try {
                 b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
@@ -173,8 +150,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();
             }
-
             store.put(id, b);
+            logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
         }
         return b;
     }
@@ -200,7 +177,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public boolean remove(Broadcaster b, Object id) {
-        logger.debug("Removing Broadcaster {} which internal ref is {} ", id, b.getID());
+        logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
         return store.remove(id) != null ? true : (store.remove(b.getID()) != null);
     }
 
@@ -292,14 +269,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 bc = b.getBroadcasterConfig();
             } catch (Throwable t) {
                 // Shield us from any bad behaviour
-                logger.trace("destroy", t);
+                logger.trace("Destroy", t);
             }
         }
 
         try {
             if (bc != null) bc.forceDestroy();
         } catch (Throwable t) {
-            logger.trace("destroy", t);
+            logger.trace("Destroy", t);
 
         }
 
