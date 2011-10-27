@@ -144,20 +144,16 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     public List<Class<? extends CometSupport>> detectWebSocketPresent() {
         List l = new LinkedList<Class<? extends CometSupport>>() {
             {
-                if (testClassExists(TOMCAT)) {
-                    logger.info("Tomcat doesn't support WebSocket. Ignoring web.xml config init-param");
-                } else {
-                    if (testClassExists(JETTY_8))
-                        add(JettyCometSupportWithWebSocket.class);
+                if (testClassExists(JETTY_8))
+                    add(JettyCometSupportWithWebSocket.class);
 
-                    if (testClassExists(GRIZZLY_WEBSOCKET))
-                        add(GlassFishWebSocketSupport.class);
-                }
+                if (testClassExists(GRIZZLY_WEBSOCKET))
+                    add(GlassFishWebSocketSupport.class);
 
             }
         };
 
-        if (l.isEmpty()) {
+        if (l.isEmpty() &&  !testClassExists(TOMCAT)) {
             return detectContainersPresent();
         }
         return l;
