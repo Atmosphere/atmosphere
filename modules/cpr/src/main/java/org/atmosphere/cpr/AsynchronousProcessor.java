@@ -232,7 +232,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-        String path = req.getServletPath();
+        String path = req.getRequestURI();
         if (path == null || path.length() == 0) {
             path = "/*";
         }
