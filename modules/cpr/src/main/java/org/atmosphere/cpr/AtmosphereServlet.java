@@ -425,8 +425,17 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
-        atmosphereHandlers.put(mapping, w);
+        addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+    }
+
+    private void addMapping(String path, AtmosphereHandlerWrapper w) {
+        // We are using JAXRS mapping algorithm.
+        if (path.endsWith("*")) {
+            path = path.replace("*", "{all}");
+        }
+        atmosphereHandlers.put(path, w);
+
     }
 
     /**
@@ -444,7 +453,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
         w.broadcaster.setID(broadcasterId);
-        atmosphereHandlers.put(mapping, w);
+        addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
 
@@ -462,7 +471,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, broadcaster);
-        atmosphereHandlers.put(mapping, w);
+        addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
     }
 
@@ -865,7 +874,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handlerPath);
 
                 AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, handlerPath);
-                atmosphereHandlers.put(handlerPath, wrapper);
+                addMapping(handlerPath, wrapper);
                 boolean isJersey = false;
                 for (Property p : reader.getProperty(handlerPath)) {
                     if (p.value != null && p.value.indexOf("jersey") != -1) {
@@ -1006,7 +1015,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
                         AtmosphereHandler handler = (AtmosphereHandler) clazz.newInstance();
                         InjectorProvider.getInjector().inject(handler);
-                        atmosphereHandlers.put("/" + handler.getClass().getSimpleName(),
+                        addMapping("/" + handler.getClass().getSimpleName(),
                                 new AtmosphereHandlerWrapper(handler, "/" + handler.getClass().getSimpleName()));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
                     }
