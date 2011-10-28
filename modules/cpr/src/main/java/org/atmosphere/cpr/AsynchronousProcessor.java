@@ -242,11 +242,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String,AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
                 UriTemplate t = new UriTemplate(e.getKey());
+                logger.trace("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
                     break;
                 }
             }
+        }
+
+        if (atmosphereHandlerWrapper == null){
+            throw new ServletException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
