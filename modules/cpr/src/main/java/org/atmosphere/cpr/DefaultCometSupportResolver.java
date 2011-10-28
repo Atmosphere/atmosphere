@@ -153,7 +153,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
             }
         };
 
-        if (l.isEmpty() &&  !testClassExists(TOMCAT)) {
+        if (l.isEmpty()) {
             return detectContainersPresent();
         }
         return l;
