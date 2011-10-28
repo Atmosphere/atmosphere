@@ -432,7 +432,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private void addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", "{all}");
+            path = path.replace("*", "[/a-zA-Z0-9]+");
         }
         atmosphereHandlers.put(path, w);
 

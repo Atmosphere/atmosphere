@@ -232,7 +232,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-        String path = req.getRequestURI();
+        String path = req.getServletPath() + req.getPathInfo();
         if (path == null || path.length() == 0) {
             path = "/*";
         }
@@ -242,7 +242,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String,AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
                 UriTemplate t = new UriTemplate(e.getKey());
-                logger.trace("Trying to map {} to {}", t, path);
+                logger.debug("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
                     logger.trace("Mapped {} to {}", t, e.getValue());
