@@ -41,6 +41,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,40 +239,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
         if (atmosphereHandlerWrapper == null) {
-            // Try the /*
-            if (!path.endsWith("/")) {
-                path += "/*";
-            } else {
-                path += "*";
-            }
-            atmosphereHandlerWrapper = config.handlers().get(path);
-            if (atmosphereHandlerWrapper == null) {
-                atmosphereHandlerWrapper = config.handlers().get("/*");
-                if (atmosphereHandlerWrapper == null) {
-
-                    if (req.getPathInfo() != null) {
-                        // Try appending the pathInfo
-                        path = req.getServletPath() + req.getPathInfo();
-                    }
-
-                    atmosphereHandlerWrapper = config.handlers().get(path);
-                    if (atmosphereHandlerWrapper == null) {
-                        // Last chance
-                        if (!path.endsWith("/")) {
-                            path += "/*";
-                        } else {
-                            path += "*";
-                        }
-                        // Try appending the pathInfo
-                        atmosphereHandlerWrapper = config.handlers().get(path);
-                        if (atmosphereHandlerWrapper == null) {
-                            logger.warn("No AtmosphereHandler maps request for {}", path);
-                            for (String m : config.handlers().keySet()) {
-                                logger.warn("\tAtmosphereHandler registered: {}", m);
-                            }
-                            throw new ServletException("No AtmosphereHandler maps request for " + path);
-                        }
-                    }
+            final Map<String, String> m = new HashMap<String, String>();
+            for (Map.Entry<String,AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
+                UriTemplate t = new UriTemplate(e.getKey());
+                if (t.match(path, m)) {
+                    atmosphereHandlerWrapper = e.getValue();
+                    break;
                 }
             }
         }
