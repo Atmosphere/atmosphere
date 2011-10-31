@@ -195,8 +195,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
 
     @Override
     public String toString() {
-        return "AtmosphereResourceEventImpl{" + "isResuming=" + isResuming() + " isCancelled=" + isCancelled + ", isResumedOnTimeout=" +
-                isResumedOnTimeout + ", message=" + message + ", resource=" + resource + ", throwable=" + throwable +
+        return "AtmosphereResourceEventImpl{" +
+                "isCancelled=" + isCancelled +
+                ",\n isResumedOnTimeout=" + isResumedOnTimeout +
+                ",\n throwable=" + throwable +
+                ",\n message=" + message +
+                ",\n\t resource=" + resource +
                 '}';
     }
 }

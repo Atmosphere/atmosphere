@@ -157,7 +157,7 @@ public class AtmosphereResourceImpl implements
      * {@inheritDoc}
      */
     public void resume() {
-        // Stragely but possible two thread try to resume at the same time.
+        // Strangely but possible two thread try to resume at the same time.
         try {
         synchronized (event) {
             if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
@@ -541,7 +541,7 @@ public class AtmosphereResourceImpl implements
      */
     public void notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.size() > 0) {
-            logger.debug("Invoking listener with {}", event);
+            logger.trace("Invoking listener with {}", event);
         } else {
             return;
         }
@@ -645,13 +645,13 @@ public class AtmosphereResourceImpl implements
     public String toString() {
         return "AtmosphereResourceImpl{" +
                 ", hasCode" + hashCode() +
-                ", action=" + action +
-                ", broadcaster=" + broadcaster.getClass().getName() +
-                ", cometSupport=" + cometSupport +
-                ", serializer=" + serializer +
-                ", isInScope=" + isInScope +
-                ", useWriter=" + useWriter +
-                ", listeners=" + listeners +
+                ",\n action=" + action +
+                ",\n broadcaster=" + broadcaster.getClass().getName() +
+                ",\n cometSupport=" + cometSupport +
+                ",\n serializer=" + serializer +
+                ",\n isInScope=" + isInScope +
+                ",\n useWriter=" + useWriter +
+                ",\n listeners=" + listeners +
                 '}';
     }
 

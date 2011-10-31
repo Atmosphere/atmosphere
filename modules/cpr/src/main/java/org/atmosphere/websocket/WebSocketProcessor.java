@@ -66,21 +66,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocketProcessor implements Serializable {
+public class WebSocketProcessor implements Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessor.class);
 
     private final AtmosphereServlet atmosphereServlet;
     private final WebSocket webSocket;
+    private final WebSocketProtocol webSocketProtocol;
 
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
     private AtmosphereHandler handler;
 
-    public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket) {
+    public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
         this.atmosphereServlet = atmosphereServlet;
+        this.webSocketProtocol = webSocketProtocol;
     }
 
     public final void dispatch(final HttpServletRequest request) throws IOException {
@@ -105,57 +107,36 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
+    public void invokeWebSocketProtocol(String webSocketMessage) {
+        HttpServletRequest r = webSocketProtocol.parseMessage(resource, webSocketMessage);
+        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
+    }
+
+    public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
+        HttpServletRequest r = webSocketProtocol.parseMessage(resource, data, offset, length);
+        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
+    }
+
     /**
      * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
      *
-     * @param request a {@link HttpServletRequest}
+     * @param request  a {@link HttpServletRequest}
      * @param response a {@link HttpServletResponse}
      */
     protected final void dispatch(final HttpServletRequest request, final HttpServletResponse response) {
+        if (request == null) return;
         try {
             atmosphereServlet.doCometSupport(request, response);
         } catch (IOException e) {
-            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+            logger.info("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
-            logger.info("failed invoking atmosphere servlet doCometSupport()", e);
+            logger.info("Failed invoking atmosphere servlet doCometSupport()", e);
         }
     }
 
-    public AtmosphereResource<HttpServletRequest,HttpServletResponse> resource() {
-        if (resource == null) throw new IllegalStateException("No AtmosphereResource has been suspended.");
-
-        return resource;
-    }
-
-    public HttpServletRequest request() {
-        return resource().getRequest();
-    }
-
-    public WebSocket webSocketSupport() {
+    public WebSocket webSocket() {
         return webSocket;
     }
-
-    /**
-     * Parse the WebSocket message, and delegate the processing to the {@link AtmosphereServlet#cometSupport} or
-     * to any existing technology. Invoking  {@link AtmosphereServlet#cometSupport} will delegate the request processing
-     * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
-     * Jersey runtime.
-     *
-     * @param data The Websocket message
-     */
-    abstract public void parseMessage(String data);
-
-    /**
-     * Parse the WebSocket message, and delegate the processing to the {@link AtmosphereServlet#cometSupport} or
-     * to any existing technology. Invoking  {@link AtmosphereServlet#cometSupport} will delegate the request processing
-     * to the {@link AtmosphereHandler} implementation. As an example, this is how Websocket messages are delegated to the
-     * Jersey runtime.
-     *
-     * @param data   The Websocket message
-     * @param offset offset message index
-     * @param length length of the message.
-     */
-    abstract public void parseMessage(byte[] data, int offset, int length);
 
     public void close() {
         try {
@@ -212,7 +193,7 @@ public abstract class WebSocketProcessor implements Serializable {
         }
     }
 
-    protected Map<String, String> configureHeader(HttpServletRequest request) {
+    public static final Map<String, String> configureHeader(HttpServletRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();

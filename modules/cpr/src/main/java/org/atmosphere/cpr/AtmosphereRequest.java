@@ -39,6 +39,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final BufferedReader br;
     private final String pathInfo;
     private final Map<String, String> headers;
+    private final Map<String, String[]> queryStrings;
     private final String methodType;
     private final String contentType;
     private final HttpServletRequest request;
@@ -48,6 +49,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
         request = b.request;
         headers = b.headers;
+        queryStrings = b.queryStrings;
 
         if (b.dataBytes != null) {
             bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
@@ -56,7 +58,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             } catch (UnsupportedEncodingException e) {
                 throw new RuntimeException(e);
             }
-        } else if (b.data != null){
+        } else if (b.data != null) {
             bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
             br = new BufferedReader(new StringReader(b.data));
         } else {
@@ -141,14 +143,40 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    public String getParameter(String s) {
+        String name = super.getParameter(s);
+        if (name == null) {
+            if (queryStrings.get(s) != null) {
+                return queryStrings.get(s)[0];
+            }
+        }
+        return name;
+    }
+
+    public Map<String, String[]> getParameterMap() {
+        Map<String, String[]> m = this.request.getParameterMap();
+        for (Map.Entry<String, String[]> e : m.entrySet()) {
+            String[] s = queryStrings.get(e.getKey());
+            if (s != null) {
+                String[] s1 = new String[s.length + e.getValue().length];
+                System.arraycopy(s, 0, s1, 0, s.length);
+                System.arraycopy(s1, s.length + 1, e.getValue(), 0, e.getValue().length);
+                queryStrings.put(e.getKey(), s1);
+            } else {
+                queryStrings.put(e.getKey(), e.getValue());
+            }
+        }
+        return Collections.unmodifiableMap(queryStrings);
+    }
+
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null? request.getInputStream() : bis;
+        return bis == null ? request.getInputStream() : bis;
     }
 
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null? request.getReader() : br;
+        return br == null ? request.getReader() : br;
     }
 
     private static class ByteInputStream extends ServletInputStream {
@@ -167,21 +195,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     public final static class Builder {
 
-        public HttpServletRequest request;
-        public String pathInfo;
-        public byte[] dataBytes;
-        public int offset;
-        public int length;
-        public String encoding = "UTF-8";
-        public String methodType;
-        public String contentType;
-        public String data;
-        public Map<String, String> headers;
+        private HttpServletRequest request;
+        private String pathInfo;
+        private byte[] dataBytes;
+        private int offset;
+        private int length;
+        private String encoding = "UTF-8";
+        private String methodType;
+        private String contentType;
+        private String data;
+        private Map<String, String> headers;
+        private Map<String, String[]> queryStrings;
 
         public Builder() {
         }
 
-        public Builder headers(Map<String,String> headers) {
+        public Builder headers(Map<String, String> headers) {
             this.headers = headers;
             return this;
         }
@@ -223,8 +252,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public AtmosphereRequest build(){
+        public AtmosphereRequest build() {
             return new AtmosphereRequest(this);
+        }
+
+        public Builder queryStrings(Map<String, String[]> queryStrings) {
+            this.queryStrings = queryStrings;
+            return this;
         }
     }
 

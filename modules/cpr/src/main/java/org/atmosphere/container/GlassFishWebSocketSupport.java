@@ -56,6 +56,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
@@ -131,7 +132,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             try {
 
                 webSocketProcessor = (WebSocketProcessor) GrizzlyWebSocket.class.getClassLoader()
-                        .loadClass(config.getServlet().getWebSocketProcessorClassName())
+                        .loadClass(config.getServlet().getWebSocketProtocolClassName())
                         .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
                         .newInstance(new Object[]{config.getServlet(), new GrizzlyWebSocket(webSocket)});
 
@@ -146,8 +147,8 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             return true;
         }
 
-        public void onMessage(com.sun.grizzly.websockets.WebSocket webSocket, DataFrame dataFrame) {
-            webSocketProcessor.parseMessage(dataFrame.getTextPayload());
+        public void onMessage(com.sun.grizzly.websockets.WebSocket w, DataFrame dataFrame) {
+            webSocketProcessor.invokeWebSocketProtocol(dataFrame.getTextPayload());
         }
 
         public void onClose(com.sun.grizzly.websockets.WebSocket webSocket) {

@@ -236,34 +236,6 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
-    public String encodeURL(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public String encodeRedirectURL(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public String encodeUrl(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public String encodeRedirectUrl(String url) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public void sendError(int sc, String msg) throws IOException {
         webSocketSupport.writeError(sc, msg);
     }
@@ -469,40 +441,8 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
-    public void setBufferSize(int size) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public int getBufferSize() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void flushBuffer() throws IOException {
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public boolean isCommitted() {
         return isCommited;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void reset() {
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void resetBuffer() {
     }
 
     /**

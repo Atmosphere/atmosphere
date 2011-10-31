@@ -38,6 +38,8 @@ package org.atmosphere.websocket.container;
 
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,6 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class JettyWebSocket implements WebSocket {
 
+    private static final Logger logger = LoggerFactory.getLogger(JettyWebSocket.class);
     private final Outbound outbound;
 
     private AtomicBoolean webSocketLatencyCheck = new AtomicBoolean(false);
@@ -64,17 +67,20 @@ public class JettyWebSocket implements WebSocket {
     }
 
     public void write(byte frame, String data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
+        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data);
     }
 
     public void write(byte frame, byte[] data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
+        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, 0, data.length);
     }
 
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection closed");
+        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, offset, length);
     }
 

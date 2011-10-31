@@ -48,11 +48,8 @@ public final class JerseyBroadcasterUtil {
                 return;
             }
 
-            // This is required when you change the response's type
-            MediaType m = (MediaType) cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE);
             if (e.getMessage() instanceof Response) {
                 cr.setResponse((Response) e.getMessage());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
                 if (!cr.isCommitted()) {
                     cr.getOutputStream().flush();
@@ -60,7 +57,6 @@ public final class JerseyBroadcasterUtil {
             } else if (e.getMessage() instanceof List) {
                 for (Object msg : (List<Object>) e.getMessage()) {
                     cr.setResponse(Response.ok(msg).build());
-                    cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
                     if (!cr.isCommitted()) {
                         cr.getOutputStream().flush();
@@ -72,7 +68,6 @@ public final class JerseyBroadcasterUtil {
                 }
 
                 cr.setResponse(Response.ok(e.getMessage()).build());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                 cr.write();
                 if (!cr.isCommitted()) {
                     cr.getOutputStream().flush();

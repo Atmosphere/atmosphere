@@ -124,7 +124,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     @Override
     public <T> Future<T> broadcast(T msg) {
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used {}" , getID());
             return null;
         }
 
@@ -148,7 +148,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     @Override
     public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used {}" , getID());
             return null;
         }
 
@@ -172,7 +172,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     @Override
     public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
         if (destroyed.get()) {
-            logger.error("This Broadcaster has been destroyed and cannot be used");
+            logger.warn("This Broadcaster has been destroyed and cannot be used {}" , getID());
             return null;
         }
 
