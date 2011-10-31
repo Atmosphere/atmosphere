@@ -36,33 +36,39 @@ public class Jetty8WebSocket implements WebSocket {
         this.connection = connection;
     }
 
+    @Override
     public void writeError(int errorCode, String message) throws IOException {
     }
 
+    @Override
     public void redirect(String location) throws IOException {
     }
 
+    @Override
     public void write(byte frame, String data) throws IOException {
-        if (!connection.isOpen()) throw new IOException("Connection closed");
-        logger.debug("WebSocket.write()");
+        if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         connection.sendMessage(data);
     }
 
+    @Override
     public void write(byte frame, byte[] data) throws IOException {
-        if (!connection.isOpen()) throw new IOException("Connection closed");
-        logger.debug("WebSocket.write()");
+        if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         connection.sendMessage(data, 0, data.length);
     }
 
+    @Override
     public void write(byte frame, byte[] data, int offset, int length) throws IOException {
-        if (!connection.isOpen()) throw new IOException("Connection closed");
-        logger.debug("WebSocket.write()");
+        if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
         // Chrome doesn't like it, throwing: Received a binary frame which is not supported yet. So send a String instead
         connection.sendMessage(new String(data, offset, length, "UTF-8"));
     }
 
+    @Override
     public void close() throws IOException {
-        logger.debug("WebSocket.close()");
+        logger.trace("WebSocket.close()");
         connection.disconnect();
     }
 

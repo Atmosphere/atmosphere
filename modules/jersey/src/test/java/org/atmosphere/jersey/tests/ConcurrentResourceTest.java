@@ -65,7 +65,7 @@ public class ConcurrentResourceTest extends BaseJettyTest {
         return "http://127.0.0.1:" + port + "/concurrent";
     }
 
-    @Test(timeOut = 60000, enabled = true)
+    @Test(timeOut = 60000, enabled = false)
     public void testConcurrentAndEmptyDestroyPolicy() {
         logger.info("Running testConcurrentAndEmptyDestroyPolicy");
 
@@ -110,7 +110,7 @@ public class ConcurrentResourceTest extends BaseJettyTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true)
+    @Test(timeOut = 60000, enabled = false)
     public void testConcurrentAndIdleDestroyPolicy() {
         logger.info("Running testConcurrentAndIdleDestroyPolicy");
 
@@ -158,7 +158,7 @@ public class ConcurrentResourceTest extends BaseJettyTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true)
+    @Test(timeOut = 60000, enabled = false)
     public void testConcurrentAndIdleResumePolicy() {
         logger.info("Running testConcurrentAndIdleResumePolicy");
 

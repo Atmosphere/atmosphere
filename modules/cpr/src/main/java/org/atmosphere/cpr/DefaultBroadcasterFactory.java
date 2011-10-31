@@ -55,6 +55,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 
 /**
@@ -68,8 +69,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
-    private final ConcurrentHashMap<Object, Broadcaster> store
-            = new ConcurrentHashMap<Object, Broadcaster>();
+    private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
     private final Class<? extends Broadcaster> clazz;
 
@@ -101,6 +101,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE).idleTimeInMS(maxIdleTime).build();
         } else if (IDLE_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(maxIdleTime).build();
+        } else if (IDLE_RESUME.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_RESUME).idleTimeInMS(maxIdleTime).build();
         } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
         } else {
@@ -119,29 +121,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public final Broadcaster get(Object id) {
-
-        Broadcaster b = store.get(id);
-        if (b != null) {
-            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
-        }
-
-        synchronized (id) {
-            try {
-                b = clazz.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
-            } catch (Throwable t) {
-                throw new BroadcasterCreationException(t);
-            }
-            InjectorProvider.getInjector().inject(b);
-            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-            b.setBroadcasterLifeCyclePolicy(policy);
-
-            if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
-                DefaultBroadcaster.class.cast(b).start();
-            }
-
-            store.put(b.getID(), b);
-        }
-        return b;
+        return get(clazz , id);
     }
 
     /**
@@ -156,7 +136,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
 
         Broadcaster b = null;
-
         synchronized (id) {
             try {
                 b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
@@ -170,8 +149,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();
             }
-
             store.put(id, b);
+            logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
         }
         return b;
     }
@@ -197,7 +176,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public boolean remove(Broadcaster b, Object id) {
-        logger.debug("Removing Broadcaster {} which internal ref is {} ", id, b.getID());
+        logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
         return store.remove(id) != null ? true : (store.remove(b.getID()) != null);
     }
 
@@ -234,7 +213,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException(msg);
         }
 
-        if (b == null && createIfNull) {
+        if ((b == null && createIfNull) || (b !=null && b.isDestroyed())) {
             b = get(c, id);
         }
 
@@ -289,14 +268,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 bc = b.getBroadcasterConfig();
             } catch (Throwable t) {
                 // Shield us from any bad behaviour
-                logger.trace("destroy", t);
+                logger.trace("Destroy", t);
             }
         }
 
         try {
             if (bc != null) bc.forceDestroy();
         } catch (Throwable t) {
-            logger.trace("destroy", t);
+            logger.trace("Destroy", t);
 
         }
 
