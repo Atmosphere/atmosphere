@@ -224,6 +224,23 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         aliveRequests.remove(r.getRequest());
     }
 
+    protected AtmosphereHandlerWrapper map(String path) {
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+        if (atmosphereHandlerWrapper == null) {
+            final Map<String, String> m = new HashMap<String, String>();
+            for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
+                UriTemplate t = new UriTemplate(e.getKey());
+                logger.debug("Trying to map {} to {}", t, path);
+                if (t.match(path, m)) {
+                    atmosphereHandlerWrapper = e.getValue();
+                    logger.trace("Mapped {} to {}", t, e.getValue());
+                    break;
+                }
+            }
+        }
+        return atmosphereHandlerWrapper;
+    }
+
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
@@ -233,22 +250,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
         String path = req.getServletPath() + req.getPathInfo();
-        if (path == null || path.length() == 0) {
-            path = "/*";
+        if (path == null || path.length() <= 1) {
+            path = "/all";
         }
 
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
         if (atmosphereHandlerWrapper == null) {
-            final Map<String, String> m = new HashMap<String, String>();
-            for (Map.Entry<String,AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
-                UriTemplate t = new UriTemplate(e.getKey());
-                logger.debug("Trying to map {} to {}", t, path);
-                if (t.match(path, m)) {
-                    atmosphereHandlerWrapper = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue());
-                    break;
-                }
-            }
+            atmosphereHandlerWrapper = map("/all");
         }
 
         if (atmosphereHandlerWrapper == null){
