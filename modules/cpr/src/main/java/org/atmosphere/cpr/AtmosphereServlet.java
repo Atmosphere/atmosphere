@@ -382,26 +382,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         populateBroadcasterType();
     }
 
-
-    /**
-     * Configure the {@link org.atmosphere.cpr.BroadcasterFactory}
-     */
-    protected void configureDefaultBroadcasterFactory() {
-        Class<? extends Broadcaster> b = null;
-        String defaultBroadcasterClassName = AtmosphereServlet.getDefaultBroadcasterClassName();
-
-        try {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            b = (Class<? extends Broadcaster>) cl.loadClass(defaultBroadcasterClassName);
-        } catch (ClassNotFoundException e) {
-            logger.error("failed to load default broadcaster class name: " + defaultBroadcasterClassName, e);
-        }
-
-        Class bc = (b == null ? DefaultBroadcaster.class : b);
-        BroadcasterFactory.setBroadcasterFactory(new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config), config);
-    }
-
-
     /**
      * The order of addition is quite important here.
      */
@@ -563,11 +543,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             };
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
-            configureDefaultBroadcasterFactory();
+            configureBroadcaster(sc.getServletContext());
             loadConfiguration(scFacade);
 
             autoDetectContainer();
-            configureBroadcaster(sc.getServletContext());
             configureWebDotXmlAtmosphereHandler(sc);
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
@@ -600,8 +579,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected void configureBroadcaster(ServletContext sc) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 
         if (broadcasterFactoryClassName != null) {
-            logger.info("Using BroadcasterFactory class: {}", broadcasterFactoryClassName);
-
             broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                     .loadClass(broadcasterFactoryClassName).newInstance();
         }
@@ -610,6 +587,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             Class<? extends Broadcaster> bc =
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                             .loadClass(broadcasterClassName);
+
+            logger.info("Using BroadcasterFactory class: {}", broadcasterFactoryClassName);
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         }
