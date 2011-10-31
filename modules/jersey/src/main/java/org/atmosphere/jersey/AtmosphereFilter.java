@@ -75,9 +75,11 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -122,7 +124,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         SUSPEND_TRACKABLE, SUBSCRIBE, SUBSCRIBE_TRACKABLE, PUBLISH
     }
 
-    private @Context HttpServletRequest servletReq;
+    private
+    @Context
+    HttpServletRequest servletReq;
 
     private
     @Context
@@ -229,7 +233,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-            boolean sessionSupported = (Boolean)servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
+            boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
 
             switch (action) {
                 case SUSPEND_RESPONSE:
@@ -423,7 +427,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             trackableResource.setResource(isAresource ? r : r.getBroadcaster());
         }
 
-        void configureHeaders(ContainerResponse response) throws IOException {
+        Response.ResponseBuilder configureHeaders(Response.ResponseBuilder b) throws IOException {
             boolean webSocketSupported = servletReq.getAttribute(WebSocket.WEBSOCKET_SUSPEND) != null;
 
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
@@ -431,7 +435,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (String upgrade : e) {
                     if (upgrade != null && upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (!webSocketSupported) {
-                            response.getHttpHeaders().putSingle(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                            b = b.header(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         }
                     }
                 }
@@ -442,17 +446,18 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
-                response.getHttpHeaders().putSingle(EXPIRES, "-1");
+                b = b.header(EXPIRES, "-1");
                 // Set standard HTTP/1.1 no-cache headers.
-                response.getHttpHeaders().putSingle(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
+                b = b.header(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
                 // Set standard HTTP/1.0 no-cache header.
-                response.getHttpHeaders().putSingle(PRAGMA, "no-cache");
+                b = b.header(PRAGMA, "no-cache");
             }
 
             if (enableAccessControl) {
-                response.getHttpHeaders().putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
-                response.getHttpHeaders().putSingle(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                b = b.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                b = b.header(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
+            return b;
         }
 
         void configureResumeOnBroadcast(Broadcaster b) {
@@ -575,13 +580,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             BroadcasterFactory broadcasterFactory = (BroadcasterFactory) servletReq
                     .getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
 
+            URI location = null;
             // Do not add location header if already there.
             if (!sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
                 String uuid = UUID.randomUUID().toString();
 
-                response.getHttpHeaders().putSingle(
-                        HttpHeaders.LOCATION,
-                        uriInfo.getAbsolutePathBuilder().path(uuid).build(""));
+                location = uriInfo.getAbsolutePathBuilder().path(uuid).build("");
 
                 resumeCandidates.put(uuid, r);
                 servletReq.setAttribute(RESUME_UUID, uuid);
@@ -667,25 +671,34 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
 
                 Object entity = response.getEntity();
+
+                Response.ResponseBuilder b = Response.ok();
+                b = configureHeaders(b);
                 if (entity != null) {
-                    r.getResponse().setContentType(contentType != null ?
+                    b = b.header("Content-Type", contentType != null ?
                             contentType.toString() : "text/html; charset=ISO-8859-1");
                 }
 
-                configureHeaders(response);
                 if (comments && !resumeOnBroadcast) {
-                    String padding = (String)servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
+                    String padding = (String) servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
                     String paddingData = AtmosphereResourceImpl.createStreamingPadding(padding);
 
-                    response.setEntity(paddingData);
+                    if (location != null) {
+                        b = b.header(HttpHeaders.LOCATION, location);
+                        location = null;
+                    }
+                    response.setResponse(b.entity(paddingData).build());
                     response.write();
-                    response.setEntity(null);
                 }
 
                 if (entity != null) {
-                    response.setEntity(entity);
+                    if (location != null) {
+                        b = b.header(HttpHeaders.LOCATION, location);
+                    }
+                    response.setResponse(b.entity(entity).build());
                     response.write();
                 }
+                response.setEntity(null);
                 r.suspend(timeout, false);
 
             } catch (IOException ex) {
