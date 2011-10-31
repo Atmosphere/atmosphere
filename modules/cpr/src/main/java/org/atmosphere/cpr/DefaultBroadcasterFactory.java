@@ -121,7 +121,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public final Broadcaster get(Object id) {
-        return get(clazz , id);
+        return get(clazz, id);
     }
 
     /**
@@ -213,7 +213,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException(msg);
         }
 
-        if ((b == null && createIfNull) || (b !=null && b.isDestroyed())) {
+        if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
+            if (b != null) {
+                logger.debug("Removing destroyed Broadcaster {}", b.getID());
+                store.remove(b.getID());
+            }
             b = get(c, id);
         }
 

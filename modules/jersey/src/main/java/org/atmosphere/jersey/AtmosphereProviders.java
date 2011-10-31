@@ -92,7 +92,13 @@ public class AtmosphereProviders {
                     BroadcasterFactory bp = (BroadcasterFactory)
                             req.getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
 
-                    broadcaster = bp.lookup(r.getBroadcaster().getClass(), topic, true);
+                    Class<? extends Broadcaster> c;
+                    try {
+                        c = (Class<Broadcaster>) Class.forName((String) req.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
+                    } catch (Throwable e) {
+                        throw new IllegalStateException(e.getMessage());
+                    }
+                    broadcaster = bp.lookup(c, topic, true);
                 } catch (Throwable ex) {
                     throw new WebApplicationException(ex);
                 }
