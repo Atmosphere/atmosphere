@@ -101,7 +101,6 @@ public abstract class BasePubSubTest extends BaseTest {
             String resume = r.getResponseBody();
             String[] ct = r.getContentType().toLowerCase().split(";");
             assertEquals(ct[0].trim(), "text/plain");
-            assertEquals(ct[1].trim(), "charset=iso-8859-1");
             assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
