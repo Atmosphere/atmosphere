@@ -69,8 +69,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
-    private final ConcurrentHashMap<Object, Broadcaster> store
-            = new ConcurrentHashMap<Object, Broadcaster>();
+    private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
     private final Class<? extends Broadcaster> clazz;
 
@@ -214,7 +213,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException(msg);
         }
 
-        if (b == null && createIfNull) {
+        if ((b == null && createIfNull) || (b !=null && b.isDestroyed())) {
             b = get(c, id);
         }
 
