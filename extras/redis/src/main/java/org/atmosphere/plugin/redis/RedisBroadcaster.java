@@ -50,7 +50,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private boolean sharedPool = false;
     private JedisPool jedisPool;
-    private AtomicInteger pubTry = new AtomicInteger();
 
     public RedisBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         this(id, URI.create("http://localhost:6379"), config);
@@ -150,6 +149,9 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             disconnectPublisher();
             disconnectSubscriber();
+            if (jedisPool != null) {
+                jedisPool.destroy();
+            }
         } catch (Throwable t) {
             logger.warn("Jedis error on close", t);
         }
