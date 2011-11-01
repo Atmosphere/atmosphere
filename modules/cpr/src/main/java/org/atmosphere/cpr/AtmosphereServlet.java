@@ -583,7 +583,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                             .loadClass(broadcasterClassName);
 
-            logger.info("Using BroadcasterFactory class: {}", broadcasterFactoryClassName);
+            logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
 
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         }
