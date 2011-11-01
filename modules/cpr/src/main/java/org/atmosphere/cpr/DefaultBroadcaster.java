@@ -130,7 +130,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (destroyed.get()) return;
 
         try {
-            logger.debug("Broadcaster {} is being destroyed and cannot be re-used", getID());
+            logger.trace("Broadcaster {} is being destroyed and cannot be re-used", getID());
 
             if (BroadcasterFactory.getDefault() != null) {
                 BroadcasterFactory.getDefault().remove(this, this.getID());
