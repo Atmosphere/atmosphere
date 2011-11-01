@@ -218,6 +218,8 @@ jQuery.atmosphere = function() {
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
                             update = true;
+                        } else if (request.transport == 'streaming') {
+                            update = true;
                         }
                     } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                         update = true;

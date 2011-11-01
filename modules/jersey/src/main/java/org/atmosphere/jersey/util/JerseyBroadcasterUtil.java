@@ -98,17 +98,9 @@ public final class JerseyBroadcasterUtil {
     final static void onException(Throwable t, AtmosphereResource<?, ?> r) {
         try {
             logger.debug("onException()", t);
-
-            if (t instanceof IOException && r instanceof AtmosphereEventLifecycle) {
-                ((AtmosphereEventLifecycle) r).notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-                ((AtmosphereEventLifecycle) r).removeEventListeners();
-            }
+            r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
+            r.resume();
         } finally {
-            try {
-                r.getBroadcaster().removeAtmosphereResource(r);
-            } catch (IllegalStateException ex) {
-                logger.trace(ex.getMessage(), ex);
-            }
             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
         }
     }
