@@ -85,7 +85,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private void configure(String broadcasterLifeCyclePolicy) {
 
-        int maxIdleTime = 5 * 60 * 100;
+        int maxIdleTime = 5 * 60 * 1000;
         String idleTime = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
         if (idleTime != null) {
             maxIdleTime = Integer.parseInt(idleTime);
@@ -174,8 +174,12 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public boolean remove(Broadcaster b, Object id) {
-        logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
-        return store.remove(id) != null ? true : (store.remove(b.getID()) != null);
+        boolean removed = (store.get(b.getID()) == b);
+        if (removed) {
+            store.remove(id, b);
+            logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
+        }
+        return removed;
     }
 
     /**
