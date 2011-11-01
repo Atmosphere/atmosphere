@@ -228,7 +228,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected String broadcasterFactoryClassName;
     protected static String broadcasterCacheClassName;
     private boolean webSocketEnabled = false;
-    private String broadcasterLifeCyclePolicy = "IDLE_DESTROY";
+    private String broadcasterLifeCyclePolicy = "NEVER";
     private String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
 
     public static final class AtmosphereHandlerWrapper {
