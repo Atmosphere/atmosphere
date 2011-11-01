@@ -50,6 +50,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private boolean sharedPool = false;
     private JedisPool jedisPool;
+    private AtomicInteger maxTry = new AtomicInteger();
 
     public RedisBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         this(id, URI.create("http://localhost:6379"), config);
@@ -215,11 +216,12 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                     if (!valid) {
                         jedisPool.returnBrokenResource(jedisPublisher);
                     } else {
+                        maxTry.set(0);
                         jedisPool.returnResource(jedisPublisher);
                     }
 
                     // This is dangerous to loop.
-                    if (!valid) {
+                    if (!valid && maxTry.getAndIncrement() < 10) {
                         outgoingBroadcast(message);
                     }
                 }
