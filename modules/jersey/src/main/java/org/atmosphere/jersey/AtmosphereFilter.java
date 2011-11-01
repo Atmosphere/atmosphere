@@ -57,6 +57,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -679,7 +680,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             contentType.toString() : "text/html; charset=ISO-8859-1");
                 }
 
-                if (comments && !resumeOnBroadcast) {
+                String[] jettyVersion = r.getAtmosphereConfig().getServletContext().getServerInfo().substring(6).split("\\.");
+                // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
+                boolean eclipse362468 = (Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[1]) == 0);
+
+                if (!eclipse362468 && comments && !resumeOnBroadcast) {
                     String padding = (String) servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
                     String paddingData = AtmosphereResourceImpl.createStreamingPadding(padding);
 
