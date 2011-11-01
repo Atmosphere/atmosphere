@@ -60,6 +60,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
@@ -198,6 +199,14 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
         AtmosphereHandlerWrapper handlerWrapper = map(req);
+        // Check Broadcaster state. If destroyed, replace it.
+        Broadcaster b = handlerWrapper.broadcaster;
+        if (b.isDestroyed()) {
+            synchronized (handlerWrapper) {
+                config.getBroadcasterFactory().remove(b, b.getID());
+                handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
+            }
+        }
         AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
@@ -230,7 +239,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
                 UriTemplate t = new UriTemplate(e.getKey());
-                logger.debug("Trying to map {} to {}", t, path);
+                logger.trace("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
                     logger.trace("Mapped {} to {}", t, e.getValue());
@@ -259,7 +268,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             atmosphereHandlerWrapper = map("/all");
         }
 
-        if (atmosphereHandlerWrapper == null){
+        if (atmosphereHandlerWrapper == null) {
             throw new ServletException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
