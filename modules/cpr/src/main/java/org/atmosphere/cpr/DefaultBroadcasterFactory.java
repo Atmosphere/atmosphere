@@ -87,7 +87,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private void configure(String broadcasterLifeCyclePolicy) {
 
-        int maxIdleTime = 5 * 60 * 100;
+        int maxIdleTime = 5 * 60 * 1000;
         String idleTime = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
         if (idleTime != null) {
             maxIdleTime = Integer.parseInt(idleTime);
