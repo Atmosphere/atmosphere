@@ -577,7 +577,12 @@ public class DefaultBroadcaster implements Broadcaster {
             final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) resource.getAtmosphereResourceEvent();
             event.setMessage(msg);
 
-            // Check again to make sure we are suspended
+            // Check again to make sure we are still valid. Remove and silently ignore.
+            if (!AtmosphereResourceImpl.class.cast(resource).isInScope()) {
+                resources.remove(resource);
+                return;
+            }
+
             try {
                 HttpServletRequest.class.cast(resource.getRequest())
                         .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
