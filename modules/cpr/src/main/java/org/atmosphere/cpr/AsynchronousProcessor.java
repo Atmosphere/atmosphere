@@ -366,7 +366,11 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                         (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-                atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+
+                synchronized(r) {
+                    atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                    r.setIsInScope(false);
+                }
             } else {
                 r.getResponse().flushBuffer();
             }

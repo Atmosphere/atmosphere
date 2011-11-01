@@ -425,7 +425,7 @@ public class AtmosphereResourceImpl implements
      *
      * @param isInScope
      */
-    protected void setIsInScope(boolean isInScope) {
+    public void setIsInScope(boolean isInScope) {
         this.isInScope = isInScope;
     }
 
