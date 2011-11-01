@@ -17,6 +17,11 @@ package org.atmosphere.container;
 
 import org.apache.catalina.comet.CometEvent;
 import org.apache.catalina.comet.CometEvent.EventType;
+import org.apache.catalina.connector.Request;
+import org.apache.catalina.connector.RequestFacade;
+import org.apache.catalina.connector.Response;
+import org.apache.catalina.connector.ResponseFacade;
+import org.apache.tomcat.util.http.mapper.MappingData;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -29,7 +34,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
@@ -92,9 +99,9 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 }
             } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
-                event.close();
+                bz51881(event);
             } else {
-                event.close();
+                bz51881(event);
             }
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
@@ -108,14 +115,14 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 logger.debug("Cancelling response: {}", res);
             }
 
-            event.close();
+            bz51881(event);
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
             logger.debug("Timing out response: {}", res);
 
             action = timedout(req, res);
-            event.close();
+            bz51881(event);
         } else if (event.getEventType() == EventType.ERROR) {
-            event.close();
+            bz51881(event);
         } else if (event.getEventType() == EventType.END) {
             if (!resumed.remove(event)) {
                 logger.debug("Client closed connection: response: {}", res);
@@ -124,10 +131,51 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 logger.debug("Cancelling response: {}", res);
             }
 
-            event.close();
+            bz51881(event);
         }
         return action;
     }
+
+    private void bz51881(CometEvent event) throws IOException {
+        String[] tomcatVersion = config.getServletContext().getServerInfo().substring(14).split("\\.");
+        if (Integer.valueOf(tomcatVersion[0]) == 7 && Integer.valueOf(tomcatVersion[2]) < 23) {
+            logger.info("Patching Tomcat 7.0.22 and lower bz51881. Expect NPE inside CoyoteAdapter, just ignore them. Upgrade to 7.0.23");
+            try {
+                RequestFacade request = RequestFacade.class.cast(event.getHttpServletRequest());
+                Field coyoteRequest = RequestFacade.class.getDeclaredField("request");
+                coyoteRequest.setAccessible(true);
+                Request r = (Request) coyoteRequest.get(request);
+                r.recycle();
+
+                Field mappingData = Request.class.getDeclaredField("mappingData");
+                mappingData.setAccessible(true);
+                MappingData m = new MappingData();
+                m.context = null;
+                mappingData.set(r, m);
+            } catch (Throwable t) {
+                logger.trace("Was unable to recycle internal Tomcat object");
+            } finally {
+                try {
+                    event.close();
+                } catch (IllegalStateException e) {
+                    logger.trace("", e);
+                }
+            }
+
+            try {
+                ResponseFacade response = ResponseFacade.class.cast(event.getHttpServletResponse());
+                Field coyoteResponse = ResponseFacade.class.getDeclaredField("response");
+                coyoteResponse.setAccessible(true);
+                Response r = (Response) coyoteResponse.get(response);
+                r.recycle();
+            } catch (Throwable t) {
+                logger.trace("Was unable to recycle internal Tomcat object");
+            }
+        } else {
+            event.close();
+        }
+    }
+
 
     /**
      * {@inheritDoc}
@@ -144,7 +192,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
-                    event.close();
+                    bz51881(event);
                 }
             } catch (IOException ex) {
                 logger.debug("action failed", ex);
@@ -153,15 +201,14 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
             resumed.offer(event);
-            event.close();
+            bz51881(event);
         }
         return action;
     }
