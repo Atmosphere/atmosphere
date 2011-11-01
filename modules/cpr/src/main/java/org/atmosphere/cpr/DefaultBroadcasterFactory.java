@@ -216,7 +216,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
             if (b != null) {
                 logger.debug("Removing destroyed Broadcaster {}", b.getID());
-                store.remove(b.getID());
+                store.remove(b.getID(), b);
             }
             b = get(c, id);
         }
