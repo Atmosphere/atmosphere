@@ -682,7 +682,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                 String[] jettyVersion = r.getAtmosphereConfig().getServletContext().getServerInfo().substring(6).split("\\.");
                 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
-                boolean eclipse362468 = (Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[1]) == 0);
+                boolean eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
+                        || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+
+                if (comments && eclipse362468) {
+                    logger.debug("Padding response is disabled to workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468");
+                }
 
                 if (!eclipse362468 && comments && !resumeOnBroadcast) {
                     String padding = (String) servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
