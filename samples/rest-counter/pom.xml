@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.8.0-RC3-SNAPSHOT</version>
+        <version>0.8.0-RC3</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-rest-longpolling</artifactId>
     <packaging>war</packaging>
-    <version>0.8.0-RC3-SNAPSHOT</version>
+    <version>0.8.0-RC3</version>
     <name>atmosphere-rest-longpolling</name>
     <url>http://maven.apache.org</url>
     <dependencies>
