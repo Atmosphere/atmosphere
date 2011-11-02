@@ -301,7 +301,8 @@ public class AtmosphereResourceImpl implements
 
             // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
             // is unique.
-            if (broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) {
+            boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
+            if (broadcaster.getScope() == Broadcaster.SCOPE.REQUEST && !isJersey) {
                 String id = broadcaster.getID();
                 Class<? extends Broadcaster> clazz = broadcaster.getClass();
                 broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
