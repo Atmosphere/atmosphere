@@ -126,7 +126,11 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                 (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
                         request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+
+        synchronized(r) {
+            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+            r.setIsInScope(false);
+        }
         return new Action(Action.TYPE.RESUME);
     }
 
