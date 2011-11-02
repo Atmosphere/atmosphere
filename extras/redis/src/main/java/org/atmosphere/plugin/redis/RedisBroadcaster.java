@@ -146,17 +146,20 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void destroy() {
+        Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
         super.destroy();
-        try {
-            disconnectPublisher();
-            disconnectSubscriber();
-            if (jedisPool != null) {
-                jedisPool.destroy();
+        synchronized (lockingObject) {
+            try {
+                disconnectPublisher();
+                disconnectSubscriber();
+                if (jedisPool != null) {
+                    jedisPool.destroy();
+                }
+            } catch (Throwable t) {
+                logger.warn("Jedis error on close", t);
+            } finally {
+                config.properties().put(REDIS_SHARED_POOL, null);
             }
-        } catch (Throwable t) {
-            logger.warn("Jedis error on close", t);
-        } finally {
-            config.properties().put(REDIS_SHARED_POOL, null);
         }
     }
 
@@ -200,10 +203,14 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void outgoingBroadcast(Object message) {
-        // One thread at a time can use a Jedis Connection.
         Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
-        boolean valid = true;
         synchronized (lockingObject) {
+            if (destroyed.get()) {
+                logger.debug("JedisPool closed. Re-opening");
+                setID(getID());
+            }
+
+            boolean valid = true;
             try {
                 if (sharedPool) {
                     jedisPublisher = jedisPool.getResource();
