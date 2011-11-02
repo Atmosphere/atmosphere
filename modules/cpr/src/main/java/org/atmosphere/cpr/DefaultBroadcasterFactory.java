@@ -181,6 +181,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             store.remove(id, b);
             logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
         }
+        return removed;
     }
 
     /**
