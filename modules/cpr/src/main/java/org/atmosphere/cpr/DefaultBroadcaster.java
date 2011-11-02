@@ -281,7 +281,7 @@ public class DefaultBroadcaster implements Broadcaster {
             currentLifecycleTask.cancel(false);
         }
 
-        if (bc.getScheduledExecutorService() == null) {
+        if (bc != null && bc.getScheduledExecutorService() == null) {
             logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. BroadcasterLifeCyclePolicy won't work.", getID());
             return;
         }
@@ -685,18 +685,21 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        bc.getAsyncWriteService().execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    r.resume();
-                } catch (Throwable t) {
-                    logger.warn("Was unable to resume a corrupted AtmosphereResource {}", r);
-                    logger.warn("Cause", t);
+        if (bc != null && bc.getAsyncWriteService() != null) {
+            bc.getAsyncWriteService().execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        r.resume();
+                    } catch (Throwable t) {
+                        logger.warn("Was unable to resume a corrupted AtmosphereResource {}", r);
+                        logger.warn("Cause", t);
+                    }
                 }
-            }
-        });
-
+            });
+        } else {
+            r.resume();
+        }
     }
 
     @Override
