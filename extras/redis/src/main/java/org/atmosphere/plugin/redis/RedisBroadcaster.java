@@ -155,6 +155,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             }
         } catch (Throwable t) {
             logger.warn("Jedis error on close", t);
+        } finally {
+            config.properties().put(REDIS_SHARED_POOL, null);
         }
     }
 
