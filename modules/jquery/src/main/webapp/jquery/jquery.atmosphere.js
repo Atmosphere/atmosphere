@@ -674,13 +674,14 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.debug("Websocket successfully opened");
                 webSocketSupported = true;
                 jQuery.atmosphere.response.state = 'opening';
-                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                 if (jQuery.atmosphere.request.method == 'POST') {
                     data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.response.state = 'messageReceived';
                     websocket.send(jQuery.atmosphere.request.data);
                 }
+                
+                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
             websocket.onmessage = function(message) {
