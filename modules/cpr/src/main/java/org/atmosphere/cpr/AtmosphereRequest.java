@@ -43,6 +43,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String methodType;
     private final String contentType;
     private final HttpServletRequest request;
+    private final String servletPath;
+    private final String requestURI;
+    private final String requestURL;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -50,6 +53,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         request = b.request;
         headers = b.headers;
         queryStrings = b.queryStrings;
+        servletPath = b.servletPath;
+        requestURI = b.requestURI;
+        requestURL = b.requestURL;
 
         if (b.dataBytes != null) {
             bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
@@ -82,6 +88,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public String getContentType() {
         return contentType;
+    }
+
+    @Override
+    public String getServletPath() {
+        return servletPath != null ? servletPath : super.getServletPath();
+    }
+
+    @Override
+    public String getRequestURI(){
+        return requestURI != null ? requestURI : super.getRequestURI();
+    }
+
+    @Override
+    public StringBuffer getRequestURL(){
+        return requestURL != null ? new StringBuffer(requestURL) : super.getRequestURL();
     }
 
     @Override
@@ -206,6 +227,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String data;
         private Map<String, String> headers;
         private Map<String, String[]> queryStrings;
+        public String servletPath;
+        public String requestURI;
+        public String requestURL;
 
         public Builder() {
         }
@@ -217,6 +241,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder request(HttpServletRequest request) {
             this.request = request;
+            return this;
+        }
+
+        public Builder servletPath(String servletPath) {
+            this.servletPath = servletPath;
+            return this;
+        }
+
+        public Builder requestURI(String requestURI) {
+            this.requestURI = requestURI;
+            return this;
+        }
+
+        public Builder requestURL(String requestURL) {
+            this.requestURL = requestURL;
             return this;
         }
 
