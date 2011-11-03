@@ -44,10 +44,10 @@ public interface WebSocketProtocol {
      * As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      * <br>
-     * @param resource The {@link AtmosphereResource} associated with the WebSocket Handshake
+     * @param webSocket The {@link WebSocket} connection
      * @param data The Websocket message
      */
-    HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String data);
+    HttpServletRequest onMessage(WebSocket webSocket, String data);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
@@ -58,21 +58,20 @@ public interface WebSocketProtocol {
      * As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      * <br>
-     * @param resource The {@link AtmosphereResource} associated with the WebSocket Handshake
-     * @param data   The Websocket message
+     * @param webSocket The {@link WebSocket} connection
      * @param offset offset message index
      * @param length length of the message.
      */
-    HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, byte[] data, int offset, int length);
+    HttpServletRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 
     /**
      * Invoked when a WebSocket is opened
      */
-    void onOpen(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource);
+    void onOpen(WebSocket webSocket);
 
     /**
      * Invoked when a WebSocket is closed
      */
-    void onClose(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource);
+    void onClose(WebSocket webSocket);
 
 }

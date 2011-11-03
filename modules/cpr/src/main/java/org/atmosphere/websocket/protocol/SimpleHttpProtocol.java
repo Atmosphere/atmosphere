@@ -19,6 +19,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String contentType;
     private String methodType;
     private String delimiter;
+    private AtmosphereResource<HttpServletRequest,HttpServletResponse> resource;
 
     /**
      * {@inheritDoc}
@@ -74,7 +76,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String d) {
+    public HttpServletRequest onMessage(WebSocket webSocket, String d) {
         String pathInfo = resource.getRequest().getPathInfo();
         if (d.startsWith(delimiter)) {
             String[] token = d.split(delimiter);
@@ -96,22 +98,24 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, byte[] d, final int offset, final int length) {
-        return onMessage(resource, new String(d, offset, length));
+    public HttpServletRequest onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
+        return onMessage(webSocket, new String(d, offset, length));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onOpen(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) {
+    public void onOpen(WebSocket webSocket) {
+        // eurk!!
+        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.atmosphereResource();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onClose(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) {
+    public void onClose(WebSocket webSocket) {
     }
 
 }
