@@ -33,7 +33,7 @@ public interface WebSocketProtocol {
      * Allow an implementation to query the AtmosphereConfig of init-param, etc.
      * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    public void configure(AtmosphereServlet.AtmosphereConfig config);
+    void configure(AtmosphereServlet.AtmosphereConfig config);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
@@ -47,7 +47,7 @@ public interface WebSocketProtocol {
      * @param resource The {@link AtmosphereResource} associated with the WebSocket Handshake
      * @param data The Websocket message
      */
-    HttpServletRequest parseMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String data);
+    HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String data);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
@@ -63,6 +63,16 @@ public interface WebSocketProtocol {
      * @param offset offset message index
      * @param length length of the message.
      */
-    HttpServletRequest parseMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, byte[] data, int offset, int length);
+    HttpServletRequest onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, byte[] data, int offset, int length);
+
+    /**
+     * Invoked when a WebSocket is opened
+     */
+    void onOpen(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource);
+
+    /**
+     * Invoked when a WebSocket is closed
+     */
+    void onClose(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource);
 
 }
