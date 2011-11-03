@@ -58,6 +58,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onConnect(org.eclipse.jetty.websocket.WebSocket.Outbound outbound) {
+
         logger.debug("WebSocket.onConnect (outbound)");
         try {
             webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new JettyWebSocket(outbound), webSocketProtocol);
