@@ -137,6 +137,12 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         Broadcaster b = null;
         synchronized (id) {
+
+            // If two thread comes here at the same time, the second ID will erase the
+            if (store.get(id) != null){
+                return store.get(id);
+            }
+
             try {
                 b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
             } catch (Throwable t) {
