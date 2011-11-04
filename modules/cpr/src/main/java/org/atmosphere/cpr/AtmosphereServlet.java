@@ -852,8 +852,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handlerPath);
 
-                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, handlerPath);
-                addMapping(handlerPath, wrapper);
                 boolean isJersey = false;
                 for (Property p : reader.getProperty(handlerPath)) {
                     if (p.value != null && p.value.indexOf("jersey") != -1) {
@@ -876,6 +874,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
 
                 String broadcasterClass = reader.getBroadcasterClass(handlerPath);
+                Broadcaster b;
                 /**
                  * If there is more than one AtmosphereHandler defined, their Broadcaster
                  * may clash each other with the BroadcasterFactory. In that case we will use the
@@ -885,8 +884,14 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                     broadcasterClassName = broadcasterClass;
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
                     Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
-                    wrapper.broadcaster = BroadcasterFactory.getDefault().get(bc, handlerPath);
+                    broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+                    BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                 }
+
+                b = BroadcasterFactory.getDefault().get(handlerPath);
+
+                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
+                addMapping(handlerPath, wrapper);
 
                 String bc = reader.getBroadcasterCache(handlerPath);
                 if (bc != null) {
