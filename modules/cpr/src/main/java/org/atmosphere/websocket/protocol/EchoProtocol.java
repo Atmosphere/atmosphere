@@ -24,27 +24,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Simple {@link org.atmosphere.websocket.WebSocketProcessor} that invoke the {@link org.atmosphere.cpr.Broadcaster#broadcast} API when a WebSocket message
  * is received.
- *
+ * <p/>
  * NOTE: If WebSocket frame are used the bytes will be decoded into a String, which reduce performance.
  *
  * @author Jeanfrancois Arcand
  */
 public class EchoProtocol implements WebSocketProtocol {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public HttpServletRequest parseMessage(AtmosphereResource resource, String data) {
+    public HttpServletRequest onMessage(WebSocket webSocket, String data) {
         logger.trace("broadcast String");
         resource.getBroadcaster().broadcast(data);
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public HttpServletRequest parseMessage(AtmosphereResource resource, byte[] data, int offset, int length) {
+    public HttpServletRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
@@ -52,7 +60,26 @@ public class EchoProtocol implements WebSocketProtocol {
         return null;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void configure(AtmosphereServlet.AtmosphereConfig config) {
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onOpen(WebSocket webSocket) {
+        // eurk!!
+        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.atmosphereResource();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose(WebSocket webSocket) {
     }
 }

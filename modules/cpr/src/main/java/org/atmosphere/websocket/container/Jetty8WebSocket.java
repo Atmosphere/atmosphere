@@ -15,6 +15,8 @@
 */
 package org.atmosphere.websocket.container;
 
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
@@ -27,10 +29,11 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty8WebSocket implements WebSocket {
+public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
+    private AtmosphereResource<?,?> atmosphereResource;
 
     public Jetty8WebSocket(Connection connection) {
         this.connection = connection;
@@ -72,5 +75,13 @@ public class Jetty8WebSocket implements WebSocket {
         connection.disconnect();
     }
 
+    @Override
+    public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
+        atmosphereResource = r;
+    }
 
+    @Override
+    public AtmosphereResource<?, ?> atmosphereResource() {
+        return atmosphereResource;
+    }
 }

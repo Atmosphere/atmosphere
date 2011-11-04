@@ -42,9 +42,11 @@ import com.sun.grizzly.websockets.BaseServerWebSocket;
 import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -162,8 +164,9 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         return true;
     }
 
-    public class GrizzlyWebSocket implements WebSocket {
+    public class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
 
+        private AtmosphereResource<?,?> atmosphereResource;
         private final com.sun.grizzly.websockets.WebSocket webSocket;
 
         public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
@@ -190,6 +193,16 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         public void close() throws IOException {
             webSocket.close();
+        }
+
+        @Override
+        public AtmosphereResource<?, ?> atmosphereResource() {
+            return atmosphereResource;
+        }
+
+        @Override
+        public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
+            this.atmosphereResource = atmosphereResource;
         }
     }
 }
