@@ -100,6 +100,13 @@ public class WebSocketProcessor implements Serializable {
         dispatch(r, wsr);
 
         resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+
+        if (WebSocketAdapter.class.isAssignableFrom(webSocket().getClass())) {
+            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
+        }
+
+        webSocketProtocol.onOpen(webSocket);
+
         handler = (AtmosphereHandler) request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
             logger.error("No AtmosphereResource has been suspended. The WebSocket will be closed.");
@@ -108,12 +115,12 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
-        HttpServletRequest r = webSocketProtocol.parseMessage(resource, webSocketMessage);
+        HttpServletRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
-        HttpServletRequest r = webSocketProtocol.parseMessage(resource, data, offset, length);
+        HttpServletRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
         dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
     }
 
@@ -139,6 +146,7 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void close() {
+        webSocketProtocol.onClose(webSocket);
         try {
             if (handler != null && resource != null) {
                 handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, false, true));

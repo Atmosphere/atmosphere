@@ -36,6 +36,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.CometSupport;
 
 import java.io.IOException;
@@ -63,5 +64,8 @@ public interface WebSocket {
     void write(byte frame, byte[] data, int offset, int length) throws IOException;
 
     void close() throws IOException;
+
+    AtmosphereResource<?,?> atmosphereResource();
+
 
 }

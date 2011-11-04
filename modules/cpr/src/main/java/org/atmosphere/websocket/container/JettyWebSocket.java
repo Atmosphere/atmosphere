@@ -36,25 +36,25 @@
  */
 package org.atmosphere.websocket.container;
 
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jetty 7.1/2 & 8 < M3 WebSocket support.
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyWebSocket implements WebSocket {
+public class JettyWebSocket extends WebSocketAdapter implements WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocket.class);
     private final Outbound outbound;
-
-    private AtomicBoolean webSocketLatencyCheck = new AtomicBoolean(false);
+    private AtmosphereResource<?,?> atmosphereResource;
 
     public JettyWebSocket(Outbound outbound) {
         this.outbound = outbound;
@@ -86,6 +86,16 @@ public class JettyWebSocket implements WebSocket {
 
     public void close() throws IOException {
         outbound.disconnect();
+    }
+
+    @Override
+    public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
+        atmosphereResource = r;
+    }
+
+    @Override
+    public AtmosphereResource<?, ?> atmosphereResource() {
+        return atmosphereResource;
     }
 
 }
