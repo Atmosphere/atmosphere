@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 public abstract class WebSocketAdapter {
     /**
      * Configure the {@link AtmosphereResource}
+     *
      * @param r the {@link AtmosphereResource}
      */
     abstract public void setAtmosphereResource(AtmosphereResource<?, ?> r);
