@@ -51,8 +51,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         super(b.request);
         pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
         request = b.request;
-        headers = b.headers;
-        queryStrings = b.queryStrings;
+        headers = b.headers == null ? Collections.<String, String>emptyMap() : b.headers;
+        queryStrings = b.queryStrings == null ? Collections.<String, String[]>emptyMap() : b.queryStrings;
         servletPath = b.servletPath;
         requestURI = b.requestURI;
         requestURL = b.requestURL;
@@ -96,12 +96,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     @Override
-    public String getRequestURI(){
+    public String getRequestURI() {
         return requestURI != null ? requestURI : super.getRequestURI();
     }
 
     @Override
-    public StringBuffer getRequestURL(){
+    public StringBuffer getRequestURL() {
         return requestURL != null ? new StringBuffer(requestURL) : super.getRequestURL();
     }
 
@@ -188,6 +188,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
         return Collections.unmodifiableMap(queryStrings);
+    }
+
+    @Override
+    public String[] getParameterValues(String s) {
+        String[] list = super.getParameterValues(s) == null ? new String[0] : super.getParameterValues(s);
+        if (queryStrings.get(s) != null) {
+            String[] newList = queryStrings.get(s);
+            String[] s1 = new String[list.length + newList.length];
+            System.arraycopy(list, 0, s1, 0, list.length);
+            System.arraycopy(s1, list.length + 1, newList, 0, newList.length);
+        }
+        return list;
     }
 
     @Override
