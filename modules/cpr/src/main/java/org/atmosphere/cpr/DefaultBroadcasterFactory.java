@@ -40,9 +40,11 @@ package org.atmosphere.cpr;
 
 
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -119,7 +121,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public final Broadcaster get(Object id) {
-        return get(clazz , id);
+        return get(clazz, id);
     }
 
     /**
@@ -135,6 +137,12 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         Broadcaster b = null;
         synchronized (id) {
+
+            // If two thread comes here at the same time, the second ID will erase the
+            if (store.get(id) != null){
+                return store.get(id);
+            }
+
             try {
                 b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
             } catch (Throwable t) {
@@ -215,7 +223,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new IllegalStateException(msg);
         }
 
-        if ((b == null && createIfNull) || (b !=null && b.isDestroyed())) {
+        if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
             if (b != null) {
                 logger.debug("Removing destroyed Broadcaster {}", b.getID());
                 store.remove(b.getID(), b);
