@@ -141,7 +141,11 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         String minorVersion = tomcatVersion[2];
         if (minorVersion.indexOf("-") != -1) {
             minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
+            if (Integer.valueOf(minorVersion) == 22) {
+                minorVersion = "23";
+            }
         }
+
         if (Integer.valueOf(tomcatVersion[0]) == 7 && Integer.valueOf(minorVersion) < 23) {
             logger.info("Patching Tomcat 7.0.22 and lower bz51881. Expect NPE inside CoyoteAdapter, just ignore them. Upgrade to 7.0.23");
             try {
