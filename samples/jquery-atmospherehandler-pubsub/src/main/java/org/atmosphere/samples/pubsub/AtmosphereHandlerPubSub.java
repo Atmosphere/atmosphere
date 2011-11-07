@@ -52,12 +52,8 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
         if ("GET".equalsIgnoreCase(method)) {
             String trackingId = trackingId(req);
 
-
             // Log all events on the console, including WebSocket events.
             r.addEventListener(new WebSocketEventListenerAdapter());
-
-            // In case we would have tracked instance of Meteor
-            //meteors.put(trackingId, m);
 
             res.setContentType("text/html;charset=ISO-8859-1");
 
