@@ -38,23 +38,25 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MeteorPubSub extends HttpServlet {
 
-    private ConcurrentHashMap<String, Meteor> meteors = new ConcurrentHashMap<String, Meteor>();
+    // Uncomment if you want to track instance of Meteor from request to request using the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
+    //private ConcurrentHashMap<String, Meteor> meteors = new ConcurrentHashMap<String, Meteor>();
 
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+        // Create a Meteor
         Meteor m = Meteor.build(req);
 
-        // Log all events on the console.
+        // Log all events on the console, including WebSocket events.
         m.addListener(new WebSocketEventListenerAdapter());
 
         String trackingId = trackingId(req);
 
-        meteors.put(trackingId, m);
+        // In case we would have tracked instance of Meteor
+        //meteors.put(trackingId, m);
 
         res.setContentType("text/html;charset=ISO-8859-1");
 
-        String[] decodedPath = req.getPathInfo().split("/");
-        Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
+        Broadcaster b = lookupBroadcaster(req.getPathInfo());
         m.setBroadcaster(b);
 
         if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
@@ -67,19 +69,38 @@ public class MeteorPubSub extends HttpServlet {
     }
 
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        Meteor m = meteors.get(trackingId(req));
-        res.setCharacterEncoding("UTF-8");
+        // We could have also retrived the Meteor using the tracking ID
+        //Meteor m = meteors.get(trackingId(req));
+        Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
         String message = req.getReader().readLine();
 
         if (message != null && message.indexOf("message") != -1) {
-            m.getBroadcaster().broadcast(message.substring("message=".length()));
+            // We could also have looked up the Broadcaster using the Meteor
+            // m.getBroadcaster().broadcast(message.substring("message=".length()));
+            b.broadcast(message.substring("message=".length()));
         }
     }
 
+    /**
+     * Return the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
+     * @param req the {@link HttpServletRequest}
+     * @return  the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
+     */
     String trackingId(HttpServletRequest req) {
         String trackingId = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
                 req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         return trackingId;
+    }
+
+    /**
+     * Retrieve the {@link Broadcaster} based on the request's path info.
+     * @param pathInfo
+     * @return the {@link Broadcaster} based on the request's path info.
+     */
+    Broadcaster lookupBroadcaster(String pathInfo) {
+        String[] decodedPath = pathInfo.split("/");
+        Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
+        return b;
     }
 }
