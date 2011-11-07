@@ -798,6 +798,19 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 ((AtmosphereServletProcessor) a).init(sc);
             }
         }
+
+        if (atmosphereHandlers.size() == 0 && !webSocketProtocolClassName.equalsIgnoreCase(SimpleHttpProtocol.class.getName())) {
+            logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
+            addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
+                @Override
+                public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> httpServletRequestHttpServletResponseAtmosphereResource) throws IOException {
+                }
+
+                @Override
+                public void destroy() {
+                }
+            });
+        }
     }
 
     @Override
