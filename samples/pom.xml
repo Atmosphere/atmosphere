@@ -29,6 +29,7 @@
         <module>pubsub</module>
         <module>jquery-pubsub</module>
         <module>jquery-meteor-pubsub</module>
+        <module>jquery-atmospherehandler-pubsub</module>
         <module>twitter-live-feed</module>
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
