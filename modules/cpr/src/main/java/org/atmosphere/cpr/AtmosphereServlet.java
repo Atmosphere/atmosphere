@@ -49,6 +49,7 @@ import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
