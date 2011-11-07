@@ -100,8 +100,8 @@ public class MeteorPubSub extends HttpServlet {
     }
 
     String trackingId(HttpServletRequest req) {
-        String trackingId = req.getAttribute(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
-                (String) req.getAttribute(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        String trackingId = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
+                req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         return trackingId;
     }
 }
