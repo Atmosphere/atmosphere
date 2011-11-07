@@ -72,13 +72,12 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
             String message = req.getReader().readLine();
 
             if (message != null && message.indexOf("message") != -1) {
-                // We could also have looked up the Broadcaster using the Meteor
-                // m.getBroadcaster().broadcast(message.substring("message=".length()));
                 b.broadcast(message.substring("message=".length()));
             }
         }
     }
 
+    @Override
     public void destroy() {
     }
 
