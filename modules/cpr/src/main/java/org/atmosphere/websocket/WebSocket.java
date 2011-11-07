@@ -68,29 +68,26 @@ public interface WebSocket {
 
     /**
      * Write a WebSocket message
-     * @param frame
      * @param data the WebSocket message
      * @throws IOException
      */
-    void write(byte frame, String data) throws IOException;
+    void write(String data) throws IOException;
 
     /**
      * Write a WebSocket message
-     * @param frame
      * @param data the WebSocket message
      * @throws IOException
      */
-    void write(byte frame, byte[] data) throws IOException;
+    void write(byte[] data) throws IOException;
 
     /**
      * Write a WebSocket message
-     * @param frame
      * @param data the WebSocket message
      * @param offset offset of the message
      * @param length length if the message
      * @throws IOException
      */
-    void write(byte frame, byte[] data, int offset, int length) throws IOException;
+    void write(byte[] data, int offset, int length) throws IOException;
 
     /**
      * Close the underlying WebSocket connection
