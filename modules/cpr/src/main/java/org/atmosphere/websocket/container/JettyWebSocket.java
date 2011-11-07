@@ -55,6 +55,7 @@ public class JettyWebSocket extends WebSocketAdapter implements WebSocket {
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocket.class);
     private final Outbound outbound;
     private AtmosphereResource<?,?> atmosphereResource;
+    private final byte frame = 0x00;
 
     public JettyWebSocket(Outbound outbound) {
         this.outbound = outbound;
@@ -66,19 +67,19 @@ public class JettyWebSocket extends WebSocketAdapter implements WebSocket {
     public void redirect(String location) throws IOException {
     }
 
-    public void write(byte frame, String data) throws IOException {
+    public void write(String data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data);
     }
 
-    public void write(byte frame, byte[] data) throws IOException {
+    public void write(byte[] data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, 0, data.length);
     }
 
-    public void write(byte frame, byte[] data, int offset, int length) throws IOException {
+    public void write(byte[] data, int offset, int length) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, offset, length);
