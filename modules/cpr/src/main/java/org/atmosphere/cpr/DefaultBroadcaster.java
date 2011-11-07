@@ -433,12 +433,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(name);
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
             asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+            setID(name);
         }
     }
 
@@ -1043,51 +1043,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 .append("\n\tBroasdcasterCache ").append(broadcasterCache).append("\n")
                 .append("\n\tAtmosphereResource: ").append(resources.size()).append("\n")
                 .toString();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        DefaultBroadcaster that = (DefaultBroadcaster) o;
-
-        if (broadcastOnResume != null ? !broadcastOnResume.equals(that.broadcastOnResume) : that.broadcastOnResume != null)
-            return false;
-        if (broadcasterCache != null ? !broadcasterCache.equals(that.broadcasterCache) : that.broadcasterCache != null)
-            return false;
-        if (delayedBroadcast != null ? !delayedBroadcast.equals(that.delayedBroadcast) : that.delayedBroadcast != null)
-            return false;
-        if (destroyed != null ? !destroyed.equals(that.destroyed) : that.destroyed != null) return false;
-        if (lifeCyclePolicy != null ? !lifeCyclePolicy.equals(that.lifeCyclePolicy) : that.lifeCyclePolicy != null)
-            return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (policy != that.policy) return false;
-        if (requestScoped != null ? !requestScoped.equals(that.requestScoped) : that.requestScoped != null)
-            return false;
-        if (resources != null ? !resources.equals(that.resources) : that.resources != null) return false;
-        if (scope != that.scope) return false;
-        if (started != null ? !started.equals(that.started) : that.started != null) return false;
-        if (uri != null ? !uri.equals(that.uri) : that.uri != null) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = resources != null ? resources.hashCode() : 0;
-        result = 31 * result + (started != null ? started.hashCode() : 0);
-        result = 31 * result + (destroyed != null ? destroyed.hashCode() : 0);
-        result = 31 * result + (scope != null ? scope.hashCode() : 0);
-        result = 31 * result + (name != null ? name.hashCode() : 0);
-        result = 31 * result + (delayedBroadcast != null ? delayedBroadcast.hashCode() : 0);
-        result = 31 * result + (broadcastOnResume != null ? broadcastOnResume.hashCode() : 0);
-        result = 31 * result + (broadcasterCache != null ? broadcasterCache.hashCode() : 0);
-        result = 31 * result + (policy != null ? policy.hashCode() : 0);
-        result = 31 * result + (requestScoped != null ? requestScoped.hashCode() : 0);
-        result = 31 * result + (lifeCyclePolicy != null ? lifeCyclePolicy.hashCode() : 0);
-        result = 31 * result + (uri != null ? uri.hashCode() : 0);
-        return result;
     }
 
     private final static class AsyncWriteToken {
