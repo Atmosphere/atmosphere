@@ -87,7 +87,7 @@ public class WebSocketProcessor implements Serializable {
 
     public final void dispatch(final HttpServletRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
-            logger.info("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
+            logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket);
@@ -135,9 +135,9 @@ public class WebSocketProcessor implements Serializable {
         try {
             atmosphereServlet.doCometSupport(request, response);
         } catch (IOException e) {
-            logger.info("Failed invoking atmosphere servlet doCometSupport()", e);
+            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
-            logger.info("Failed invoking atmosphere servlet doCometSupport()", e);
+            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         }
     }
 
@@ -155,7 +155,7 @@ public class WebSocketProcessor implements Serializable {
             if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
-            logger.info("Failed invoking atmosphere handler onStateChange()", e);
+            logger.warn("Failed invoking atmosphere handler onStateChange()", e);
         }
 
         if (resource != null) {
