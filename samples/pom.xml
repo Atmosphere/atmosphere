@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.8.0-RC4-SNAPSHOT</version>
+        <version>0.9-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-samples</artifactId>
     <packaging>pom</packaging>
-    <version>0.8.0-RC4-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
     <name>atmosphere-samples</name>
     <modules>
         <module>commons</module>
@@ -28,6 +28,7 @@
         <module>meteor-chat</module>
         <module>pubsub</module>
         <module>jquery-pubsub</module>
+        <module>jquery-meteor-pubsub</module>
         <module>twitter-live-feed</module>
         <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
