@@ -9,7 +9,7 @@
             var connectedEndpoint;
             var callbackAdded = false;
             var detectedTransport = null;
-            var baseUrl = '/atmosphere-meteor-pubsub/pubsub/'
+            var baseUrl = '/atmosphere-atmospherehandler-pubsub/pubsub/'
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -56,8 +56,7 @@
 
                 var location = baseUrl + getElementByIdValue('topic');
                 $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { attachHeadersAsQueryString : true,
-                                                transport: getElementByIdValue('transport') });
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }

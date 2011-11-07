@@ -66,6 +66,10 @@ public interface FrameworkConfig {
      */
     String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
     /**
+     * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator and not recommend for normal application.
+     */
+    String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.class.getName() + ".contextRoot";
+    /**
      * A reference to the Jersey's {@link ContainerResponse}
      */
     String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
