@@ -15,7 +15,6 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 
 import javax.servlet.http.HttpServletRequest;
@@ -31,6 +30,7 @@ public interface WebSocketProtocol {
 
     /**
      * Allow an implementation to query the AtmosphereConfig of init-param, etc.
+     *
      * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
     void configure(AtmosphereServlet.AtmosphereConfig config);
@@ -44,8 +44,9 @@ public interface WebSocketProtocol {
      * As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      * <br>
+     *
      * @param webSocket The {@link WebSocket} connection
-     * @param data The Websocket message
+     * @param data      The Websocket message
      */
     HttpServletRequest onMessage(WebSocket webSocket, String data);
 
@@ -58,20 +59,56 @@ public interface WebSocketProtocol {
      * As an example, this is how Websocket messages are delegated to the
      * Jersey runtime.
      * <br>
+     *
      * @param webSocket The {@link WebSocket} connection
-     * @param offset offset message index
-     * @param length length of the message.
+     * @param offset    offset message index
+     * @param length    length of the message.
      */
     HttpServletRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 
     /**
      * Invoked when a WebSocket is opened
+     * @param webSocket {@link WebSocket}
      */
     void onOpen(WebSocket webSocket);
 
     /**
      * Invoked when a WebSocket is closed
+     * @param webSocket {@link WebSocket}
      */
     void onClose(WebSocket webSocket);
 
+    /**
+     * Return true if this implementation will manipulate/change the WebSocket message;
+     * @return true if this implementation will manipulate/change the WebSocket message;
+     */
+    boolean inspectWebSocketMessage();
+
+    /**
+     * Give a chance to a WebSocketProtocol to modify the final response using a fake {@link HttpServletResponse} that was
+     * dispatched to a ServletContainer and it's framework or application running it.
+     *
+     * This method is only invoked when {@link WebSocketProtocol#onMessage(WebSocket, String)} return a valid
+     * {@link HttpServletRequest}, meaning the request will be dispatched to a Servlet Container.
+     *
+     * @param res {@link HttpServletResponse}
+     * @param message the WebSocket message;
+     * @return a new response String
+     */
+    String handleResponse(WebSocketHttpServletResponse<?> res, String message);
+
+    /**
+     * Give a chance to a WebSocketProtocol to modify the final response using a fake {@link HttpServletResponse} that was
+     * dispatched to a ServletContainer and it's framework or application running it.
+     *
+     * This method is only invoked when {@link WebSocketProtocol#onMessage(WebSocket, String)} return a valid
+     * {@link HttpServletRequest}, meaning the request will be dispatched to a Servlet Container.
+     *
+     * @param res {@link HttpServletResponse}
+     * @param message the WebSocket message;
+     * @param offset offset of the message
+     * @param length the length of the message
+     * @return a new byte[] message.
+     */
+    byte[] handleResponse(WebSocketHttpServletResponse<?> res, byte[] message, int offset, int length);
 }

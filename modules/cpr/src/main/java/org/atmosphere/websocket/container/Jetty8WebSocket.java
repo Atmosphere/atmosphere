@@ -48,21 +48,21 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
     }
 
     @Override
-    public void write(byte frame, String data) throws IOException {
+    public void write(String data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         connection.sendMessage(data);
     }
 
     @Override
-    public void write(byte frame, byte[] data) throws IOException {
+    public void write(byte[] data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         connection.sendMessage(data, 0, data.length);
     }
 
     @Override
-    public void write(byte frame, byte[] data, int offset, int length) throws IOException {
+    public void write(byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         // Chrome doesn't like it, throwing: Received a binary frame which is not supported yet. So send a String instead

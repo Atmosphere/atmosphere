@@ -90,7 +90,7 @@ public class WebSocketProcessor implements Serializable {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket);
+        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .headers(configureHeader(request))
@@ -116,12 +116,12 @@ public class WebSocketProcessor implements Serializable {
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
+        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol));
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket));
+        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol));
     }
 
     /**
@@ -135,9 +135,9 @@ public class WebSocketProcessor implements Serializable {
         try {
             atmosphereServlet.doCometSupport(request, response);
         } catch (IOException e) {
-            logger.debug("Failed invoking atmosphere servlet doCometSupport()", e);
+            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
-            logger.debug("Failed invoking atmosphere servlet doCometSupport()", e);
+            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         }
     }
 
@@ -155,7 +155,7 @@ public class WebSocketProcessor implements Serializable {
             if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
-            logger.debug("Failed invoking atmosphere handler onStateChange()", e);
+            logger.warn("Failed invoking atmosphere handler onStateChange()", e);
         }
 
         if (resource != null) {

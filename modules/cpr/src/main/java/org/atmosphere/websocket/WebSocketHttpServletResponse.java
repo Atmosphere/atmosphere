@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Wrapper around an {@link HttpServletResponse} which use an instance of {@link WebSocket}
@@ -58,18 +59,19 @@ import java.util.Locale;
 public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServletResponseWrapper {
 
     private final ArrayList<Cookie> cookies = new ArrayList<Cookie>();
-    private final HashMap<String, String> headers = new HashMap<String, String>();
+    private final Map<String, String> headers = new HashMap<String, String>();
     private final A webSocketSupport;
     private int status = 200;
     private String statusMessage = "";
     private String charSet = "UTF-8";
-    private byte frame;
     private long contentLength = -1;
     private String contentType = "txt/html";
     private boolean isCommited = false;
     private Locale locale;
+    private final WebSocketProtocol webSocketProtocol;
+    private boolean headerHandled = false;
 
-    public WebSocketHttpServletResponse(A webSocketSupport) {
+    public WebSocketHttpServletResponse(A webSocketSupport, WebSocketProtocol webSocketProtocol) {
         super(new HttpServletResponse() {
 
             public void addCookie(Cookie cookie) {
@@ -217,6 +219,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
             }
         });
         this.webSocketSupport = webSocketSupport;
+        this.webSocketProtocol = webSocketProtocol;
     }
 
     /**
@@ -318,6 +321,17 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
         return status;
     }
 
+    public String getStatusMessage() {
+        return statusMessage;
+    }
+
+    public Map<String, String> headers() {
+        for (Cookie c : cookies) {
+            headers.put("Set-Cookie", c.toString());
+        }
+        return headers;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -364,17 +378,31 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
         return new ServletOutputStream() {
 
             public void write(int i) throws java.io.IOException {
-                webSocketSupport.write(frame, new byte[]{(byte) i});
+                if (webSocketProtocol.inspectWebSocketMessage()) {
+                    webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new byte[]{(byte) i}, 0, 1));
+                } else {
+                    webSocketSupport.write(new byte[]{(byte) i});
+                }
             }
 
 
             public void write(byte[] bytes) throws java.io.IOException {
-                webSocketSupport.write(frame, bytes);
+                if (webSocketProtocol.inspectWebSocketMessage()) {
+                    webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, bytes, 0, bytes.length));
+                } else {
+                    webSocketSupport.write(bytes);
+                }
             }
 
             public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
-                webSocketSupport.write(frame, bytes, start, offset);
+                if (webSocketProtocol.inspectWebSocketMessage()) {
+                    byte[] b = webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, bytes, start, offset);
+                    webSocketSupport.write(b, 0, b.length);
+                } else {
+                    webSocketSupport.write(bytes, start, offset);
+                }
             }
+
         };
     }
 
@@ -385,7 +413,11 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
         return new PrintWriter(getOutputStream()) {
             public void write(char[] chars, int offset, int lenght) {
                 try {
-                    webSocketSupport.write(frame, new String(chars, offset, lenght));
+                    if (webSocketProtocol.inspectWebSocketMessage()) {
+                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(chars, offset, lenght)));
+                    } else {
+                        webSocketSupport.write(new String(chars, offset, lenght));
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -393,7 +425,11 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(char[] chars) {
                 try {
-                    webSocketSupport.write(frame, new String(chars));
+                    if (webSocketProtocol.inspectWebSocketMessage()) {
+                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(chars)));
+                    } else {
+                        webSocketSupport.write(new String(chars));
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -401,7 +437,11 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(String s, int offset, int lenght) {
                 try {
-                    webSocketSupport.write(frame, new String(s.substring(offset, lenght)));
+                    if (webSocketProtocol.inspectWebSocketMessage()) {
+                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(s.substring(offset, lenght))));
+                    } else {
+                        webSocketSupport.write(new String(s.substring(offset, lenght)));
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -409,7 +449,11 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(java.lang.String s) {
                 try {
-                    webSocketSupport.write(frame, new String(s));
+                    if (webSocketProtocol.inspectWebSocketMessage()) {
+                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(s)));
+                    } else {
+                        webSocketSupport.write(new String(s));
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

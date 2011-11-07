@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String contentType;
     private String methodType;
     private String delimiter;
-    private AtmosphereResource<HttpServletRequest,HttpServletResponse> resource;
+    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
 
     /**
      * {@inheritDoc}
@@ -116,6 +117,29 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onClose(WebSocket webSocket) {
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean inspectWebSocketMessage() {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String handleResponse(WebSocketHttpServletResponse<?> res, String message) {
+        // Should never be called
+        return message;
+    }
+
+    @Override
+    public byte[] handleResponse(WebSocketHttpServletResponse<?> res, byte[] message, int offset, int length) {
+        // Should never be called
+        return message;
     }
 
 }
