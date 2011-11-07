@@ -49,6 +49,7 @@ import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
@@ -802,6 +803,19 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             if (a instanceof AtmosphereServletProcessor) {
                 ((AtmosphereServletProcessor) a).init(sc);
             }
+        }
+
+        if (atmosphereHandlers.size() == 0 && !webSocketProtocolClassName.equalsIgnoreCase(SimpleHttpProtocol.class.getName())) {
+            logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
+            addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
+                @Override
+                public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> httpServletRequestHttpServletResponseAtmosphereResource) throws IOException {
+                }
+
+                @Override
+                public void destroy() {
+                }
+            });
         }
     }
 
