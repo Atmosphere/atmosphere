@@ -35,7 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
  * Atmosphere JQuery Plugin and AtmosphereHandler extension.  You can compare that implementation
- * with the MeteorPubSub and the JQueryPubsub sample
+ * with the MeteorPubSub and the JQueryPubsub sample.
+ *
+ * This sample support out of the box WebSocket, Long-Polling and Streaming
  *
  * @author Jeanfrancois Arcand
  */
