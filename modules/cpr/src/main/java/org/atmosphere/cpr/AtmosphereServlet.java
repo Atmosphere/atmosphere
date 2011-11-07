@@ -89,6 +89,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
@@ -107,7 +109,6 @@ import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
-import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -564,7 +565,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
-                addAtmosphereHandler("/*", (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
+
+                String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
+                if (mapping == null){
+                    mapping = "/*";
+                }
+                addAtmosphereHandler(mapping, (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
             }
@@ -815,7 +821,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     }
 
-   /**
+    /**
      * Load AtmosphereHandler defined under META-INF/atmosphere.xml
      *
      * @param stream The input stream we read from.

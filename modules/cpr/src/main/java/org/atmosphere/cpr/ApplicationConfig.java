@@ -165,4 +165,12 @@ public interface ApplicationConfig {
      * Recover from a {@link Broadcaster} that has been destroyed. Default is true.
      */
     String RECOVER_DEAD_BROADCASTER = ApplicationConfig.class.getPackage().getName() + ".recoverFromDestroyedBroadcaster";
+    /**
+     * Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml
+     */
+    String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
+    /**
+     * The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml
+     */
+    String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.class.getName() + ".contextRoot";
 }
