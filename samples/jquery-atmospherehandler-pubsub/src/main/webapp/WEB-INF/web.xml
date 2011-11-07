@@ -17,6 +17,14 @@
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
         </init-param>
+         <init-param>
+            <param-name>org.atmosphere.cpr.AtmosphereHandler</param-name>
+            <param-value>org.atmosphere.samples.pubsub.AtmosphereHandlerPubSub</param-value>
+        </init-param>
+         <init-param>
+            <param-name>org.atmosphere.cpr.AtmosphereHandler.contextRoot</param-name>
+            <param-value>/pubsub/*</param-value>
+        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
