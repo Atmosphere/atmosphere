@@ -37,13 +37,11 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.CometSupport;
 
 import java.io.IOException;
 
 /**
- * All {@link CometSupport} implementation that support WebSocket must provide an implementation
- * of this class, which is used for writing websocket message.
+ * Represent a portable WebSocket implementation which can be used to write message.
  *
  * @author Jeanfrancois Arcand
  */
@@ -53,18 +51,54 @@ public interface WebSocket {
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
 
+    /**
+     * Write an error code
+     * @param errorCode the error code
+     * @param message
+     * @throws IOException
+     */
     void writeError(int errorCode, String message) throws IOException;
 
+    /**
+     * Redirect a WebSocket request to another location
+     * @param location
+     * @throws IOException
+     */
     void redirect(String location) throws IOException;
 
-    void write(byte frame, String data) throws IOException;
+    /**
+     * Write a WebSocket message
+     * @param data the WebSocket message
+     * @throws IOException
+     */
+    void write(String data) throws IOException;
 
-    void write(byte frame, byte[] data) throws IOException;
+    /**
+     * Write a WebSocket message
+     * @param data the WebSocket message
+     * @throws IOException
+     */
+    void write(byte[] data) throws IOException;
 
-    void write(byte frame, byte[] data, int offset, int length) throws IOException;
+    /**
+     * Write a WebSocket message
+     * @param data the WebSocket message
+     * @param offset offset of the message
+     * @param length length if the message
+     * @throws IOException
+     */
+    void write(byte[] data, int offset, int length) throws IOException;
 
+    /**
+     * Close the underlying WebSocket connection
+     * @throws IOException
+     */
     void close() throws IOException;
 
+    /**
+     * Return the associated {@link AtmosphereResource}
+     * @return the associated {@link AtmosphereResource}
+     */
     AtmosphereResource<?,?> atmosphereResource();
 
 

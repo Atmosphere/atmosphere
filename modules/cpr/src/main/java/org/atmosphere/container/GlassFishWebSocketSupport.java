@@ -179,15 +179,15 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         public void redirect(String location) throws IOException {
         }
 
-        public void write(byte frame, String data) throws IOException {
+        public void write(String data) throws IOException {
             webSocket.send(data);
         }
 
-        public void write(byte frame, byte[] data) throws IOException {
+        public void write(byte[] data) throws IOException {
             webSocket.send(new String(data));
         }
 
-        public void write(byte frame, byte[] data, int offset, int length) throws IOException {
+        public void write(byte[] data, int offset, int length) throws IOException {
             webSocket.send(new String(data, offset, length));
         }
 
