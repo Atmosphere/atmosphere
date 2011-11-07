@@ -433,12 +433,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(name);
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
             asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+            setID(name);
         }
     }
 
