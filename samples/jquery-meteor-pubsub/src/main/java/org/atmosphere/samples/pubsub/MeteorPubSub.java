@@ -49,9 +49,8 @@ public class MeteorPubSub extends HttpServlet {
         // Log all events on the console, including WebSocket events.
         m.addListener(new WebSocketEventListenerAdapter());
 
-        String trackingId = trackingId(req);
-
         // In case we would have tracked instance of Meteor
+        //String trackingId = trackingId(req);
         //meteors.put(trackingId, m);
 
         res.setContentType("text/html;charset=ISO-8859-1");
