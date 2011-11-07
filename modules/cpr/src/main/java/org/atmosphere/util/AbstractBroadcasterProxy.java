@@ -86,7 +86,13 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         if (notifierFuture != null) {
             notifierFuture.cancel(true);
         }
+
+        if (asyncWriteFuture != null) {
+            asyncWriteFuture.cancel(true);
+        }
+
         notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
+        asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
     }
 
     /**
