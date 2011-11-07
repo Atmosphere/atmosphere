@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Atmosphere JQuery Plugin and AtmosphereHandler extension.  You can compare that implementation
  * with the MeteorPubSub and the JQueryPubsub sample
  *
+ * This sample support out of the box WebSocket, Long-Polling and Streaming
+ *
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
@@ -50,8 +52,6 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
 
         // Suspend the response.
         if ("GET".equalsIgnoreCase(method)) {
-            String trackingId = trackingId(req);
-
             // Log all events on the console, including WebSocket events.
             r.addEventListener(new WebSocketEventListenerAdapter());
 
@@ -79,18 +79,6 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
 
     @Override
     public void destroy() {
-    }
-
-    /**
-     * Return the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
-     *
-     * @param req the {@link HttpServletRequest}
-     * @return the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
-     */
-    String trackingId(HttpServletRequest req) {
-        String trackingId = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
-                req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        return trackingId;
     }
 
     /**
