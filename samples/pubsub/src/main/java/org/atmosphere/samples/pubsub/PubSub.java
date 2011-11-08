@@ -266,6 +266,18 @@ public class PubSub {
     }
 
     /**
+     * Timeout the resource
+     *
+     * @return A {@link Broadcastable} used to broadcast events.
+     */
+    @GET
+    @Suspend(period = 60, timeUnit = TimeUnit.SECONDS, listeners = {EventsLogger.class})
+    @Path("timeout")
+    public Broadcastable timeout() {
+        return new Broadcastable(topic);
+    }
+
+    /**
      * Create a new {@link Broadcastable}.
      *
      * @param m
