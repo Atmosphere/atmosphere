@@ -128,6 +128,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         public void onConnect(com.sun.grizzly.websockets.WebSocket w) {
 
+            logger.debug("onOpen {} ", w);
             if (!BaseServerWebSocket.class.isAssignableFrom(w.getClass())) {
                 throw new IllegalStateException();
             }
@@ -156,12 +157,37 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             return true;
         }
 
-        public void onMessage(com.sun.grizzly.websockets.WebSocket w, DataFrame dataFrame) {
-            webSocketProcessor.invokeWebSocketProtocol(dataFrame.getTextPayload());
+        @Override
+        public void onClose(com.sun.grizzly.websockets.WebSocket w) {
+            logger.debug("onClose {} ", w);
+            webSocketProcessor.close();
         }
 
-        public void onClose(com.sun.grizzly.websockets.WebSocket webSocket) {
-            webSocketProcessor.close();
+        @Override
+        public void onMessage(com.sun.grizzly.websockets.WebSocket w, String text) {
+            logger.debug("onMessage {} ", w);
+            webSocketProcessor.invokeWebSocketProtocol(text);
+        }
+
+        @Override
+        public void onMessage(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
+            logger.debug("onMessage (bytes) {} ", w);
+            webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
+        }
+
+        @Override
+        public void onPing(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
+            logger.debug("onPing (bytes) {} ", w);
+        }
+
+        @Override
+        public void onPong(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
+            logger.debug("onPong (bytes) {} ", w);
+        }
+
+        @Override
+        public void onFragment(com.sun.grizzly.websockets.WebSocket w, boolean last, byte[] bytes) {
+            logger.debug("onFragment (bytes) {} ", w);
         }
 
     }
