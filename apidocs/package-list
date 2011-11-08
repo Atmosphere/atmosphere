@@ -39,6 +39,7 @@ org.atmosphere.samples.tictactoe
 org.atmosphere.samples.twitter
 org.atmosphere.samples.wicket
 org.atmosphere.util
+org.atmosphere.util.uri
 org.atmosphere.websocket
 org.atmosphere.websocket.container
 org.atmosphere.websocket.protocol

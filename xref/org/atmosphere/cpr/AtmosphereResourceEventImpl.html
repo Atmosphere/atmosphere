@@ -67,7 +67,7 @@
 <a class="jxr_linenumber" name="57" href="#57">57</a>      <em class="jxr_comment">// Is Resumed on Timeout?</em>
 <a class="jxr_linenumber" name="58" href="#58">58</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean isResumedOnTimeout = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
 <a class="jxr_linenumber" name="59" href="#59">59</a>  
-<a class="jxr_linenumber" name="60" href="#60">60</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Throwable throwable;
+<a class="jxr_linenumber" name="60" href="#60">60</a>      <strong class="jxr_keyword">private</strong> Throwable throwable;
 <a class="jxr_linenumber" name="61" href="#61">61</a>  
 <a class="jxr_linenumber" name="62" href="#62">62</a>      <em class="jxr_comment">// The current message</em>
 <a class="jxr_linenumber" name="63" href="#63">63</a>      <strong class="jxr_keyword">protected</strong> Object message;
@@ -150,34 +150,70 @@
 <a class="jxr_linenumber" name="140" href="#140">140</a>         <strong class="jxr_keyword">this</strong>.isResumedOnTimeout.set(isResumedOnTimeout);
 <a class="jxr_linenumber" name="141" href="#141">141</a>     }
 <a class="jxr_linenumber" name="142" href="#142">142</a> 
-<a class="jxr_linenumber" name="143" href="#143">143</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="144" href="#144">144</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
-<a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">public</strong> Throwable throwable() {
-<a class="jxr_linenumber" name="147" href="#147">147</a>         <strong class="jxr_keyword">return</strong> throwable;
-<a class="jxr_linenumber" name="148" href="#148">148</a>     }
+<a class="jxr_linenumber" name="143" href="#143">143</a>     @Override
+<a class="jxr_linenumber" name="144" href="#144">144</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
+<a class="jxr_linenumber" name="145" href="#145">145</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="146" href="#146">146</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="147" href="#147">147</a> 
+<a class="jxr_linenumber" name="148" href="#148">148</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a> that = (AtmosphereResourceEventImpl) o;
 <a class="jxr_linenumber" name="149" href="#149">149</a> 
-<a class="jxr_linenumber" name="150" href="#150">150</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="151" href="#151">151</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
-<a class="jxr_linenumber" name="152" href="#152">152</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="153" href="#153">153</a>     <strong class="jxr_keyword">public</strong> AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; getResource() {
-<a class="jxr_linenumber" name="154" href="#154">154</a>         <strong class="jxr_keyword">return</strong> resource;
-<a class="jxr_linenumber" name="155" href="#155">155</a>     }
+<a class="jxr_linenumber" name="150" href="#150">150</a>         <strong class="jxr_keyword">if</strong> (isCancelled != <strong class="jxr_keyword">null</strong> ? !isCancelled.equals(that.isCancelled) : that.isCancelled != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">if</strong> (isResumedOnTimeout != <strong class="jxr_keyword">null</strong> ? !isResumedOnTimeout.equals(that.isResumedOnTimeout) : that.isResumedOnTimeout != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="152" href="#152">152</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">if</strong> (message != <strong class="jxr_keyword">null</strong> ? !message.equals(that.message) : that.message != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="154" href="#154">154</a>         <strong class="jxr_keyword">if</strong> (resource != <strong class="jxr_keyword">null</strong> ? !resource.equals(that.resource) : that.resource != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="155" href="#155">155</a>         <strong class="jxr_keyword">if</strong> (throwable != <strong class="jxr_keyword">null</strong> ? !throwable.equals(that.throwable) : that.throwable != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="156" href="#156">156</a> 
-<a class="jxr_linenumber" name="157" href="#157">157</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="158" href="#158">158</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
-<a class="jxr_linenumber" name="159" href="#159">159</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="160" href="#160">160</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream os, Object o) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="161" href="#161">161</a>         resource.write(os, o);
-<a class="jxr_linenumber" name="162" href="#162">162</a>     }
-<a class="jxr_linenumber" name="163" href="#163">163</a> 
-<a class="jxr_linenumber" name="164" href="#164">164</a>     @Override
-<a class="jxr_linenumber" name="165" href="#165">165</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="166" href="#166">166</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceEventImpl{"</span> + <span class="jxr_string">"isResuming="</span> + isResuming() + <span class="jxr_string">" isCancelled="</span> + isCancelled + <span class="jxr_string">", isResumedOnTimeout="</span> +
-<a class="jxr_linenumber" name="167" href="#167">167</a>                 isResumedOnTimeout + <span class="jxr_string">", message="</span> + message + <span class="jxr_string">", resource="</span> + resource + <span class="jxr_string">", throwable="</span> + throwable +
-<a class="jxr_linenumber" name="168" href="#168">168</a>                 '}';
-<a class="jxr_linenumber" name="169" href="#169">169</a>     }
-<a class="jxr_linenumber" name="170" href="#170">170</a> }
+<a class="jxr_linenumber" name="157" href="#157">157</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="158" href="#158">158</a>     }
+<a class="jxr_linenumber" name="159" href="#159">159</a> 
+<a class="jxr_linenumber" name="160" href="#160">160</a>     @Override
+<a class="jxr_linenumber" name="161" href="#161">161</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
+<a class="jxr_linenumber" name="162" href="#162">162</a>         <strong class="jxr_keyword">int</strong> result = isCancelled != <strong class="jxr_keyword">null</strong> ? isCancelled.hashCode() : 0;
+<a class="jxr_linenumber" name="163" href="#163">163</a>         result = 31 * result + (isResumedOnTimeout != <strong class="jxr_keyword">null</strong> ? isResumedOnTimeout.hashCode() : 0);
+<a class="jxr_linenumber" name="164" href="#164">164</a>         result = 31 * result + (throwable != <strong class="jxr_keyword">null</strong> ? throwable.hashCode() : 0);
+<a class="jxr_linenumber" name="165" href="#165">165</a>         result = 31 * result + (message != <strong class="jxr_keyword">null</strong> ? message.hashCode() : 0);
+<a class="jxr_linenumber" name="166" href="#166">166</a>         result = 31 * result + (resource != <strong class="jxr_keyword">null</strong> ? resource.hashCode() : 0);
+<a class="jxr_linenumber" name="167" href="#167">167</a>         <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="168" href="#168">168</a>     }
+<a class="jxr_linenumber" name="169" href="#169">169</a> 
+<a class="jxr_linenumber" name="170" href="#170">170</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="171" href="#171">171</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="172" href="#172">172</a> 
+<a class="jxr_linenumber" name="173" href="#173">173</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="174" href="#174">174</a>     <strong class="jxr_keyword">public</strong> Throwable throwable() {
+<a class="jxr_linenumber" name="175" href="#175">175</a>         <strong class="jxr_keyword">return</strong> throwable;
+<a class="jxr_linenumber" name="176" href="#176">176</a>     }
+<a class="jxr_linenumber" name="177" href="#177">177</a> 
+<a class="jxr_linenumber" name="178" href="#178">178</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="179" href="#179">179</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="180" href="#180">180</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="181" href="#181">181</a>     <strong class="jxr_keyword">public</strong> AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; getResource() {
+<a class="jxr_linenumber" name="182" href="#182">182</a>         <strong class="jxr_keyword">return</strong> resource;
+<a class="jxr_linenumber" name="183" href="#183">183</a>     }
+<a class="jxr_linenumber" name="184" href="#184">184</a> 
+<a class="jxr_linenumber" name="185" href="#185">185</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="186" href="#186">186</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="187" href="#187">187</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="188" href="#188">188</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream os, Object o) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="189" href="#189">189</a>         resource.write(os, o);
+<a class="jxr_linenumber" name="190" href="#190">190</a>     }
+<a class="jxr_linenumber" name="191" href="#191">191</a> 
+<a class="jxr_linenumber" name="192" href="#192">192</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setThrowable(Throwable t) {
+<a class="jxr_linenumber" name="193" href="#193">193</a>         <strong class="jxr_keyword">this</strong>.throwable = throwable;
+<a class="jxr_linenumber" name="194" href="#194">194</a>     }
+<a class="jxr_linenumber" name="195" href="#195">195</a> 
+<a class="jxr_linenumber" name="196" href="#196">196</a>     @Override
+<a class="jxr_linenumber" name="197" href="#197">197</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="198" href="#198">198</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceEventImpl{"</span> +
+<a class="jxr_linenumber" name="199" href="#199">199</a>                 <span class="jxr_string">"isCancelled="</span> + isCancelled +
+<a class="jxr_linenumber" name="200" href="#200">200</a>                 <span class="jxr_string">",\n isResumedOnTimeout="</span> + isResumedOnTimeout +
+<a class="jxr_linenumber" name="201" href="#201">201</a>                 <span class="jxr_string">",\n throwable="</span> + throwable +
+<a class="jxr_linenumber" name="202" href="#202">202</a>                 <span class="jxr_string">",\n message="</span> + message +
+<a class="jxr_linenumber" name="203" href="#203">203</a>                 <span class="jxr_string">",\n\t resource="</span> + resource +
+<a class="jxr_linenumber" name="204" href="#204">204</a>                 '}';
+<a class="jxr_linenumber" name="205" href="#205">205</a>     }
+<a class="jxr_linenumber" name="206" href="#206">206</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
