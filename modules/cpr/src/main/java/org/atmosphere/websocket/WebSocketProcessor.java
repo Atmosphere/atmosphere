@@ -90,9 +90,15 @@ public class WebSocketProcessor implements Serializable {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
+        String pathInfo = request.getPathInfo();
+        if (atmosphereServlet.getAtmosphereConfig().getWebServerName().toLowerCase().indexOf("glassfish") != -1) {
+            pathInfo = pathInfo.substring(pathInfo.indexOf("/", 1));
+        }
+
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
+                .pathInfo(pathInfo)
                 .headers(configureHeader(request))
                 .build();
 

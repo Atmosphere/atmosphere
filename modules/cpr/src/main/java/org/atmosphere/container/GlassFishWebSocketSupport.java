@@ -49,6 +49,8 @@ import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProtocol;
+import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,15 +132,20 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
                 throw new IllegalStateException();
             }
 
+            WebSocketProtocol webSocketProtocol;
+            try {
+                webSocketProtocol = (WebSocketProtocol) GlassFishWebSocketSupport.class.getClassLoader()
+                        .loadClass(config.getServlet().getWebSocketProtocolClassName()).newInstance();
+            } catch (Exception ex) {
+                logger.error("Cannot load the WebSocketProtocol {}", config.getServlet().getWebSocketProtocolClassName(), ex);
+                webSocketProtocol = new SimpleHttpProtocol();
+            }
+            webSocketProtocol.configure(config.getServlet().getAtmosphereConfig());
+
             BaseServerWebSocket webSocket = BaseServerWebSocket.class.cast(w);
             try {
-
-                webSocketProcessor = (WebSocketProcessor) GrizzlyWebSocket.class.getClassLoader()
-                        .loadClass(config.getServlet().getWebSocketProtocolClassName())
-                        .getDeclaredConstructor(new Class[]{AtmosphereServlet.class, WebSocket.class})
-                        .newInstance(new Object[]{config.getServlet(), new GrizzlyWebSocket(webSocket)});
-
-                webSocketProcessor.dispatch(new HttpServletRequestWrapper(webSocket.getRequest()));
+                webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocket(webSocket), webSocketProtocol);
+                webSocketProcessor.dispatch(webSocket.getRequest());
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
             }
@@ -166,7 +173,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     public class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
 
-        private AtmosphereResource<?,?> atmosphereResource;
+        private AtmosphereResource<?, ?> atmosphereResource;
         private final com.sun.grizzly.websockets.WebSocket webSocket;
 
         public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
@@ -202,7 +209,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         @Override
         public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
-            this.atmosphereResource = atmosphereResource;
+            this.atmosphereResource = r;
         }
     }
 }
