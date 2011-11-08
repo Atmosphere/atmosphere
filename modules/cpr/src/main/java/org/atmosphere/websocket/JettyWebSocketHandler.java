@@ -20,16 +20,26 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.container.Jetty8WebSocket;
 import org.atmosphere.websocket.container.JettyWebSocket;
-import org.atmosphere.websocket.protocol.EchoProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpSessionContext;
 import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.*;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONTROL;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.DISCONNECT;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.HANDSHAKE;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
 /**
  * Jetty 7 & 8 WebSocket support.
@@ -44,7 +54,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     private WebSocketProtocol webSocketProtocol;
 
     public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProtocolClassName) {
-        this.request = new JettyRequestFix(request, request.getServletPath(), request.getContextPath(), request.getPathInfo(), request.getRequestURI());
+        this.request = new JettyRequestFix(request);
         this.atmosphereServlet = atmosphereServlet;
 
         try {
@@ -189,20 +199,92 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     }
 
     /**
-     * https://issues.apache.org/jira/browse/WICKET-3190
+     * Starting with 7.5.x and 8.0.2, the internal Jetty's Request object gets recycled once the handshake occurs,
+     * hence we need to cache the original value. Since a WebSocketProtocol handler can wrap the request, we must first
+     * do it here to avoid all kind of issue with Jetty.
      */
     private static class JettyRequestFix extends HttpServletRequestWrapper {
         private final String contextPath;
         private final String servletPath;
         private final String pathInfo;
         private final String requestUri;
+        private final HttpSession httpSession;
+        private final StringBuffer requestURL;
+        private final HashMap<String, Object> attributes = new HashMap<String, Object>();
+        private final HashMap<String, String> headers = new HashMap<String, String>();
 
-        public JettyRequestFix(HttpServletRequest request, String servletPath, String contextPath, String pathInfo, String requestUri) {
+        public JettyRequestFix(HttpServletRequest request) {
             super(request);
-            this.servletPath = servletPath;
-            this.contextPath = contextPath;
-            this.pathInfo = pathInfo;
-            this.requestUri = requestUri;
+            this.servletPath = request.getServletPath();
+            this.contextPath = request.getContextPath();
+            this.pathInfo = request.getPathInfo();
+            this.requestUri = request.getRequestURI();
+            this.requestURL = request.getRequestURL();
+            HttpSession session = request.getSession(true);
+            httpSession = new FakeHttpSession(session.getId(), session.getServletContext(), session.getCreationTime());
+
+            Enumeration<String> e = request.getHeaderNames();
+            String s;
+            while(e.hasMoreElements()) {
+                s = e.nextElement();
+                headers.put(s, request.getHeader(s));
+            }
+
+            e = request.getAttributeNames();
+            while(e.hasMoreElements()) {
+                s = e.nextElement();
+                attributes.put(s, request.getAttribute(s));
+            }
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return headers.get(name);
+        }
+
+        // TODO: support multi map.
+        @Override
+        public Enumeration<String> getHeaders(final String name) {
+            return new Enumeration<String>(){
+
+                boolean hasNext = true;
+
+                @Override
+                public boolean hasMoreElements() {
+                    return hasNext && headers.get(name) != null;
+                }
+
+                @Override
+                public String nextElement() {
+                    hasNext = false;
+                    return headers.get(name);
+                }
+            };
+        }
+
+        @Override
+        public Enumeration<String> getHeaderNames() {
+            return Collections.enumeration(headers.keySet());
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return attributes.get(name);
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames() {
+            return Collections.enumeration(attributes.keySet());
+        }
+
+        @Override
+        public void setAttribute(String name, Object o) {
+            attributes.put(name, o);
+        }
+
+        @Override
+        public void removeAttribute(String name) {
+            attributes.remove(name);
         }
 
         @Override
@@ -224,6 +306,117 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         public String getRequestURI() {
             return requestUri;
         }
+
+        @Override
+        public HttpSession getSession() {
+            return httpSession;
+        }
+
+        @Override
+        public StringBuffer getRequestURL() {
+            return requestURL;
+        }
+    }
+
+    private final static class FakeHttpSession implements HttpSession {
+        private final long creationTime;
+        private final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
+        private final String sessionId;
+        private final ServletContext servletContext;
+        private int maxInactiveInterval;
+
+        public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime) {
+            this.sessionId = sessionId;
+            this.servletContext = servletContext;
+            this.creationTime = creationTime;
+        }
+
+        @Override
+        public long getCreationTime() {
+            return creationTime;
+        }
+
+        @Override
+        public String getId() {
+            return sessionId;
+        }
+
+        // TODO: Not supported for now. Must update on every WebSocket Message
+        @Override
+        public long getLastAccessedTime() {
+            return 0;
+        }
+
+        @Override
+        public ServletContext getServletContext() {
+            return servletContext;
+        }
+
+        @Override
+        public void setMaxInactiveInterval(int interval) {
+            this.maxInactiveInterval = interval;
+        }
+
+        @Override
+        public int getMaxInactiveInterval() {
+            return maxInactiveInterval;
+        }
+
+        @Override
+        public HttpSessionContext getSessionContext() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return attributes.get(name);
+        }
+
+        @Override
+        public Object getValue(String name) {
+            return attributes.get(name);
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames() {
+            return attributes.keys();
+        }
+
+        @Override
+        public String[] getValueNames() {
+            return (String[]) Collections.list(attributes.keys()).toArray();
+        }
+
+        @Override
+        public void setAttribute(String name, Object value) {
+            attributes.put(name, value);
+        }
+
+        @Override
+        public void putValue(String name, Object value) {
+            attributes.put(name, value);
+        }
+
+        @Override
+        public void removeAttribute(String name) {
+            attributes.remove(name);
+        }
+
+        @Override
+        public void removeValue(String name) {
+            attributes.remove(name);
+        }
+
+        // TODO: Not supported for now.
+        @Override
+        public void invalidate() {
+        }
+
+        @Override
+        public boolean isNew() {
+            return false;
+        }
+
     }
 
 }
