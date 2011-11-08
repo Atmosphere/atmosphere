@@ -317,6 +317,8 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
         request.setAttribute(MAX_INACTIVE, (long) -1);
 
+        logger.debug("Timing out the connection for request {}", request);
+
         // Something went wrong.
         if (request == null || response == null) {
             logger.warn("Invalid Request/Response: {}/{}", request, response);
@@ -411,6 +413,8 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             return timedoutAction;
         }
         req.setAttribute(MAX_INACTIVE, (long) -1);
+
+        logger.debug("Timing out the connection for request {}", req);
 
         try {
             re = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
