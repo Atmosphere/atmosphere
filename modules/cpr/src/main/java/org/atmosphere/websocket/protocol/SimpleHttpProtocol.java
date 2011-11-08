@@ -78,6 +78,10 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public HttpServletRequest onMessage(WebSocket webSocket, String d) {
+        if (resource == null) {
+            logger.error("Invalid state. No AtmosphereResource has been suspended");
+            return null;
+        }
         String pathInfo = resource.getRequest().getPathInfo();
         if (d.startsWith(delimiter)) {
             String[] token = d.split(delimiter);
