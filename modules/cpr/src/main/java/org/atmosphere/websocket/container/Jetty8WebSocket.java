@@ -18,10 +18,13 @@ package org.atmosphere.websocket.container;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
+import org.eclipse.jetty.websocket.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 /**
@@ -39,16 +42,29 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
         this.connection = connection;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void writeError(int errorCode, String message) throws IOException {
-        logger.error("writeError not supported");
+        logger.debug("{} {}", errorCode, message);
+        if (atmosphereResource != null) {
+            WebSocketHttpServletResponse r = WebSocketHttpServletResponse.class.cast(atmosphereResource.getResponse());
+            r.setStatus(errorCode, message);
+        }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void redirect(String location) throws IOException {
         logger.error("redirect not supported");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void write(String data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
@@ -56,6 +72,9 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
         connection.sendMessage(data);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void write(byte[] data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
@@ -63,6 +82,9 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
         connection.sendMessage(data, 0, data.length);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void write(byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
@@ -70,18 +92,26 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
         // Chrome doesn't like it, throwing: Received a binary frame which is not supported yet. So send a String instead
         connection.sendMessage(new String(data, offset, length, "UTF-8"));
     }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close() throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
         atmosphereResource = r;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AtmosphereResource<?, ?> atmosphereResource() {
         return atmosphereResource;

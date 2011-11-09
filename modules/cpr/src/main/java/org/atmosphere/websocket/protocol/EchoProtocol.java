@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,7 @@ import javax.servlet.http.HttpServletResponse;
  * @author Jeanfrancois Arcand
  */
 public class EchoProtocol implements WebSocketProtocol {
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(EchoProtocol.class);
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
 
     /**
@@ -81,6 +82,14 @@ public class EchoProtocol implements WebSocketProtocol {
      */
     @Override
     public void onClose(WebSocket webSocket) {
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
+        logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
     /**
