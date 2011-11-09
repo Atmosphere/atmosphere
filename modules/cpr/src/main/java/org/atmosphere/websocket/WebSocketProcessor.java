@@ -150,7 +150,7 @@ public class WebSocketProcessor implements Serializable {
 
         resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-        if (WebSocketAdapter.class.isAssignableFrom(webSocket().getClass())) {
+        if (webSocket.atmosphereResource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
             WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
 
