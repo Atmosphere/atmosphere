@@ -79,6 +79,13 @@ public interface WebSocketProtocol {
     void onClose(WebSocket webSocket);
 
     /**
+     * Invoked when an error occurs.
+     * @param webSocket {@link WebSocket}
+     * @param t a {@link org.atmosphere.websocket.WebSocketProcessor.WebSocketException}
+     */
+    void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t);
+
+    /**
      * Return true if this implementation will manipulate/change the WebSocket message;
      * @return true if this implementation will manipulate/change the WebSocket message;
      */

@@ -39,6 +39,7 @@ package org.atmosphere.websocket.container;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,46 +55,82 @@ public class JettyWebSocket extends WebSocketAdapter implements WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocket.class);
     private final Outbound outbound;
-    private AtmosphereResource<?,?> atmosphereResource;
+    private AtmosphereResource<?, ?> atmosphereResource;
     private final byte frame = 0x00;
 
     public JettyWebSocket(Outbound outbound) {
         this.outbound = outbound;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void writeError(int errorCode, String message) throws IOException {
+        logger.debug("{} {}", errorCode, message);
+        if (atmosphereResource != null) {
+            WebSocketHttpServletResponse r = WebSocketHttpServletResponse.class.cast(atmosphereResource.getResponse());
+            r.setStatus(errorCode, message);
+        }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void redirect(String location) throws IOException {
+        logger.error("redirect not supported");
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(String data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(byte[] data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, 0, data.length);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(byte[] data, int offset, int length) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, offset, length);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void close() throws IOException {
         outbound.disconnect();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
         atmosphereResource = r;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AtmosphereResource<?, ?> atmosphereResource() {
         return atmosphereResource;
