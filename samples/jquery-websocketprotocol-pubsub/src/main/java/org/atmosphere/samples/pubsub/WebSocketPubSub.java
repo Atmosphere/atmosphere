@@ -22,7 +22,10 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketHttpServletResponse;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -37,6 +40,8 @@ import javax.servlet.http.HttpServletResponse;
  * @author Jeanfrancois Arcand
  */
 public class WebSocketPubSub implements WebSocketProtocol {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);
 
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
 
@@ -77,6 +82,10 @@ public class WebSocketPubSub implements WebSocketProtocol {
     public void onClose(WebSocket webSocket) {
         // Tell Atmosphere to
         webSocket.atmosphereResource().resume();
+    }
+
+    public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
+        logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
     /**
