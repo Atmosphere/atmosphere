@@ -90,9 +90,18 @@ public class WebSocketProcessor implements Serializable {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
+        String pathInfo = request.getPathInfo();
+        String requestURI = request.getRequestURI();
+        if (atmosphereServlet.getAtmosphereConfig().getWebServerName().toLowerCase().indexOf("glassfish") != -1) {
+            pathInfo = pathInfo.substring(pathInfo.indexOf("/", 1));
+            requestURI = requestURI.substring(requestURI.indexOf("/", 1));
+        }
+
         WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
+                .pathInfo(pathInfo)
+                .requestURI(requestURI)
                 .headers(configureHeader(request))
                 .build();
 
@@ -109,8 +118,7 @@ public class WebSocketProcessor implements Serializable {
 
         handler = (AtmosphereHandler) request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
-            logger.error("No AtmosphereResource has been suspended. The WebSocket will be closed.");
-            webSocket.close();
+            webSocketProtocol.onError(webSocket, new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed.", wsr));
         }
     }
 
@@ -138,6 +146,17 @@ public class WebSocketProcessor implements Serializable {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
+        }
+
+        //EWurkk.
+        WebSocketHttpServletResponse r = null;
+        if (webSocket().atmosphereResource() != null) {
+            r = WebSocketHttpServletResponse.class.cast(webSocket().atmosphereResource().getResponse());
+            if (r.getStatus() >= 400) {
+                webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
+            }
+        } else {
+            webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
         }
     }
 
@@ -213,5 +232,24 @@ public class WebSocketProcessor implements Serializable {
 
         headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
         return headers;
+    }
+
+    public final static class WebSocketException extends Exception {
+
+        private final WebSocketHttpServletResponse r;
+
+        public WebSocketException(String s, WebSocketHttpServletResponse r) {
+            super(s);
+            this.r = r;
+        }
+
+        public WebSocketException(Throwable throwable, WebSocketHttpServletResponse r) {
+            super(throwable);
+            this.r = r;
+        }
+
+        public WebSocketHttpServletResponse response() {
+            return r;
+        }
     }
 }

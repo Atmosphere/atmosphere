@@ -43,7 +43,7 @@ import java.io.Serializable;
  */
 public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(SimpleHttpProtocol.class);
     private String contentType;
     private String methodType;
     private String delimiter;
@@ -121,6 +121,14 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onClose(WebSocket webSocket) {
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
+        logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
     /**
