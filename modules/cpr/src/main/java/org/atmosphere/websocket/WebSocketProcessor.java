@@ -106,13 +106,8 @@ public class WebSocketProcessor implements Serializable {
                 .build();
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
+
         dispatch(r, wsr);
-
-        resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-
-        if (WebSocketAdapter.class.isAssignableFrom(webSocket().getClass())) {
-            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
-        }
 
         webSocketProtocol.onOpen(webSocket);
 
@@ -146,6 +141,12 @@ public class WebSocketProcessor implements Serializable {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
+        }
+
+        resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+
+        if (WebSocketAdapter.class.isAssignableFrom(webSocket().getClass())) {
+            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
 
         //EWurkk.
