@@ -62,9 +62,11 @@ public class JettyWebSocket extends WebSocketAdapter implements WebSocket {
     }
 
     public void writeError(int errorCode, String message) throws IOException {
+        logger.error("writeError not supported");
     }
 
     public void redirect(String location) throws IOException {
+        logger.error("redirect not supported");
     }
 
     public void write(String data) throws IOException {
