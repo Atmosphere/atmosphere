@@ -165,40 +165,40 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         @Override
         public void onClose(com.sun.grizzly.websockets.WebSocket w, DataFrame df) {
             super.onClose(w, df);
-            logger.debug("onClose {} ", w);
+            logger.debug("onClose {} ");
             webSocketProcessor.close();
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, String text) {
-            logger.debug("onMessage {} ", w);
+            logger.debug("onMessage {} ");
             webSocketProcessor.invokeWebSocketProtocol(text);
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onMessage (bytes) {} ", w);
+            logger.debug("onMessage (bytes) {} ");
             webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
         }
 
         @Override
         public void onPing(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onPing (bytes) {} ", w);
+            logger.debug("onPing (bytes) {} ");
         }
 
         @Override
         public void onPong(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onPong (bytes) {} ", w);
+            logger.debug("onPong (bytes) {} ");
         }
 
         @Override
         public void onFragment(com.sun.grizzly.websockets.WebSocket w, byte[] bytes, boolean last) {
-            logger.debug("onFragment (bytes) {} ", w);
+            logger.debug("onFragment (bytes) {} ");
         }
 
         @Override
         public void onFragment(com.sun.grizzly.websockets.WebSocket w, String text, boolean last) {
-            logger.debug("onFragment (string) {} ", w);
+            logger.debug("onFragment (string) {} ");
         }
 
     }
