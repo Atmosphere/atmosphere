@@ -39,11 +39,9 @@ package org.atmosphere.container;
 
 import com.sun.grizzly.tcp.Request;
 import com.sun.grizzly.websockets.BaseServerWebSocket;
-import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketAdapter;
@@ -57,7 +55,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
@@ -79,7 +76,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     @Override
     public void init(ServletConfig sc) throws ServletException {
         super.init(sc);
-        WebSocketEngine.getEngine().register(sc.getServletContext().getContextPath(), new GrizzlyApplication());
+        WebSocketEngine.getEngine().register(new GrizzlyApplication(config));
     }
 
     /**
@@ -122,12 +119,18 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     /**
      * Grizzly support for WebSocket.
      */
-    public class GrizzlyApplication extends WebSocketApplication {
+    private final static class GrizzlyApplication extends WebSocketApplication {
+
+        private final AtmosphereConfig config;
 
         private WebSocketProcessor webSocketProcessor;
 
-        public void onConnect(com.sun.grizzly.websockets.WebSocket w) {
+        public GrizzlyApplication(AtmosphereConfig config) {
+            this.config = config;
+        }
 
+        public void onConnect(com.sun.grizzly.websockets.WebSocket w) {
+            super.onConnect(w);
             logger.debug("onOpen {} ", w);
             if (!BaseServerWebSocket.class.isAssignableFrom(w.getClass())) {
                 throw new IllegalStateException();
@@ -159,6 +162,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         @Override
         public void onClose(com.sun.grizzly.websockets.WebSocket w) {
+            super.onClose(w);
             logger.debug("onClose {} ", w);
             webSocketProcessor.close();
         }
@@ -197,7 +201,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         return true;
     }
 
-    public class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
+    private final static class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
 
         private AtmosphereResource<?, ?> atmosphereResource;
         private final com.sun.grizzly.websockets.WebSocket webSocket;
@@ -207,9 +211,11 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         }
 
         public void writeError(int errorCode, String message) throws IOException {
+            logger.error("writeError not supported");
         }
 
         public void redirect(String location) throws IOException {
+            logger.error("redirect not supported");
         }
 
         public void write(String data) throws IOException {

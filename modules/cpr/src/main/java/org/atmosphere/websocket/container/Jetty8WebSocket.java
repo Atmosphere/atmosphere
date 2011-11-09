@@ -41,10 +41,12 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
 
     @Override
     public void writeError(int errorCode, String message) throws IOException {
+        logger.error("writeError not supported");
     }
 
     @Override
     public void redirect(String location) throws IOException {
+        logger.error("redirect not supported");
     }
 
     @Override
