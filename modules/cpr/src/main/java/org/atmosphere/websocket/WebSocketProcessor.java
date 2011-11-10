@@ -112,6 +112,8 @@ public class WebSocketProcessor implements Serializable {
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
+        WebSocketAdapter.class.cast(webSocket).request(r).response(wsr);
+
         dispatch(r, wsr);
 
         webSocketProtocol.onOpen(webSocket);
@@ -125,14 +127,19 @@ public class WebSocketProcessor implements Serializable {
     public void invokeWebSocketProtocol(String webSocketMessage) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         if (r != null) {
-            dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r));
+            WebSocketHttpServletResponse<WebSocket> w = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r);
+            WebSocketAdapter.class.cast(webSocket).request(r).response(w);
+            dispatch(r, w);
         }
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
         if (r != null) {
-            dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r));
+            WebSocketHttpServletResponse<WebSocket> w = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r);
+            WebSocketAdapter.class.cast(webSocket).request(r).response(w);
+
+            dispatch(r, w);
         }
     }
 
@@ -154,18 +161,12 @@ public class WebSocketProcessor implements Serializable {
 
         resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-        if (webSocket.atmosphereResource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
+        if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
             WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
 
-        //EWurkk.
-        WebSocketHttpServletResponse r = null;
-        if (webSocket().atmosphereResource() != null) {
-            r = WebSocketHttpServletResponse.class.cast(webSocket().atmosphereResource().getResponse());
-            if (r.getStatus() >= 400) {
-                webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
-            }
-        } else {
+        WebSocketHttpServletResponse r = WebSocketAdapter.class.cast(webSocket).response();
+        if (r.getStatus() >= 400) {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
         }
     }

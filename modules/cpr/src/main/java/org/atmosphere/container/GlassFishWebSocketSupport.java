@@ -38,17 +38,15 @@
 package org.atmosphere.container;
 
 import com.sun.grizzly.tcp.Request;
-import com.sun.grizzly.websockets.DefaultWebSocket;
 import com.sun.grizzly.websockets.DataFrame;
+import com.sun.grizzly.websockets.DefaultWebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.websocket.WebSocketAdapter;
-import org.atmosphere.websocket.WebSocketHttpServletResponse;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
@@ -210,7 +208,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     private final static class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
 
-        private AtmosphereResource<?, ?> atmosphereResource;
         private final com.sun.grizzly.websockets.WebSocket webSocket;
 
         public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
@@ -219,9 +216,8 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         public void writeError(int errorCode, String message) throws IOException {
             logger.debug("{} {}", errorCode, message);
-            if (atmosphereResource != null) {
-                WebSocketHttpServletResponse r = WebSocketHttpServletResponse.class.cast(atmosphereResource.getResponse());
-                r.setStatus(errorCode, message);
+            if (resource() != null) {
+                response().setStatus(errorCode, message);
             }
         }
 
@@ -245,14 +241,5 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             webSocket.close();
         }
 
-        @Override
-        public AtmosphereResource<?, ?> atmosphereResource() {
-            return atmosphereResource;
-        }
-
-        @Override
-        public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
-            this.atmosphereResource = r;
-        }
     }
 }

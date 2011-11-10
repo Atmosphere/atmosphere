@@ -74,7 +74,7 @@ public class EchoProtocol implements WebSocketProtocol {
     @Override
     public void onOpen(WebSocket webSocket) {
         // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.atmosphereResource();
+        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
     }
 
     /**
