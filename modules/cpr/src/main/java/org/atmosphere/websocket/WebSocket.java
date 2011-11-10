@@ -99,7 +99,7 @@ public interface WebSocket {
      * Return the associated {@link AtmosphereResource}
      * @return the associated {@link AtmosphereResource}
      */
-    AtmosphereResource<?,?> atmosphereResource();
+    AtmosphereResource<?,?> resource();
 
 
 }

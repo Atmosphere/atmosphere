@@ -113,7 +113,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     @Override
     public void onOpen(WebSocket webSocket) {
         // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.atmosphereResource();
+        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
     }
 
     /**
