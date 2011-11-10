@@ -28,7 +28,6 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
