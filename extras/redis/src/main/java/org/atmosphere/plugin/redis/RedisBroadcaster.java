@@ -185,7 +185,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             }
 
             public void onPMessage(String pattern, String channel, String message) {
-                logger.debug("onPMessage: {} {} {}", new Object[] { pattern, channel, message });
+                logger.debug("onPMessage: pattern: {}, channel: {}, message: {}",
+                        new Object[]{pattern, channel, message});
             }
         }, getID());
     }
