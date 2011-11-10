@@ -70,7 +70,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     @Override
     public void onOpen(WebSocket webSocket) {
         // Accept the handshake by suspending the response.
-        r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.atmosphereResource();
+        r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
         r.setBroadcaster(b);
         r.addEventListener(new WebSocketEventListenerAdapter());
@@ -81,7 +81,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     @Override
     public void onClose(WebSocket webSocket) {
         // Tell Atmosphere to
-        webSocket.atmosphereResource().resume();
+        webSocket.resource().resume();
     }
 
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {

@@ -15,16 +15,49 @@
 */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 
+import javax.servlet.http.HttpServletRequest;
+
 /**
- * Simple abstract class used to configure {@link WebSocket}
+ * Simple class used to expose internal objects to {@link WebSocket}
  */
-public abstract class WebSocketAdapter {
+public class WebSocketAdapter {
+
+    private AtmosphereResource<?, ?> r;
+    private HttpServletRequest request;
+    private WebSocketHttpServletResponse<?> response;
+
     /**
      * Configure the {@link AtmosphereResource}
      *
      * @param r the {@link AtmosphereResource}
      */
-    abstract public void setAtmosphereResource(AtmosphereResource<?, ?> r);
+    public WebSocketAdapter setAtmosphereResource(AtmosphereResource<?, ?> r) {
+        this.r = r;
+        return this;
+    }
+
+    public AtmosphereResource<?, ?> resource() {
+        return r;
+    }
+
+    public WebSocketAdapter request(HttpServletRequest request) {
+        this.request = request;
+        return this;
+    }
+
+    public HttpServletRequest request() {
+        return request;
+    }
+
+    public WebSocketAdapter response(WebSocketHttpServletResponse<?> response) {
+        this.response = response;
+        return this;
+    }
+
+    public WebSocketHttpServletResponse<?> response() {
+        return response;
+    }
 }
