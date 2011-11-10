@@ -158,14 +158,8 @@ public class WebSocketProcessor implements Serializable {
             WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
 
-        //EWurkk.
-        WebSocketHttpServletResponse r = null;
-        if (webSocket().atmosphereResource() != null) {
-            r = WebSocketHttpServletResponse.class.cast(webSocket().atmosphereResource().getResponse());
-            if (r.getStatus() >= 400) {
-                webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
-            }
-        } else {
+        WebSocketHttpServletResponse r = WebSocketHttpServletResponse.class.cast(response);
+        if (r.getStatus() >= 400) {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
         }
     }
