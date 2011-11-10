@@ -302,9 +302,12 @@ public class AtmosphereResourceImpl implements
             // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
             // is unique.
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
-            if (broadcaster.getScope() == Broadcaster.SCOPE.REQUEST && !isJersey) {
-                String id = broadcaster.getID();
-                Class<? extends Broadcaster> clazz = broadcaster.getClass();
+
+            // Null means SCOPE=REQUEST set by a Meteor
+            if ((broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
+                String id = broadcaster != null ? broadcaster.getID() : getClass().getName();
+                Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
+
                 broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
                 if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
                     broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id + "/" + UUID.randomUUID(), true);
