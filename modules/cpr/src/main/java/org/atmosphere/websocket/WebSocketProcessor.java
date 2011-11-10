@@ -102,7 +102,7 @@ public class WebSocketProcessor implements Serializable {
             }
         }
 
-        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol);
+        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, request);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .pathInfo(pathInfo)
@@ -124,12 +124,16 @@ public class WebSocketProcessor implements Serializable {
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol));
+        if (r != null) {
+            dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r));
+        }
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
         HttpServletRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol));
+        if (r != null) {
+            dispatch(r, new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r));
+        }
     }
 
     /**

@@ -39,6 +39,7 @@ package org.atmosphere.websocket;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -58,7 +60,7 @@ import java.util.Map;
  */
 public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServletResponseWrapper {
 
-    private final ArrayList<Cookie> cookies = new ArrayList<Cookie>();
+    private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers = new HashMap<String, String>();
     private final A webSocketSupport;
     private int status = 200;
@@ -70,161 +72,27 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     private Locale locale;
     private final WebSocketProtocol webSocketProtocol;
     private boolean headerHandled = false;
+    private final HttpServletRequest atmosphereRequest;
+    private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
 
-    public WebSocketHttpServletResponse(A webSocketSupport, WebSocketProtocol webSocketProtocol) {
-        super(new HttpServletResponse() {
-
-            public void addCookie(Cookie cookie) {
-
-            }
-
-            public boolean containsHeader(String name) {
-                return false;
-            }
-
-            public String encodeURL(String url) {
-                return null;
-            }
-
-            public String encodeRedirectURL(String url) {
-                return null;
-            }
-
-            public String encodeUrl(String url) {
-                return null;
-            }
-
-            public String encodeRedirectUrl(String url) {
-                return null;
-            }
-
-            public void sendError(int sc, String msg) throws IOException {
-
-            }
-
-            public void sendError(int sc) throws IOException {
-
-            }
-
-            public void sendRedirect(String location) throws IOException {
-
-            }
-
-            public void setDateHeader(String name, long date) {
-
-            }
-
-            public void addDateHeader(String name, long date) {
-
-            }
-
-            public void setHeader(String name, String value) {
-
-            }
-
-            public void addHeader(String name, String value) {
-
-            }
-
-            public void setIntHeader(String name, int value) {
-
-            }
-
-            public void addIntHeader(String name, int value) {
-
-            }
-
-            public void setStatus(int sc) {
-
-            }
-
-            public void setStatus(int sc, String sm) {
-
-            }
-
-            public int getStatus() {
-                return 0;
-            }
-
-            public String getHeader(String name) {
-                return null;
-            }
-
-            public Collection<String> getHeaders(String name) {
-                return null;
-            }
-
-            public Collection<String> getHeaderNames() {
-                return null;
-            }
-
-            public String getCharacterEncoding() {
-                return null;
-            }
-
-            public String getContentType() {
-                return null;
-            }
-
-            public ServletOutputStream getOutputStream() throws IOException {
-                return null;
-            }
-
-            public PrintWriter getWriter() throws IOException {
-                return null;
-            }
-
-            public void setCharacterEncoding(String charset) {
-
-            }
-
-            public void setContentLength(int len) {
-
-            }
-
-            public void setContentType(String type) {
-
-            }
-
-            public void setBufferSize(int size) {
-
-            }
-
-            public int getBufferSize() {
-                return 0;
-            }
-
-            public void flushBuffer() throws IOException {
-
-            }
-
-            public void resetBuffer() {
-
-            }
-
-            public boolean isCommitted() {
-                return false;
-            }
-
-            public void reset() {
-
-            }
-
-            public void setLocale(Locale loc) {
-
-            }
-
-            public Locale getLocale() {
-                return null;
-            }
-        });
+    public WebSocketHttpServletResponse(A webSocketSupport, WebSocketProtocol webSocketProtocol, HttpServletRequest atmosphereRequest) {
+        super(dsr);
         this.webSocketSupport = webSocketSupport;
         this.webSocketProtocol = webSocketProtocol;
+        this.atmosphereRequest = atmosphereRequest;
+    }
+
+    public WebSocketHttpServletResponse(HttpServletResponse r, A webSocketSupport, WebSocketProtocol webSocketProtocol, HttpServletRequest atmosphereRequest) {
+        super(r);
+        this.webSocketSupport = webSocketSupport;
+        this.webSocketProtocol = webSocketProtocol;
+        this.atmosphereRequest = atmosphereRequest;
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addCookie(Cookie cookie) {
         cookies.add(cookie);
     }
@@ -232,6 +100,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean containsHeader(String name) {
         return headers.get(name) == null ? false : true;
     }
@@ -239,6 +108,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void sendError(int sc, String msg) throws IOException {
         webSocketSupport.writeError(sc, msg);
     }
@@ -246,6 +116,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void sendError(int sc) throws IOException {
         webSocketSupport.writeError(sc, "");
     }
@@ -253,6 +124,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void sendRedirect(String location) throws IOException {
         webSocketSupport.redirect(location);
     }
@@ -260,6 +132,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setDateHeader(String name, long date) {
         headers.put(name, String.valueOf(date));
     }
@@ -267,6 +140,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addDateHeader(String name, long date) {
         headers.put(name, String.valueOf(date));
     }
@@ -274,6 +148,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setHeader(String name, String value) {
         headers.put(name, value);
     }
@@ -281,6 +156,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addHeader(String name, String value) {
         headers.put(name, value);
     }
@@ -288,6 +164,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setIntHeader(String name, int value) {
         headers.put(name, String.valueOf(value));
     }
@@ -295,6 +172,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addIntHeader(String name, int value) {
         headers.put(name, String.valueOf(value));
     }
@@ -302,6 +180,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setStatus(int status) {
         this.status = status;
     }
@@ -309,6 +188,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setStatus(int status, String statusMessage) {
         this.statusMessage = statusMessage;
         this.status = status;
@@ -317,6 +197,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getStatus() {
         return status;
     }
@@ -326,8 +207,11 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     }
 
     public Map<String, String> headers() {
-        for (Cookie c : cookies) {
-            headers.put("Set-Cookie", c.toString());
+        if (!headerHandled) {
+            for (Cookie c : cookies) {
+                headers.put("Set-Cookie", c.toString());
+            }
+            headerHandled = false;
         }
         return headers;
     }
@@ -335,6 +219,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getHeader(String name) {
         return headers.get(name);
     }
@@ -342,17 +227,17 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public Collection<String> getHeaders(String name) {
-
         ArrayList<String> s = new ArrayList<String>();
         s.add(headers.get(name));
-
         return Collections.unmodifiableList(s);
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public Collection<String> getHeaderNames() {
         return Collections.unmodifiableSet(headers.keySet());
     }
@@ -360,6 +245,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setCharacterEncoding(String charset) {
         this.charSet = charSet;
     }
@@ -367,6 +253,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getCharacterEncoding() {
         return charSet;
     }
@@ -374,6 +261,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public ServletOutputStream getOutputStream() throws IOException {
         return new ServletOutputStream() {
 
@@ -409,6 +297,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public PrintWriter getWriter() throws IOException {
         return new PrintWriter(getOutputStream()) {
             public void write(char[] chars, int offset, int lenght) {
@@ -464,6 +353,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setContentLength(int len) {
         contentLength = len;
     }
@@ -471,6 +361,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setContentType(String contentType) {
         this.contentType = contentType;
     }
@@ -478,6 +369,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getContentType() {
         return contentType;
     }
@@ -485,6 +377,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isCommitted() {
         return isCommited;
     }
@@ -492,6 +385,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setLocale(Locale locale) {
         this.locale = locale;
     }
@@ -499,6 +393,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public Locale getLocale() {
         return locale;
     }
@@ -506,6 +401,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isWrapperFor(ServletResponse wrapped) {
         return false;
     }
@@ -513,6 +409,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isWrapperFor(Class wrappedType) {
         return false;
     }
@@ -520,9 +417,160 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     /**
      * Return the underlying {@link WebSocket}
      *
-     * @return
+     * @return A
      */
     public A getWebSocketSupport() {
         return webSocketSupport;
+    }
+
+    /**
+     * Return the associated {@link HttpServletRequest}
+     *
+     * @return the associated {@link HttpServletRequest}
+     */
+    public HttpServletRequest getRequest() {
+        return atmosphereRequest;
+    }
+
+
+    private final static class DummyHttpServletResponse implements HttpServletResponse {
+        public void addCookie(Cookie cookie) {
+        }
+
+        public boolean containsHeader(String name) {
+            return false;
+        }
+
+        public String encodeURL(String url) {
+            return null;
+        }
+
+        public String encodeRedirectURL(String url) {
+            return null;
+        }
+
+        public String encodeUrl(String url) {
+            return null;
+        }
+
+        public String encodeRedirectUrl(String url) {
+            return null;
+        }
+
+        public void sendError(int sc, String msg) throws IOException {
+        }
+
+        public void sendError(int sc) throws IOException {
+
+        }
+
+        public void sendRedirect(String location) throws IOException {
+
+        }
+
+        public void setDateHeader(String name, long date) {
+
+        }
+
+        public void addDateHeader(String name, long date) {
+
+        }
+
+        public void setHeader(String name, String value) {
+
+        }
+
+        public void addHeader(String name, String value) {
+
+        }
+
+        public void setIntHeader(String name, int value) {
+
+        }
+
+        public void addIntHeader(String name, int value) {
+
+        }
+
+        public void setStatus(int sc) {
+
+        }
+
+        public void setStatus(int sc, String sm) {
+        }
+
+        public int getStatus() {
+            return 0;
+        }
+
+        public String getHeader(String name) {
+            return null;
+        }
+
+        public Collection<String> getHeaders(String name) {
+            return null;
+        }
+
+        public Collection<String> getHeaderNames() {
+            return null;
+        }
+
+        public String getCharacterEncoding() {
+            return null;
+        }
+
+        public String getContentType() {
+            return null;
+        }
+
+        public ServletOutputStream getOutputStream() throws IOException {
+            return null;
+        }
+
+        public PrintWriter getWriter() throws IOException {
+            return null;
+        }
+
+        public void setCharacterEncoding(String charset) {
+
+        }
+
+        public void setContentLength(int len) {
+
+        }
+
+        public void setContentType(String type) {
+
+        }
+
+        public void setBufferSize(int size) {
+
+        }
+
+        public int getBufferSize() {
+            return 0;
+        }
+
+        public void flushBuffer() throws IOException {
+
+        }
+
+        public void resetBuffer() {
+
+        }
+
+        public boolean isCommitted() {
+            return false;
+        }
+
+        public void reset() {
+        }
+
+        public void setLocale(Locale loc) {
+        }
+
+        public Locale getLocale() {
+            return null;
+        }
     }
 }
