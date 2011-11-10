@@ -72,6 +72,7 @@ public class AtmosphereResourceImpl implements
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceImpl.class);
 
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
+    public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
 
     // The {@link HttpServletRequest}
     private final HttpServletRequest req;
@@ -303,8 +304,13 @@ public class AtmosphereResourceImpl implements
             // is unique.
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
 
+            boolean skipCreation = false;
+            if (req.getAttribute(SKIP_BROADCASTER_CREATION) != null) {
+                skipCreation = true;
+            }
+
             // Null means SCOPE=REQUEST set by a Meteor
-            if ((broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
+            if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
                 String id = broadcaster != null ? broadcaster.getID() : getClass().getName();
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
