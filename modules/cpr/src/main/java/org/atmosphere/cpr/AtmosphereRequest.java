@@ -26,6 +26,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
@@ -46,6 +47,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String servletPath;
     private final String requestURI;
     private final String requestURL;
+    private final Map<String, Object> localAttributes;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -56,6 +58,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         servletPath = b.servletPath;
         requestURI = b.requestURI;
         requestURL = b.requestURL;
+        localAttributes = b.localAttributes;
 
         if (b.dataBytes != null) {
             bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
@@ -71,40 +74,61 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             bis = null;
             br = null;
         }
-        methodType = b.methodType == null ? b.request.getMethod() : b.methodType;
-        contentType = b.contentType == null ? b.request.getContentType() : b.contentType;
+        methodType = b.methodType == null ? (request != null ? request.getMethod() : "GET") : b.methodType;
+        contentType = b.contentType == null ? (request != null ? request.getContentType() : "text/plain") : b.contentType;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getPathInfo() {
         return pathInfo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getMethod() {
         return methodType;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getContentType() {
         return contentType;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getServletPath() {
         return servletPath != null ? servletPath : super.getServletPath();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getRequestURI() {
-        return requestURI != null ? requestURI : super.getRequestURI();
+        return requestURI != null ? requestURI : (request != null ? super.getRequestURI() : null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public StringBuffer getRequestURL() {
-        return requestURL != null ? new StringBuffer(requestURL) : super.getRequestURL();
+        return requestURL != null ? new StringBuffer(requestURL) : (request != null ? request.getRequestURL() : null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Enumeration getHeaders(String name) {
         ArrayList list = Collections.list(super.getHeaders(name));
@@ -116,29 +140,35 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             list.add(headers.get(name));
         }
 
-        if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
-            if (request.getAttribute(name) != null) {
-                list.add(request.getAttribute(name));
+        if (request != null) {
+            if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
+                if (request.getAttribute(name) != null) {
+                    list.add(request.getAttribute(name));
+                }
             }
         }
         return Collections.enumeration(list);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Enumeration<String> getHeaderNames() {
         ArrayList list = Collections.list(super.getHeaderNames());
         list.add("content-type");
 
-        Enumeration e = request.getAttributeNames();
-        while (e.hasMoreElements()) {
-            String name = e.nextElement().toString();
-            if (name.startsWith(X_ATMOSPHERE)) {
-                list.add(name);
+        if (request != null) {
+            Enumeration e = request.getAttributeNames();
+            while (e.hasMoreElements()) {
+                String name = e.nextElement().toString();
+                if (name.startsWith(X_ATMOSPHERE)) {
+                    list.add(name);
+                }
             }
         }
 
-        for (String s : headers.keySet()) {
-            list.add(s);
-        }
+        list.addAll(headers.keySet());
 
         return Collections.enumeration(list);
     }
@@ -156,7 +186,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     return headers.get(s);
                 }
 
-                if (s.startsWith(X_ATMOSPHERE)) {
+                if (s.startsWith(X_ATMOSPHERE) && request != null) {
                     return (String) request.getAttribute(s);
                 }
             }
@@ -164,6 +194,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getParameter(String s) {
         String name = super.getParameter(s);
         if (name == null) {
@@ -174,8 +208,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return name;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Map<String, String[]> getParameterMap() {
-        Map<String, String[]> m = this.request.getParameterMap();
+        Map<String, String[]> m = (request != null ? request.getParameterMap() : Collections.<String, String[]>emptyMap());
         for (Map.Entry<String, String[]> e : m.entrySet()) {
             String[] s = queryStrings.get(e.getKey());
             if (s != null) {
@@ -190,6 +228,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.unmodifiableMap(queryStrings);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String[] getParameterValues(String s) {
         String[] list = super.getParameterValues(s) == null ? new String[0] : super.getParameterValues(s);
@@ -202,17 +243,23 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return list;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? request.getInputStream() : bis;
+        return bis == null ? (request != null ? request.getInputStream() : null) : bis;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? request.getReader() : br;
+        return br == null ? (request != null ? request.getReader() : null) : br;
     }
 
-    private static class ByteInputStream extends ServletInputStream {
+    private final static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
 
@@ -224,6 +271,51 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public int read() throws IOException {
             return bis.read();
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setAttribute(String s, Object o) {
+        localAttributes.put(s, o);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object getAttribute(String s) {
+        return localAttributes.get(s) != null ? localAttributes.get(s) : (request != null ? request.getAttribute(s) : null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void removeAttribute(String name) {
+        if (localAttributes.remove(name) == null && request != null) {
+            request.removeAttribute(name);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Enumeration<String> getAttributeNames() {
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.putAll(localAttributes);
+
+        Enumeration<String> e = (request != null ? request.getAttributeNames() : null);
+        if (e != null) {
+            String s;
+            while (e.hasMoreElements()) {
+                s = e.nextElement();
+                m.put(s, request.getAttribute(s));
+            }
+        }
+        return Collections.enumeration(m.keySet());
     }
 
     public final static class Builder {
@@ -239,15 +331,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String data;
         private Map<String, String> headers;
         private Map<String, String[]> queryStrings;
-        public String servletPath;
-        public String requestURI;
-        public String requestURL;
+        private String servletPath;
+        private String requestURI;
+        private String requestURL;
+        private Map<String, Object> localAttributes = new HashMap<String, Object>();
 
         public Builder() {
         }
 
         public Builder headers(Map<String, String> headers) {
             this.headers = headers;
+            return this;
+        }
+
+        public Builder attributes(Map<String, Object> attributes) {
+            localAttributes = attributes;
             return this;
         }
 
