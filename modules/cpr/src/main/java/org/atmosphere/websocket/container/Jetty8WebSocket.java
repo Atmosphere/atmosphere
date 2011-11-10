@@ -36,7 +36,6 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
-    private AtmosphereResource<?,?> atmosphereResource;
 
     public Jetty8WebSocket(Connection connection) {
         this.connection = connection;
@@ -48,9 +47,8 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
     @Override
     public void writeError(int errorCode, String message) throws IOException {
         logger.debug("{} {}", errorCode, message);
-        if (atmosphereResource != null) {
-            WebSocketHttpServletResponse r = WebSocketHttpServletResponse.class.cast(atmosphereResource.getResponse());
-            r.setStatus(errorCode, message);
+        if (resource() != null) {
+            response().setStatus(errorCode, message);
         }
     }
 
@@ -99,21 +97,5 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
     public void close() throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void setAtmosphereResource(AtmosphereResource<?, ?> r) {
-        atmosphereResource = r;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AtmosphereResource<?, ?> atmosphereResource() {
-        return atmosphereResource;
     }
 }
