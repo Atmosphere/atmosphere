@@ -104,7 +104,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                     jedisPool.returnResource(jedisPublisher);
                 }
                 disconnectSubscriber();
-
             }
         }
 
@@ -122,7 +121,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         if (!sharedPool) {
             try {
                 jedisPublisher.connect();
-
                 auth(jedisPublisher);
             } catch (IOException e) {
                 logger.error("failed to connect publisher", e);
@@ -145,7 +143,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void destroy() {
-        Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
+        Object lockingObject = getLockingObject();
         super.destroy();
         synchronized (lockingObject) {
             try {
@@ -202,7 +200,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void outgoingBroadcast(Object message) {
-        Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
+        Object lockingObject = getLockingObject();
         synchronized (lockingObject) {
             if (destroyed.get()) {
                 logger.debug("JedisPool closed. Re-opening");
@@ -268,4 +266,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         }
     }
 
+    private Object getLockingObject() {
+        return sharedPool ? jedisPool : jedisPublisher;
+    }
 }
