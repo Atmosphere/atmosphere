@@ -149,17 +149,7 @@ public class Meteor {
                         req.getAttribute(ATMOSPHERE_RESOURCE);
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
-        Broadcaster b = null;
-
-        if (scope == Broadcaster.SCOPE.REQUEST) {
-            try {
-                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
-            }
-            b.setScope(scope);
-            r.setBroadcaster(b);
-        }
+        r.setBroadcaster(null);
 
         Meteor m = new Meteor(r, l, s);
         return m;

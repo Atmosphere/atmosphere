@@ -199,7 +199,8 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
     public Broadcaster getBroadcaster();
 
     /**
-     * Set the current {@link Broadcaster}
+     * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}
+     * will be created if that resource hasn't been yet suspended.
      *
      * @param broadcaster
      */
