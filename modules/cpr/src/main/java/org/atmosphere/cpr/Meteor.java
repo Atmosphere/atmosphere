@@ -65,10 +65,9 @@ public class Meteor {
 
     private final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
             new ConcurrentHashMap<AtmosphereResource, Meteor>();
-
     private final AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
-
     private Object o;
+
 
     private Meteor(AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
                    List<BroadcastFilter> l, Serializer s) {
@@ -149,7 +148,18 @@ public class Meteor {
                         req.getAttribute(ATMOSPHERE_RESOURCE);
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
-        r.setBroadcaster(null);
+        Broadcaster b = null;
+
+        if (scope == Broadcaster.SCOPE.REQUEST) {
+            try {
+                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
+            b.setScope(scope);
+            r.setBroadcaster(b);
+            req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
+        }
 
         Meteor m = new Meteor(r, l, s);
         return m;
