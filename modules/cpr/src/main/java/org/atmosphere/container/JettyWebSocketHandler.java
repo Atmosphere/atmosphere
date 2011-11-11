@@ -13,13 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.container;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.websocket.container.Jetty8WebSocket;
-import org.atmosphere.websocket.container.JettyWebSocket;
+import org.atmosphere.websocket.WebSocketEventListener;
+import org.atmosphere.websocket.WebSocketProcessor;
+import org.atmosphere.websocket.WebSocketProtocol;
+import org.atmosphere.container.version.Jetty8WebSocket;
+import org.atmosphere.container.version.JettyWebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +47,11 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
 /**
  * Jetty 7 & 8 WebSocket support.
  */
-public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSocket, org.eclipse.jetty.websocket.WebSocket.OnFrame, org.eclipse.jetty.websocket.WebSocket.OnBinaryMessage, org.eclipse.jetty.websocket.WebSocket.OnTextMessage, org.eclipse.jetty.websocket.WebSocket.OnControl {
+public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSocket,
+        org.eclipse.jetty.websocket.WebSocket.OnFrame,
+        org.eclipse.jetty.websocket.WebSocket.OnBinaryMessage,
+        org.eclipse.jetty.websocket.WebSocket.OnTextMessage,
+        org.eclipse.jetty.websocket.WebSocket.OnControl {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketHandler.class);
 

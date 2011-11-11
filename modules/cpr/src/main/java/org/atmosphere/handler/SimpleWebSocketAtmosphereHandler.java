@@ -38,10 +38,10 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ public class SimpleWebSocketAtmosphereHandler extends AbstractReflectorAtmospher
      */
     @Override
     public final void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
-        if (!r.getResponse().getClass().isAssignableFrom(WebSocketHttpServletResponse.class)) {
+        if (!r.getResponse().getClass().isAssignableFrom(AtmosphereResponse.class)) {
             try {
                 r.getAtmosphereConfig().getServletContext()
                         .getNamedDispatcher(r.getAtmosphereConfig().getDispatcherName())

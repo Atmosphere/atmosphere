@@ -42,6 +42,7 @@ import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.DefaultWebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
+import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
@@ -204,42 +205,5 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     @Override
     public boolean supportWebSocket() {
         return true;
-    }
-
-    private final static class GrizzlyWebSocket extends WebSocketAdapter implements WebSocket {
-
-        private final com.sun.grizzly.websockets.WebSocket webSocket;
-
-        public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
-            this.webSocket = webSocket;
-        }
-
-        public void writeError(int errorCode, String message) throws IOException {
-            logger.debug("{} {}", errorCode, message);
-            if (resource() != null) {
-                response().setStatus(errorCode, message);
-            }
-        }
-
-        public void redirect(String location) throws IOException {
-            logger.error("redirect not supported");
-        }
-
-        public void write(String data) throws IOException {
-            webSocket.send(data);
-        }
-
-        public void write(byte[] data) throws IOException {
-            webSocket.send(new String(data));
-        }
-
-        public void write(byte[] data, int offset, int length) throws IOException {
-            webSocket.send(new String(data, offset, length));
-        }
-
-        public void close() throws IOException {
-            webSocket.close();
-        }
-
     }
 }

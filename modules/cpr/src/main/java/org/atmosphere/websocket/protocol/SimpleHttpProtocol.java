@@ -18,9 +18,9 @@ package org.atmosphere.websocket.protocol;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
@@ -77,7 +77,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public HttpServletRequest onMessage(WebSocket webSocket, String d) {
+    public AtmosphereRequest onMessage(WebSocket webSocket, String d) {
         if (resource == null) {
             logger.error("Invalid state. No AtmosphereResource has been suspended");
             return null;
@@ -103,7 +103,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public HttpServletRequest onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
+    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
         return onMessage(webSocket, new String(d, offset, length));
     }
 
@@ -135,7 +135,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public boolean inspectWebSocketMessage() {
+    public boolean inspectResponse() {
         return false;
     }
 
@@ -143,13 +143,13 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public String handleResponse(WebSocketHttpServletResponse<?> res, String message) {
+    public String handleResponse(AtmosphereResponse<?> res, String message) {
         // Should never be called
         return message;
     }
 
     @Override
-    public byte[] handleResponse(WebSocketHttpServletResponse<?> res, byte[] message, int offset, int length) {
+    public byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length) {
         // Should never be called
         return message;
     }
