@@ -37,14 +37,8 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.cpr.CometSupport;
-import org.atmosphere.websocket.JettyWebSocketHandler;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.container.JettyWebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -34,7 +34,8 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.websocket;
+package org.atmosphere.cpr;
+
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
@@ -53,16 +54,16 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Wrapper around an {@link HttpServletResponse} which use an instance of {@link WebSocket}
+ * Wrapper around an {@link HttpServletResponse} which use an instance of {@link org.atmosphere.websocket.WebSocket}
  * as a writer.
  *
  * @param <A>
  */
-public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServletResponseWrapper {
+public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResponseWrapper {
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers = new HashMap<String, String>();
-    private final A webSocketSupport;
+    private final A asyncIOWriter;
     private int status = 200;
     private String statusMessage = "";
     private String charSet = "UTF-8";
@@ -70,22 +71,22 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     private String contentType = "txt/html";
     private boolean isCommited = false;
     private Locale locale;
-    private final WebSocketProtocol webSocketProtocol;
+    private final AsyncProtocol asyncProtocol;
     private boolean headerHandled = false;
     private final HttpServletRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
 
-    public WebSocketHttpServletResponse(A webSocketSupport, WebSocketProtocol webSocketProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(A asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
         super(dsr);
-        this.webSocketSupport = webSocketSupport;
-        this.webSocketProtocol = webSocketProtocol;
+        this.asyncIOWriter = asyncIOWriter;
+        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
     }
 
-    public WebSocketHttpServletResponse(HttpServletResponse r, A webSocketSupport, WebSocketProtocol webSocketProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(HttpServletResponse r, A asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
         super(r);
-        this.webSocketSupport = webSocketSupport;
-        this.webSocketProtocol = webSocketProtocol;
+        this.asyncIOWriter = asyncIOWriter;
+        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
     }
 
@@ -110,7 +111,8 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        webSocketSupport.writeError(sc, msg);
+        setStatus(sc,msg);
+        asyncIOWriter.writeError(sc, msg);
     }
 
     /**
@@ -118,7 +120,8 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
      */
     @Override
     public void sendError(int sc) throws IOException {
-        webSocketSupport.writeError(sc, "");
+        setStatus(sc);
+        asyncIOWriter.writeError(sc, "");
     }
 
     /**
@@ -126,7 +129,7 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        webSocketSupport.redirect(location);
+        asyncIOWriter.redirect(location);
     }
 
     /**
@@ -266,28 +269,28 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
         return new ServletOutputStream() {
 
             public void write(int i) throws java.io.IOException {
-                if (webSocketProtocol.inspectWebSocketMessage()) {
-                    webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new byte[]{(byte) i}, 0, 1));
+                if (asyncProtocol.inspectResponse()) {
+                    asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new byte[]{(byte) i}, 0, 1));
                 } else {
-                    webSocketSupport.write(new byte[]{(byte) i});
+                    asyncIOWriter.write(new byte[]{(byte) i});
                 }
             }
 
 
             public void write(byte[] bytes) throws java.io.IOException {
-                if (webSocketProtocol.inspectWebSocketMessage()) {
-                    webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, bytes, 0, bytes.length));
+                if (asyncProtocol.inspectResponse()) {
+                    asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, 0, bytes.length));
                 } else {
-                    webSocketSupport.write(bytes);
+                    asyncIOWriter.write(bytes);
                 }
             }
 
             public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
-                if (webSocketProtocol.inspectWebSocketMessage()) {
-                    byte[] b = webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, bytes, start, offset);
-                    webSocketSupport.write(b, 0, b.length);
+                if (asyncProtocol.inspectResponse()) {
+                    byte[] b = asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, start, offset);
+                    asyncIOWriter.write(b, 0, b.length);
                 } else {
-                    webSocketSupport.write(bytes, start, offset);
+                    asyncIOWriter.write(bytes, start, offset);
                 }
             }
 
@@ -302,10 +305,10 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
         return new PrintWriter(getOutputStream()) {
             public void write(char[] chars, int offset, int lenght) {
                 try {
-                    if (webSocketProtocol.inspectWebSocketMessage()) {
-                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(chars, offset, lenght)));
+                    if (asyncProtocol.inspectResponse()) {
+                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars, offset, lenght)));
                     } else {
-                        webSocketSupport.write(new String(chars, offset, lenght));
+                        asyncIOWriter.write(new String(chars, offset, lenght));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -314,10 +317,10 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(char[] chars) {
                 try {
-                    if (webSocketProtocol.inspectWebSocketMessage()) {
-                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(chars)));
+                    if (asyncProtocol.inspectResponse()) {
+                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars)));
                     } else {
-                        webSocketSupport.write(new String(chars));
+                        asyncIOWriter.write(new String(chars));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -326,10 +329,10 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(String s, int offset, int lenght) {
                 try {
-                    if (webSocketProtocol.inspectWebSocketMessage()) {
-                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(s.substring(offset, lenght))));
+                    if (asyncProtocol.inspectResponse()) {
+                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s.substring(offset, lenght))));
                     } else {
-                        webSocketSupport.write(new String(s.substring(offset, lenght)));
+                        asyncIOWriter.write(new String(s.substring(offset, lenght)));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -338,10 +341,10 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
 
             public void write(java.lang.String s) {
                 try {
-                    if (webSocketProtocol.inspectWebSocketMessage()) {
-                        webSocketSupport.write(webSocketProtocol.handleResponse(WebSocketHttpServletResponse.this, new String(s)));
+                    if (asyncProtocol.inspectResponse()) {
+                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s)));
                     } else {
-                        webSocketSupport.write(new String(s));
+                        asyncIOWriter.write(new String(s));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -415,12 +418,12 @@ public class WebSocketHttpServletResponse<A extends WebSocket> extends HttpServl
     }
 
     /**
-     * Return the underlying {@link WebSocket}
+     * Return the underlying {@link org.atmosphere.websocket.WebSocket}
      *
      * @return A
      */
-    public A getWebSocketSupport() {
-        return webSocketSupport;
+    public A getasyncIOWriter() {
+        return asyncIOWriter;
     }
 
     /**

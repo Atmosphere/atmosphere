@@ -15,19 +15,16 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 
-import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 /**
  * Simple class used to expose internal objects to {@link WebSocket}
  */
-public class WebSocketAdapter {
+public abstract class WebSocketAdapter implements WebSocket{
 
     private AtmosphereResource<?, ?> r;
-    private HttpServletRequest request;
-    private WebSocketHttpServletResponse<?> response;
 
     /**
      * Configure the {@link AtmosphereResource}
@@ -39,25 +36,12 @@ public class WebSocketAdapter {
         return this;
     }
 
+    @Override
+    public void close() throws IOException {
+    }
+
+    @Override
     public AtmosphereResource<?, ?> resource() {
         return r;
-    }
-
-    public WebSocketAdapter request(HttpServletRequest request) {
-        this.request = request;
-        return this;
-    }
-
-    public HttpServletRequest request() {
-        return request;
-    }
-
-    public WebSocketAdapter response(WebSocketHttpServletResponse<?> response) {
-        this.response = response;
-        return this;
-    }
-
-    public WebSocketHttpServletResponse<?> response() {
-        return response;
     }
 }

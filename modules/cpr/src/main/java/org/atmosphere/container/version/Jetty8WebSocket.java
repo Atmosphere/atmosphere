@@ -13,18 +13,13 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.websocket.container;
+package org.atmosphere.container.version;
 
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.websocket.WebSocketAdapter;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketHttpServletResponse;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
-import org.eclipse.jetty.websocket.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 /**
@@ -32,7 +27,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
+public class Jetty8WebSocket extends WebSocketAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
@@ -47,9 +42,6 @@ public class Jetty8WebSocket extends WebSocketAdapter implements WebSocket {
     @Override
     public void writeError(int errorCode, String message) throws IOException {
         logger.debug("{} {}", errorCode, message);
-        if (resource() != null) {
-            response().setStatus(errorCode, message);
-        }
     }
 
     /**
