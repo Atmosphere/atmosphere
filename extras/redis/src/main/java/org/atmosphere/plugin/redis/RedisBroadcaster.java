@@ -22,11 +22,10 @@ import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisException;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisException;
 
-import java.io.IOException;
 import java.net.URI;
 
 /**
@@ -107,7 +106,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             jedisSubscriber.connect();
             auth(jedisSubscriber);
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failed to connect subscriber", e);
             disconnectSubscriber();
         }
@@ -117,7 +116,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             try {
                 jedisPublisher.connect();
                 auth(jedisPublisher);
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to connect publisher", e);
                 disconnectPublisher();
             }
@@ -252,7 +251,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         synchronized (jedisSubscriber) {
             try {
                 jedisSubscriber.disconnect();
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to disconnect subscriber", e);
             }
         }
@@ -264,7 +263,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         synchronized (jedisPublisher) {
             try {
                 jedisPublisher.disconnect();
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to disconnect publisher", e);
             }
         }

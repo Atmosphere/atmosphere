@@ -22,8 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisException;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -73,7 +73,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisSubscriber.connect();
             auth(jedisSubscriber);
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failed to connect to subscriber: {}", jedisSubscriber, e);
         }
 
@@ -81,7 +81,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.connect();
             auth(jedisPublisher);
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failed to connect to publisher: {}", jedisPublisher, e);
         }
     }
@@ -145,7 +145,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.disconnect();
             jedisSubscriber.disconnect();
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failure encountered during destroy", e);
         }
     }
