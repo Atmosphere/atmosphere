@@ -38,12 +38,16 @@
 
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
@@ -63,11 +67,13 @@ import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
  */
 public class Meteor {
 
-    private final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
+    private static final Logger logger = LoggerFactory.getLogger(Meteor.class);
+
+    protected final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
             new ConcurrentHashMap<AtmosphereResource, Meteor>();
     private final AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
     private Object o;
-
+    private AtomicBoolean isDestroyed = new AtomicBoolean(false);
 
     private Meteor(AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
                    List<BroadcastFilter> l, Serializer s) {
@@ -162,6 +168,7 @@ public class Meteor {
         }
 
         Meteor m = new Meteor(r, l, s);
+        req.setAttribute(AtmosphereResourceImpl.METEOR, m);
         return m;
     }
 
@@ -173,6 +180,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor suspend(long l) {
+        if (destroyed()) return null;
         r.suspend(l);
         return this;
     }
@@ -187,6 +195,7 @@ public class Meteor {
      */
 
     public Meteor suspend(long timeout, TimeUnit timeunit) {
+        if (destroyed()) return null;
         r.suspend(timeout, timeunit);
         return this;
     }
@@ -200,6 +209,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor suspend(long l, boolean outputComments) {
+        if (destroyed()) return null;
         r.suspend(l, outputComments);
         return this;
     }
@@ -215,6 +225,7 @@ public class Meteor {
      */
 
     public Meteor suspend(long timeout, TimeUnit timeunit, boolean outputComments) {
+        if (destroyed()) return null;
         r.suspend(timeout, timeunit, outputComments);
         return this;
     }
@@ -225,6 +236,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor resume() {
+        if (destroyed()) return null;
         r.resume();
         cache.remove(r);
         return this;
@@ -237,6 +249,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor broadcast(Object o) {
+        if (destroyed()) return null;
         r.getBroadcaster().broadcast(o);
         return this;
     }
@@ -249,6 +262,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor schedule(Object o, long period) {
+        if (destroyed()) return null;
         r.getBroadcaster().scheduleFixedBroadcast(o, period, TimeUnit.SECONDS);
         return this;
     }
@@ -261,6 +275,7 @@ public class Meteor {
      * @return {@link Meteor}
      */
     public Meteor delayBroadadcast(Object o, long period) {
+        if (destroyed()) return null;
         r.getBroadcaster().delayBroadcast(o, period, TimeUnit.SECONDS);
         return this;
     }
@@ -271,6 +286,7 @@ public class Meteor {
      * @return
      */
     public Broadcaster getBroadcaster() {
+        if (destroyed()) return null;
         return r.getBroadcaster();
     }
 
@@ -280,6 +296,7 @@ public class Meteor {
      * @param b
      */
     public void setBroadcaster(Broadcaster b) {
+        if (destroyed()) return;
         r.setBroadcaster(b);
     }
 
@@ -309,9 +326,8 @@ public class Meteor {
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
     public void addListener(AtmosphereResourceEventListener e) {
-        if (r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r).addEventListener(e);
-        }
+        if (destroyed()) return;
+        r.addEventListener(e);
     }
 
     /**
@@ -322,13 +338,24 @@ public class Meteor {
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
     public void removeListener(AtmosphereResourceEventListener e) {
-        if (r instanceof AtmosphereEventLifecycle) {
-            ((AtmosphereEventLifecycle) r).removeEventListener(e);
-        }
+        if (destroyed()) return;
+        r.removeEventListener(e);
     }
 
-    static void destroy() {
-        cache.clear();
+    /**
+     * Mark this instance as Destroyed. No more operation will be allowed.
+     */
+    public void destroy() {
+        isDestroyed.set(true);
+        cache.remove(this);
+    }
+
+    private boolean destroyed(){
+        if (isDestroyed.get()) {
+            logger.debug("This Meteor is destroyed and cannot be used.");
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -339,4 +366,5 @@ public class Meteor {
     public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
         return r;
     }
+
 }
