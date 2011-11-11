@@ -72,20 +72,18 @@ public class RedisFilter implements ClusterBroadcastFilter {
         jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
+            auth(jedisSubscriber);
         } catch (IOException e) {
             logger.error("failed to connect to subscriber: {}", jedisSubscriber, e);
         }
 
-        auth(jedisSubscriber);
-
         jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisPublisher.connect();
+            auth(jedisPublisher);
         } catch (IOException e) {
             logger.error("failed to connect to publisher: {}", jedisPublisher, e);
         }
-
-        auth(jedisPublisher);
     }
 
     /**
