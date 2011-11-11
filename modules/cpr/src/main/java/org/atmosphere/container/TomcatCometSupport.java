@@ -143,7 +143,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 logger.debug("Client closed connection: response: {}", res);
                 action = cancelled(req, res);
             } else {
-                logger.debug("Cancelling response: {}", res);
+                logger.trace("Cancelling response: {}", res);
             }
 
             event.close();
