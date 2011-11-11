@@ -196,6 +196,9 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void outgoingBroadcast(Object message) {
+        // Marshal the message outside of the sync block.
+        String contents = message.toString();
+
         Object lockingObject = getLockingObject();
         synchronized (lockingObject) {
             if (destroyed.get()) {
@@ -210,7 +213,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
                     try {
                         auth(jedis);
-                        jedis.publish(getID(), message.toString());
+                        jedis.publish(getID(), contents);
                     } catch (JedisException e) {
                         valid = false;
                         logger.warn("outgoingBroadcast exception", e);
@@ -228,7 +231,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
                 }
             } else {
                 try {
-                    jedisPublisher.publish(getID(), message.toString());
+                    jedisPublisher.publish(getID(), contents);
                 } catch (JedisException e) {
                     logger.warn("outgoingBroadcast exception", e);
                 }
