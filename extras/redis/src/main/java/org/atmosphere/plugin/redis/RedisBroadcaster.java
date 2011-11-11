@@ -22,14 +22,11 @@ import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisException;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisException;
 
-import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on Jedis
@@ -50,7 +47,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
     private boolean sharedPool = false;
     private JedisPool jedisPool;
-    private AtomicInteger maxTry = new AtomicInteger();
 
     public RedisBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         this(id, URI.create("http://localhost:6379"), config);
@@ -101,11 +97,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
 
                 config.properties().put(REDIS_SHARED_POOL, jedisPool);
             } else {
-                if (jedisPublisher != null) {
-                    jedisPool.returnResource(jedisPublisher);
-                }
                 disconnectSubscriber();
-
             }
         }
 
@@ -114,7 +106,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         try {
             jedisSubscriber.connect();
             auth(jedisSubscriber);
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failed to connect subscriber", e);
             disconnectSubscriber();
         }
@@ -123,9 +115,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         if (!sharedPool) {
             try {
                 jedisPublisher.connect();
-
                 auth(jedisPublisher);
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to connect publisher", e);
                 disconnectPublisher();
             }
@@ -146,7 +137,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void destroy() {
-        Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
+        Object lockingObject = getLockingObject();
         super.destroy();
         synchronized (lockingObject) {
             try {
@@ -193,7 +184,8 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
             }
 
             public void onPMessage(String pattern, String channel, String message) {
-                logger.debug("onPMessage: {}", pattern + " " + channel + " " + message);
+                logger.debug("onPMessage: pattern: {}, channel: {}, message: {}",
+                        new Object[]{pattern, channel, message});
             }
         }, getID());
     }
@@ -203,36 +195,44 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void outgoingBroadcast(Object message) {
-        Object lockingObject = sharedPool ? jedisPool : jedisPublisher;
+        // Marshal the message outside of the sync block.
+        String contents = message.toString();
+
+        Object lockingObject = getLockingObject();
         synchronized (lockingObject) {
             if (destroyed.get()) {
                 logger.debug("JedisPool closed. Re-opening");
                 setID(getID());
             }
 
-            boolean valid = true;
-            try {
-                if (sharedPool) {
-                    jedisPublisher = jedisPool.getResource();
-                    auth(jedisPublisher);
-                }
-                jedisPublisher.publish(getID(), message.toString());
-            } catch (JedisException e) {
-                logger.warn("outgoingBroadcast exception", e);
-                valid = false;
-            } finally {
-                if (sharedPool) {
-                    if (!valid) {
-                        jedisPool.returnBrokenResource(jedisPublisher);
-                    } else {
-                        maxTry.set(0);
-                        jedisPool.returnResource(jedisPublisher);
+            if (sharedPool) {
+                for (int i = 0; i < 10; ++i) {
+                    boolean valid = true;
+                    Jedis jedis = jedisPool.getResource();
+
+                    try {
+                        auth(jedis);
+                        jedis.publish(getID(), contents);
+                    } catch (JedisException e) {
+                        valid = false;
+                        logger.warn("outgoingBroadcast exception", e);
+                    } finally {
+                        if (valid) {
+                            jedisPool.returnResource(jedis);
+                        } else {
+                            jedisPool.returnBrokenResource(jedis);
+                        }
                     }
 
-                    // This is dangerous to loop.
-                    if (!valid && maxTry.getAndIncrement() < 10) {
-                        outgoingBroadcast(message);
+                    if (valid) {
+                        break;
                     }
+                }
+            } else {
+                try {
+                    jedisPublisher.publish(getID(), contents);
+                } catch (JedisException e) {
+                    logger.warn("outgoingBroadcast exception", e);
                 }
             }
         }
@@ -251,7 +251,7 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         synchronized (jedisSubscriber) {
             try {
                 jedisSubscriber.disconnect();
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to disconnect subscriber", e);
             }
         }
@@ -263,10 +263,13 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         synchronized (jedisPublisher) {
             try {
                 jedisPublisher.disconnect();
-            } catch (IOException e) {
+            } catch (JedisException e) {
                 logger.error("failed to disconnect publisher", e);
             }
         }
     }
 
+    private Object getLockingObject() {
+        return sharedPool ? jedisPool : jedisPublisher;
+    }
 }
