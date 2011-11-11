@@ -173,4 +173,20 @@ public interface ApplicationConfig {
      * The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml
      */
     String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.class.getName() + ".contextRoot";
+    /**
+     * The Servlet's name where {@link Meteor} will be available
+     */
+    String SERVLET_CLASS = "org.atmosphere.servlet";
+    /**
+     * The Filter's name where {@link Meteor} will be available
+     */
+    String FILTER_CLASS = "org.atmosphere.filter";
+    /**
+     * The Servlet's mapping value to the SERVLET_CLASS
+     */
+    String MAPPING = "org.atmosphere.mapping";
+     /**
+     * The Servlet's mapping value to the FILTER_CLASS
+     */
+    String FILTER_NAME = "org.atmosphere.filter.name";
 }

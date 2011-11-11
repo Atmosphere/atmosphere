@@ -43,6 +43,11 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
+import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
+import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
+
 /**
  * Simple Servlet to use when Atmosphere {@link Meteor} are used. This Servlet will look
  * for a Servlet init-param named org.atmosphere.servlet or org.atmosphere.filter and will
@@ -53,11 +58,6 @@ import javax.servlet.ServletException;
  * @author Jean-Francois Arcand
  */
 public class MeteorServlet extends AtmosphereServlet {
-
-    private final static String SERVLET_CLASS = "org.atmosphere.servlet";
-    private final static String FILTER_CLASS = "org.atmosphere.filter";
-    private final static String MAPPING = "org.atmosphere.mapping";
-    private final static String FILTER_NAME = "org.atmosphere.filter.name";
 
     /**
      * Initialize a configured instance of {@link ReflectorServletProcessor} and
@@ -86,6 +86,6 @@ public class MeteorServlet extends AtmosphereServlet {
     @Override
     public void destroy() {
         super.destroy();
-        Meteor.destroy();
+        Meteor.cache.clear();
     }
 }
