@@ -103,11 +103,10 @@ public class ConcurrentBroadcastTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
+        atmoServlet.addAtmosphereHandler("/suspend", new SuspendAndResume());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
-
-        atmoServlet.addAtmosphereHandler("/suspend", new SuspendAndResume());
     }
 
     public void configureCometSupport() {
@@ -158,6 +157,7 @@ public class ConcurrentBroadcastTest {
 
         } catch (Exception e) {
             logger.error("test failed", e);
+            e.printStackTrace();
             fail(e.getMessage());
         } finally {
             if (b != null) b.destroy();
