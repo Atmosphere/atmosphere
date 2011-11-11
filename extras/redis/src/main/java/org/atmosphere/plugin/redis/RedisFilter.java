@@ -22,8 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.exceptions.JedisException;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -72,21 +72,18 @@ public class RedisFilter implements ClusterBroadcastFilter {
         jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisSubscriber.connect();
-        } catch (IOException e) {
-            logger.error("failed to connect to subscriber: " + jedisSubscriber, e);
+            auth(jedisSubscriber);
+        } catch (JedisException e) {
+            logger.error("failed to connect to subscriber: {}", jedisSubscriber, e);
         }
-
-        jedisSubscriber.auth(auth);
-        jedisSubscriber.flushAll();
 
         jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
         try {
             jedisPublisher.connect();
-        } catch (IOException e) {
-            logger.error("failed to connect to publisher: " + jedisPublisher, e);
+            auth(jedisPublisher);
+        } catch (JedisException e) {
+            logger.error("failed to connect to publisher: {}", jedisPublisher, e);
         }
-        jedisPublisher.auth(auth);
-        jedisPublisher.flushAll();
     }
 
     /**
@@ -148,7 +145,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.disconnect();
             jedisSubscriber.disconnect();
-        } catch (IOException e) {
+        } catch (JedisException e) {
             logger.error("failure encountered during destroy", e);
         }
     }
@@ -158,8 +155,10 @@ public class RedisFilter implements ClusterBroadcastFilter {
      */
     @Override
     public BroadcastFilter.BroadcastAction filter(Object originalMessage, Object o) {
-        if (!(receivedMessages.remove(originalMessage.toString()))) {
-            jedisPublisher.publish(bc.getID(), originalMessage.toString());
+        String contents = originalMessage.toString();
+
+        if (!(receivedMessages.remove(contents))) {
+            jedisPublisher.publish(bc.getID(), contents);
         }
         return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
     }
@@ -178,5 +177,12 @@ public class RedisFilter implements ClusterBroadcastFilter {
     @Override
     public void setBroadcaster(Broadcaster bc) {
         this.bc = bc;
+    }
+
+    private void auth(Jedis jedis) {
+        if (auth != null) {
+            jedis.auth(auth);
+        }
+        jedis.flushAll();
     }
 }
