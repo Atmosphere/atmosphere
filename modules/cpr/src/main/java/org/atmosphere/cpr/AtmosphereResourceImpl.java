@@ -73,6 +73,7 @@ public class AtmosphereResourceImpl implements
 
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
+    public static final String METEOR = Meteor.class.getName();
 
     // The {@link HttpServletRequest}
     private final HttpServletRequest req;
@@ -203,9 +204,14 @@ public class AtmosphereResourceImpl implements
 
                 try {
                     req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+                    Meteor m = (Meteor) req.getAttribute(METEOR);
+                    if (m!= null) {
+                        m.destroy();
+                    }
                 } catch (Exception ex) {
                     logger.debug("Cannot resume an already resumed/cancelled request");
                 }
+
                 if (req.getAttribute(PRE_SUSPEND) == null) {
                     cometSupport.action(this);
                 }

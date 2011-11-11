@@ -180,13 +180,17 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public void setScope(SCOPE scope) {
+        if (destroyed.get()) {
+            logger.debug(DESTROYED, getID(), "setScope");
+            return;
+        }
+
         this.scope = scope;
         if (scope != SCOPE.REQUEST) {
             return;
         }
 
         logger.debug("Changing broadcaster scope for {}. This broadcaster will be destroyed.", getID());
-
         synchronized (resources) {
             try {
                 // Next, we need to create a new broadcaster per resource.
@@ -207,6 +211,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     logger.debug("Resource {} not using broadcaster {}", resource, b.getID());
                 }
 
+                // Do not destroy because this is a new Broadcaster
+                if (resources.isEmpty()) {
+                    return;
+                }
 
                 destroy();
             } catch (Exception e) {
@@ -886,7 +894,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 notifyEmptyListener();
                 if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
                     releaseExternalResources();
-                } else if (lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
+                } else if (scope == SCOPE.REQUEST || lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
                     notifyDestroyListener();
                     BroadcasterFactory.getDefault().remove(this, name);
                     destroy();
