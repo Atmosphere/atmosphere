@@ -36,8 +36,12 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereResponse;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 /**
@@ -45,49 +49,11 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocket {
+public interface WebSocket extends AsyncIOWriter {
 
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
-
-    /**
-     * Write an error code
-     * @param errorCode the error code
-     * @param message
-     * @throws IOException
-     */
-    void writeError(int errorCode, String message) throws IOException;
-
-    /**
-     * Redirect a WebSocket request to another location
-     * @param location
-     * @throws IOException
-     */
-    void redirect(String location) throws IOException;
-
-    /**
-     * Write a WebSocket message
-     * @param data the WebSocket message
-     * @throws IOException
-     */
-    void write(String data) throws IOException;
-
-    /**
-     * Write a WebSocket message
-     * @param data the WebSocket message
-     * @throws IOException
-     */
-    void write(byte[] data) throws IOException;
-
-    /**
-     * Write a WebSocket message
-     * @param data the WebSocket message
-     * @param offset offset of the message
-     * @param length length if the message
-     * @throws IOException
-     */
-    void write(byte[] data, int offset, int length) throws IOException;
 
     /**
      * Close the underlying WebSocket connection
@@ -96,10 +62,10 @@ public interface WebSocket {
     void close() throws IOException;
 
     /**
-     * Return the associated {@link AtmosphereResource}
-     * @return the associated {@link AtmosphereResource}
+     * Return the current {@link AtmosphereResource} representing the underlying connection and the original
+     * {@link HttpServletRequest}
+     *
+     * @return the current {@link AtmosphereResource}
      */
-    AtmosphereResource<?,?> resource();
-
-
+    AtmosphereResource<?, ?> resource();
 }

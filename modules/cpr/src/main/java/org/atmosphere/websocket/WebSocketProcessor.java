@@ -44,6 +44,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
@@ -103,7 +104,7 @@ public class WebSocketProcessor implements Serializable {
             }
         }
 
-        WebSocketHttpServletResponse wsr = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, request);
+        AtmosphereResponse wsr = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, request);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .pathInfo(pathInfo)
@@ -112,8 +113,6 @@ public class WebSocketProcessor implements Serializable {
                 .build();
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
-
-        WebSocketAdapter.class.cast(webSocket).request(r).response(wsr);
 
         dispatch(r, wsr);
 
@@ -125,20 +124,17 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
-        HttpServletRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
+        AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         if (r != null) {
-            WebSocketHttpServletResponse<WebSocket> w = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            WebSocketAdapter.class.cast(webSocket).request(r).response(w);
+            AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
             dispatch(r, w);
         }
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
-        HttpServletRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
+        AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
         if (r != null) {
-            WebSocketHttpServletResponse<WebSocket> w = new WebSocketHttpServletResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            WebSocketAdapter.class.cast(webSocket).request(r).response(w);
-
+            AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
             dispatch(r, w);
         }
     }
@@ -147,12 +143,12 @@ public class WebSocketProcessor implements Serializable {
      * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
      *
      * @param request  a {@link HttpServletRequest}
-     * @param response a {@link HttpServletResponse}
+     * @param r a {@link HttpServletResponse}
      */
-    protected final void dispatch(final HttpServletRequest request, final HttpServletResponse response) {
+    protected final void dispatch(final HttpServletRequest request, final AtmosphereResponse<?> r) {
         if (request == null) return;
         try {
-            atmosphereServlet.doCometSupport(request, response);
+            atmosphereServlet.doCometSupport(request, r);
         } catch (IOException e) {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         } catch (ServletException e) {
@@ -165,7 +161,6 @@ public class WebSocketProcessor implements Serializable {
             WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
 
-        WebSocketHttpServletResponse r = WebSocketAdapter.class.cast(webSocket).response();
         if (r.getStatus() >= 400) {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
         }
@@ -259,19 +254,19 @@ public class WebSocketProcessor implements Serializable {
 
     public final static class WebSocketException extends Exception {
 
-        private final WebSocketHttpServletResponse r;
+        private final AtmosphereResponse r;
 
-        public WebSocketException(String s, WebSocketHttpServletResponse r) {
+        public WebSocketException(String s, AtmosphereResponse r) {
             super(s);
             this.r = r;
         }
 
-        public WebSocketException(Throwable throwable, WebSocketHttpServletResponse r) {
+        public WebSocketException(Throwable throwable, AtmosphereResponse r) {
             super(throwable);
             this.r = r;
         }
 
-        public WebSocketHttpServletResponse response() {
+        public AtmosphereResponse response() {
             return r;
         }
     }

@@ -43,6 +43,7 @@ import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JettyWebSocketHandler;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -55,7 +56,6 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
-import org.atmosphere.websocket.JettyWebSocketHandler;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.jboss.servlet.http.HttpEvent;
@@ -237,11 +237,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
+        public String mapping;
 
         public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                broadcaster = BroadcasterFactory.getDefault().get(mapping);
+                if (BroadcasterFactory.getDefault() != null)  {
+                    this.broadcaster = BroadcasterFactory.getDefault().get(mapping);
+                } else {
+                    this.mapping = mapping;
+                }
             } catch (Exception t) {
                 throw new RuntimeException(t);
             }
@@ -568,7 +573,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             try {
 
                 String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
-                if (mapping == null){
+                if (mapping == null) {
                     mapping = "/*";
                 }
                 addAtmosphereHandler(mapping, (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
@@ -596,7 +601,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         // http://java.net/jira/browse/ATMOSPHERE-157
-        sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
+        if (sc != null) {
+            sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
+        }
 
         config.broadcasterFactory = broadcasterFactory;
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
@@ -611,7 +618,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
 
             if (w.broadcaster == null) {
-                w.broadcaster = broadcasterFactory.get();
+                w.broadcaster = broadcasterFactory.get(w.mapping);
             } else {
                 w.broadcaster.setBroadcasterConfig(broadcasterConfig);
                 if (broadcasterCacheClassName != null) {
@@ -793,8 +800,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     void initAtmosphereHandler(ServletConfig sc) throws ServletException {
         AtmosphereHandler a;
+        AtmosphereHandlerWrapper w;
         for (Entry<String, AtmosphereHandlerWrapper> h : atmosphereHandlers.entrySet()) {
-            a = h.getValue().atmosphereHandler;
+            w = h.getValue();
+            a = w.atmosphereHandler;
             if (a instanceof AtmosphereServletProcessor) {
                 ((AtmosphereServletProcessor) a).init(sc);
             }
