@@ -73,7 +73,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisSubscriber.connect();
         } catch (IOException e) {
-            logger.error("failed to connect to subscriber: " + jedisSubscriber, e);
+            logger.error("failed to connect to subscriber: {}", jedisSubscriber, e);
         }
 
         jedisSubscriber.auth(auth);
@@ -83,8 +83,9 @@ public class RedisFilter implements ClusterBroadcastFilter {
         try {
             jedisPublisher.connect();
         } catch (IOException e) {
-            logger.error("failed to connect to publisher: " + jedisPublisher, e);
+            logger.error("failed to connect to publisher: {}", jedisPublisher, e);
         }
+
         jedisPublisher.auth(auth);
         jedisPublisher.flushAll();
     }
@@ -158,8 +159,10 @@ public class RedisFilter implements ClusterBroadcastFilter {
      */
     @Override
     public BroadcastFilter.BroadcastAction filter(Object originalMessage, Object o) {
-        if (!(receivedMessages.remove(originalMessage.toString()))) {
-            jedisPublisher.publish(bc.getID(), originalMessage.toString());
+        String contents = originalMessage.toString();
+
+        if (!(receivedMessages.remove(contents))) {
+            jedisPublisher.publish(bc.getID(), contents);
         }
         return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
     }
