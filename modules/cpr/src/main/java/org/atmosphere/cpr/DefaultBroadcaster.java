@@ -444,9 +444,9 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterCache = bc.getBroadcasterCache();
             broadcasterCache.start();
 
+            setID(name);
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
             asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
-            setID(name);
         }
     }
 
