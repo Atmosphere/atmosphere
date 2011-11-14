@@ -15,6 +15,7 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -186,7 +187,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         logger.trace("WebSocket.onOpen.");
         try {
             webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
-
             webSocketProcessor.dispatch(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
@@ -219,6 +219,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         private final StringBuffer requestURL;
         private final HashMap<String, Object> attributes = new HashMap<String, Object>();
         private final HashMap<String, String> headers = new HashMap<String, String>();
+        private final String method;
 
         public JettyRequestFix(HttpServletRequest request) {
             super(request);
@@ -229,6 +230,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             this.requestURL = request.getRequestURL();
             HttpSession session = request.getSession(true);
             httpSession = new FakeHttpSession(session.getId(), session.getServletContext(), session.getCreationTime());
+            this.method = request.getMethod();
 
             Enumeration<String> e = request.getHeaderNames();
             String s;
@@ -242,6 +244,11 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                 s = e.nextElement();
                 attributes.put(s, request.getAttribute(s));
             }
+        }
+
+        @Override
+        public String getMethod() {
+            return method;
         }
 
         @Override
