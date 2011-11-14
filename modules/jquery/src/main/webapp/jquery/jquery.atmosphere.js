@@ -210,13 +210,15 @@ jQuery.atmosphere = function() {
                     var update = false;
 
                     // Remote server disconnected us, reconnect.
-                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4){
+                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.reconnect(ajaxRequest, request);
                     }
                     request.readyState = ajaxRequest.readyState;
 
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
+                            update = true;
+                        } else if (request.transport == 'streaming') {
                             update = true;
                         }
                     } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
@@ -878,6 +880,7 @@ jQuery.atmosphere = function() {
         unsubscribe : function() {
             jQuery.atmosphere.subscribed = false;
             jQuery.atmosphere.closeSuspendedConnection();
+            jQuery.atmosphere.callbacks = [];
             if (ieStream != null)
                 ieStream.close();
         },
