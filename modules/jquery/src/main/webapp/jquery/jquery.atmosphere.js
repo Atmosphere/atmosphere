@@ -210,7 +210,7 @@ jQuery.atmosphere = function() {
                     var update = false;
 
                     // Remote server disconnected us, reconnect.
-                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4){
+                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4) {
                         jQuery.atmosphere.reconnect(ajaxRequest, request);
                     }
                     request.readyState = ajaxRequest.readyState;
@@ -880,6 +880,7 @@ jQuery.atmosphere = function() {
         unsubscribe : function() {
             jQuery.atmosphere.subscribed = false;
             jQuery.atmosphere.closeSuspendedConnection();
+            jQuery.atmosphere.callbacks = [];
             if (ieStream != null)
                 ieStream.close();
         },
