@@ -43,6 +43,7 @@ import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JettyWebSocketHandler;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
