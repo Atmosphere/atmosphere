@@ -673,6 +673,7 @@ jQuery.atmosphere = function() {
             };
 
             websocket.onopen = function(message) {
+                jQuery.atmosphere.subscribed = true;
                 jQuery.atmosphere.debug("Websocket successfully opened");
                 webSocketSupported = true;
                 jQuery.atmosphere.response.state = 'opening';
@@ -746,9 +747,7 @@ jQuery.atmosphere = function() {
 
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
-                } else if (!jQuery.atmosphere.subscribed) {
-                    jQuery.atmosphere.debug("Websocket closed cleanly");
-                    jQuery.atmosphere.response.state = 'closed';
+                } else if (jQuery.atmosphere.subscribed && jQuery.atmosphere.response == 'websocket') {
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                     if (request.requestCount++ < request.maxRequest) {
