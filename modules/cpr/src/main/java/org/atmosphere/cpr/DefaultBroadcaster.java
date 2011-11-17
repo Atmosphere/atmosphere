@@ -238,6 +238,8 @@ public class DefaultBroadcaster implements Broadcaster {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
 
+        if (BroadcasterFactory.getDefault() == null) return; // we are shutdown or destroyed, but someone still reference
+
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
