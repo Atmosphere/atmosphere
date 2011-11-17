@@ -41,6 +41,7 @@
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
+        <module>websocket-pubsub</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
