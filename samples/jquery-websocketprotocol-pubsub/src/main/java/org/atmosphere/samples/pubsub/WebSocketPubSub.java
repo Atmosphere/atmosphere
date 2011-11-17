@@ -44,14 +44,13 @@ public class WebSocketPubSub implements WebSocketProtocol {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);
 
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
-
     @Override
     public void configure(AtmosphereServlet.AtmosphereConfig config) {
     }
 
     @Override
     public AtmosphereRequest onMessage(WebSocket webSocket, String message) {
+        AtmosphereResource<HttpServletRequest,HttpServletResponse> r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
 
         if (message != null && message.indexOf("message") != -1) {
@@ -71,7 +70,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     @Override
     public void onOpen(WebSocket webSocket) {
         // Accept the handshake by suspending the response.
-        r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
+        AtmosphereResource<HttpServletRequest,HttpServletResponse> r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
         r.setBroadcaster(b);
         r.addEventListener(new WebSocketEventListenerAdapter());
