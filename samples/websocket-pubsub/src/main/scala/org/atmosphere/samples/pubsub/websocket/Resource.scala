@@ -11,7 +11,8 @@ class Resource {
 
   @PathParam("topic") private var topic: Broadcaster = null
 
-  @GET def subscribe: SuspendResponse[String] = {
+  @GET
+  def subscribe: SuspendResponse[String] = {
     return new SuspendResponse.SuspendResponseBuilder[String]()
       .broadcaster(topic)
       .outputComments(true)
@@ -20,13 +21,8 @@ class Resource {
   }
 
   @POST
-  @Broadcast def publish(@FormParam("message") message: String): Broadcastable = {
-    return new Broadcastable(message, "", topic)
-  }
-
-  @Path("devoxx")
-  @POST
-  @Broadcast def devoxx(@FormParam("message") message: String): Broadcastable = {
+  @Broadcast
+  def publish(@FormParam("message") message: String): Broadcastable = {
     return new Broadcastable(message, "", topic)
   }
 
