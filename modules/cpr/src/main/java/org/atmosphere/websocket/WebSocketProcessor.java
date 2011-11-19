@@ -142,8 +142,8 @@ public class WebSocketProcessor implements Serializable {
     /**
      * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
      *
-     * @param request  a {@link HttpServletRequest}
-     * @param r a {@link HttpServletResponse}
+     * @param request a {@link HttpServletRequest}
+     * @param r       a {@link HttpServletResponse}
      */
     protected final void dispatch(final HttpServletRequest request, final AtmosphereResponse<?> r) {
         if (request == null) return;
@@ -171,8 +171,9 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void close() {
-        webSocketProtocol.onClose(webSocket);
         try {
+            webSocketProtocol.onClose(webSocket);
+
             if (resource != null) {
                 AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
                 synchronized (resource) {
@@ -185,18 +186,18 @@ public class WebSocketProcessor implements Serializable {
                         m.destroy();
                     }
                 }
+
+                try {
+                    resource.notifyListeners();
+                } finally {
+                    AsynchronousProcessor.destroyResource(resource);
+                }
             }
         } catch (IOException e) {
-            if (AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
+            if (resource != null && AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
             logger.warn("Failed invoking atmosphere handler onStateChange()", e);
-        }
-
-        try {
-            resource.notifyListeners();
-        } finally {
-            AsynchronousProcessor.destroyResource(resource);
         }
     }
 
