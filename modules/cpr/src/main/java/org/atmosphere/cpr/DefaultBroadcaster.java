@@ -144,11 +144,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
             releaseExternalResources();
             if (notifierFuture != null) {
-                notifierFuture.cancel(true);
+                notifierFuture.cancel(false);
             }
 
             if (asyncWriteFuture != null) {
-                asyncWriteFuture.cancel(true);
+                asyncWriteFuture.cancel(false);
             }
 
             if (bc != null) {
