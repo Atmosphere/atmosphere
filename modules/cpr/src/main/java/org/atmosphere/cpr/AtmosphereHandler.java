@@ -53,63 +53,58 @@ import java.io.IOException;
  * <p/>
  * <strong>A class implementing {@link AtmosphereHandler} must be thread safe</strong>
  * <p/>
- * For example, a simple Chat based AtmosphereHandler will take the form of
+ * For example, a simple pubsub based AtmosphereHandler will take the form of
  * <p/>
- * <p><pre><code>
- * <p/>
- * public AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt;
- * onRequest(AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; event) throws IOException {
- * HttpServletRequest req = event.getRequest();
- * HttpServletResponse res = event.getResponse();
- * <p/>
- * res.setContentType("text/html");
- * res.addHeader("Cache-Control", "private");
- * res.addHeader("Pragma", "no-cache");
- * if (req.getMethod().equalsIgnoreCase("GET")) {
- * event.suspend();
- * } else if (req.getMethod().equalsIgnoreCase("POST")) {
- * res.setCharacterEncoding("UTF-8");
- * String action = req.getParameterValues("action")[0];
- * String name = req.getParameterValues("name")[0];
- * <p/>
- * if ("login".equals(action)) {
- * event.getBroadcaster().broadcast(
- * BEGIN_SCRIPT_TAG + toJsonp("System Message from "
- * + event.getWebServerName(), name + " has joined.") + END_SCRIPT_TAG);
- * res.getWriter().write("success");
- * res.getWriter().flush();
- * } else if ("post".equals(action)) {
- * String message = req.getParameterValues("message")[0];
- * event.getBroadcaster().broadcast(BEGIN_SCRIPT_TAG + toJsonp(name, message) + END_SCRIPT_TAG);
- * res.getWriter().write("success");
- * res.getWriter().flush();
- * } else {
- * res.setStatus(422);
- * <p/>
- * res.getWriter().write("success");
- * res.getWriter().flush();
- * }
- * }
- * }
- * <p/>
- * public AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt;
- * onStateChange(AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; event) throws IOException {
- * HttpServletRequest req = event.getRequest();
- * HttpServletResponse res = event.getResponse();
- * <p/>
- * if (event.isResuming() || event.isResumedOnTimedout()) {
- * String script = BEGIN_SCRIPT_TAG + "window.parent.app.listen();\n" + END_SCRIPT_TAG;
- * <p/>
- * res.getWriter().write(script);
- * res.getWriter().flush();
- * } else {
- * res.getWriter().write(event.getMessage().toString());
- * res.getWriter().flush();
- * }
- * }
- * <p/>
- * </code></pre></p>
- *
+ * <blockquote><pre>
+ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
+
+    @Override
+    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+
+        HttpServletRequest req = r.getRequest();
+        HttpServletResponse res = r.getResponse();
+        String method = req.getMethod();
+
+        // Suspend the response.
+        if ("GET".equalsIgnoreCase(method)) {
+            // Log all events on the console, including WebSocket events.
+            r.addEventListener(new WebSocketEventListenerAdapter());
+
+            res.setContentType("text/html;charset=ISO-8859-1");
+
+            Broadcaster b = lookupBroadcaster(req.getPathInfo());
+            r.setBroadcaster(b);
+
+            if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
+                req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, Boolean.TRUE);
+                r.suspend(-1, false);
+            } else {
+                r.suspend(-1);
+            }
+        } else if ("POST".equalsIgnoreCase(method)) {
+            Broadcaster b = lookupBroadcaster(req.getPathInfo());
+
+            String message = req.getReader().readLine();
+
+            if (message != null && message.indexOf("message") != -1) {
+                b.broadcast(message.substring("message=".length()));
+            }
+        }
+    }
+
+    @Override
+    public void destroy() {
+    }
+
+
+    Broadcaster lookupBroadcaster(String pathInfo) {
+        String[] decodedPath = pathInfo.split("/");
+        Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
+        return b;
+    }
+
+}
+ * </pre></blockquote>
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereHandler<F, G> {
