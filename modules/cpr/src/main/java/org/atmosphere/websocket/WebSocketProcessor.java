@@ -79,8 +79,6 @@ public class WebSocketProcessor implements Serializable {
 
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
-
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
         this.atmosphereServlet = atmosphereServlet;
@@ -118,7 +116,7 @@ public class WebSocketProcessor implements Serializable {
 
         webSocketProtocol.onOpen(webSocket);
 
-        if (resource == null || !resource.getAtmosphereResourceEvent().isSuspended()) {
+        if (webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
             webSocketProtocol.onError(webSocket, new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed.", wsr));
         }
     }
@@ -155,7 +153,7 @@ public class WebSocketProcessor implements Serializable {
             logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
         }
 
-        resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        AtmosphereResource resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
             WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
@@ -171,6 +169,8 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void close() {
+        AtmosphereResource<HttpServletRequest, HttpServletResponse> resource =
+                (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         try {
             webSocketProtocol.onClose(webSocket);
 
@@ -203,12 +203,12 @@ public class WebSocketProcessor implements Serializable {
 
     @Override
     public String toString() {
-        return "WebSocketProcessor{ resource=" + resource + ", webSocket=" +
-                webSocket + " }";
+        return "WebSocketProcessor{ webSocket=" + webSocket + " }";
     }
 
     public void notifyListener(WebSocketEventListener.WebSocketEvent event) {
-
+        AtmosphereResource<HttpServletRequest, HttpServletResponse> resource =
+                (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         if (resource == null) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);

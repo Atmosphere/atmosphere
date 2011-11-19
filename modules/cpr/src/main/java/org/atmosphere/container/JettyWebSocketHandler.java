@@ -15,15 +15,12 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.container.version.Jetty8WebSocket;
+import org.atmosphere.container.version.JettyWebSocket;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.container.version.Jetty8WebSocket;
-import org.atmosphere.container.version.JettyWebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,8 +194,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onClose(int closeCode, String message) {
         logger.trace("WebSocket.OnClose.");
-        webSocketProcessor.close();
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
+        webSocketProcessor.close();
     }
 
     /**
