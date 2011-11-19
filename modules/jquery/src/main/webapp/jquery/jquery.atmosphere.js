@@ -747,7 +747,7 @@ jQuery.atmosphere = function() {
 
                     jQuery.atmosphere.request = request;
                     jQuery.atmosphere.executeRequest();
-                } else if (jQuery.atmosphere.subscribed && jQuery.atmosphere.response == 'websocket') {
+                } else if (jQuery.atmosphere.subscribed && jQuery.atmosphere.response.transport == 'websocket') {
                     jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                     if (request.requestCount++ < request.maxRequest) {
