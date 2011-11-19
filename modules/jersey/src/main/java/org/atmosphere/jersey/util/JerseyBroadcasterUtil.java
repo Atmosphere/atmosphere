@@ -2,6 +2,7 @@ package org.atmosphere.jersey.util;
 
 import com.sun.jersey.spi.container.ContainerResponse;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -37,7 +38,7 @@ public final class JerseyBroadcasterUtil {
             ContainerResponse cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
             boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
-            if (cr == null ||  isCancelled ) {
+            if (cr == null || isCancelled) {
                 logger.error("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
                 if (!isCancelled) {
                     logger.error("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
@@ -96,12 +97,8 @@ public final class JerseyBroadcasterUtil {
     }
 
     final static void onException(Throwable t, AtmosphereResource<?, ?> r) {
-        try {
-            logger.debug("onException()", t);
-            r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-            r.resume();
-        } finally {
-            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
-        }
+        logger.trace("onException()", t);
+        r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
+        AsynchronousProcessor.destroyResource(r);
     }
 }
