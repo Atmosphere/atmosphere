@@ -331,6 +331,10 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
+        if (executorService.isShutdown()) {
+            return;
+        }
+
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
