@@ -753,6 +753,8 @@ jQuery.atmosphere = function() {
                         jQuery.atmosphere.request.requestCount = request.requestCount;
                         jQuery.atmosphere.request.maxRequest = request.maxRequest;
 
+                        jQuery.atmosphere.request.url = request.url;
+
                         jQuery.atmosphere.response.responseBody = "";
                         jQuery.atmosphere.executeWebSocket();
                     } else {
