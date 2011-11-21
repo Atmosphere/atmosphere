@@ -19,8 +19,7 @@
         </init-param>
         <init-param>
             <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
-            <param-value>org.atmosphere.client.FormParamFilter,org.atmosphere.client.JavascriptClientFilter
-            </param-value>
+            <param-value>org.atmosphere.client.FormParamFilter</param-value>
         </init-param>
         <init-param>
             <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
