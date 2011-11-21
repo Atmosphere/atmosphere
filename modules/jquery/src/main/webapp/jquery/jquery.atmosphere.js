@@ -140,9 +140,6 @@ jQuery.atmosphere = function() {
                 if (jQuery.browser.msie) {
                     jQuery.atmosphere.request.enableXDR && window.XDomainRequest ? jQuery.atmosphere.ieXDR() : jQuery.atmosphere.ieStreaming();
                     return;
-                } else if (jQuery.browser.opera) {
-                    jQuery.atmosphere.operaStreaming();
-                    return;
                 }
             }
 
@@ -210,7 +207,7 @@ jQuery.atmosphere = function() {
                     var update = false;
 
                     // Remote server disconnected us, reconnect.
-                    if (request.transport != 'polling' && request.readyState == 2 && ajaxRequest.readyState == 4) {
+                    if (request.transport != 'polling' && (request.readyState == 2 && ajaxRequest.readyState == 4)) {
                         jQuery.atmosphere.reconnect(ajaxRequest, request);
                     }
                     request.readyState = ajaxRequest.readyState;
@@ -252,6 +249,31 @@ jQuery.atmosphere = function() {
                                 response.responseBody = responseText.substring(request.lastIndex, responseText.length);
                             }
                             request.lastIndex = responseText.length;
+
+                            if (jQuery.browser.opera) {
+                                jQuery.atmosphere.iterate(function() {
+                                    if (ajaxRequest.responseText.length > request.lastIndex) {
+                                        try {
+                                            response.status = ajaxRequest.status;
+                                            response.headers = ajaxRequest.getAllResponseHeaders();
+                                        }
+                                        catch(e) {
+                                            response.status = 404;
+                                        }
+                                        response.state = "messageReceived";
+                                        response.responseBody = ajaxRequest.responseText.substring(request.lastIndex);
+                                        request.lastIndex = ajaxRequest.responseText.length;
+
+                                        jQuery.atmosphere.invokeCallback(response);
+                                        if ((request.transport == 'streaming') && (ajaxRequest.responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
+                                            // Close and reopen connection on large data received
+                                            ajaxRequest.abort();
+                                            jQuery.atmosphere.doRequest(ajaxRequest, request);
+                                        }
+                                    }
+                                }, 0);
+                            }
+
                             if (junkForWebkit) return;
                         } else {
                             response.responseBody = responseText;
@@ -334,43 +356,6 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.request.data = "";
                 jQuery.atmosphere.executeRequest();
             }
-        },
-
-        operaStreaming : function() {
-            jQuery.atmosphere.closeSuspendedConnection();
-
-            var url = jQuery.atmosphere.request.url;
-            var callback = jQuery.atmosphere.request.callback;
-            jQuery.atmosphere.response.push = function (url) {
-                jQuery.atmosphere.request.transport = 'polling';
-                jQuery.atmosphere.request.callback = null;
-                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
-            };
-
-            function init() {
-                var iframe = document.createElement("iframe");
-                iframe.style.width = "0px";
-                iframe.style.height = "0px";
-                iframe.style.border = "0px";
-                iframe.id = "__atmosphere";
-                document.body.appendChild(iframe);
-                var d;
-                if (iframe.contentWindow) {
-                    d = iframe.contentWindow.document;
-                } else if (iframe.document) {
-                    d = iframe.document;
-                } else if (iframe.contentDocument) {
-                    d = iframe.contentDocument;
-                }
-
-                if (/\?/i.test(url)) url += "&";
-                else url += "?";
-                url += "callback=jquery.atmosphere.streamingCallback";
-                iframe.src = url;
-            }
-
-            init();
-
         },
 
         attachHeaders : function(request) {
