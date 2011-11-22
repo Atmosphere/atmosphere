@@ -564,16 +564,26 @@ public class AtmosphereResourceImpl implements
             return;
         }
 
-        if (event.isResuming() || event.isResumedOnTimeout()) {
-            onResume(event);
-        } else if (event.isCancelled()) {
-            onDisconnect(event);
-        } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
-            onSuspend(event);
-        } else if (event.throwable() != null) {
-            onThrowable(event);
-        } else {
-            onBroadcast(event);
+        try {
+            if (event.isResuming() || event.isResumedOnTimeout()) {
+                onResume(event);
+            } else if (event.isCancelled()) {
+                onDisconnect(event);
+            } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
+                onSuspend(event);
+            } else if (event.throwable() != null) {
+                onThrowable(event);
+            } else {
+                onBroadcast(event);
+            }
+        } catch (Throwable t) {
+            logger.trace("Listener error {}", t);
+            AtmosphereResourceEventImpl.class.cast(event).setThrowable(t);
+            try {
+                onThrowable(event);
+            } catch (Throwable t2) {
+                logger.warn("Listener error {}", t2);
+            }
         }
     }
 

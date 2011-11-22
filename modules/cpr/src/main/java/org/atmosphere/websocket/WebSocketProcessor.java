@@ -215,25 +215,34 @@ public class WebSocketProcessor implements Serializable {
 
         for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {
             if (WebSocketEventListener.class.isAssignableFrom(l.getClass())) {
-                switch (event.type()) {
-                    case CONNECT:
-                        WebSocketEventListener.class.cast(l).onConnect(event);
-                        break;
-                    case DISCONNECT:
-                        WebSocketEventListener.class.cast(l).onDisconnect(event);
-                        break;
-                    case CONTROL:
-                        WebSocketEventListener.class.cast(l).onControl(event);
-                        break;
-                    case MESSAGE:
-                        WebSocketEventListener.class.cast(l).onMessage(event);
-                        break;
-                    case HANDSHAKE:
-                        WebSocketEventListener.class.cast(l).onHandshake(event);
-                        break;
-                    case CLOSE:
-                        WebSocketEventListener.class.cast(l).onClose(event);
-                        break;
+                try {
+                    switch (event.type()) {
+                        case CONNECT:
+                            WebSocketEventListener.class.cast(l).onConnect(event);
+                            break;
+                        case DISCONNECT:
+                            WebSocketEventListener.class.cast(l).onDisconnect(event);
+                            break;
+                        case CONTROL:
+                            WebSocketEventListener.class.cast(l).onControl(event);
+                            break;
+                        case MESSAGE:
+                            WebSocketEventListener.class.cast(l).onMessage(event);
+                            break;
+                        case HANDSHAKE:
+                            WebSocketEventListener.class.cast(l).onHandshake(event);
+                            break;
+                        case CLOSE:
+                            WebSocketEventListener.class.cast(l).onClose(event);
+                            break;
+                    }
+                } catch (Throwable t) {
+                    logger.debug("Listener error {}", t);
+                    try {
+                        WebSocketEventListener.class.cast(l).onThrowable(new AtmosphereResourceEventImpl(r, false, false, t));
+                    } catch (Throwable t2) {
+                        logger.warn("Listener error {}", t2);
+                    }
                 }
             }
         }
