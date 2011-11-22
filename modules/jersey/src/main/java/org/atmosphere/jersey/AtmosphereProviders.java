@@ -44,6 +44,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -64,6 +66,8 @@ import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
  * @author Jean-Francois Arcand
  */
 public class AtmosphereProviders {
+
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereProviders.class);
 
     public static class BroadcasterProvider implements StringReaderProvider {
 
@@ -102,6 +106,7 @@ public class AtmosphereProviders {
                 } catch (Throwable ex) {
                     throw new WebApplicationException(ex);
                 }
+                logger.trace("Injected Broadcaster {}", broadcaster);
                 req.setAttribute(AtmosphereFilter.INJECTED_BROADCASTER, broadcaster);
                 return broadcaster;
             }
@@ -135,14 +140,15 @@ public class AtmosphereProviders {
                     }
 
                     if (trackingId != null) {
-                        trackableResource = (TrackableResource<AtmosphereResourceImpl>)TrackableSession.getDefault().lookup(trackingId);
+                        trackableResource = (TrackableResource<AtmosphereResourceImpl>) TrackableSession.getDefault().lookup(trackingId);
 
                         if (req.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null) {
-                            AtmosphereResource<?,?> r = (AtmosphereResource<?,?> ) req.getAttribute(ATMOSPHERE_RESOURCE);
+                            AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) req.getAttribute(ATMOSPHERE_RESOURCE);
                             if (trackableResource == null) {
                                 trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
                                 trackableResource.setResource(r);
                             }
+                            logger.debug("Tracking resource of AtmosphereResource {} with {}", r, trackableResource);
                         }
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
