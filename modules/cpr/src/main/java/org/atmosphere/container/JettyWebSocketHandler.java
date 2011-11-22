@@ -212,7 +212,11 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         private final StringBuffer requestURL;
         private final HashMap<String, Object> attributes = new HashMap<String, Object>();
         private final HashMap<String, String> headers = new HashMap<String, String>();
+        private final HashMap<String, String[]> parameters = new HashMap<String, String[]>();
         private final String method;
+        private final String serverName;
+        private final int serverPort;
+        private final ServletContext servletContext;
 
         public JettyRequestFix(HttpServletRequest request) {
             super(request);
@@ -221,22 +225,47 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             this.pathInfo = request.getPathInfo();
             this.requestUri = request.getRequestURI();
             this.requestURL = request.getRequestURL();
+            this.method = request.getMethod();
+            this.serverName = request.getServerName();
+            this.serverPort = request.getServerPort();
+            this.servletContext = request.getServletContext();
+
             HttpSession session = request.getSession(true);
             httpSession = new FakeHttpSession(session.getId(), session.getServletContext(), session.getCreationTime());
-            this.method = request.getMethod();
 
             Enumeration<String> e = request.getHeaderNames();
             String s;
-            while(e.hasMoreElements()) {
+            while (e.hasMoreElements()) {
                 s = e.nextElement();
                 headers.put(s, request.getHeader(s));
             }
 
             e = request.getAttributeNames();
-            while(e.hasMoreElements()) {
+            while (e.hasMoreElements()) {
                 s = e.nextElement();
                 attributes.put(s, request.getAttribute(s));
             }
+
+            e = request.getParameterNames();
+            while (e.hasMoreElements()) {
+                s = e.nextElement();
+                parameters.put(s, request.getParameterValues(s));
+            }
+        }
+
+        @Override
+        public String getServerName() {
+            return serverName;
+        }
+
+        @Override
+        public int getServerPort() {
+            return serverPort;
+        }
+
+        @Override
+        public HttpSession getSession(boolean create) {
+            return httpSession;
         }
 
         @Override
@@ -249,10 +278,9 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             return headers.get(name);
         }
 
-        // TODO: support multi map.
         @Override
         public Enumeration<String> getHeaders(final String name) {
-            return new Enumeration<String>(){
+            return new Enumeration<String>() {
 
                 boolean hasNext = true;
 
@@ -267,6 +295,21 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                     return headers.get(name);
                 }
             };
+        }
+
+        @Override
+        public Enumeration<String> getParameterNames() {
+            return Collections.enumeration(parameters.keySet());
+        }
+
+        @Override
+        public String getParameter(String name) {
+            return parameters.get(name) != null ? parameters.get(name)[0] : null;
+        }
+
+        @Override
+        public String[] getParameterValues(final String name) {
+            return parameters.get(name);
         }
 
         @Override
