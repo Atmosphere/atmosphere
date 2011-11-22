@@ -65,6 +65,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
@@ -103,9 +105,23 @@ public class GrizzlyGuiceJerseyTest {
         }
     }
 
+    protected int findFreePort() throws IOException {
+        ServerSocket socket = null;
+
+        try {
+            socket = new ServerSocket(0);
+
+            return socket.getLocalPort();
+        } finally {
+            if (socket != null) {
+                socket.close();
+            }
+        }
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void setUpGlobal() throws Exception {
-        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 9999);
+        port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         atmoServlet = new AtmosphereGuiceServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
