@@ -43,6 +43,7 @@ import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class GrizzlyCometSupportTest extends BaseTest {
 
@@ -77,4 +78,10 @@ public class GrizzlyCometSupportTest extends BaseTest {
         atmoServlet.destroy();
         ws.stop();
     }
+
+    // http://java.net/jira/browse/GRIZZLY-1123
+    @Test(timeOut = 60000, enabled = false)
+    public void testConcurrentBroadcast() {
+    }
+
 }
