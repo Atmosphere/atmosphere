@@ -53,7 +53,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         super(b.request);
         pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
         request = b.request;
-        headers = b.headers == null ? Collections.<String, String>emptyMap() : b.headers;
+        headers = b.headers == null ? new HashMap<String, String>() : b.headers;
         queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
         servletPath = b.servletPath;
         requestURI = b.requestURI;
