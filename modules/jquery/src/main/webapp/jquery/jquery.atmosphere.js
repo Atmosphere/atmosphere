@@ -684,6 +684,8 @@ jQuery.atmosphere = function() {
             websocket.onerror = function(message) {
                 jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
                 jQuery.atmosphere.response.state = 'error';
+                jQuery.atmosphere.response.responseBody = "";
+                jQuery.atmosphere.response.status = 500;
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
 
