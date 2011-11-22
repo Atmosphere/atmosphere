@@ -139,7 +139,7 @@ public class AtmosphereProviders {
 
                         if (req.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null) {
                             AtmosphereResource<?,?> r = (AtmosphereResource<?,?> ) req.getAttribute(ATMOSPHERE_RESOURCE);
-                            if (trackableResource == null &&  r != null && r.getAtmosphereResourceEvent().isSuspended()) {
+                            if (trackableResource == null) {
                                 trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
                                 trackableResource.setResource(r);
                             }
