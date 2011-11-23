@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -61,6 +62,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     private ExecutorService executorService;
     private int heartbeat = DEFAULT_HEARTBEAT;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
     protected SerializationPolicyProvider cometSerializationPolicyProvider = new SerializationPolicyProvider() {
         @Override
         public SerializationPolicy getSerializationPolicy(String moduleBaseURL, String serializationPolicyStrongName) {
@@ -138,6 +141,10 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (executorService != null) {
             executorService.shutdown();
         }
+
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
     }
 
     public int getHeartbeat() {
@@ -153,9 +160,11 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void reapResources() {
-        for (GwtAtmosphereResource resource : resources.values()) {
-            if (!resource.isAlive()) {
-                resources.remove(resource.getConnectionID());
+        if (resources != null) {
+            for (GwtAtmosphereResource resource : resources.values()) {
+                if (!resource.isAlive()) {
+                    resources.remove(resource.getConnectionID());
+                }
             }
         }
     }
@@ -334,7 +343,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             resource.getWriterImpl().initiate();
             if (resources == null) {
                 resources = new ConcurrentHashMap<Integer, GwtAtmosphereResource>(5);
-                resource.getBroadcaster().getBroadcasterConfig().getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
+                scheduler.scheduleWithFixedDelay(new Runnable() {
                     @Override
                     public void run() {
                         reapResources();
