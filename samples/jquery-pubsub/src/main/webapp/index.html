@@ -54,14 +54,15 @@
                 }
 
                 var location = document.location.toString() + 'pubsub/' + getElementByIdValue('topic');
-                $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
+                $.atmosphere.subscribe(location,
+                        !callbackAdded ? callback : null,
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') /*, Uncomments for IE CORS support attachHeadersAsQueryString : true, enableXDR : true */ });
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 
             function unsubscribe(){
-		callbackAdded = false;
+                callbackAdded = false;
                 $.atmosphere.unsubscribe();
             }
 
