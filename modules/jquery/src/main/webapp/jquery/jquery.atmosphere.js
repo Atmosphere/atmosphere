@@ -427,7 +427,7 @@ jQuery.atmosphere = function() {
                             try {
                                 jQuery.noop(cdoc.fileSize);
                             } catch(e) {
-                                jQuery.atmosphere.ieCallback("", "error");
+                                jQuery.atmosphere.ieCallback("Connection Failure", "error", 500);
                                 return false;
                             }
                         }
@@ -462,13 +462,13 @@ jQuery.atmosphere = function() {
                         }
 
                         // Handles open event
-                        jQuery.atmosphere.ieCallback(readResponse(), "messageReceived");
+                        jQuery.atmosphere.ieCallback(readResponse(), "messageReceived", 200);
 
                         // Handles message and close event
                         stop = jQuery.atmosphere.iterate(function() {
                             var text = readResponse();
                             if (text.length > request.lastIndex) {
-                                jQuery.atmosphere.ieCallback(text, "messageReceived");
+                                jQuery.atmosphere.ieCallback(text, "messageReceived", 200);
 
                                 // Empties response every time that it is handled
                                 res.innerText = "";
@@ -476,7 +476,7 @@ jQuery.atmosphere = function() {
                             }
 
                             if (cdoc.readyState === "complete") {
-                                jQuery.atmosphere.ieCallback("", "closed");
+                                jQuery.atmosphere.ieCallback("", "completed", 200);
                                 return false;
                             }
                         }, null);
@@ -491,16 +491,16 @@ jQuery.atmosphere = function() {
                     }
 
                     doc.execCommand("Stop");
-                    jQuery.atmosphere.ieCallback("", "closed");
+                    jQuery.atmosphere.ieCallback("", "closed", 200);
                 }
 
             };
         },
 
-        ieCallback : function(messageBody, state) {
+        ieCallback : function(messageBody, state, errorCode) {
             var response = jQuery.atmosphere.response;
             response.transport = jQuery.atmosphere.request.transport;
-            response.status = 200;
+            response.status = errorCode;
             response.responseBody = messageBody;
             response.state = state;
 
@@ -516,6 +516,7 @@ jQuery.atmosphere = function() {
 
         // From jquery-stream
         configureXDR: function() {
+            var lastMessage = "";
             var xdr = new window.XDomainRequest(),
                 rewriteURL = jQuery.atmosphere.request.rewriteURL || function(url) {
                     // Maintaining session by rewriting URL
@@ -556,29 +557,18 @@ jQuery.atmosphere = function() {
 
                     responseBody = responseBody.substring(junkEnd);
                 }
-                jQuery.atmosphere.ieCallback(responseBody, "messageReceived");
+                lastMessage = responseBody;
+                jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200);
             };
             // Handles error event
             xdr.onerror = function() {
-                jQuery.atmosphere.ieCallback(xdr.responseText, "error");
+                jQuery.atmosphere.ieCallback(xdr.responseText, "error", 500);
             };
             // Handles close event
             xdr.onload = function() {
-                var isJunkEnded = true;
-                var responseBody = xdr.responseText;
-
-                if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                    isJunkEnded = false;
+                if (lastMessage != xdr.responseText) {
+                    jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200);
                 }
-
-                if (isJunkEnded) {
-                    var endOfJunk = "<!-- EOD -->";
-                    var endOfJunkLenght = endOfJunk.length;
-                    var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
-
-                    responseBody = responseBody.substring(junkEnd);
-                }
-                jQuery.atmosphere.ieCallback(responseBody, "messageReceived");
             };
 
             return {
@@ -594,7 +584,7 @@ jQuery.atmosphere = function() {
                 },
                 close: function() {
                     xdr.abort();
-                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed");
+                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed", 200);
                 }
             };
         },
@@ -999,5 +989,3 @@ jQuery.atmosphere = function() {
     }
 
 }();
-
-
