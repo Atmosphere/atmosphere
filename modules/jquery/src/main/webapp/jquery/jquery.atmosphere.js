@@ -533,6 +533,34 @@ jQuery.atmosphere = function() {
         // From jquery-stream
         configureXDR: function() {
             var lastMessage = "";
+            var transport = jQuery.atmosphere.request.transport;
+            var lastIndex = 0;
+
+            jQuery.atmosphere.response.push = function(url) {
+                jQuery.atmosphere.request.callback = null;
+                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+            };
+
+            var xdrCallback = function (xdr) {
+                var responseBody = xdr.responseText;
+                var isJunkEnded = false;
+
+                if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
+                    isJunkEnded = true;
+                }
+
+                if (isJunkEnded) {
+                    var endOfJunk = "<!-- EOD -->";
+                    var endOfJunkLenght = endOfJunk.length;
+                    var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+
+                    responseBody = responseBody.substring(junkEnd + lastIndex);
+                    lastIndex += responseBody.length;
+                }
+
+                jQuery.atmosphere.ieCallback(responseBody, "messageReceived", 200, transport);
+            };
+
             var xdr = new window.XDomainRequest(),
                 rewriteURL = jQuery.atmosphere.request.rewriteURL || function(url) {
                     // Maintaining session by rewriting URL
@@ -559,31 +587,16 @@ jQuery.atmosphere = function() {
 
             // Handles open and message event
             xdr.onprogress = function() {
-                var isJunkEnded = true;
-                var responseBody = xdr.responseText;
-
-                if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                    isJunkEnded = false;
-                }
-
-                if (isJunkEnded) {
-                    var endOfJunk = "<!-- EOD -->";
-                    var endOfJunkLenght = endOfJunk.length;
-                    var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
-
-                    responseBody = responseBody.substring(junkEnd);
-                }
-                lastMessage = responseBody;
-                jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200, jQuery.atmosphere.request.transport);
+                xdrCallback(xdr);
             };
             // Handles error event
             xdr.onerror = function() {
-                jQuery.atmosphere.ieCallback(xdr.responseText, "error", 500, jQuery.atmosphere.request.transport);
+                jQuery.atmosphere.ieCallback(xdr.responseText, "error", 500, transport);
             };
             // Handles close event
             xdr.onload = function() {
                 if (lastMessage != xdr.responseText) {
-                    jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200, jQuery.atmosphere.request.transport);
+                    xdrCallback(xdr);
                 }
 
                 jQuery.atmosphere.reconnect(xdr, jQuery.atmosphere.request);
@@ -591,10 +604,8 @@ jQuery.atmosphere = function() {
 
             return {
                 open: function() {
-
-                    var url = jQuery.atmosphere.request.url;
+                    var url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
                     if (jQuery.atmosphere.request.method == 'POST') {
-                        url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
                         url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
                     }
                     xdr.open(jQuery.atmosphere.request.method, rewriteURL(url));
@@ -602,7 +613,7 @@ jQuery.atmosphere = function() {
                 },
                 close: function() {
                     xdr.abort();
-                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed", 200, jQuery.atmosphere.request.transport);
+                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed", 200, transport);
                 }
             };
         },
