@@ -394,12 +394,14 @@ jQuery.atmosphere = function() {
 
             var url = jQuery.atmosphere.request.url;
             jQuery.atmosphere.response.push = function(url) {
-                jQuery.atmosphere.request.transport = 'polling';
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
             var request = jQuery.atmosphere.request;
 
+            if (request.transport != 'polling') {
+                jQuery.atmosphere.response.transport = request.transport;
+            }
             return {
                 open: function() {
                     var iframe = doc.createElement("iframe");
@@ -427,7 +429,7 @@ jQuery.atmosphere = function() {
                             try {
                                 jQuery.noop(cdoc.fileSize);
                             } catch(e) {
-                                jQuery.atmosphere.ieCallback("Connection Failure", "error", 500);
+                                jQuery.atmosphere.ieCallback("Connection Failure", "error", 500, request.transport);
                                 return false;
                             }
                         }
@@ -442,6 +444,19 @@ jQuery.atmosphere = function() {
                                 clone.appendChild(cdoc.createTextNode("."));
 
                                 var text = clone.innerText;
+                                var isJunkEnded = true;
+
+                                if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
+                                    isJunkEnded = false;
+                                }
+
+                                if (isJunkEnded) {
+                                    var endOfJunk = "<!-- EOD -->";
+                                    var endOfJunkLenght = endOfJunk.length;
+                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+
+                                    text = text.substring(junkEnd);
+                                }
                                 return text.substring(0, text.length - 1);
                             };
 
@@ -462,13 +477,14 @@ jQuery.atmosphere = function() {
                         }
 
                         // Handles open event
-                        jQuery.atmosphere.ieCallback(readResponse(), "messageReceived", 200);
+                        jQuery.atmosphere.ieCallback(readResponse(), "messageReceived", 200, request.transport);
 
                         // Handles message and close event
                         stop = jQuery.atmosphere.iterate(function() {
                             var text = readResponse();
                             if (text.length > request.lastIndex) {
-                                jQuery.atmosphere.ieCallback(text, "messageReceived", 200);
+                                jQuery.atmosphere.response.status = 200;
+                                jQuery.atmosphere.ieCallback(text, "messageReceived", 200, request.transport);
 
                                 // Empties response every time that it is handled
                                 res.innerText = "";
@@ -476,7 +492,7 @@ jQuery.atmosphere = function() {
                             }
 
                             if (cdoc.readyState === "complete") {
-                                jQuery.atmosphere.ieCallback("", "completed", 200);
+                                jQuery.atmosphere.ieCallback("", "completed", 200, request.transport);
                                 return false;
                             }
                         }, null);
@@ -491,15 +507,15 @@ jQuery.atmosphere = function() {
                     }
 
                     doc.execCommand("Stop");
-                    jQuery.atmosphere.ieCallback("", "closed", 200);
+                    jQuery.atmosphere.ieCallback("", "closed", 200, request.transport);
                 }
 
             };
         },
 
-        ieCallback : function(messageBody, state, errorCode) {
+        ieCallback : function(messageBody, state, errorCode, transport) {
             var response = jQuery.atmosphere.response;
-            response.transport = jQuery.atmosphere.request.transport;
+            response.transport = transport;
             response.status = errorCode;
             response.responseBody = messageBody;
             response.state = state;
@@ -558,17 +574,19 @@ jQuery.atmosphere = function() {
                     responseBody = responseBody.substring(junkEnd);
                 }
                 lastMessage = responseBody;
-                jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200);
+                jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200, jQuery.atmosphere.request.transport);
             };
             // Handles error event
             xdr.onerror = function() {
-                jQuery.atmosphere.ieCallback(xdr.responseText, "error", 500);
+                jQuery.atmosphere.ieCallback(xdr.responseText, "error", 500, jQuery.atmosphere.request.transport);
             };
             // Handles close event
             xdr.onload = function() {
                 if (lastMessage != xdr.responseText) {
-                    jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200);
+                    jQuery.atmosphere.ieCallback(xdr.responseText, "messageReceived", 200, jQuery.atmosphere.request.transport);
                 }
+
+                jQuery.atmosphere.reconnect(xdr, jQuery.atmosphere.request);
             };
 
             return {
@@ -584,7 +602,7 @@ jQuery.atmosphere = function() {
                 },
                 close: function() {
                     xdr.abort();
-                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed", 200);
+                    jQuery.atmosphere.ieCallback(xdr.responseText, "closed", 200, jQuery.atmosphere.request.transport);
                 }
             };
         },
