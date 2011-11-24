@@ -90,4 +90,8 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
     public boolean supportWebSocket() {
         return true;
     }
+    
+    public WebSocketFactory getWebSocketFactory(){
+    	return webSocketFactory;
+    }
 }

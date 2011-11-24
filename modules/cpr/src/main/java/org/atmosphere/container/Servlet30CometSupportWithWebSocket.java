@@ -71,4 +71,7 @@ public class Servlet30CometSupportWithWebSocket extends Servlet30CometSupport {
     public boolean supportWebSocket() {
         return true;
     }
+	public WebSocketFactory getWebSocketFactory(){
+    	return webSocketFactory;
+    }
 }

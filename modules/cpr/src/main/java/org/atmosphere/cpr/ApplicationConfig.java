@@ -140,6 +140,9 @@ public interface ApplicationConfig {
      * Allow query string as set as request's header. 
      */
     String ALLOW_QUERYSTRING_AS_REQUEST =  ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
+
+	String PROPERTY_CUSTOM_COMET_SUPPORT = "org.atmosphere.cpr.customCometSupport";
+
     /**
      * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
      */

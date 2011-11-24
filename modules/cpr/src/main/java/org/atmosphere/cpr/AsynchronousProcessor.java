@@ -42,6 +42,7 @@ import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
+import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,13 +69,13 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public abstract class AsynchronousProcessor implements IProcessor, CometSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
 
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
-    private static final int DEFAULT_SESSION_TIMEOUT = 1800;
+    public static final int DEFAULT_SESSION_TIMEOUT = 1800;
 
     protected final AtmosphereConfig config;
 
@@ -83,8 +84,19 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
 
+    private IProcessor actionProcessor = null;
+    
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
+        actionProcessor = this;
+    }
+    
+    public void setIProcessor(IProcessor actionProcessor){
+    	this.actionProcessor = actionProcessor;
+    }
+    
+    public IProcessor getIProcessor(){
+    	return actionProcessor;
     }
 
     @Override
@@ -121,7 +133,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      *
      * @return true if supported
      */
-    protected boolean supportSession() {
+    public boolean supportSession() {
         return config.isSupportSession();
     }
 
@@ -148,51 +160,42 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
         return action(request, response);
     }
+    
+    @Override
+	public Action processAction(AsynchronousProcessor processor, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
+    	
+    	 boolean webSocketEnabled = false;
+         if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
+             String[] e = req.getHeaders("Connection").nextElement().split(",");
+             for (String upgrade : e) {
+                 if (upgrade.equalsIgnoreCase("Upgrade")) {
+                     webSocketEnabled = true;
+                     break;
+                 }
+             }
+         }
 
-    /**
-     * Invoke the {@link AtmosphereHandler#onRequest} method.
-     *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
-     * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    Action action(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+         if (webSocketEnabled && !supportWebSocket()) {
+             res.setStatus(501);
+             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+             res.flushBuffer();
+             return new Action();
+         }
 
-        boolean webSocketEnabled = false;
-        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().split(",");
-            for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase("Upgrade")) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
+         if (config.handlers().isEmpty()) {
+             logger.error("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+             throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+         }
 
-        if (webSocketEnabled && !supportWebSocket()) {
-            res.setStatus(501);
-            res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-            res.flushBuffer();
-            return new Action();
-        }
-
-        if (config.handlers().isEmpty()) {
-            logger.error("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-            throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-        }
-
-        if (supportSession()) {
-            // Create the session needed to support the Resume
-            // operation from disparate requests.
-            HttpSession session = req.getSession(true);
-            // Do not allow times out.
-            if (session.getMaxInactiveInterval() == DEFAULT_SESSION_TIMEOUT) {
-                session.setMaxInactiveInterval(-1);
-            }
-        }
+         if (supportSession()) {
+             // Create the session needed to support the Resume
+             // operation from disparate requests.
+             HttpSession session = req.getSession(true);
+             // Do not allow times out.
+             if (session.getMaxInactiveInterval() == DEFAULT_SESSION_TIMEOUT) {
+                 session.setMaxInactiveInterval(-1);
+             }
+         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
@@ -206,6 +209,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
         }
         AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+		handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
@@ -222,6 +226,21 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             aliveRequests.put(req, resource);
         }
         return resource.action();
+    }
+
+	/**
+     * Invoke the {@link AtmosphereHandler#onRequest} method.
+     *
+     * @param req the {@link HttpServletRequest}
+     * @param res the {@link HttpServletResponse}
+     * @return action the Action operation.
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    Action action(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+    	
+    	return actionProcessor.processAction(this, req, res);
     }
 
     /**
@@ -245,6 +264,10 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 }
             }
         }
+		// DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
+        if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
+        	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];
+        }
         return atmosphereHandlerWrapper;
     }
 
@@ -255,7 +278,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
+    public AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
         String path = req.getServletPath() + req.getPathInfo();
         if (path == null || path.length() <= 1) {
             path = "/all";
@@ -463,5 +486,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     public boolean supportWebSocket() {
         return false;
+    }
+    
+    public WebSocketFactory getWebSocketFactory(){
+    	return null;
     }
 }

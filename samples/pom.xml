@@ -42,6 +42,7 @@
         <module>di-guice-sample</module>
         <module>channel</module>
         <module>websocket-pubsub</module>
+        <module>socketio-chat</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>

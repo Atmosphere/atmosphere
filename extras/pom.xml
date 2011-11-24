@@ -21,5 +21,6 @@
         <module>jms</module>
         <module>redis</module>
         <module>xmpp</module>
+        <module>socketio</module>
     </modules>
 </project>
