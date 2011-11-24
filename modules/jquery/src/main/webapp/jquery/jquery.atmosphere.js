@@ -792,9 +792,14 @@ jQuery.atmosphere = function() {
                 func(response);
             };
 
+            // Invoke global callbacks
             jQuery.atmosphere.log(logLevel, ["Invoking " + jQuery.atmosphere.callbacks.length + " callbacks"]);
             if (jQuery.atmosphere.callbacks.length > 0) {
                 jQuery.each(jQuery.atmosphere.callbacks, call);
+            }
+            // Invoke request callback
+            if (typeof(jQuery.atmosphere.request.callback) == 'function') {
+                jQuery.atmosphere.request.callback(response);
             }
         }
         ,
