@@ -241,6 +241,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             path = "/";
         }
 
+        // The Algorithm as been fixed in 0.9
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
         if (atmosphereHandlerWrapper == null) {
             // Try the /*
@@ -261,20 +262,23 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
                     atmosphereHandlerWrapper = config.handlers().get(path);
                     if (atmosphereHandlerWrapper == null) {
-                        // Last chance
-                        if (!path.endsWith("/")) {
-                            path += "/*";
-                        } else {
-                            path += "*";
-                        }
-                        // Try appending the pathInfo
+                        path = path.substring(0, path.lastIndexOf("/")) + "/*";
                         atmosphereHandlerWrapper = config.handlers().get(path);
                         if (atmosphereHandlerWrapper == null) {
-                            logger.warn("No AtmosphereHandler maps request for {}", path);
-                            for (String m : config.handlers().keySet()) {
-                                logger.warn("\tAtmosphereHandler registered: {}", m);
+                            if (!path.endsWith("/")) {
+                                path += "/*";
+                            } else {
+                                path += "*";
                             }
-                            throw new ServletException("No AtmosphereHandler maps request for " + path);
+                            // Try appending the pathInfo
+                            atmosphereHandlerWrapper = config.handlers().get(path);
+                            if (atmosphereHandlerWrapper == null) {
+                                logger.warn("No AtmosphereHandler maps request for {}", path);
+                                for (String m : config.handlers().keySet()) {
+                                    logger.warn("\tAtmosphereHandler registered: {}", m);
+                                }
+                                throw new ServletException("No AtmosphereHandler maps request for " + path);
+                            }
                         }
                     }
                 }
