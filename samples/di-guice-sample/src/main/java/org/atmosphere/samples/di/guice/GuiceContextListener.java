@@ -19,7 +19,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
-import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
+import org.atmosphere.guice.GuiceContainer;
 import org.atmosphere.guice.GuiceManagedAtmosphereServlet;
 
 import java.util.HashMap;
