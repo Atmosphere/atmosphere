@@ -209,51 +209,52 @@
 <a class="jxr_linenumber" name="199" href="#199">199</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> getBroadcaster();
 <a class="jxr_linenumber" name="200" href="#200">200</a> 
 <a class="jxr_linenumber" name="201" href="#201">201</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="202" href="#202">202</a> <em class="jxr_javadoccomment">     * Set the current {@link Broadcaster}</em>
-<a class="jxr_linenumber" name="203" href="#203">203</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="204" href="#204">204</a> <em class="jxr_javadoccomment">     * @param broadcaster</em>
-<a class="jxr_linenumber" name="205" href="#205">205</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="206" href="#206">206</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster);
-<a class="jxr_linenumber" name="207" href="#207">207</a> 
-<a class="jxr_linenumber" name="208" href="#208">208</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="209" href="#209">209</a> <em class="jxr_javadoccomment">     * Set the {@link Serializer} to use when {@link AtmosphereResource#write}</em>
-<a class="jxr_linenumber" name="210" href="#210">210</a> <em class="jxr_javadoccomment">     * execute the operation. By default, the {@link Serializer} is null.</em>
-<a class="jxr_linenumber" name="211" href="#211">211</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="212" href="#212">212</a> <em class="jxr_javadoccomment">     * @param s the {@link Serializer}</em>
-<a class="jxr_linenumber" name="213" href="#213">213</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="214" href="#214">214</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setSerializer(<a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s);
-<a class="jxr_linenumber" name="215" href="#215">215</a> 
-<a class="jxr_linenumber" name="216" href="#216">216</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="217" href="#217">217</a> <em class="jxr_javadoccomment">     * Write the {@link Object} using the {@link OutputStream} by invoking</em>
-<a class="jxr_linenumber" name="218" href="#218">218</a> <em class="jxr_javadoccomment">     * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}</em>
-<a class="jxr_linenumber" name="219" href="#219">219</a> <em class="jxr_javadoccomment">     * will be directly written using the {</em>
-<a class="jxr_linenumber" name="220" href="#220">220</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="221" href="#221">221</a> <em class="jxr_javadoccomment">     * @param os {@link OutputStream}</em>
-<a class="jxr_linenumber" name="222" href="#222">222</a> <em class="jxr_javadoccomment">     * @param o  {@link Object}</em>
-<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     * @throws java.io.IOException</em>
-<a class="jxr_linenumber" name="224" href="#224">224</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="225" href="#225">225</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream os, Object o) <strong class="jxr_keyword">throws</strong> IOException;
-<a class="jxr_linenumber" name="226" href="#226">226</a> 
-<a class="jxr_linenumber" name="227" href="#227">227</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="228" href="#228">228</a> <em class="jxr_javadoccomment">     * Get the {@link Serializer} or null if not defined.</em>
-<a class="jxr_linenumber" name="229" href="#229">229</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="230" href="#230">230</a> <em class="jxr_javadoccomment">     * @return the {@link Serializer} or null if not defined.</em>
-<a class="jxr_linenumber" name="231" href="#231">231</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="232" href="#232">232</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> getSerializer();
-<a class="jxr_linenumber" name="233" href="#233">233</a> 
-<a class="jxr_linenumber" name="234" href="#234">234</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="235" href="#235">235</a> <em class="jxr_javadoccomment">     * Return the current {@link AtmosphereResourceEvent}.</em>
-<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="237" href="#237">237</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> getAtmosphereResourceEvent();
-<a class="jxr_linenumber" name="238" href="#238">238</a> 
-<a class="jxr_linenumber" name="239" href="#239">239</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="240" href="#240">240</a> <em class="jxr_javadoccomment">     * Return the associated {@link AtmosphereHandler} associated with this resource.</em>
-<a class="jxr_linenumber" name="241" href="#241">241</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="242" href="#242">242</a> <em class="jxr_javadoccomment">     * @return the associated {@link AtmosphereHandler} associated with this resource.</em>
-<a class="jxr_linenumber" name="243" href="#243">243</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="244" href="#244">244</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> getAtmosphereHandler();
-<a class="jxr_linenumber" name="245" href="#245">245</a> 
-<a class="jxr_linenumber" name="246" href="#246">246</a> }
+<a class="jxr_linenumber" name="202" href="#202">202</a> <em class="jxr_javadoccomment">     * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}</em>
+<a class="jxr_linenumber" name="203" href="#203">203</a> <em class="jxr_javadoccomment">     * will be created if that resource hasn't been yet suspended.</em>
+<a class="jxr_linenumber" name="204" href="#204">204</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="205" href="#205">205</a> <em class="jxr_javadoccomment">     * @param broadcaster</em>
+<a class="jxr_linenumber" name="206" href="#206">206</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="207" href="#207">207</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster);
+<a class="jxr_linenumber" name="208" href="#208">208</a> 
+<a class="jxr_linenumber" name="209" href="#209">209</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="210" href="#210">210</a> <em class="jxr_javadoccomment">     * Set the {@link Serializer} to use when {@link AtmosphereResource#write}</em>
+<a class="jxr_linenumber" name="211" href="#211">211</a> <em class="jxr_javadoccomment">     * execute the operation. By default, the {@link Serializer} is null.</em>
+<a class="jxr_linenumber" name="212" href="#212">212</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="213" href="#213">213</a> <em class="jxr_javadoccomment">     * @param s the {@link Serializer}</em>
+<a class="jxr_linenumber" name="214" href="#214">214</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="215" href="#215">215</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setSerializer(<a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s);
+<a class="jxr_linenumber" name="216" href="#216">216</a> 
+<a class="jxr_linenumber" name="217" href="#217">217</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="218" href="#218">218</a> <em class="jxr_javadoccomment">     * Write the {@link Object} using the {@link OutputStream} by invoking</em>
+<a class="jxr_linenumber" name="219" href="#219">219</a> <em class="jxr_javadoccomment">     * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}</em>
+<a class="jxr_linenumber" name="220" href="#220">220</a> <em class="jxr_javadoccomment">     * will be directly written using the {</em>
+<a class="jxr_linenumber" name="221" href="#221">221</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="222" href="#222">222</a> <em class="jxr_javadoccomment">     * @param os {@link OutputStream}</em>
+<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     * @param o  {@link Object}</em>
+<a class="jxr_linenumber" name="224" href="#224">224</a> <em class="jxr_javadoccomment">     * @throws java.io.IOException</em>
+<a class="jxr_linenumber" name="225" href="#225">225</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="226" href="#226">226</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream os, Object o) <strong class="jxr_keyword">throws</strong> IOException;
+<a class="jxr_linenumber" name="227" href="#227">227</a> 
+<a class="jxr_linenumber" name="228" href="#228">228</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="229" href="#229">229</a> <em class="jxr_javadoccomment">     * Get the {@link Serializer} or null if not defined.</em>
+<a class="jxr_linenumber" name="230" href="#230">230</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="231" href="#231">231</a> <em class="jxr_javadoccomment">     * @return the {@link Serializer} or null if not defined.</em>
+<a class="jxr_linenumber" name="232" href="#232">232</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="233" href="#233">233</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> getSerializer();
+<a class="jxr_linenumber" name="234" href="#234">234</a> 
+<a class="jxr_linenumber" name="235" href="#235">235</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     * Return the current {@link AtmosphereResourceEvent}.</em>
+<a class="jxr_linenumber" name="237" href="#237">237</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="238" href="#238">238</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> getAtmosphereResourceEvent();
+<a class="jxr_linenumber" name="239" href="#239">239</a> 
+<a class="jxr_linenumber" name="240" href="#240">240</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="241" href="#241">241</a> <em class="jxr_javadoccomment">     * Return the associated {@link AtmosphereHandler} associated with this resource.</em>
+<a class="jxr_linenumber" name="242" href="#242">242</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="243" href="#243">243</a> <em class="jxr_javadoccomment">     * @return the associated {@link AtmosphereHandler} associated with this resource.</em>
+<a class="jxr_linenumber" name="244" href="#244">244</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="245" href="#245">245</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> getAtmosphereHandler();
+<a class="jxr_linenumber" name="246" href="#246">246</a> 
+<a class="jxr_linenumber" name="247" href="#247">247</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

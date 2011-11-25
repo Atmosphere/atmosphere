@@ -2,14 +2,14 @@ org.eclipse.jetty.websocket
 org.atmosphere.cache
 org.atmosphere.client
 org.atmosphere.container
+org.atmosphere.container.version
 org.atmosphere.cpr
 org.atmosphere.di
 org.atmosphere.handler
 org.atmosphere.util
 org.atmosphere.util.uri
-org.atmosphere.websocket.container
-org.atmosphere.websocket
 org.atmosphere.websocket.protocol
+org.atmosphere.websocket
 org.atmosphere.annotation
 org.atmosphere.jersey
 org.atmosphere.jersey.util

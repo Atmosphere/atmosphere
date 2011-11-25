@@ -4,6 +4,7 @@ org.atmosphere.client
 org.atmosphere.commons.jersey
 org.atmosphere.commons.util
 org.atmosphere.container
+org.atmosphere.container.version
 org.atmosphere.cpr
 org.atmosphere.di
 org.atmosphere.grizzly
@@ -41,7 +42,6 @@ org.atmosphere.samples.wicket
 org.atmosphere.util
 org.atmosphere.util.uri
 org.atmosphere.websocket
-org.atmosphere.websocket.container
 org.atmosphere.websocket.protocol
 org.eclipse.jetty.websocket
 org.jersey.devoxx.samples.ee6.atmosphere

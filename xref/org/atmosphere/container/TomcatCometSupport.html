@@ -153,7 +153,7 @@
 <a class="jxr_linenumber" name="143" href="#143">143</a>                 logger.debug(<span class="jxr_string">"Client closed connection: response: {}"</span>, res);
 <a class="jxr_linenumber" name="144" href="#144">144</a>                 action = cancelled(req, res);
 <a class="jxr_linenumber" name="145" href="#145">145</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="146" href="#146">146</a>                 logger.debug(<span class="jxr_string">"Cancelling response: {}"</span>, res);
+<a class="jxr_linenumber" name="146" href="#146">146</a>                 logger.trace(<span class="jxr_string">"Cancelling response: {}"</span>, res);
 <a class="jxr_linenumber" name="147" href="#147">147</a>             }
 <a class="jxr_linenumber" name="148" href="#148">148</a> 
 <a class="jxr_linenumber" name="149" href="#149">149</a>             event.close();

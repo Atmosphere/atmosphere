@@ -79,7 +79,7 @@
 <a class="jxr_linenumber" name="69" href="#69">69</a>                  <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="70" href="#70">70</a>                      incomingBroadcast();
 <a class="jxr_linenumber" name="71" href="#71">71</a>                  } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="72" href="#72">72</a>                      logger.trace(<span class="jxr_string">"incomingBroadcast Exception. Broadcaster will be broken unless reconfigured"</span>, t);
+<a class="jxr_linenumber" name="72" href="#72">72</a>                      logger.debug(<span class="jxr_string">"incomingBroadcast Exception. Broadcaster will be broken unless reconfigured"</span>, t);
 <a class="jxr_linenumber" name="73" href="#73">73</a>                      destroy();
 <a class="jxr_linenumber" name="74" href="#74">74</a>                      <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="75" href="#75">75</a>                  }

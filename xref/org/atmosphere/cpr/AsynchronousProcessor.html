@@ -173,7 +173,7 @@
 <a class="jxr_linenumber" name="163" href="#163">163</a> 
 <a class="jxr_linenumber" name="164" href="#164">164</a>         <strong class="jxr_keyword">boolean</strong> webSocketEnabled = false;
 <a class="jxr_linenumber" name="165" href="#165">165</a>         <strong class="jxr_keyword">if</strong> (req.getHeaders(<span class="jxr_string">"Connection"</span>) != <strong class="jxr_keyword">null</strong> &amp;&amp; req.getHeaders(<span class="jxr_string">"Connection"</span>).hasMoreElements()) {
-<a class="jxr_linenumber" name="166" href="#166">166</a>             String[] e = req.getHeaders(<span class="jxr_string">"Connection"</span>).nextElement().split(<span class="jxr_string">","</span>);
+<a class="jxr_linenumber" name="166" href="#166">166</a>             String[] e = req.getHeaders(<span class="jxr_string">"Connection"</span>).nextElement().toString().split(<span class="jxr_string">","</span>);
 <a class="jxr_linenumber" name="167" href="#167">167</a>             <strong class="jxr_keyword">for</strong> (String upgrade : e) {
 <a class="jxr_linenumber" name="168" href="#168">168</a>                 <strong class="jxr_keyword">if</strong> (upgrade.equalsIgnoreCase(<span class="jxr_string">"Upgrade"</span>)) {
 <a class="jxr_linenumber" name="169" href="#169">169</a>                     webSocketEnabled = <strong class="jxr_keyword">true</strong>;
@@ -371,103 +371,110 @@
 <a class="jxr_linenumber" name="361" href="#361">361</a>                     atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
 <a class="jxr_linenumber" name="362" href="#362">362</a>                     r.setIsInScope(false);
 <a class="jxr_linenumber" name="363" href="#363">363</a>                 }
-<a class="jxr_linenumber" name="364" href="#364">364</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="365" href="#365">365</a>                 r.getResponse().flushBuffer();
-<a class="jxr_linenumber" name="366" href="#366">366</a>             }
-<a class="jxr_linenumber" name="367" href="#367">367</a>         } <strong class="jxr_keyword">catch</strong> (IOException ex) {
-<a class="jxr_linenumber" name="368" href="#368">368</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="369" href="#369">369</a>                 r.onThrowable(ex);
-<a class="jxr_linenumber" name="370" href="#370">370</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="371" href="#371">371</a>                 logger.warn(<span class="jxr_string">"failed calling onThrowable()"</span>, ex);
-<a class="jxr_linenumber" name="372" href="#372">372</a>             }
-<a class="jxr_linenumber" name="373" href="#373">373</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="374" href="#374">374</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="375" href="#375">375</a>                 aliveRequests.remove(req);
-<a class="jxr_linenumber" name="376" href="#376">376</a>                 r.notifyListeners();
-<a class="jxr_linenumber" name="377" href="#377">377</a>             } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="378" href="#378">378</a>                 destroyResource(r);
-<a class="jxr_linenumber" name="379" href="#379">379</a>             }
-<a class="jxr_linenumber" name="380" href="#380">380</a>         }
-<a class="jxr_linenumber" name="381" href="#381">381</a>     }
-<a class="jxr_linenumber" name="382" href="#382">382</a> 
-<a class="jxr_linenumber" name="383" href="#383">383</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> destroyResource(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> r) {
-<a class="jxr_linenumber" name="384" href="#384">384</a>         r.removeEventListeners();
-<a class="jxr_linenumber" name="385" href="#385">385</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="386" href="#386">386</a>             r.getBroadcaster().removeAtmosphereResource(r);
-<a class="jxr_linenumber" name="387" href="#387">387</a>         } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="388" href="#388">388</a>             logger.trace(ex.getMessage(), ex);
-<a class="jxr_linenumber" name="389" href="#389">389</a>         }
-<a class="jxr_linenumber" name="390" href="#390">390</a>         <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="391" href="#391">391</a>             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
-<a class="jxr_linenumber" name="392" href="#392">392</a>         }
-<a class="jxr_linenumber" name="393" href="#393">393</a>     }
-<a class="jxr_linenumber" name="394" href="#394">394</a> 
-<a class="jxr_linenumber" name="395" href="#395">395</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="396" href="#396">396</a> <em class="jxr_javadoccomment">     * All proprietary Comet based {@link Servlet} must invoke the cancelled</em>
-<a class="jxr_linenumber" name="397" href="#397">397</a> <em class="jxr_javadoccomment">     * method when the underlying WebServer detect that the client closed</em>
-<a class="jxr_linenumber" name="398" href="#398">398</a> <em class="jxr_javadoccomment">     * the connection.</em>
-<a class="jxr_linenumber" name="399" href="#399">399</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="400" href="#400">400</a> <em class="jxr_javadoccomment">     * @param req the {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="401" href="#401">401</a> <em class="jxr_javadoccomment">     * @param res the {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="402" href="#402">402</a> <em class="jxr_javadoccomment">     * @return action the Action operation.</em>
-<a class="jxr_linenumber" name="403" href="#403">403</a> <em class="jxr_javadoccomment">     * @throws java.io.IOException</em>
-<a class="jxr_linenumber" name="404" href="#404">404</a> <em class="jxr_javadoccomment">     * @throws javax.servlet.ServletException</em>
-<a class="jxr_linenumber" name="405" href="#405">405</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="406" href="#406">406</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">Action</a> cancelled(HttpServletRequest req, HttpServletResponse res)
-<a class="jxr_linenumber" name="407" href="#407">407</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
-<a class="jxr_linenumber" name="408" href="#408">408</a> 
-<a class="jxr_linenumber" name="409" href="#409">409</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> re = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="410" href="#410">410</a>         <strong class="jxr_keyword">long</strong> l = (Long) req.getAttribute(MAX_INACTIVE);
-<a class="jxr_linenumber" name="411" href="#411">411</a>         <strong class="jxr_keyword">if</strong> (l == -1) {
-<a class="jxr_linenumber" name="412" href="#412">412</a>             <em class="jxr_comment">// The closedDetector closed the connection.</em>
-<a class="jxr_linenumber" name="413" href="#413">413</a>             <strong class="jxr_keyword">return</strong> timedoutAction;
-<a class="jxr_linenumber" name="414" href="#414">414</a>         }
-<a class="jxr_linenumber" name="415" href="#415">415</a>         req.setAttribute(MAX_INACTIVE, (<strong class="jxr_keyword">long</strong>) -1);
-<a class="jxr_linenumber" name="416" href="#416">416</a> 
-<a class="jxr_linenumber" name="417" href="#417">417</a>         logger.debug(<span class="jxr_string">"Timing out the connection for request {}"</span>, req);
-<a class="jxr_linenumber" name="418" href="#418">418</a> 
-<a class="jxr_linenumber" name="419" href="#419">419</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="420" href="#420">420</a>             re = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-<a class="jxr_linenumber" name="421" href="#421">421</a>             <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="422" href="#422">422</a>                 re.getAtmosphereResourceEvent().setCancelled(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="423" href="#423">423</a>                 invokeAtmosphereHandler(re);
-<a class="jxr_linenumber" name="424" href="#424">424</a>                 re.setIsInScope(false);
-<a class="jxr_linenumber" name="425" href="#425">425</a>             }
-<a class="jxr_linenumber" name="426" href="#426">426</a>         } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
-<a class="jxr_linenumber" name="427" href="#427">427</a>             <em class="jxr_comment">// Something wrong happenned, ignore the exception</em>
-<a class="jxr_linenumber" name="428" href="#428">428</a>             logger.debug(<span class="jxr_string">"failed to cancel resource: "</span> + re, ex);
-<a class="jxr_linenumber" name="429" href="#429">429</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="430" href="#430">430</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="431" href="#431">431</a>                 aliveRequests.remove(req);
-<a class="jxr_linenumber" name="432" href="#432">432</a>                 <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="433" href="#433">433</a>                     re.notifyListeners();
-<a class="jxr_linenumber" name="434" href="#434">434</a>                 }
-<a class="jxr_linenumber" name="435" href="#435">435</a>             } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="436" href="#436">436</a>                 <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="437" href="#437">437</a>                     destroyResource(re);
-<a class="jxr_linenumber" name="438" href="#438">438</a>                 }
-<a class="jxr_linenumber" name="439" href="#439">439</a>             }
-<a class="jxr_linenumber" name="440" href="#440">440</a>         }
-<a class="jxr_linenumber" name="441" href="#441">441</a> 
-<a class="jxr_linenumber" name="442" href="#442">442</a>         <strong class="jxr_keyword">return</strong> cancelledAction;
-<a class="jxr_linenumber" name="443" href="#443">443</a>     }
-<a class="jxr_linenumber" name="444" href="#444">444</a> 
-<a class="jxr_linenumber" name="445" href="#445">445</a>     <strong class="jxr_keyword">void</strong> shutdown() {
-<a class="jxr_linenumber" name="446" href="#446">446</a>         closedDetector.shutdownNow();
-<a class="jxr_linenumber" name="447" href="#447">447</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; resource : aliveRequests.values()) {
-<a class="jxr_linenumber" name="448" href="#448">448</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="449" href="#449">449</a>                 resource.resume();
-<a class="jxr_linenumber" name="450" href="#450">450</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="451" href="#451">451</a>                 <em class="jxr_comment">// Something wrong happenned, ignore the exception</em>
-<a class="jxr_linenumber" name="452" href="#452">452</a>                 logger.debug(<span class="jxr_string">"failed on resume: "</span> + resource, t);
-<a class="jxr_linenumber" name="453" href="#453">453</a>             }
-<a class="jxr_linenumber" name="454" href="#454">454</a>         }
-<a class="jxr_linenumber" name="455" href="#455">455</a>     }
-<a class="jxr_linenumber" name="456" href="#456">456</a> 
-<a class="jxr_linenumber" name="457" href="#457">457</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> supportWebSocket() {
-<a class="jxr_linenumber" name="458" href="#458">458</a>         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="459" href="#459">459</a>     }
-<a class="jxr_linenumber" name="460" href="#460">460</a> }
+<a class="jxr_linenumber" name="364" href="#364">364</a> 
+<a class="jxr_linenumber" name="365" href="#365">365</a>                 <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+<a class="jxr_linenumber" name="366" href="#366">366</a>                 <strong class="jxr_keyword">if</strong> (m != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="367" href="#367">367</a>                     m.destroy();
+<a class="jxr_linenumber" name="368" href="#368">368</a>                 }
+<a class="jxr_linenumber" name="369" href="#369">369</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="370" href="#370">370</a>                 r.getResponse().flushBuffer();
+<a class="jxr_linenumber" name="371" href="#371">371</a>             }
+<a class="jxr_linenumber" name="372" href="#372">372</a>         } <strong class="jxr_keyword">catch</strong> (IOException ex) {
+<a class="jxr_linenumber" name="373" href="#373">373</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="374" href="#374">374</a>                 r.onThrowable(ex);
+<a class="jxr_linenumber" name="375" href="#375">375</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="376" href="#376">376</a>                 logger.warn(<span class="jxr_string">"failed calling onThrowable()"</span>, ex);
+<a class="jxr_linenumber" name="377" href="#377">377</a>             }
+<a class="jxr_linenumber" name="378" href="#378">378</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="379" href="#379">379</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="380" href="#380">380</a>                 aliveRequests.remove(req);
+<a class="jxr_linenumber" name="381" href="#381">381</a>                 r.notifyListeners();
+<a class="jxr_linenumber" name="382" href="#382">382</a>             } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="383" href="#383">383</a>                 destroyResource(r);
+<a class="jxr_linenumber" name="384" href="#384">384</a>             }
+<a class="jxr_linenumber" name="385" href="#385">385</a>         }
+<a class="jxr_linenumber" name="386" href="#386">386</a>     }
+<a class="jxr_linenumber" name="387" href="#387">387</a> 
+<a class="jxr_linenumber" name="388" href="#388">388</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> destroyResource(AtmosphereResource&lt;?,?&gt; r) {
+<a class="jxr_linenumber" name="389" href="#389">389</a>         <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="390" href="#390">390</a> 
+<a class="jxr_linenumber" name="391" href="#391">391</a>         r.removeEventListeners();
+<a class="jxr_linenumber" name="392" href="#392">392</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="393" href="#393">393</a>             r.getBroadcaster().removeAtmosphereResource(r);
+<a class="jxr_linenumber" name="394" href="#394">394</a>         } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
+<a class="jxr_linenumber" name="395" href="#395">395</a>             logger.trace(ex.getMessage(), ex);
+<a class="jxr_linenumber" name="396" href="#396">396</a>         }
+<a class="jxr_linenumber" name="397" href="#397">397</a>         <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="398" href="#398">398</a>             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+<a class="jxr_linenumber" name="399" href="#399">399</a>         }
+<a class="jxr_linenumber" name="400" href="#400">400</a>     }
+<a class="jxr_linenumber" name="401" href="#401">401</a> 
+<a class="jxr_linenumber" name="402" href="#402">402</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="403" href="#403">403</a> <em class="jxr_javadoccomment">     * All proprietary Comet based {@link Servlet} must invoke the cancelled</em>
+<a class="jxr_linenumber" name="404" href="#404">404</a> <em class="jxr_javadoccomment">     * method when the underlying WebServer detect that the client closed</em>
+<a class="jxr_linenumber" name="405" href="#405">405</a> <em class="jxr_javadoccomment">     * the connection.</em>
+<a class="jxr_linenumber" name="406" href="#406">406</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="407" href="#407">407</a> <em class="jxr_javadoccomment">     * @param req the {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="408" href="#408">408</a> <em class="jxr_javadoccomment">     * @param res the {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="409" href="#409">409</a> <em class="jxr_javadoccomment">     * @return action the Action operation.</em>
+<a class="jxr_linenumber" name="410" href="#410">410</a> <em class="jxr_javadoccomment">     * @throws java.io.IOException</em>
+<a class="jxr_linenumber" name="411" href="#411">411</a> <em class="jxr_javadoccomment">     * @throws javax.servlet.ServletException</em>
+<a class="jxr_linenumber" name="412" href="#412">412</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="413" href="#413">413</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">Action</a> cancelled(HttpServletRequest req, HttpServletResponse res)
+<a class="jxr_linenumber" name="414" href="#414">414</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
+<a class="jxr_linenumber" name="415" href="#415">415</a> 
+<a class="jxr_linenumber" name="416" href="#416">416</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> re = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="417" href="#417">417</a>         <strong class="jxr_keyword">long</strong> l = (Long) req.getAttribute(MAX_INACTIVE);
+<a class="jxr_linenumber" name="418" href="#418">418</a>         <strong class="jxr_keyword">if</strong> (l == -1) {
+<a class="jxr_linenumber" name="419" href="#419">419</a>             <em class="jxr_comment">// The closedDetector closed the connection.</em>
+<a class="jxr_linenumber" name="420" href="#420">420</a>             <strong class="jxr_keyword">return</strong> timedoutAction;
+<a class="jxr_linenumber" name="421" href="#421">421</a>         }
+<a class="jxr_linenumber" name="422" href="#422">422</a>         req.setAttribute(MAX_INACTIVE, (<strong class="jxr_keyword">long</strong>) -1);
+<a class="jxr_linenumber" name="423" href="#423">423</a> 
+<a class="jxr_linenumber" name="424" href="#424">424</a>         logger.debug(<span class="jxr_string">"Cancelling out the connection for request {}"</span>, req);
+<a class="jxr_linenumber" name="425" href="#425">425</a> 
+<a class="jxr_linenumber" name="426" href="#426">426</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="427" href="#427">427</a>             re = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+<a class="jxr_linenumber" name="428" href="#428">428</a>             <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="429" href="#429">429</a>                 re.getAtmosphereResourceEvent().setCancelled(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="430" href="#430">430</a>                 invokeAtmosphereHandler(re);
+<a class="jxr_linenumber" name="431" href="#431">431</a>                 re.setIsInScope(false);
+<a class="jxr_linenumber" name="432" href="#432">432</a>             }
+<a class="jxr_linenumber" name="433" href="#433">433</a>         } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
+<a class="jxr_linenumber" name="434" href="#434">434</a>             <em class="jxr_comment">// Something wrong happenned, ignore the exception</em>
+<a class="jxr_linenumber" name="435" href="#435">435</a>             logger.debug(<span class="jxr_string">"failed to cancel resource: "</span> + re, ex);
+<a class="jxr_linenumber" name="436" href="#436">436</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="437" href="#437">437</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="438" href="#438">438</a>                 aliveRequests.remove(req);
+<a class="jxr_linenumber" name="439" href="#439">439</a>                 <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="440" href="#440">440</a>                     re.notifyListeners();
+<a class="jxr_linenumber" name="441" href="#441">441</a>                 }
+<a class="jxr_linenumber" name="442" href="#442">442</a>             } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="443" href="#443">443</a>                 <strong class="jxr_keyword">if</strong> (re != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="444" href="#444">444</a>                     destroyResource(re);
+<a class="jxr_linenumber" name="445" href="#445">445</a>                 }
+<a class="jxr_linenumber" name="446" href="#446">446</a>             }
+<a class="jxr_linenumber" name="447" href="#447">447</a>         }
+<a class="jxr_linenumber" name="448" href="#448">448</a> 
+<a class="jxr_linenumber" name="449" href="#449">449</a>         <strong class="jxr_keyword">return</strong> cancelledAction;
+<a class="jxr_linenumber" name="450" href="#450">450</a>     }
+<a class="jxr_linenumber" name="451" href="#451">451</a> 
+<a class="jxr_linenumber" name="452" href="#452">452</a>     <strong class="jxr_keyword">void</strong> shutdown() {
+<a class="jxr_linenumber" name="453" href="#453">453</a>         closedDetector.shutdownNow();
+<a class="jxr_linenumber" name="454" href="#454">454</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResource&lt;HttpServletRequest, HttpServletResponse&gt; resource : aliveRequests.values()) {
+<a class="jxr_linenumber" name="455" href="#455">455</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="456" href="#456">456</a>                 resource.resume();
+<a class="jxr_linenumber" name="457" href="#457">457</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="458" href="#458">458</a>                 <em class="jxr_comment">// Something wrong happenned, ignore the exception</em>
+<a class="jxr_linenumber" name="459" href="#459">459</a>                 logger.debug(<span class="jxr_string">"failed on resume: "</span> + resource, t);
+<a class="jxr_linenumber" name="460" href="#460">460</a>             }
+<a class="jxr_linenumber" name="461" href="#461">461</a>         }
+<a class="jxr_linenumber" name="462" href="#462">462</a>     }
+<a class="jxr_linenumber" name="463" href="#463">463</a> 
+<a class="jxr_linenumber" name="464" href="#464">464</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> supportWebSocket() {
+<a class="jxr_linenumber" name="465" href="#465">465</a>         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="466" href="#466">466</a>     }
+<a class="jxr_linenumber" name="467" href="#467">467</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
