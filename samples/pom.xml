@@ -32,7 +32,6 @@
         <module>jquery-atmospherehandler-pubsub</module>
         <module>jquery-websocketprotocol-pubsub</module>
         <module>twitter-live-feed</module>
-        <module>scala-longpolling-chat</module>
         <module>chat-guice</module>
         <module>websocket-chat</module>
         <module>wicket-clock</module>
