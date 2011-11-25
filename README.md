@@ -2,7 +2,7 @@ Atmosphere is a POJO based framework using Inversion of Control (IoC) to bring P
 
 Framework like Jersey, GWT, Wicket, Vaadin, Guice, Spring, JSF, Scalatra, Grails etc are supported. You can use Scala, JRuby, Groovy and Java to write Atmosphere application. Mssive scalability with our Cluster plugin architecture (JGroups, JMS/ActiveMQ, Redis, XMPP, etc.)
 
-Follow us on Twitter or get the latest news [here](http://jfarcand.wordpress.com)
+Follow us on [Twitter](http://www.twitter.com/atmo_framework)  or get the latest news [here](http://jfarcand.wordpress.com)
 
 The Atmosphere Framework ships with a JQuery Plug In that can be used with any Comet or WebSocket Framework:
 
