@@ -1,45 +1,92 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html
-        PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <title>Atmosphere Chat</title>
-    <link rel="stylesheet" href="stylesheets/default.css" type="text/css"/>
-    <script type="text/javascript" src="javascripts/prototype.js"></script>
-    <script type="text/javascript" src="javascripts/behaviour.js"></script>
-    <script type="text/javascript" src="javascripts/moo.fx.js"></script>
-    <script type="text/javascript" src="javascripts/moo.fx.pack.js"></script>
-    <script type="text/javascript" src="javascripts/application.js"></script>
-</head>
-<body>
-<div id="container">
-    <div id="container-inner">
-        <div id="header">
-            <h1>Atmosphere Chat</h1>
-        </div>
-        <div id="main">
-            <div id="display">
-            </div>
-            <div id="form">
-                <div id="system-message">Please input your name:</div>
-                <div id="login-form">
-                    <input id="login-name" type="text"/>
-                    <br/>
-                    <input id="login-button" type="button" value="Login"/>
-                </div>
-                <div id="message-form" style="display: none;">
-                    <div>
-                        <textarea id="message" name="message" rows="2" cols="40"></textarea>
-                        <br/>
-                        <input id="post-button" type="button" value="Post Message"/>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<iframe id="comet-frame" style="display: none;"></iframe>
-</body>
+<!DOCTYPE html>
+<html>
+	<head>
+		<link href="css/style.css" rel="stylesheet">
+	<script src="jquery-1.6.1.min.js"></script>
+	<script src="./dist/socket.io.js"></script>
+	
+	<script>// socket.io specific code
+var socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'});
+
+socket.on('connect', function () {
+  $('#chat').addClass('connected');
+});
+
+socket.on('announcement', function (msg) {
+  $('#lines').append($('<p>').append($('<em>').text(msg)));
+});
+
+socket.on('nicknames', function (nicknames) {
+  $('#nicknames').empty().append($('<span>Online: </span>'));
+  for (var i in nicknames) {
+    $('#nicknames').append($('<b>').text(nicknames[i]));
+  }
+});
+
+socket.on('user message', message);
+socket.on('reconnect', function () {
+  $('#lines').remove();
+  message('System', 'Reconnected to the server');
+});
+
+socket.on('reconnecting', function () {
+  message('System', 'Attempting to re-connect to the server');
+});
+
+socket.on('error', function (e) {
+  message('System', e ? e : 'A unknown error occurred');
+});
+
+function message (from, msg) {
+  $('#lines').append($('<p>').append($('<b>').text(from), msg));
+}
+
+// dom manipulation
+$(function () {
+  $('#set-nickname').submit(function (ev) {
+	
+    socket.emit('nickname', $('#nick').val(), function (set) {
+      if (!set) {
+        clear();
+        return $('#chat').addClass('nickname-set');
+      }
+      $('#nickname-err').css('visibility', 'visible');
+    });
+    return false;
+  });
+
+  $('#send-message').submit(function () {
+    message('me', $('#message').val());
+    socket.emit('user message', $('#message').val());
+    clear();
+    $('#lines').get(0).scrollTop = 10000000;
+    return false;
+  });
+
+  function clear () {
+    $('#message').val('').focus();
+  };
+});
+</script></head>
+
+	<body>
+		<div class="connected" id="chat">
+			<div id="nickname">
+				<form id="set-nickname" class="wrap">
+					<p>Please type in your nickname and press enter.</p>
+					<input id="nick"><p id="nickname-err">Nickname already in use</p>
+				</form>
+			</div>
+			<div id="connecting">
+				<div class="wrap">Connecting to socket.io server</div>
+			</div>
+			<div id="messages">
+				<div id="nicknames"></div>
+				<div id="lines"></div>
+			</div>
+			<form id="send-message">
+				<input id="message"><button>Send</button>
+			</form>
+		</div>
+	</body>
 </html>

@@ -45,7 +45,6 @@ import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.jetty.util.IO;
 
 public class FlashSocketTransport extends WebSocketTransport {
 	public static final String TRANSPORT_NAME = "flashsocket";
@@ -118,11 +117,14 @@ public class FlashSocketTransport extends WebSocketTransport {
 				response.setContentType("application/x-shockwave-flash");
 				InputStream is = this.getClass().getClassLoader().getResourceAsStream("com/glines/socketio/" + FLASHFILE_NAME);
 				OutputStream os = response.getOutputStream();
+				/*
 				try {
 					IO.copy(is, os);
+					
 				} catch (IOException e) {
 					// TODO: Do we care?
 				}
+				*/
 			}
 		} else {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");

@@ -11,8 +11,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.jetty.util.IO;
-import org.atmosphere.jetty.util.URIUtil;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
@@ -20,6 +18,7 @@ import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession.SessionTransportHandler;
 import org.atmosphere.protocol.socketio.transport.TransportBuffer;
+import org.atmosphere.util.uri.UriComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,7 +193,7 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 					if (size == 0) {
 						response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 					} else { 
-						String data = decodePostData(request.getContentType(), IO.toString(reader));
+						String data = decodePostData(request.getContentType(), extractString(reader));
 						if (data != null && data.length() > 0) {
 							
 							List<SocketIOEvent> list = SocketIOEvent.parse(data);
@@ -237,7 +236,7 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 		protected String decodePostData(String contentType, String data) {
 			if (contentType.startsWith("application/x-www-form-urlencoded")) {
 				if (data.substring(0, 5).equals("data=")) {
-					return URIUtil.decodePath(data.substring(5));
+					return UriComponent.decodePath(data.substring(5),true).get(0).getPath();
 				} else {
 					return "";
 				}

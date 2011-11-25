@@ -546,7 +546,7 @@ public class UriComponent {
         }
     }
 
-    private static final class PathSegmentImpl  {
+    public static final class PathSegmentImpl  {
 
         private static final PathSegmentImpl EMPTY_PATH_SEGMENT = new PathSegmentImpl("", false);
         private final String path;
