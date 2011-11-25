@@ -89,7 +89,6 @@ jQuery.atmosphere = function() {
             logLevel = jQuery.atmosphere.request.logLevel;
             if (callback != null) {
                 jQuery.atmosphere.addCallback(callback);
-                jQuery.atmosphere.request.callback = callback;
             }
 
             if (jQuery.atmosphere.request.transport != jQuery.atmosphere.activeTransport) {
