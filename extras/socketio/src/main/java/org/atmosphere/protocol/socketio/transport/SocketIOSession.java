@@ -30,8 +30,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOException;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOOutbound;
 
 public interface SocketIOSession {
@@ -42,7 +40,6 @@ public interface SocketIOSession {
 
 	interface SessionTransportHandler extends SocketIOOutbound {
 		void handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException;
-		void sendMessage(SocketIOFrame message) throws SocketIOException;
 		void disconnectWhenEmpty();
 		/**
 		 * Cause connection and all activity to be aborted and all resources to be released.
@@ -89,9 +86,6 @@ public interface SocketIOSession {
 	 */
 	void startClose();
 
-	void onMessage(AtmosphereResourceImpl resource, SessionTransportHandler handler, SocketIOFrame message);
-	void onPing(String data);
-	void onPong(String data);
 	void onClose(String data);
 
 	/**

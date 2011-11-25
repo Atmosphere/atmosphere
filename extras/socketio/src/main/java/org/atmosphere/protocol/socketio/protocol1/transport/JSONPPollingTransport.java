@@ -30,7 +30,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
 
@@ -68,8 +67,8 @@ public class JSONPPollingTransport extends XHRTransport {
 	    		jsonpIndex = Integer.parseInt(parts[3]);
 	    	}
 			startSend(response);
-			writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
-			writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + REQUEST_TIMEOUT));
+			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
+			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + REQUEST_TIMEOUT));
 		}
 	}
 	

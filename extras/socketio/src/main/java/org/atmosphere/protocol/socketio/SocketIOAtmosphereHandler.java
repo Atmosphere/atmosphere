@@ -18,14 +18,12 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
 	public static final String SOCKETIO_SESSION_ID = SocketIOAtmosphereHandler.class.getPackage().getName() + ".sessionid";
 	
 	
-	// apres la connection, state==1
 	/**
      * Called when the connection is established. This will only ever be called once.
      *
      * @param outbound The SocketOutbound associated with the connection
      */
 	void onConnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler) throws IOException;
-	// state==4
 	void onDisconnect() throws IOException;
 	
     /**
@@ -44,8 +42,6 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
      * @param messageType
      * @param message
      */
-    void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, int messageType, String message, SessionTransportHandler handler);
-	//state==3
-	void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, String data) throws IOException;
+    void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler, String message);
 	
 }

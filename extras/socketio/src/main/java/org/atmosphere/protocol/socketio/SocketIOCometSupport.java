@@ -174,7 +174,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         		
         		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
         		
-        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":websocket");
+        		//response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":websocket");
         		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling");
         		
         		return resource.action();

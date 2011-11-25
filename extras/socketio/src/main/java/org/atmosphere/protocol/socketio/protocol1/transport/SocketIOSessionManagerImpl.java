@@ -39,11 +39,9 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
 import org.atmosphere.protocol.socketio.SocketIOSessionManager;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.SessionTransportHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,58 +209,8 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			logger.error("startClose");
 			state = ConnectionState.CLOSING;
 			closeId = "server";
-			try {
-				handler.sendMessage(new SocketIOFrame(SocketIOFrame.FrameType.CLOSE, 0, closeId));
-			} catch (SocketIOException e) {
-				logger.error("handler.sendMessage failed: ", e);
-				handler.abort();
-			}
 		}
 		
-		@Override
-		public void onMessage(AtmosphereResourceImpl resource, SessionTransportHandler handler, SocketIOFrame message) {
-			switch (message.getFrameType()) {
-			case SESSION_ID:
-			case HEARTBEAT_INTERVAL:
-				// Ignore these two messages types as they are only intended to be from server to client.
-				break;
-			case CLOSE:
-				logger.error("Session["+sessionId+"]: onClose: " + message.getData());
-				onClose(message.getData());
-				break;
-			case PING:
-				logger.error("Session["+sessionId+"]: onPing: " + message.getData());
-				onPing(message.getData());
-				break;
-			case PONG:
-				logger.error("Session["+sessionId+"]: onPong: " + message.getData());
-				onPong(message.getData());
-				break;
-			case DATA:
-				logger.error("Session["+sessionId+"]: onMessage: " + message.getData());
-				onMessage(resource, handler, message.getData());
-				break;
-			default:
-				// Ignore unknown message types
-				break;
-			}
-		}
-
-		@Override
-		public void onPing(String data) {
-			try {
-				handler.sendMessage(data);
-			} catch (SocketIOException e) {
-				logger.error("handler.sendMessage failed: ", e);
-				handler.abort();
-			}
-		}
-
-		@Override
-		public void onPong(String data) {
-			clearTimeoutTimer();
-		}
-
 		@Override
 		public void onClose(String data) {
 			if (state == ConnectionState.CLOSING) {
@@ -279,6 +227,8 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 					}
 				}
 			} else {
+				clearTimeoutTimer();
+				clearHeartbeatTimer();
 				state = ConnectionState.CLOSING;
 				try {
 					handler.sendMessage(data);
@@ -332,12 +282,11 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void onMessage(AtmosphereResourceImpl resource, SessionTransportHandler handler, String message) {
-			//clearTimeoutTimer();
 			startHeartbeatTimer();
 			
 			if (atmosphereHandler != null && message!=null) {
 				try {
-					atmosphereHandler.onMessage(resource, SocketIOFrame.TEXT_MESSAGE_TYPE, message, handler);
+					atmosphereHandler.onMessage(resource, handler, message);
 				} catch (Throwable e) {
 					logger.error("Session["+sessionId+"]: Exception thrown by SocketIOInbound.onMessage()", e);
 				}

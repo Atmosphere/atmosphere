@@ -87,8 +87,6 @@ public abstract class AbstractHttpTransport extends AbstractTransport {
 				handler.handle(request, response, session);
 			} else {
 				// on fait un connect
-				//DEBUG
-				
 				session = connect(session, resource, atmosphereHandler, sessionFactory);
 				if (session == null) {
 					response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);

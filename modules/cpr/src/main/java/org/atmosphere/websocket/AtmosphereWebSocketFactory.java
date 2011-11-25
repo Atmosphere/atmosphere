@@ -35,8 +35,6 @@ public class AtmosphereWebSocketFactory {
 
 	public WebSocketFactory getFactory() {
     	
-    	logger.error("calling from " + JettyWebSocketUtil.class.getName() + " : " + "getFactory");
-    	
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
             public boolean checkOrigin(HttpServletRequest request, String origin) {
                 // Allow all origins

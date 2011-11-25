@@ -3,7 +3,6 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -15,11 +14,7 @@ import org.atmosphere.protocol.socketio.SessionWrapper;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOCometSupport;
 import org.atmosphere.protocol.socketio.SocketIOException;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
 import org.atmosphere.protocol.socketio.SocketIOWebSocketEventListener;
-import org.atmosphere.protocol.socketio.protocol1.transport.AbstractTransport;
-import org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport;
-import org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport.SessionWrapperImpl;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.websocket.WebSocket;
@@ -61,14 +56,6 @@ public class WebSocketTransport extends AbstractTransport {
 			
 			request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 			
-			//SocketIOWebSocketEventListener socketioEventListener = (SocketIOWebSocketEventListener)request.getAttribute(SocketIOCometSupport.SOCKETIOEVENTLISTENER);
-			
-			/*
-			logger.debug("Suspending request: {}", resource.getRequest());
-	        
-	        */
-			
-			//DEBUG.. a mettre seulement dans websocketTransport
 	        // on ajoute par default un websocketListener
 	        SocketIOWebSocketEventListener socketioEventListener = new SocketIOWebSocketEventListener();
 	        resource.addEventListener(socketioEventListener);
@@ -165,14 +152,6 @@ public class WebSocketTransport extends AbstractTransport {
 			return session.getConnectionState();
 		}
 
-		@Override
-		public void sendMessage(SocketIOFrame frame) throws SocketIOException {
-			
-			logger.error("Session["+session.getSessionId()+"]: sendMessage: [" + frame.getFrameType() + "]: " + frame.getData());
-			
-			sendMessage(frame.encode());
-		}
-		
 		/*
 		 * (non-Javadoc)
 		 * @see com.glines.socketio.SocketIOInbound.SocketIOOutbound#sendMessage(java.lang.String)
@@ -196,20 +175,6 @@ public class WebSocketTransport extends AbstractTransport {
 			
 		}
 
-		@Override
-		public void sendMessage(int messageType, String message) throws SocketIOException {
-			/*
-			if (outbound.isOpen() && session.getConnectionState() == ConnectionState.CONNECTED) {
-				sendMessage(new SocketIOFrame(SocketIOFrame.FrameType.DATA, messageType, message));
-			} else {
-				throw new SocketIOClosedException();
-			}
-			*/
-			logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage(messageType, message) : message = " + message);
-			sendMessage(new SocketIOFrame(SocketIOFrame.FrameType.DATA, messageType, message));
-			
-		}
-
 		/*
 		 * (non-Javadoc)
 		 * @see com.glines.socketio.SocketIOSession.SessionTransportHandler#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, com.glines.socketio.SocketIOSession)
@@ -226,6 +191,7 @@ public class WebSocketTransport extends AbstractTransport {
 		@Override
 		public void disconnectWhenEmpty() {
 			logger.error("calling from " + this.getClass().getName() + " : " + "disconnectWhenEmpty");
+			disconnect();
 		}
 
 		@Override

@@ -6,11 +6,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
 
 public class XHRPollingTransport extends XHRTransport {
 	public static final String TRANSPORT_NAME = "xhr-polling";

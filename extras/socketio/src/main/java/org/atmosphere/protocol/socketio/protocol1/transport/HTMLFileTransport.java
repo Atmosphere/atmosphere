@@ -31,22 +31,19 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.jetty.util.ajax.JSON;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOFrame;
-import org.atmosphere.protocol.socketio.protocol1.transport.ConnectionTimeoutPreventor.IdleCheck;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
+import org.codehaus.jackson.map.ObjectMapper;
 
 public class HTMLFileTransport extends XHRTransport {
 	public static final String TRANSPORT_NAME = "htmlfile";
+	private static ObjectMapper mapper = new ObjectMapper();
 
 	private class HTMLFileSessionHelper extends XHRSessionHelper {
-		private final IdleCheck idleCheck;
 
-		HTMLFileSessionHelper(SocketIOSession session, IdleCheck idleCheck) {
+		HTMLFileSessionHelper(SocketIOSession session) {
 			super(session, true);
-			this.idleCheck = idleCheck;
 		}
 
 		protected void startSend(HttpServletResponse response) throws IOException {
@@ -61,8 +58,7 @@ public class HTMLFileTransport extends XHRTransport {
 		}
 		
 		protected void writeData(ServletResponse response, String data) throws IOException {
-			idleCheck.activity();
-			response.getOutputStream().print("<script>parent.s._("+ JSON.toString(data) +", document);</script>");
+			response.getOutputStream().print("<script>parent.s._("+ mapper.writeValueAsString(data) +", document);</script>");
 			response.flushBuffer();
 		}
 
@@ -71,8 +67,8 @@ public class HTMLFileTransport extends XHRTransport {
 		protected void customConnect(HttpServletRequest request,
 				HttpServletResponse response) throws IOException {
 			startSend(response);
-			writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
-			writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + HEARTBEAT_DELAY));
+			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
+			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + HEARTBEAT_DELAY));
 		}
 	}
 
@@ -86,8 +82,7 @@ public class HTMLFileTransport extends XHRTransport {
 	}
 
 	protected XHRSessionHelper createHelper(SocketIOSession session) {
-		IdleCheck idleCheck = ConnectionTimeoutPreventor.newTimeoutPreventor();
-		return new HTMLFileSessionHelper(session, idleCheck);
+		return new HTMLFileSessionHelper(session);
 	}
 
 	@Override
