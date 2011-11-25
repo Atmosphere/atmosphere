@@ -38,6 +38,6 @@ Download samples
 
 [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
-Atmosphere 0.8.1 is our official release [see what's changed sinde 0.7.2](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt), and our work in progress version is 0.9, targeted for end of December 2011
+Atmosphere 0.8.1 is our official release [see what's changed since 0.7.2](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt), and our work in progress version is 0.9, targeted for end of December 2011
 
 If you are interested, subscribe to our mailing list (http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
