@@ -3,15 +3,21 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.8.2-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-di-guice-sample</artifactId>
     <packaging>war</packaging>
-    <version>0.9-SNAPSHOT</version>
+    <version>0.8.2-SNAPSHOT</version>
     <name>atmosphere-di-guice-sample</name>
     <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-jquery</artifactId>
+            <version>${pom.version}</version>
+            <type>war</type>
+        </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
