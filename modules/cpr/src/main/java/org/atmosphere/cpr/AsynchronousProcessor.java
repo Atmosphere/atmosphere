@@ -262,15 +262,17 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
                     atmosphereHandlerWrapper = config.handlers().get(path);
                     if (atmosphereHandlerWrapper == null) {
+                        String ppath = path;
                         path = path.substring(0, path.lastIndexOf("/")) + "/*";
+
                         atmosphereHandlerWrapper = config.handlers().get(path);
                         if (atmosphereHandlerWrapper == null) {
+                            path = ppath;
                             if (!path.endsWith("/")) {
                                 path += "/*";
                             } else {
                                 path += "*";
                             }
-                            // Try appending the pathInfo
                             atmosphereHandlerWrapper = config.handlers().get(path);
                             if (atmosphereHandlerWrapper == null) {
                                 logger.warn("No AtmosphereHandler maps request for {}", path);
