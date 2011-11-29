@@ -209,7 +209,6 @@ jQuery.atmosphere = function() {
                     if (request.transport != 'polling' && (request.readyState == 2 && ajaxRequest.readyState == 4)) {
                         jQuery.atmosphere.reconnect(ajaxRequest, request);
                     }
-                    request.readyState = ajaxRequest.readyState;
 
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
@@ -306,6 +305,7 @@ jQuery.atmosphere = function() {
                         if (!request.executeCallbackBeforeReconnect) {
                             jQuery.atmosphere.reconnect(ajaxRequest, request);
                         }
+                        request.readyState = ajaxRequest.readyState;
 
                         if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                             // Close and reopen connection on large data received
@@ -350,7 +350,7 @@ jQuery.atmosphere = function() {
 
         reconnect : function (ajaxRequest, request) {
             jQuery.atmosphere.request = request;
-            if (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming') {
+            if (request.suspend && ajaxRequest.status == 200 && request.readyState !=3 && request.transport != 'streaming') {
                 jQuery.atmosphere.request.method = 'GET';
                 jQuery.atmosphere.request.data = "";
                 jQuery.atmosphere.executeRequest();
