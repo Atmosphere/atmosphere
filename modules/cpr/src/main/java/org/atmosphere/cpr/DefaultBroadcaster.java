@@ -138,6 +138,8 @@ public class DefaultBroadcaster implements Broadcaster {
     public synchronized void destroy() {
         if (destroyed.get()) return;
 
+        notifyDestroyListener();
+
         try {
             logger.trace("Broadcaster {} is being destroyed and cannot be re-used", getID());
 
@@ -351,7 +353,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 void destroy(boolean resume) {
-                    notifyDestroyListener();
 
                     if (resume) {
                         logger.info("All AtmosphereResource will now be resumed from Broadcaster {}", getID());
