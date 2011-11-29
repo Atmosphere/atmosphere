@@ -41,6 +41,7 @@ package org.atmosphere.cpr;
 
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
+import org.atmosphere.cache.BroadcasterCacheBase;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JettyWebSocketHandler;
@@ -93,6 +94,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE_STRATEGY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;

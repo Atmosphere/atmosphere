@@ -50,8 +50,9 @@ import java.util.List;
  */
 public interface BroadcasterCache<V, W> {
 
-
     public final static String BROADCASTER_CACHE_TRACKER = BroadcasterCache.class.getName();
+
+    public enum STRATEGY { BEFORE_FILTER, AFTER_FILTER }
 
     /**
      * Start

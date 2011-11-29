@@ -80,7 +80,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
 
     protected final List<CachedMessage> queue = new CopyOnWriteArrayList<CachedMessage>();
 
-    protected final ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
+    protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 
     protected int maxCachedinMs = 1000 * 5 * 60;
 
@@ -109,6 +109,13 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
                 }
             }
         }, 0, 60, TimeUnit.SECONDS);
+    }
+
+    public void setExecutorService(ScheduledExecutorService reaper){
+        if (reaper != null) {
+            stop();
+        }
+        this.reaper = reaper;
     }
 
     /**
