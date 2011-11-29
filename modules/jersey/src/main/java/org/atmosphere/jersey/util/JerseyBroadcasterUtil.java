@@ -34,6 +34,7 @@ public final class JerseyBroadcasterUtil {
     public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         HttpServletRequest request = (HttpServletRequest) r.getRequest();
 
+        boolean lostCandidate = false;
         try {
             ContainerResponse cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
             boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
@@ -45,6 +46,7 @@ public final class JerseyBroadcasterUtil {
                 } else {
                     logger.error("ContainerResponse already resumed or cancelled. Ignoring");
                 }
+                lostCandidate = true;
                 r.getBroadcaster().removeAtmosphereResource(r);
                 return;
             }
@@ -80,10 +82,11 @@ public final class JerseyBroadcasterUtil {
                 }
             }
         } catch (Throwable t) {
+            lostCandidate = true;
             onException(t, r);
         } finally {
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (resumeOnBroadcast != null && resumeOnBroadcast) {
+            if (!lostCandidate && resumeOnBroadcast != null && resumeOnBroadcast) {
 
                 String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
                 if (uuid != null) {
@@ -92,6 +95,10 @@ public final class JerseyBroadcasterUtil {
                     }
                 }
                 r.resume();
+            }
+
+            if (lostCandidate && r != null && r.getBroadcaster() != null && r.getBroadcaster().getBroadcasterConfig().getBroadcasterCache() != null) {
+                r.getBroadcaster().getBroadcasterConfig().getBroadcasterCache().addToCache(r, e.getMessage());
             }
         }
     }

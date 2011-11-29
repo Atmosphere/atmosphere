@@ -640,7 +640,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
                     } else {
-                        logger.warn("This message {} will be lost", token.msg);
+                        logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
+
+                        broadcasterCache.addToCache(token.resource, token.msg);
+
                         logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                     }
                 }
