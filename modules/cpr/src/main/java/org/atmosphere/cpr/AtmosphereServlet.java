@@ -1182,7 +1182,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 return cometSupport.service(new AtmosphereRequest.Builder()
                         .headers(headers)
-                        .method(body != null ? "POST" : "GET")
+                        .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
                         .body(body)
                         .request(req).build(), res);
             } else {
