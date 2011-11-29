@@ -3,12 +3,10 @@ package org.atmosphere.jersey.util;
 import com.sun.jersey.spi.container.ContainerResponse;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.jersey.AtmosphereFilter;
 import org.slf4j.Logger;
@@ -16,9 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -98,7 +94,12 @@ public final class JerseyBroadcasterUtil {
             }
 
             if (lostCandidate && r != null && r.getBroadcaster() != null && r.getBroadcaster().getBroadcasterConfig().getBroadcasterCache() != null) {
-                r.getBroadcaster().getBroadcasterConfig().getBroadcasterCache().addToCache(r, e.getMessage());
+                String s = (String)request.getAttribute(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
+
+                // Prevent caching
+                if (s == null || !s.equalsIgnoreCase("beforeFilter")) {
+                    r.getBroadcaster().getBroadcasterConfig().getBroadcasterCache().addToCache(r,e.getMessage());
+                }
             }
         }
     }

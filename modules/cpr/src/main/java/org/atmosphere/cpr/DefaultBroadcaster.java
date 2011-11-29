@@ -109,6 +109,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private Future<?> currentLifecycleTask;
     protected URI uri;
     protected AtmosphereServlet.AtmosphereConfig config;
+    protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         this.name = name;
@@ -117,6 +118,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         broadcasterCache = new DefaultBroadcasterCache();
         bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
+        if (s != null) {
+            if (s.equalsIgnoreCase("afterFilter")) {
+                cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
+            } else if (s.equalsIgnoreCase("beforeFilter")) {
+                cacheStrategy = BroadcasterCache.STRATEGY.BEFORE_FILTER;
+            }
+        }
     }
 
     public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
@@ -202,6 +211,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
                         InjectorProvider.getInjector().inject(cache);
                         DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
+                        DefaultBroadcaster.class.cast(b).getBroadcasterConfig().setBroadcasterCache(cache);
                     }
                     resource.setBroadcaster(b);
                     b.setScope(SCOPE.REQUEST);
@@ -485,7 +495,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (resources.isEmpty()) {
             logger.debug("Broadcaster {} doesn't have any associated resource", getID());
-            trackBroadcastMessage(null, entry.message);
+
+            trackBroadcastMessage(null, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
+
             if (entry.future != null) {
                 entry.future.done();
             }
@@ -559,7 +571,10 @@ public class DefaultBroadcaster implements Broadcaster {
                         finalMsg = a.message();
                     }
                 }
-                trackBroadcastMessage(r, finalMsg);
+
+                if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                    trackBroadcastMessage(r, finalMsg);
+                }
             } else {
                 // The resource is no longer valid.
                 removeAtmosphereResource(r);
