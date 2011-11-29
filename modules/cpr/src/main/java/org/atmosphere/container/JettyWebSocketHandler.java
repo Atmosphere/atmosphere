@@ -216,7 +216,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         private final String method;
         private final String serverName;
         private final int serverPort;
-        private final ServletContext servletContext;
 
         public JettyRequestFix(HttpServletRequest request) {
             super(request);
@@ -228,7 +227,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             this.method = request.getMethod();
             this.serverName = request.getServerName();
             this.serverPort = request.getServerPort();
-            this.servletContext = request.getServletContext();
 
             HttpSession session = request.getSession(true);
             httpSession = new FakeHttpSession(session.getId(), session.getServletContext(), session.getCreationTime());
