@@ -1621,6 +1621,7 @@
           xhr.onreadystatechange = empty;
 
           if (xhr.status == 200) {
+          	console.log("xhr.responseText=" + xhr.responseText);
             complete(xhr.responseText);
           } else {
             !self.reconnecting && self.onError(xhr.responseText);
@@ -2298,6 +2299,7 @@
       self.socket.setBuffer(false);
     };
     this.websocket.onmessage = function (ev) {
+    	console.log("WS received=" + ev.data);
       self.onData(ev.data);
     };
     this.websocket.onclose = function () {
@@ -2320,6 +2322,7 @@
    */
 
   WS.prototype.send = function (data) {
+  	console.log("WS sending=" + data);
     this.websocket.send(data);
     return this;
   };
@@ -3035,6 +3038,7 @@ var swfobject=function(){var D="undefined",r="object",S="Shockwave Flash",W="Sho
    */
 
   XHR.prototype.send = function (data) {
+  	console.log("XHR sending=" + data);
     this.post(data);
     return this;
   };
