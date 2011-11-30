@@ -78,8 +78,10 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  */
 public class DefaultBroadcaster implements Broadcaster {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
+    public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
 
     protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
@@ -554,7 +556,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
-        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future));
+        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
     }
 
     protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
@@ -597,41 +599,50 @@ public class DefaultBroadcaster implements Broadcaster {
         return msg;
     }
 
-    protected void executeAsyncWrite(final AtmosphereResource<?, ?> resource, final Object msg, final BroadcasterFuture future) {
+    protected void executeAsyncWrite(final AsyncWriteToken token) {
         boolean notifyListeners = true;
+        boolean lostCandidate = false;
+
         try {
-            final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) resource.getAtmosphereResourceEvent();
-            event.setMessage(msg);
+            final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
+            event.setMessage(token.msg);
 
             // Check again to make sure we are still valid. Remove and silently ignore.
-            if (!AtmosphereResourceImpl.class.cast(resource).isInScope()) {
-                resources.remove(resource);
+            if (!AtmosphereResourceImpl.class.cast(token.resource).isInScope()) {
+                resources.remove(token.resource);
+                lostCandidate = true;
                 return;
             }
 
             try {
-                HttpServletRequest.class.cast(resource.getRequest())
+                HttpServletRequest.class.cast(token.resource.getRequest())
                         .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             } catch (Throwable t) {
                 logger.error("Invalid AtmosphereResource state {}", event);
                 logger.error("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
                 logger.error("", t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
-                removeAtmosphereResource(resource);
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(resource);
+                removeAtmosphereResource(token.resource);
+                BroadcasterFactory.getDefault().removeAllAtmosphereResource(token.resource);
                 event.setCancelled(true);
                 event.setThrowable(t);
+                lostCandidate = true;
                 return;
             }
 
-            broadcast(resource, event);
+            HttpServletRequest.class.cast(token.resource.getRequest()).setAttribute(ASYNC_TOKEN, token);
+            broadcast(token.resource, event);
         } finally {
             if (notifyListeners) {
-                resource.notifyListeners();
+                token.resource.notifyListeners();
             }
 
-            if (future != null) {
-                future.done();
+            if (token.future != null) {
+                token.future.done();
+            }
+
+            if (lostCandidate) {
+                cacheLostMessage(token.resource);
             }
         }
     }
@@ -649,16 +660,17 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         // If the resource is no longer in scope, skip the processing.
                         if (AtmosphereResourceImpl.class.cast(token.resource).isInScope()) {
-                            executeAsyncWrite(token.resource, token.msg, token.future);
+                            executeAsyncWrite(token);
                         }
                     }
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
                     } else {
-                        logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
-
-                        broadcasterCache.addToCache(token.resource, token.msg);
+                        if (token != null) {
+                            logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
+                            cacheLostMessage(token.resource);
+                        }
 
                         logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                     }
@@ -699,7 +711,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void onException(Throwable t, final AtmosphereResource<?, ?> r) {
+    public void onException(Throwable t, final AtmosphereResource<?, ?> r) {
         logger.debug("onException()", t);
 
         // Remove to prevent other broadcast to re-use it.
@@ -721,13 +733,31 @@ public class DefaultBroadcaster implements Broadcaster {
                     try {
                         r.resume();
                     } catch (Throwable t) {
-                        logger.warn("Was unable to resume a corrupted AtmosphereResource {}", r);
-                        logger.warn("Cause", t);
+                        logger.trace("Was unable to resume a corrupted AtmosphereResource {}", r);
+                        logger.trace("Cause", t);
                     }
                 }
             });
         } else {
             r.resume();
+        }
+        cacheLostMessage(r);
+    }
+
+    /**
+     * Cache the message because an unexpected exception occurred.
+     * @param r
+     */
+    public void cacheLostMessage(AtmosphereResource<?,?> r) {
+        try {
+            AsyncWriteToken token = (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest()).getAttribute(ASYNC_TOKEN);
+            if (token != null && token.originalMessage != null) {
+                Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
+                broadcasterCache.addToCache(token.resource, m);
+                logger.trace("Lost message cached {}", m);
+            }
+        } catch (Throwable t2) {
+            logger.trace("Unable to cache message", t2);
         }
     }
 
@@ -1074,16 +1104,18 @@ public class DefaultBroadcaster implements Broadcaster {
                 .toString();
     }
 
-    private final static class AsyncWriteToken {
+    protected final static class AsyncWriteToken {
 
         final AtmosphereResource<?, ?> resource;
         final Object msg;
         final BroadcasterFuture future;
+        final Object originalMessage;
 
-        public AsyncWriteToken(AtmosphereResource<?, ?> resource, Object msg, BroadcasterFuture future) {
+        public AsyncWriteToken(AtmosphereResource<?, ?> resource, Object msg, BroadcasterFuture future, Object originalMessage) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
+            this.originalMessage = originalMessage;
         }
 
         @Override
