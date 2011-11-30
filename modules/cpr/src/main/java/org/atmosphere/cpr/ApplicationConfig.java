@@ -188,4 +188,8 @@ public interface ApplicationConfig {
      * The Servlet's mapping value to the FILTER_CLASS
      */
     String FILTER_NAME = "org.atmosphere.filter.name";
+    /**
+     * Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is afterFilter
+     */
+    String BROADCASTER_CACHE_STRATEGY = BroadcasterCache.class.getName() + ".strategy";
 }

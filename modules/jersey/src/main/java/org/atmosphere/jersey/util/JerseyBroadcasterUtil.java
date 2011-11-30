@@ -3,12 +3,12 @@ package org.atmosphere.jersey.util;
 import com.sun.jersey.spi.container.ContainerResponse;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.jersey.AtmosphereFilter;
 import org.slf4j.Logger;
@@ -16,9 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,7 +29,7 @@ public final class JerseyBroadcasterUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
 
-    public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
+    public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
         HttpServletRequest request = (HttpServletRequest) r.getRequest();
 
         try {
@@ -45,7 +43,11 @@ public final class JerseyBroadcasterUtil {
                 } else {
                     logger.error("ContainerResponse already resumed or cancelled. Ignoring");
                 }
-                r.getBroadcaster().removeAtmosphereResource(r);
+
+                if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
+                    DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r);
+                }
+                AsynchronousProcessor.destroyResource(r);
                 return;
             }
 
@@ -80,7 +82,11 @@ public final class JerseyBroadcasterUtil {
                 }
             }
         } catch (Throwable t) {
-            onException(t, r);
+            if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
+                DefaultBroadcaster.class.cast(broadcaster).onException(t, r);
+            } else {
+                onException(t,r);
+            }
         } finally {
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {

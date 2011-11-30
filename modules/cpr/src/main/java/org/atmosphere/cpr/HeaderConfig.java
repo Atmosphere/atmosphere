@@ -34,6 +34,10 @@ public interface HeaderConfig {
 
     String STREAMING_TRANSPORT = "streaming";
 
+    String JSONP= "jsonp";
+
+    String JSONP_CALLBACK_NAME = "jsonpTransport";
+
     String WEBSOCKET_TRANSPORT = "websocket";
     /**
      * When a unexpected error occurs.

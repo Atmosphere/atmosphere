@@ -37,6 +37,7 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcasterCacheBase;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -331,10 +332,6 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (executorService.isShutdown()) {
-            return;
-        }
-
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
@@ -367,7 +364,7 @@ public class BroadcasterConfig {
     /**
      * Force shutdown of all {@link ExecutorService}
      */
-    public void forceDestroy(){
+    public void forceDestroy() {
         destroy(true);
     }
 
@@ -514,6 +511,9 @@ public class BroadcasterConfig {
      */
     public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
         this.broadcasterCache = broadcasterCache;
+        if (BroadcasterCacheBase.class.isAssignableFrom(broadcasterCache.getClass())) {
+            BroadcasterCacheBase.class.cast(broadcasterCache).setExecutorService(getScheduledExecutorService());
+        }
         return this;
     }
 
