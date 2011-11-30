@@ -17,6 +17,10 @@
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
         </init-param>
+        <init-param>
+            <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
+            <param-value>org.atmosphere.client.JSONPTransportFilter</param-value>
+        </init-param>
 
         <load-on-startup>0</load-on-startup>
     </servlet>

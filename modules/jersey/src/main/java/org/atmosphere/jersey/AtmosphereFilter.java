@@ -96,6 +96,7 @@ import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
 import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
+import static org.atmosphere.cpr.HeaderConfig.JSONP;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -189,7 +190,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast) {
             String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
-            if (transport != null && transport.equals(LONG_POLLING_TRANSPORT)) {
+            if (transport != null && (transport.equals(JSONP) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return true;
             }
             return resumeOnBroadcast;
@@ -210,7 +211,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
             if (webSocketEnabled) {
                 return false;
-            } else if (transport != null && transport.equals(LONG_POLLING_TRANSPORT)) {
+            } else if (transport != null && (transport.equals(JSONP) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return false;
             }
 
