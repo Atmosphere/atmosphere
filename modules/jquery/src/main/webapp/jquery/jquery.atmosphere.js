@@ -133,13 +133,64 @@ jQuery.atmosphere = function() {
 
         },
 
-        executeRequest: function() {
+        jsonp: function() {
+            var request = jQuery.atmosphere.request;
 
-            if (jQuery.atmosphere.request.transport == 'streaming') {
-                if (jQuery.browser.msie) {
-                    jQuery.atmosphere.request.enableXDR && window.XDomainRequest ? jQuery.atmosphere.ieXDR() : jQuery.atmosphere.ieStreaming();
-                    return;
-                }
+            jQuery.atmosphere.request.attachHeadersAsQueryString = true;
+
+            jQuery.atmosphere.response.push = function(url) {
+                jQuery.atmosphere.request.callback = null;
+                jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
+            };
+
+            var jqxhr = jQuery.ajax({
+                url : request.url ,
+                type : request.method,
+                dataType: "jsonp",
+                error : function(jqXHR, textStatus, errorThrown) {
+                    jQuery.atmosphere.ieCallback(textStatus, "error", jqXHR.status, request.transport);
+                },
+                jsonp : "jsonpTransport",
+                success: function(json) {
+                    if (request.executeCallbackBeforeReconnect) {
+                        jQuery.atmosphere.reconnect(jqxhr, request);
+                    }
+
+                    jQuery.atmosphere.ieCallback(json.message, "messageReceived", 200, request.transport);
+
+                    if (!request.executeCallbackBeforeReconnect) {
+                        jQuery.atmosphere.reconnect(jqxhr, request);
+                    }
+                },
+                data : request.data,
+                beforeSend : function(jqXHR){
+                    jQuery.atmosphere.doRequest(jqXHR, request, false);
+                }});
+
+        },
+
+        checkCORSSupport : function(){
+            if (jQuery.browser.msie && !window.XDomainRequest) {
+                return true;
+            } else if (jQuery.browser.opera) {
+                return true;
+            }
+            return false;
+        },
+
+        executeRequest: function() {
+            var request = jQuery.atmosphere.request;
+
+            // CORS fake using JSONP
+            if (jQuery.atmosphere.request.transport == 'jsonp' || (jQuery.atmosphere.request.enableXDR && jQuery.atmosphere.request.checkCORSSupport())) {
+                jQuery.atmosphere.jsonp();
+                return;
+            }
+
+            // IE streaming
+            if (jQuery.atmosphere.request.transport == 'streaming' && jQuery.browser.msie) {
+                jQuery.atmosphere.request.enableXDR && window.XDomainRequest ? jQuery.atmosphere.ieXDR() : jQuery.atmosphere.ieStreaming();
+                return;
             }
 
             if (jQuery.atmosphere.request.enableXDR && window.XDomainRequest) {
@@ -153,7 +204,6 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
                 };
 
-                var request = jQuery.atmosphere.request;
                 var response = jQuery.atmosphere.response;
                 if (request.transport != 'polling') {
                     response.transport = request.transport;
@@ -178,7 +228,7 @@ jQuery.atmosphere = function() {
                     activeRequest = ajaxRequest;
                 }
 
-                jQuery.atmosphere.doRequest(ajaxRequest, request)
+                jQuery.atmosphere.doRequest(ajaxRequest, request, true)
 
                 if (!jQuery.browser.msie) {
                     ajaxRequest.onerror = function() {
@@ -266,7 +316,7 @@ jQuery.atmosphere = function() {
                                         if ((request.transport == 'streaming') && (ajaxRequest.responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                                             // Close and reopen connection on large data received
                                             ajaxRequest.abort();
-                                            jQuery.atmosphere.doRequest(ajaxRequest, request);
+                                            jQuery.atmosphere.doRequest(ajaxRequest, request, true);
                                         }
                                     }
                                 }, 0);
@@ -310,7 +360,7 @@ jQuery.atmosphere = function() {
                         if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                             // Close and reopen connection on large data received
                             ajaxRequest.abort();
-                            jQuery.atmosphere.doRequest(ajaxRequest, request);
+                            jQuery.atmosphere.doRequest(ajaxRequest, request, true);
                         }
                     }
                 };
@@ -329,11 +379,13 @@ jQuery.atmosphere = function() {
             }
         },
 
-        doRequest : function(ajaxRequest, request) {
-            // Prevent Android to cacbe request
+        doRequest : function(ajaxRequest, request, create) {
+            // Prevent Android to cache request
             var url = jQuery.atmosphere.prepareURL(request.url);
 
-            ajaxRequest.open(request.method, url, true);
+            if (create) {
+                ajaxRequest.open(request.method, url, true);
+            }
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
             ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
