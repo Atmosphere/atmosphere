@@ -453,6 +453,7 @@
         <felix-version>1.4.0</felix-version>
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
+        <spring-version>3.0.6.RELEASE</spring-version>
         <wicket.version>1.4.12</wicket.version>
         <ahc.version>1.6.5</ahc.version>
         <jedis.version>2.0.0</jedis.version>
