@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
+ * Copyright 2011 Jason Burgess
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,10 +21,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
 
 /**
- * An injector for Spring Beans.
+ * An injector for Spring Beans. Any bean that you want to inject must use annotations (autowiring).
  * 
  * @author Jason Burgess
- * @since 0.8.2
+ * @since 0.9
  */
 public class SpringInjector implements Injector {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpringInjector.class);
