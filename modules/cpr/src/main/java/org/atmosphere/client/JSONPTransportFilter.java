@@ -15,6 +15,7 @@
  */
 package org.atmosphere.client;
 
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
@@ -22,7 +23,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * A {@link org.atmosphere.cpr.BroadcastFilter} that add support for jQuery.atmosphere.js JSONP support.
+ * A {@link org.atmosphere.cpr.BroadcastFilter} that add support for jQuery.atmosphere.js JSONP_TRANSPORT support.
  *
  * @author Jeanfrancois Arcand
  */
@@ -32,8 +33,17 @@ public class JSONPTransportFilter implements PerRequestBroadcastFilter {
 
         String s = request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
         if (s != null) {
-            String jsonPMessage = s + "({\"message\" : \"" + message + "\"})";
-            return new BroadcastAction(jsonPMessage);
+            String contentType = response.getContentType();
+            if (contentType == null) {
+                contentType = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
+            }
+            if (contentType == null || !contentType.contains("json")) {
+                String jsonPMessage = s + "({\"message\" : \"" + message + "\"})";
+                return new BroadcastAction(jsonPMessage);
+            } else {
+                String jsonPMessage = s + "({\"message\" :" + message + "})";
+                return new BroadcastAction(jsonPMessage);
+            }
         }
 
         return new BroadcastAction(message);

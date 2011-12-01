@@ -66,16 +66,16 @@ public interface FrameworkConfig {
      */
     String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
     /**
-     * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator and not recommend for normal application.
-     */
-    String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.class.getName() + ".contextRoot";
-    /**
      * A reference to the Jersey's {@link ContainerResponse}
      */
     String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     /**
      * Decide to write extra header.
      */
-    String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
+    String WRITE_HEADERS = AtmosphereResource.class.getName() + ".writeHeader";
+    /**
+     * Used by a Container to tell Atmosphere Runtime what is the expected content type
+     */
+    String EXPECTED_CONTENT_TYPE = FrameworkConfig.class.getName() + ".expectedContentType";
 
 }
