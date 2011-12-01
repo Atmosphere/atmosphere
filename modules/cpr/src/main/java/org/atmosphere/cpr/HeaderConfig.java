@@ -34,7 +34,7 @@ public interface HeaderConfig {
 
     String STREAMING_TRANSPORT = "streaming";
 
-    String JSONP= "jsonp";
+    String JSONP_TRANSPORT = "jsonp";
 
     String JSONP_CALLBACK_NAME = "jsonpTransport";
 

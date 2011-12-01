@@ -72,6 +72,10 @@ public interface FrameworkConfig {
     /**
      * Decide to write extra header.
      */
-    String WRITE_HEADERS = AtmosphereResource.class.getName() + "." + "writeHeader";
+    String WRITE_HEADERS = AtmosphereResource.class.getName() + ".writeHeader";
+    /**
+     * Used by a Container to tell Atmosphere Runtime what is the expected content type
+     */
+    String EXPECTED_CONTENT_TYPE = FrameworkConfig.class.getName() + ".expectedContentType";
 
 }
