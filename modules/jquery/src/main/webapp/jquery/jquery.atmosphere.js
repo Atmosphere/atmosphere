@@ -24,6 +24,7 @@
  */
 jQuery.atmosphere = function() {
 
+    // IE 6 and 7 aren't supporting JSON natively.
     loadJSON2();
 
     var activeRequest;
@@ -833,7 +834,7 @@ jQuery.atmosphere = function() {
                         jQuery.atmosphere.request.requestCount = request.requestCount;
                         jQuery.atmosphere.request.maxRequest = request.maxRequest;
 
-                        jQuery.atmosphere.request.url = request.url;
+                        jQuery.atmosphere.request.url = jQuery.atmosphere.attachHeaders(request);
 
                         jQuery.atmosphere.response.responseBody = "";
                         jQuery.atmosphere.executeWebSocket();
