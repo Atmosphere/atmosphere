@@ -136,15 +136,21 @@ jQuery.atmosphere = function() {
         jsonp: function() {
             var request = jQuery.atmosphere.request;
 
-            jQuery.atmosphere.request.attachHeadersAsQueryString = true;
-
             jQuery.atmosphere.response.push = function(url) {
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
 
+            var url = request.url;
+            var data = jQuery.atmosphere.request.data;
+            if (jQuery.atmosphere.request.attachHeadersAsQueryString) {
+                url = jQuery.atmosphere.attachHeaders(request);
+                url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                data = '';
+            }
+
             var jqxhr = jQuery.ajax({
-                url : request.url ,
+                url : url,
                 type : request.method,
                 dataType: "jsonp",
                 error : function(jqXHR, textStatus, errorThrown) {
@@ -156,20 +162,24 @@ jQuery.atmosphere = function() {
                         jQuery.atmosphere.reconnect(jqxhr, request);
                     }
 
-                    jQuery.atmosphere.ieCallback(json.message, "messageReceived", 200, request.transport);
+                    var msg = json.message;
+                    if (msg != null && typeof msg != 'string') {
+                        msg = JSON.stringify(msg);
+                    }
+                    jQuery.atmosphere.ieCallback(msg, "messageReceived", 200, request.transport);
 
                     if (!request.executeCallbackBeforeReconnect) {
                         jQuery.atmosphere.reconnect(jqxhr, request);
                     }
                 },
                 data : request.data,
-                beforeSend : function(jqXHR){
+                beforeSend : function(jqXHR) {
                     jQuery.atmosphere.doRequest(jqXHR, request, false);
                 }});
 
         },
 
-        checkCORSSupport : function(){
+        checkCORSSupport : function() {
             if (jQuery.browser.msie && !window.XDomainRequest) {
                 return true;
             } else if (jQuery.browser.opera) {
@@ -182,7 +192,7 @@ jQuery.atmosphere = function() {
             var request = jQuery.atmosphere.request;
 
             // CORS fake using JSONP
-            if (jQuery.atmosphere.request.transport == 'jsonp' || (jQuery.atmosphere.request.enableXDR && jQuery.atmosphere.request.checkCORSSupport())) {
+            if (jQuery.atmosphere.request.transport == 'jsonp' || (jQuery.atmosphere.request.enableXDR && jQuery.atmosphere.checkCORSSupport())) {
                 jQuery.atmosphere.jsonp();
                 return;
             }
@@ -259,6 +269,7 @@ jQuery.atmosphere = function() {
                     if (request.transport != 'polling' && (request.readyState == 2 && ajaxRequest.readyState == 4)) {
                         jQuery.atmosphere.reconnect(ajaxRequest, request);
                     }
+                    request.readyState = ajaxRequest.readyState;
 
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
@@ -355,7 +366,6 @@ jQuery.atmosphere = function() {
                         if (!request.executeCallbackBeforeReconnect) {
                             jQuery.atmosphere.reconnect(ajaxRequest, request);
                         }
-                        request.readyState = ajaxRequest.readyState;
 
                         if ((request.transport == 'streaming') && (responseText.length > jQuery.atmosphere.request.maxStreamingLength)) {
                             // Close and reopen connection on large data received

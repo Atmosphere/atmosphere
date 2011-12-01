@@ -57,7 +57,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -96,7 +95,7 @@ import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
 import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
-import static org.atmosphere.cpr.HeaderConfig.JSONP;
+import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -190,7 +189,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast) {
             String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
-            if (transport != null && (transport.equals(JSONP) || transport.equals(LONG_POLLING_TRANSPORT))) {
+            if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return true;
             }
             return resumeOnBroadcast;
@@ -211,7 +210,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
             if (webSocketEnabled) {
                 return false;
-            } else if (transport != null && (transport.equals(JSONP) || transport.equals(LONG_POLLING_TRANSPORT))) {
+            } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return false;
             }
 
@@ -679,6 +678,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 if (entity != null) {
                     b = b.header("Content-Type", contentType != null ?
                             contentType.toString() : "text/html; charset=ISO-8859-1");
+                    servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
                 }
 
                 boolean eclipse362468 = false;

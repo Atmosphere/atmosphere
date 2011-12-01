@@ -1176,7 +1176,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
         try {
             if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
-                    && isIECandidate(req)
+                    && (isIECandidate(req) || req.getParameter(HeaderConfig.JSONP_CALLBACK_NAME) != null)
                     && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
