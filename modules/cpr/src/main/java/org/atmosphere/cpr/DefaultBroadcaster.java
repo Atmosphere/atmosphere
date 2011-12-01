@@ -946,7 +946,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
                     releaseExternalResources();
                 } else if (scope == SCOPE.REQUEST || lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
-                    notifyDestroyListener();
                     BroadcasterFactory.getDefault().remove(this, name);
                     destroy();
                 }
