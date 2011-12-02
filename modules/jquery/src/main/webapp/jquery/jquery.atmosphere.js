@@ -663,6 +663,8 @@ jQuery.atmosphere = function() {
             // Handles open and message event
             xdr.onprogress = function() {
                 xdrCallback(xdr);
+                lastMessage = xdr.responseText;
+
             };
             // Handles error event
             xdr.onerror = function() {
