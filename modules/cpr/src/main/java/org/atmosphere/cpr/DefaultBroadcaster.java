@@ -138,7 +138,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public synchronized void destroy() {
-        if (destroyed.get()) return;
+        if (destroyed.getAndSet(true)) return;
 
         notifyDestroyListener();
 
@@ -153,15 +153,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 currentLifecycleTask.cancel(true);
             }
             started.set(false);
-            destroyed.set(true);
 
             releaseExternalResources();
             if (notifierFuture != null) {
-                notifierFuture.cancel(false);
+                notifierFuture.cancel(true);
             }
 
             if (asyncWriteFuture != null) {
-                asyncWriteFuture.cancel(false);
+                asyncWriteFuture.cancel(true);
             }
 
             if (bc != null) {
@@ -440,7 +439,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 Entry msg = null;
                 while (started.get()) {
                     try {
-                        msg = messages.take();
+                        msg = messages.poll(10, TimeUnit.SECONDS);
+                        if (msg == null) {
+                            if (destroyed.get()) {
+                                return;
+                            } else {
+                                continue;
+                            }
+                        }
                         push(msg);
                     } catch (InterruptedException ex) {
                         return;
@@ -656,9 +662,15 @@ public class DefaultBroadcaster implements Broadcaster {
             public void run() {
                 AsyncWriteToken token = null;
                 try {
-                    token = asyncWriteQueue.take();
-                    synchronized (token.resource) {
+                    token = asyncWriteQueue.poll(10, TimeUnit.SECONDS);
+                    if (token == null) {
+                        if (!destroyed.get()) {
+                            bc.getAsyncWriteService().submit(this);
+                        }
+                        return;
+                    }
 
+                    synchronized (token.resource) {
                         // We want this thread to wait for the write operation to happens to kept the order
                         bc.getAsyncWriteService().submit(this);
 
