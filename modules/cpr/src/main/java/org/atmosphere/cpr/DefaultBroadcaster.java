@@ -252,7 +252,8 @@ public class DefaultBroadcaster implements Broadcaster {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
 
-        if (BroadcasterFactory.getDefault() == null) return; // we are shutdown or destroyed, but someone still reference
+        if (BroadcasterFactory.getDefault() == null)
+            return; // we are shutdown or destroyed, but someone still reference
 
         Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
@@ -441,9 +442,12 @@ public class DefaultBroadcaster implements Broadcaster {
                     try {
                         msg = messages.take();
                         push(msg);
+                    } catch (InterruptedException ex) {
+                        return;
                     } catch (Throwable ex) {
                         if (!started.get() || destroyed.get()) {
                             logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
+                            return;
                         } else {
                             logger.warn("This message {} will be lost", msg);
                             logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
@@ -663,9 +667,12 @@ public class DefaultBroadcaster implements Broadcaster {
                             executeAsyncWrite(token);
                         }
                     }
+                } catch (InterruptedException ex) {
+                    return;
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                        return;
                     } else {
                         if (token != null) {
                             logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
@@ -746,9 +753,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Cache the message because an unexpected exception occurred.
+     *
      * @param r
      */
-    public void cacheLostMessage(AtmosphereResource<?,?> r) {
+    public void cacheLostMessage(AtmosphereResource<?, ?> r) {
         try {
             AsyncWriteToken token = (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest()).getAttribute(ASYNC_TOKEN);
             if (token != null && token.originalMessage != null) {
