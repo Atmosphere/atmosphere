@@ -98,10 +98,10 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
                 CachedMessage message;
                 while (i.hasNext()) {
                     message = i.next();
-                    logger.debug("Message: {}", message.message());
+                    logger.trace("Message: {}", message.message());
 
                     if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
-                        logger.debug("Pruning: {}", message.message());
+                        logger.trace("Pruning: {}", message.message());
                         queue.remove(message);
                     } else {
                         break;
@@ -130,7 +130,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      */
     public final synchronized void addToCache(
             final AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, final Object object) {
-        logger.debug("Adding message for resource: {}, object: {}", resource, object);
+        logger.trace("Adding message for resource: {}, object: {}", resource, object);
 
         CachedMessage cm = new CachedMessage(object, System.currentTimeMillis(), null);
         CachedMessage prev = null;
