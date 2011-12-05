@@ -706,7 +706,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     response.write();
                 }
 
-                if (entity != null) {
+                if (entity != null && !entity.toString().isEmpty()) {
                     if (location != null) {
                         b = b.header(HttpHeaders.LOCATION, location);
                     }
