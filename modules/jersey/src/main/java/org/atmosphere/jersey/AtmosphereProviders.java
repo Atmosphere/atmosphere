@@ -148,7 +148,7 @@ public class AtmosphereProviders {
                                 trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
                                 trackableResource.setResource(r);
                             }
-                            logger.debug("Tracking resource of AtmosphereResource {} with {}", r, trackableResource);
+                            logger.trace("Tracking resource of AtmosphereResource {} with {}", r.hashCode(), trackingId);
                         }
                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
                     }
