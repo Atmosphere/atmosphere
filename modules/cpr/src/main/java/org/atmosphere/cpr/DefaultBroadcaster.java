@@ -506,10 +506,16 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
+        Object finalMsg = translate(entry.message);
+        entry.message = finalMsg;
         if (resources.isEmpty()) {
             logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
-            trackBroadcastMessage(null, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
+            AtmosphereResource<?,?> r = null;
+            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
+                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+            }
+            trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
 
             if (entry.future != null) {
                 entry.future.done();
@@ -517,8 +523,6 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
-        Object finalMsg = translate(entry.message);
-        entry.message = finalMsg;
         try {
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource<?, ?> r : resources) {
