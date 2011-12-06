@@ -49,6 +49,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
  * {@link Broadcaster#broadcast}, e.g sent the broadcasted event back to the remote client. All broadcast will be by default returned
@@ -87,11 +89,14 @@ public abstract class AbstractReflectorAtmosphereHandler
                 throw new IOException(ex);
             }
         } else {
-            boolean isUsingStream = false;
-            try {
-                event.getResource().getResponse().getWriter();
-            } catch (IllegalStateException e) {
-                isUsingStream = true;
+            boolean isUsingStream = (Boolean) event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+
+            if (!isUsingStream) {
+                try {
+                    event.getResource().getResponse().getWriter();
+                } catch (IllegalStateException e) {
+                    isUsingStream = true;
+                }
             }
 
             if (message instanceof List) {

@@ -244,7 +244,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                if (BroadcasterFactory.getDefault() != null) {
+                if (BroadcasterFactory.getDefault() != null)  {
                     this.broadcaster = BroadcasterFactory.getDefault().get(mapping);
                 } else {
                     this.mapping = mapping;
@@ -419,11 +419,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     private void addMapping(String path, AtmosphereHandlerWrapper w) {
-        // We are using JAXRS mapping algorithm.
-
-        if (path.contains("*")) {
-            path = path.replace("*", "[/a-zA-Z0-9-&=;\\?]+");
-        }
         atmosphereHandlers.put(path, w);
     }
 
@@ -756,6 +751,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
             useStreamForFlushingComments = true;
         } catch (Throwable t) {
+            logger.trace("", t);
             return false;
         }
 
@@ -776,6 +772,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
+        broadcasterFactory.destroy();
+        logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
+
+        broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
 
         addAtmosphereHandler(mapping, rsp, b);

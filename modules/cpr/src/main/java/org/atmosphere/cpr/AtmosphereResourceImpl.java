@@ -261,7 +261,10 @@ public class AtmosphereResourceImpl implements
 
         if (event.isSuspended()) return;
 
-        if (req.getSession(false) != null && req.getSession().getMaxInactiveInterval() != -1 && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
+        if (config.isSupportSession()
+                && req.getSession(false) != null
+                && req.getSession().getMaxInactiveInterval() != -1
+                && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
@@ -389,7 +392,7 @@ public class AtmosphereResourceImpl implements
         return getBroadcaster(true);
     }
 
-    private Broadcaster getBroadcaster(boolean autoCreate) {
+    protected Broadcaster getBroadcaster(boolean autoCreate) {
         if (broadcaster == null) {
             throw new IllegalStateException("No Broadcaster associated with this AtmosphereResource.");
         }
@@ -400,14 +403,16 @@ public class AtmosphereResourceImpl implements
         }
 
         if (autoCreate && broadcaster.isDestroyed() && BroadcasterFactory.getDefault() != null) {
-            logger.warn("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
+            logger.debug("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
                     " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
 
+            Broadcaster.SCOPE scope = broadcaster.getScope();
             synchronized (this) {
-                String id = broadcaster.getScope() != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
+                String id = scope != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
 
                 // Another Thread may have added the Broadcaster.
                 broadcaster = BroadcasterFactory.getDefault().lookup(id, true);
+                broadcaster.setScope(scope);
                 broadcaster.addAtmosphereResource(this);
             }
         }

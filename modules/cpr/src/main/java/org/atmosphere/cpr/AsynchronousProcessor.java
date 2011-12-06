@@ -41,7 +41,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
-import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +51,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -231,23 +228,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         aliveRequests.remove(r.getRequest());
     }
 
-    protected AtmosphereHandlerWrapper map(String path) {
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
-        if (atmosphereHandlerWrapper == null) {
-            final Map<String, String> m = new HashMap<String, String>();
-            for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
-                UriTemplate t = new UriTemplate(e.getKey());
-                logger.trace("Trying to map {} to {}", t, path);
-                if (t.match(path, m)) {
-                    atmosphereHandlerWrapper = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue());
-                    break;
-                }
-            }
-        }
-        return atmosphereHandlerWrapper;
-    }
-
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
@@ -256,18 +236,55 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-        String path = req.getServletPath() + req.getPathInfo();
-        if (path == null || path.length() <= 1) {
-            path = "/all";
+        String path = req.getServletPath();
+        if (path == null || path.length() == 0) {
+            path = "/";
         }
 
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
+        // The Algorithm as been fixed in 0.9
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
         if (atmosphereHandlerWrapper == null) {
-            atmosphereHandlerWrapper = map("/all");
-        }
+            // Try the /*
+            if (!path.endsWith("/")) {
+                path += "/*";
+            } else {
+                path += "*";
+            }
+            atmosphereHandlerWrapper = config.handlers().get(path);
+            if (atmosphereHandlerWrapper == null) {
+                atmosphereHandlerWrapper = config.handlers().get("/*");
+                if (atmosphereHandlerWrapper == null) {
 
-        if (atmosphereHandlerWrapper == null) {
-            throw new ServletException("No AtmosphereHandler maps request for " + path);
+                    if (req.getPathInfo() != null) {
+                        // Try appending the pathInfo
+                        path = req.getServletPath() + req.getPathInfo();
+                    }
+
+                    atmosphereHandlerWrapper = config.handlers().get(path);
+                    if (atmosphereHandlerWrapper == null) {
+                        String ppath = path;
+                        path = path.substring(0, path.lastIndexOf("/")) + "/*";
+
+                        atmosphereHandlerWrapper = config.handlers().get(path);
+                        if (atmosphereHandlerWrapper == null) {
+                            path = ppath;
+                            if (!path.endsWith("/")) {
+                                path += "/*";
+                            } else {
+                                path += "*";
+                            }
+                            atmosphereHandlerWrapper = config.handlers().get(path);
+                            if (atmosphereHandlerWrapper == null) {
+                                logger.warn("No AtmosphereHandler maps request for {}", path);
+                                for (String m : config.handlers().keySet()) {
+                                    logger.warn("\tAtmosphereHandler registered: {}", m);
+                                }
+                                throw new ServletException("No AtmosphereHandler maps request for " + path);
+                            }
+                        }
+                    }
+                }
+            }
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
@@ -309,7 +326,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     public Action timedout(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl re;
+        AtmosphereResourceImpl r;
         long l = (Long) request.getAttribute(MAX_INACTIVE);
         if (l == -1) {
             // The closedDetector closed the connection.
@@ -325,21 +342,29 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             return timedoutAction;
         }
 
-        re = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        r = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-        if (re != null && re.getAtmosphereResourceEvent().isSuspended()) {
-            re.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
+        if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
+            r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
 
-            Broadcaster b = re.getBroadcaster();
+            Broadcaster b = r.getBroadcaster();
             if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster) b).broadcastOnResume(re);
+                ((DefaultBroadcaster) b).broadcastOnResume(r);
             }
 
-            if (re.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
-                re.getAtmosphereResourceEvent().setIsResumedOnTimeout(
-                        (Boolean) re.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
+            if (r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
+                r.getAtmosphereResourceEvent().setIsResumedOnTimeout(
+                        (Boolean) r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
             }
-            invokeAtmosphereHandler(re);
+            invokeAtmosphereHandler(r);
+            try {
+                r.getResponse().getOutputStream().close();
+            } catch (Throwable t) {
+                try {
+                    r.getResponse().getWriter().close();
+                } catch (Throwable t2) {
+                }
+            }
         }
 
         return timedoutAction;
@@ -357,17 +382,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                         (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+
                 synchronized (r) {
                     atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                     r.setIsInScope(false);
-                }
 
-                Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                if (m != null) {
-                    m.destroy();
+                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                    if (m != null) {
+                        m.destroy();
+                    }
                 }
-            } else {
-                r.getResponse().flushBuffer();
             }
         } catch (IOException ex) {
             try {
@@ -385,12 +409,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
     }
 
-    public static void destroyResource(AtmosphereResource<?,?> r) {
+    public static void destroyResource(AtmosphereResource<?, ?> r) {
         if (r == null) return;
 
         r.removeEventListeners();
         try {
-            r.getBroadcaster().removeAtmosphereResource(r);
+            AtmosphereResourceImpl.class.cast(r).getBroadcaster(false).removeAtmosphereResource(r);
         } catch (IllegalStateException ex) {
             logger.trace(ex.getMessage(), ex);
         }
@@ -413,35 +437,47 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     public synchronized Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl re = null;
+        AtmosphereResourceImpl r = null;
         long l = (Long) req.getAttribute(MAX_INACTIVE);
         if (l == -1) {
             // The closedDetector closed the connection.
             return timedoutAction;
         }
+
+        logger.debug("Cancelling the connection for request {}", req);
+
         req.setAttribute(MAX_INACTIVE, (long) -1);
 
-        logger.debug("Cancelling out the connection for request {}", req);
-
         try {
-            re = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            if (re != null) {
-                re.getAtmosphereResourceEvent().setCancelled(true);
-                invokeAtmosphereHandler(re);
-                re.setIsInScope(false);
+            r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            if (r != null) {
+                r.getAtmosphereResourceEvent().setCancelled(true);
+                invokeAtmosphereHandler(r);
+
+                try {
+                    r.getResponse().sendError(503);
+                    r.getResponse().getOutputStream().close();
+                } catch (Throwable t) {
+                    try {
+                        r.getResponse().getWriter().close();
+                    } catch (Throwable t2) {
+                    }
+                }
+
+                r.setIsInScope(false);
             }
         } catch (Throwable ex) {
             // Something wrong happenned, ignore the exception
-            logger.debug("failed to cancel resource: " + re, ex);
+            logger.debug("failed to cancel resource: " + r, ex);
         } finally {
             try {
                 aliveRequests.remove(req);
-                if (re != null) {
-                    re.notifyListeners();
+                if (r != null) {
+                    r.notifyListeners();
                 }
             } finally {
-                if (re != null) {
-                    destroyResource(re);
+                if (r != null) {
+                    destroyResource(r);
                 }
             }
         }
