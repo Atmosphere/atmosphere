@@ -231,7 +231,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private BroadcasterFactory broadcasterFactory;
     protected String broadcasterFactoryClassName;
     protected static String broadcasterCacheClassName;
-    private boolean webSocketEnabled = false;
+    private boolean webSocketEnabled = true;
     private String broadcasterLifeCyclePolicy = "NEVER";
     private String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
 
@@ -635,8 +635,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected void doInitParamsForWebSocket(ServletConfig sc) {
         String s = sc.getInitParameter(WEBSOCKET_SUPPORT);
-        if (s != null && Boolean.parseBoolean(s)) {
-            webSocketEnabled = true;
+        if (s != null) {
+            webSocketEnabled = Boolean.parseBoolean(s);
             sessionSupport(false);
         }
         s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
