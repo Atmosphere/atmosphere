@@ -828,10 +828,10 @@ jQuery.atmosphere = function() {
                 }
 
                 jQuery.atmosphere.log(logLevel, ["Websocket closed, reason: " + reason]);
-                jQuery.atmosphere.log(logLevel, [("Websocket closed, wasClean: " + message.wasClean]);
+                jQuery.atmosphere.log(logLevel, ["Websocket closed, wasClean: " + message.wasClean]);
 
                 if (!webSocketSupported) {
-                    var data = jQuery.atmosphere.request.data;er
+                    var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
                     // Websocket is not supported, reconnect using the fallback transport.
                     request.transport = request.fallbackTransport;
