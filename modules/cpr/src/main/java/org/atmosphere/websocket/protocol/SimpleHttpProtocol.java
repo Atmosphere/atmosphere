@@ -128,7 +128,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
-        logger.debug(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
+        logger.warn(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
     /**
