@@ -22,6 +22,8 @@
  *
  * Compatible with jQuery 1.5+
  */
+var JSON;
+
 jQuery.atmosphere = function() {
 
     // IE 6 and 7 aren't supporting JSON natively.
@@ -610,8 +612,12 @@ jQuery.atmosphere = function() {
             var lastMessage = "";
             var transport = jQuery.atmosphere.request.transport;
             var lastIndex = 0;
+            var request = jQuery.atmosphere.request;
 
             jQuery.atmosphere.response.push = function(url) {
+                jQuery.atmosphere.request.method = 'POST';
+                jQuery.atmosphere.request.enableXDR = true;
+                jQuery.atmosphere.request.attachHeadersAsQueryString = true;
                 jQuery.atmosphere.request.callback = null;
                 jQuery.atmosphere.publish(url, null, jQuery.atmosphere.request);
             };
@@ -663,6 +669,7 @@ jQuery.atmosphere = function() {
             // Handles open and message event
             xdr.onprogress = function() {
                 xdrCallback(xdr);
+                lastMessage = xdr.responseText;
             };
             // Handles error event
             xdr.onerror = function() {
@@ -674,7 +681,12 @@ jQuery.atmosphere = function() {
                     xdrCallback(xdr);
                 }
 
-                jQuery.atmosphere.reconnect(xdr, jQuery.atmosphere.request);
+                if (transport == "long-polling") {
+                    jQuery.atmosphere.request.method = 'GET';
+                    jQuery.atmosphere.request.data = "";
+                    jQuery.atmosphere.request.transport = transport;
+                    jQuery.atmosphere.executeRequest();
+                }
             };
 
             return {
@@ -814,8 +826,9 @@ jQuery.atmosphere = function() {
                             break;
                     }
                 }
-                jQuery.atmosphere.warn("Websocket closed, reason: " + reason);
-                jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
+
+                jQuery.atmosphere.log(logLevel, ["Websocket closed, reason: " + reason]);
+                jQuery.atmosphere.log(logLevel, ["Websocket closed, wasClean: " + message.wasClean]);
 
                 if (!webSocketSupported) {
                     var data = jQuery.atmosphere.request.data;
@@ -897,7 +910,16 @@ jQuery.atmosphere = function() {
                 maxRequest : 60,
                 logLevel : 'info',
                 requestCount : 0,
-                transport: 'polling'
+                transport: 'polling',
+                webSocketImpl: null,
+                webSocketUrl: null,
+                webSocketPathDelimiter: "@@",
+                enableXDR : false,
+                rewriteURL : false,
+                attachHeadersAsQueryString : false,
+                executeCallbackBeforeReconnect : true,
+                readyState : 0
+
             }, request);
 
             if (callback != null) {
@@ -1099,6 +1121,7 @@ jQuery.atmosphere = function() {
 
 }();
 
+
 function loadJSON2() {
     /*
      http://www.JSON.org/json2.js
@@ -1261,7 +1284,6 @@ function loadJSON2() {
 // Create a JSON object only if one does not already exist. We create the
 // methods in a closure to avoid creating global variables.
 
-    var JSON;
     if (!JSON) {
         JSON = {};
     }
