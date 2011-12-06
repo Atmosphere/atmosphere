@@ -62,6 +62,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  * from any Classes loaded using the same class loader.
  *
  * @author Jeanfrancois Arcand
+ * @author Jason Burgess
  */
 public class DefaultBroadcasterFactory extends BroadcasterFactory {
 

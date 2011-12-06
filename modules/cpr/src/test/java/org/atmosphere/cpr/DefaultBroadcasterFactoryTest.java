@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
+ * Copyright 2011 Jason Burgess
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -23,8 +23,9 @@ import org.testng.annotations.Test;
 import static org.mockito.Mockito.*;
 
 /**
- *
- * @author jburgess
+ * Unit tests for the {@link DefaultBroadcasterFactory}.
+ * 
+ * @author Jason Burgess
  */
 public class DefaultBroadcasterFactoryTest {
 
@@ -87,7 +88,6 @@ public class DefaultBroadcasterFactoryTest {
     public void testLookup_Class_Object() {
         String id = "id";
         String id2 = "foo";
-        Broadcaster b = factory.get(id);
         assert factory.lookup(DefaultBroadcaster.class, id) != null;
         assert factory.lookup(DefaultBroadcaster.class, id2) == null;
     }
