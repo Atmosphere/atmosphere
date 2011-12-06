@@ -55,7 +55,7 @@ public class TrackableSession {
      * @param trackableResource a {@link TrackableResource}
      */
     public void track(TrackableResource<? extends Trackable> trackableResource) {
-        logger.debug("Tracking {}", trackableResource.trackingID());
+        logger.trace("Tracking {}", trackableResource.trackingID());
         factoryCache.put(trackableResource.trackingID(), trackableResource);
         CountDownLatch latch = pendingLock.remove(trackableResource.trackingID());
         if (latch != null) {

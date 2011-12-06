@@ -618,16 +618,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if ((localScope == Suspend.SCOPE.REQUEST) && bc == null) {
                 if (bc == null) {
                     try {
-                        String id = UUID.randomUUID().toString();
-
-                        // Re-generate a new one with proper scope.
-                        Class<Broadcaster> c = null;
-                        try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
-                        } catch (Throwable e) {
-                            throw new IllegalStateException(e.getMessage());
+                        String id = servletReq.getHeader(X_ATMOSPHERE_TRACKING_ID);
+                        if (id == null){
+                            id = UUID.randomUUID().toString();
                         }
-                        bc = broadcasterFactory.get(c, id);
+
+                        bc = broadcasterFactory.get(id);
                         bc.setScope(Broadcaster.SCOPE.REQUEST);
                     } catch (Exception ex) {
                         logger.error("failed to instantiate broadcaster with factory: " + broadcasterFactory, ex);

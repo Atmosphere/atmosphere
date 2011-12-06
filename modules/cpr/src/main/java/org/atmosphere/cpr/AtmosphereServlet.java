@@ -751,6 +751,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
             useStreamForFlushingComments = true;
         } catch (Throwable t) {
+            logger.trace("", t);
             return false;
         }
 
@@ -771,6 +772,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
+        broadcasterFactory.destroy();
+        logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
+
+        broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
 
         addAtmosphereHandler(mapping, rsp, b);
