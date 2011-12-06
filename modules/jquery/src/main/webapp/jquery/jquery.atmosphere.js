@@ -38,13 +38,14 @@ jQuery.atmosphere = function() {
     });
 
     return {
-        version : 0.8,
+        version : 0.9,
         response : {
             status: 200,
             responseBody : '',
             headers : [],
             state : "messageReceived",
             transport : "polling",
+
             push : [],
             error: null,
             id : 0
