@@ -507,7 +507,20 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         Object finalMsg = translate(entry.message);
+
+        if (finalMsg == null) {
+            logger.trace("Broascast message was null {}", finalMsg);
+            return;
+        }
+
+        Object prevM = entry.originalMessage;
         entry.originalMessage = (entry.originalMessage != entry.message ? translate(entry.originalMessage) : finalMsg);
+
+        if (entry.originalMessage == null) {
+            logger.trace("Broascast message was null {}", prevM);
+            return;
+        }
+
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
@@ -609,7 +622,8 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 return Callable.class.cast(msg).call();
             } catch (Exception e) {
-                logger.error("failed to cast message: " + msg, e);
+                logger.warn("Callable exception", e);
+                return null;
             }
         }
         return msg;
