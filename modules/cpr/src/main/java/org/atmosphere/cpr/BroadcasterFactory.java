@@ -92,7 +92,7 @@ public abstract class BroadcasterFactory {
      *
      * @param b a {@link Broadcaster}
      * @return false if wasn't present, or {@link Broadcaster}
-     * @oaram id the {@link Broadcaster's ID}
+     * @param id the {@link Broadcaster's ID}
      */
     abstract public boolean remove(Broadcaster b, Object id);
 
