@@ -507,7 +507,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         Object finalMsg = translate(entry.message);
+        entry.originalMessage = (entry.originalMessage != entry.message ? translate(entry.originalMessage) : finalMsg);
         entry.message = finalMsg;
+
         if (resources.isEmpty()) {
             logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
