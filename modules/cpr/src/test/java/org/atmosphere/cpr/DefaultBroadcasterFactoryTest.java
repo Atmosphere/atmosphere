@@ -88,7 +88,7 @@ public class DefaultBroadcasterFactoryTest {
     public void testLookup_Class_Object() {
         String id = "id";
         String id2 = "foo";
-        assert factory.lookup(DefaultBroadcaster.class, id) != null;
+        assert factory.lookup(DefaultBroadcaster.class, id, true) != null;
         assert factory.lookup(DefaultBroadcaster.class, id2) == null;
     }
 
