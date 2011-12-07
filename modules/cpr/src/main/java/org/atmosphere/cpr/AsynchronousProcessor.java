@@ -326,43 +326,56 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     public Action timedout(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl r;
-        long l = (Long) request.getAttribute(MAX_INACTIVE);
-        if (l == -1) {
-            // The closedDetector closed the connection.
-            return timedoutAction;
-        }
-        request.setAttribute(MAX_INACTIVE, (long) -1);
+        AtmosphereResourceImpl r = null;
+        try {
+            long l = (Long) request.getAttribute(MAX_INACTIVE);
+            if (l == -1) {
+                // The closedDetector closed the connection.
+                return timedoutAction;
+            }
+            request.setAttribute(MAX_INACTIVE, (long) -1);
 
-        logger.debug("Timing out the connection for request {}", request);
+            logger.debug("Timing out the connection for request {}", request);
 
-        // Something went wrong.
-        if (request == null || response == null) {
-            logger.warn("Invalid Request/Response: {}/{}", request, response);
-            return timedoutAction;
-        }
-
-        r = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-
-        if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
-            r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
-
-            Broadcaster b = r.getBroadcaster();
-            if (b instanceof DefaultBroadcaster) {
-                ((DefaultBroadcaster) b).broadcastOnResume(r);
+            // Something went wrong.
+            if (request == null || response == null) {
+                logger.warn("Invalid Request/Response: {}/{}", request, response);
+                return timedoutAction;
             }
 
-            if (r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
-                r.getAtmosphereResourceEvent().setIsResumedOnTimeout(
-                        (Boolean) r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
-            }
-            invokeAtmosphereHandler(r);
-            try {
-                r.getResponse().getOutputStream().close();
-            } catch (Throwable t) {
+            r = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+
+            if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
+                r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
+
+                Broadcaster b = r.getBroadcaster();
+                if (b instanceof DefaultBroadcaster) {
+                    ((DefaultBroadcaster) b).broadcastOnResume(r);
+                }
+
+                if (r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
+                    r.getAtmosphereResourceEvent().setIsResumedOnTimeout(
+                            (Boolean) r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
+                }
+                invokeAtmosphereHandler(r);
                 try {
-                    r.getResponse().getWriter().close();
-                } catch (Throwable t2) {
+                    r.getResponse().getOutputStream().close();
+                } catch (Throwable t) {
+                    try {
+                        r.getResponse().getWriter().close();
+                    } catch (Throwable t2) {
+                    }
+                }
+            }
+        } finally {
+            try {
+                aliveRequests.remove(request);
+                if (r != null) {
+                    r.notifyListeners();
+                }
+            } finally {
+                if (r != null) {
+                    destroyResource(r);
                 }
             }
         }
@@ -398,13 +411,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 r.onThrowable(ex);
             } catch (Throwable t) {
                 logger.warn("failed calling onThrowable()", ex);
-            }
-        } finally {
-            try {
-                aliveRequests.remove(req);
-                r.notifyListeners();
-            } finally {
-                destroyResource(r);
             }
         }
     }
