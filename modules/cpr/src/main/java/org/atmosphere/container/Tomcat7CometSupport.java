@@ -125,13 +125,14 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
             bz51881(event);
         } else if (event.getEventType() == EventType.END) {
             if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
-                action = cancelled(req, res);
+                /**
+                 * Ignore END (the application just read the complete InputStream
+                 */
+                //action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
+                bz51881(event);
             }
-
-            bz51881(event);
         }
         return action;
     }
