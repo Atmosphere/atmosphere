@@ -739,6 +739,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void trackBroadcastMessage(final AtmosphereResource<?, ?> r, Object msg) {
+        if (destroyed.get() || broadcasterCache == null) return;
         broadcasterCache.addToCache(r, msg);
     }
 
