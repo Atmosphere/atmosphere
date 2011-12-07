@@ -55,6 +55,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -64,7 +65,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.*;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 
 /**
  * {@link Broadcaster} implementation.
@@ -112,6 +118,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected URI uri;
     protected AtmosphereServlet.AtmosphereConfig config;
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
+    private final CyclicBarrier awaitBarrier = new CyclicBarrier(1);
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         this.name = name;
@@ -398,6 +405,23 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public boolean isDestroyed() {
         return destroyed.get();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit) {
+        if (resources.isEmpty()) {
+            try {
+                logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
+                awaitBarrier.await(time, timeUnit);
+            } catch (Throwable e) {
+                logger.warn("awaitAndBroadcast", e);
+                return null;
+            }
+        }
+        return broadcast(t);
     }
 
     public static final class Entry {
@@ -921,45 +945,52 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
 
-        if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource<?, ?> r");
-            return r;
-        }
+        try {
+            if (destroyed.get()) {
+                logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource<?, ?> r");
+                return r;
+            }
 
-        start();
-        if (scope == SCOPE.REQUEST && requestScoped.getAndSet(true)) {
-            throw new IllegalStateException("Broadcaster " + this
-                    + " cannot be used as its scope is set to REQUEST");
-        }
+            start();
+            if (scope == SCOPE.REQUEST && requestScoped.getAndSet(true)) {
+                throw new IllegalStateException("Broadcaster " + this
+                        + " cannot be used as its scope is set to REQUEST");
+            }
 
-        // To avoid excessive synchronization, we allow resources.size() to get larger that maxSuspendResource
-        if (maxSuspendResource.get() > 0 && resources.size() >= maxSuspendResource.get()) {
-            // Resume the first in.
-            if (policy == POLICY.FIFO) {
-                // TODO handle null return from poll()
-                AtmosphereResource<?, ?> resource = resources.poll();
-                try {
-                    logger.warn("Too many resource. Forcing resume of {} ", resource);
-                    resource.resume();
-                } catch (Throwable t) {
-                    logger.warn("failed to resume resource {} ", resource, t);
+            // To avoid excessive synchronization, we allow resources.size() to get larger that maxSuspendResource
+            if (maxSuspendResource.get() > 0 && resources.size() >= maxSuspendResource.get()) {
+                // Resume the first in.
+                if (policy == POLICY.FIFO) {
+                    // TODO handle null return from poll()
+                    AtmosphereResource<?, ?> resource = resources.poll();
+                    try {
+                        logger.warn("Too many resource. Forcing resume of {} ", resource);
+                        resource.resume();
+                    } catch (Throwable t) {
+                        logger.warn("failed to resume resource {} ", resource, t);
+                    }
+                } else if (policy == POLICY.REJECT) {
+                    throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
                 }
-            } else if (policy == POLICY.REJECT) {
-                throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
+            }
+
+            if (resources.contains(r)) {
+                return r;
+            }
+
+            // Re-add yourself
+            if (resources.isEmpty()) {
+                BroadcasterFactory.getDefault().add(this, name);
+            }
+
+            resources.add(r);
+            checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+        } finally {
+            // OK reset
+            if (resources.size() > 0 && awaitBarrier.getParties() > 0) {
+                awaitBarrier.reset();
             }
         }
-
-        if (resources.contains(r)) {
-            return r;
-        }
-
-        // Re-add yourself
-        if (resources.isEmpty()) {
-            BroadcasterFactory.getDefault().add(this, name);
-        }
-
-        resources.add(r);
-        checkCachedAndPush(r, r.getAtmosphereResourceEvent());
         return r;
     }
 
