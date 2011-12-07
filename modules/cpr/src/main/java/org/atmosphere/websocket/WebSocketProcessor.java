@@ -177,9 +177,10 @@ public class WebSocketProcessor implements Serializable {
 
             if (resource != null) {
                 AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                AtmosphereResourceEventImpl e = new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, true, false);
                 synchronized (resource) {
                     if (handler != null) {
-                        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, false, true));
+                        handler.onStateChange(e);
                     }
 
                     Meteor m = (Meteor) resource.getRequest().getAttribute(AtmosphereResourceImpl.METEOR);
@@ -189,7 +190,7 @@ public class WebSocketProcessor implements Serializable {
                 }
 
                 try {
-                    resource.notifyListeners();
+                    resource.notifyListeners(e);
                 } finally {
                     AsynchronousProcessor.destroyResource(resource);
                 }
