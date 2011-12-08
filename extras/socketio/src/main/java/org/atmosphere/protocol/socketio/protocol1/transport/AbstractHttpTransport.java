@@ -32,8 +32,13 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession.SessionTransportHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractHttpTransport extends AbstractTransport {
+	
+	private static final Logger logger = LoggerFactory.getLogger(AbstractHttpTransport.class);
+	
 	/**
 	 * This is a sane default based on the timeout values of various browsers.
 	 */
@@ -80,19 +85,31 @@ public abstract class AbstractHttpTransport extends AbstractTransport {
 				session = sessionFactory.getSession(sessionId);
 			}
 		}
-
+		
+		boolean isDisconnectRequest = isDisconnectRequest(request);
+		
 		if (session != null) {
 			SessionTransportHandler handler = session.getTransportHandler();
 			if (handler != null) {
-				handler.handle(request, response, session);
+				if(!isDisconnectRequest){
+					handler.handle(request, response, session);
+				} else {
+					handler.disconnect();
+					response.setStatus(200);
+				}
 			} else {
-				// on fait un connect
-				session = connect(session, resource, atmosphereHandler, sessionFactory);
-				if (session == null) {
-					response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+				if(!isDisconnectRequest){
+					// on fait un connect
+					session = connect(session, resource, atmosphereHandler, sessionFactory);
+					if (session == null) {
+						response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+					}
+				} else {
+					response.setStatus(200);
 				}
 			}
 		} else if (sessionId != null && sessionId.length() > 0) {
+			logger.error("Session NULL but not sessionId : Soit un mauvais sessionID ou il y a eu un DISCONNECT");
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 		} else {
 			if ("GET".equals(request.getMethod())) {

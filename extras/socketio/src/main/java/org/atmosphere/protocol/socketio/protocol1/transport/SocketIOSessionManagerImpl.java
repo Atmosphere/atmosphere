@@ -301,7 +301,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			if (atmosphereHandler != null) {
 				state = ConnectionState.CLOSED;
 				try {
-					atmosphereHandler.onDisconnect(reason, null);
+					atmosphereHandler.onDisconnect(resource, handler, reason);
 				} catch (Throwable e) {
 					logger.error("Session["+sessionId+"]: Exception thrown by SocketIOInbound.onDisconnect()", e);
 				}

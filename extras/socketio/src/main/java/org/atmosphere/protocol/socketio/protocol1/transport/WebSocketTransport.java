@@ -51,26 +51,35 @@ public class WebSocketTransport extends AbstractTransport {
 		
 		String sessionId = extractSessionId(request);
 		
-		if ("GET".equals(request.getMethod()) && "WebSocket".equalsIgnoreCase(request.getHeader("Upgrade"))) {
+		boolean isDisconnectRequest = isDisconnectRequest(request);
+		
+		if(!isDisconnectRequest){
+		
+			if ("GET".equals(request.getMethod()) && "WebSocket".equalsIgnoreCase(request.getHeader("Upgrade"))) {
+				SocketIOSession session = sessionFactory.getSession(sessionId);
+				
+				request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+				
+		        // on ajoute par default un websocketListener
+		        SocketIOWebSocketEventListener socketioEventListener = new SocketIOWebSocketEventListener();
+		        resource.addEventListener(socketioEventListener);
+		        request.setAttribute(SocketIOCometSupport.SOCKETIOEVENTLISTENER, socketioEventListener);
+				
+		        SessionWrapperImpl sessionWrapper = new SessionWrapperImpl(session, socketioEventListener);
+		        
+		        socketioEventListener.setSessionWrapper(sessionWrapper);
+		        
+		        request.setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, sessionWrapper);
+		        
+				resource.suspend(-1, false);
+				
+			} else {
+				response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
+			}
+		} else {
 			SocketIOSession session = sessionFactory.getSession(sessionId);
 			
-			request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
-			
-	        // on ajoute par default un websocketListener
-	        SocketIOWebSocketEventListener socketioEventListener = new SocketIOWebSocketEventListener();
-	        resource.addEventListener(socketioEventListener);
-	        request.setAttribute(SocketIOCometSupport.SOCKETIOEVENTLISTENER, socketioEventListener);
-			
-	        SessionWrapperImpl sessionWrapper = new SessionWrapperImpl(session, socketioEventListener);
-	        
-	        socketioEventListener.setSessionWrapper(sessionWrapper);
-	        
-	        request.setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, sessionWrapper);
-	        
-			resource.suspend(-1, false);
-			
-		} else {
-			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
+			session.getTransportHandler().disconnect();
 		}
 	}
 	

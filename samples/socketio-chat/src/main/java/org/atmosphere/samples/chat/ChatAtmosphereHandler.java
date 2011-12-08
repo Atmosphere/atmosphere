@@ -156,11 +156,6 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 		
 	}
 
-	public void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) {
-		logger.error("onDisconnect");
-		
-	}
-	
 	@SuppressWarnings("unused")
 	public void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler outbound, String message) {
 		logger.error("onMessage Message Received=" + message);
@@ -256,6 +251,15 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 	public void onDisconnect(DisconnectReason reason, String message) {
 		logger.error("onDisconnect DisconnectReason=" + reason + " message = " + message);
 		
+	}
+	
+	public void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler outbound, DisconnectReason reason) {
+		logger.error("onDisconnect");
+		
+		// on broadcast l'info aux autres usagers
+		event.getBroadcaster().broadcast("5:::{\"args\":[],\"name\":\"disconnect\"}");
+		
+		 
 	}
 	
 }

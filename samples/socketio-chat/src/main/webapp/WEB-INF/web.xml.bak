@@ -11,18 +11,6 @@ xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns
            <param-name>org.atmosphere.cpr.customCometSupport</param-name>
            <param-value>org.atmosphere.protocol.socketio.SocketIOCometSupport</param-value>
        </init-param>
-       <init-param>
-				<param-name>socketio-transport</param-name>
-				<param-value>websocket,htmlfile,xhr-polling</param-value>
-			</init-param>
-			<init-param>
-				<param-name>socketio-timeout</param-name>
-				<param-value>2500</param-value>
-			</init-param>
-			<init-param>
-				<param-name>socketio-heartbeat</param-name>
-				<param-value>15</param-value>
-			</init-param>
 
        <init-param>
            <param-name>org.atmosphere.cpr.broadcasterClass</param-name>

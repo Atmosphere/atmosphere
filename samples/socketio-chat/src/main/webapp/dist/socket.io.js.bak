@@ -2321,7 +2321,6 @@
    */
 
   WS.prototype.send = function (data) {
-  	console.log("WS sending=" + data);
     this.websocket.send(data);
     return this;
   };

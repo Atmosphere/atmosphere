@@ -22,14 +22,17 @@
  */
 package org.atmosphere.protocol.socketio.protocol1.transport;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.List;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 
 import org.atmosphere.protocol.socketio.transport.Transport;
+import org.atmosphere.util.uri.UriComponent;
 
 public abstract class AbstractTransport implements Transport {
 	protected String extractSessionId(HttpServletRequest request) {
@@ -89,5 +92,50 @@ public abstract class AbstractTransport implements Transport {
 	@Override
 	public void destroy() {
 
+	}
+	
+	protected String decodePostData(String contentType, String data) {
+		if (contentType.startsWith("application/x-www-form-urlencoded")) {
+			if (data.length()>5 && data.substring(0, 5).equals("data=")) {
+				return UriComponent.decodePath(data.substring(5),true).get(0).getPath();
+			} else {
+				return data;
+			}
+		} else if (contentType.startsWith("text/plain")) {
+			return data;
+		} else {
+			// TODO: Treat as text for now, maybe error in the future.
+			return data;
+		}
+	}
+	
+	protected boolean isDisconnectRequest(HttpServletRequest request){
+		// on commence par detecter si c'est un DISCONNECT
+		// si c'est le cas, il faut terminer la connection en cours
+		if ("GET".equals(request.getMethod())) {
+			
+			if(request.getParameterMap().containsKey("disconnect")){
+				return true;
+			}
+			
+		} else if ("POST".equals(request.getMethod())) {
+			try {
+				String data = decodePostData(request.getContentType(), extractString(request.getReader()));
+				if (data != null && data.length() > 0) {
+					List<SocketIOEvent> list = SocketIOEvent.parse(data);
+					if(!list.isEmpty()){
+						if(SocketIOEvent.FrameType.DISCONNECT.equals(list.get(0).getFrameType())){
+							return true;
+						}
+					}
+					
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
+		return false;
 	}
 }

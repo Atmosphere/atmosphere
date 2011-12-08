@@ -238,6 +238,7 @@ public class WebSocketProcessor implements Serializable {
                     }
                 } catch (Throwable t) {
                     logger.debug("Listener error {}", t);
+                    t.printStackTrace();
                     try {
                         WebSocketEventListener.class.cast(l).onThrowable(new AtmosphereResourceEventImpl(r, false, false, t));
                     } catch (Throwable t2) {

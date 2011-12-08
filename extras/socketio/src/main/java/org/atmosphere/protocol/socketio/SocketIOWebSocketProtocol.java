@@ -1,5 +1,7 @@
 package org.atmosphere.protocol.socketio;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -57,7 +59,7 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, String data) {
+    public AtmosphereRequest onMessage(WebSocket webSocket, String data){
         logger.error("calling from " + this.getClass().getName() + " : " + "broadcast String");
         
         //resource.getBroadcaster().broadcast(data);
@@ -96,9 +98,15 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol {
     @Override
     public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.error("calling from " + this.getClass().getName() + " : " + "broadcast byte");
-        byte[] b = new byte[length];
-        System.arraycopy(data, offset, b, 0, length);
-        resource.getBroadcaster().broadcast(b);
+        
+        String msg = null;
+		try {
+			msg = new String(data, offset, length, "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+        
+        //resource.getBroadcaster().broadcast(msg);
         return null;
     }
 

@@ -35,6 +35,16 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
      * @param errorMessage Possibly non null error message associated with the reason for disconnect.
      */
     void onDisconnect(DisconnectReason reason, String errorMessage);
+    
+    /**
+     * Called when the socket connection is closed. This will only ever be called once.
+     * This method may be called instead of onConnect() if the connection handshake isn't
+     * completed successfully.
+     *
+     * @param reason       The reason for the disconnect.
+     * @param errorMessage Possibly non null error message associated with the reason for disconnect.
+     */
+    void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler, DisconnectReason reason);
 
     /**
      * Called one per arriving message.

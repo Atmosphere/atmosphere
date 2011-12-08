@@ -166,6 +166,7 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 								
 								if(resource!=null){
 									//resource.suspend(REQUEST_TIMEOUT, false);
+									//DEBUG
 									resource.suspend(7*1000, false);
 									
 									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
@@ -231,21 +232,6 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			}
 
-		}
-
-		protected String decodePostData(String contentType, String data) {
-			if (contentType.startsWith("application/x-www-form-urlencoded")) {
-				if (data.substring(0, 5).equals("data=")) {
-					return UriComponent.decodePath(data.substring(5),true).get(0).getPath();
-				} else {
-					return "";
-				}
-			} else if (contentType.startsWith("text/plain")) {
-				return data;
-			} else {
-				// TODO: Treat as text for now, maybe error in the future.
-				return data;
-			}
 		}
 
 		public void onComplete() {

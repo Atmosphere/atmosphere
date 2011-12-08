@@ -10,12 +10,6 @@ var socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'});
 
 socket.on('connect', function () {
   $('#chat').addClass('connected');
-	console.log(io.transports);
-
-});
-
-socket.on('connecting', function () {
-  //
 });
 
 socket.on('announcement', function (msg) {

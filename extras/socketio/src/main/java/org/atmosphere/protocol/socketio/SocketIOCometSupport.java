@@ -52,12 +52,19 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	public static final int BUFFER_SIZE_DEFAULT = 8192;
 	public static final int MAX_IDLE_TIME_DEFAULT = 300*1000;
 	
+	public static final String SOCKETIO_TRANSPORT = "socketio-transport";
+	public static final String SOCKETIO_TIMEOUT = "socketio-timeout";
+	public static final String SOCKETIO_HEARTBEAT = "socketio-heartbeat";
 	
 	public int bufferSize = BUFFER_SIZE_DEFAULT;
 	public int maxIdleTime = MAX_IDLE_TIME_DEFAULT;
 	
 	private int heartbeatInterval = 15;
 	private int timeout = 2500;
+	
+	
+	private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
+	
 	
 	public SocketIOCometSupport(AtmosphereConfig config, AsynchronousProcessor container) {
 		super(config);
@@ -67,6 +74,22 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
 		
 		config.getServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
+		
+		String transportsWebXML = config.getInitParameter(SOCKETIO_TRANSPORT);
+		
+		if(transportsWebXML!=null){
+			availableTransports = transportsWebXML;
+		}
+		
+		String timeoutWebXML = config.getInitParameter(SOCKETIO_TIMEOUT);
+		if(timeoutWebXML!=null){
+			timeout = Integer.parseInt(timeoutWebXML);
+		}
+		
+		String heartbeatWebXML = config.getInitParameter(SOCKETIO_HEARTBEAT);
+		if(heartbeatWebXML!=null){
+			heartbeatInterval = Integer.parseInt(heartbeatWebXML);
+		}
 		
 		webSocketFactory = new AtmosphereWebSocketFactory(config);
 	}
@@ -173,9 +196,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         		
         		
         		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
-        		
-        		//response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":websocket");
-        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling");
+        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
         		
         		return resource.action();
         	} else if(protocol!=null && version==null){
