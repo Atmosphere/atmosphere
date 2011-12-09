@@ -158,7 +158,7 @@
 <a class="jxr_linenumber" name="148" href="#148">148</a>                                 trackableResource = <strong class="jxr_keyword">new</strong> TrackableResource&lt;AtmosphereResourceImpl&gt;(AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>, trackingId, <span class="jxr_string">""</span>);
 <a class="jxr_linenumber" name="149" href="#149">149</a>                                 trackableResource.setResource(r);
 <a class="jxr_linenumber" name="150" href="#150">150</a>                             }
-<a class="jxr_linenumber" name="151" href="#151">151</a>                             logger.debug(<span class="jxr_string">"Tracking resource of AtmosphereResource {} with {}"</span>, r, trackableResource);
+<a class="jxr_linenumber" name="151" href="#151">151</a>                             logger.trace(<span class="jxr_string">"Tracking resource of AtmosphereResource {} with {}"</span>, r.hashCode(), trackingId);
 <a class="jxr_linenumber" name="152" href="#152">152</a>                         }
 <a class="jxr_linenumber" name="153" href="#153">153</a>                         req.setAttribute(AtmosphereFilter.INJECTED_TRACKABLE, trackableResource);
 <a class="jxr_linenumber" name="154" href="#154">154</a>                     }

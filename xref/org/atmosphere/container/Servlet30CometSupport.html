@@ -158,64 +158,65 @@
 <a class="jxr_linenumber" name="148" href="#148">148</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="149" href="#149">149</a>     @Override
 <a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> action(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> actionEvent) {
-<a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">if</strong> (actionEvent.action().type == Action.TYPE.RESUME &amp;&amp; actionEvent.isInScope()) {
-<a class="jxr_linenumber" name="152" href="#152">152</a>             AsyncContext asyncContext =
-<a class="jxr_linenumber" name="153" href="#153">153</a>                     (AsyncContext) actionEvent.getRequest().getAttribute(<span class="jxr_string">"org.atmosphere.container.asyncContext"</span>);
-<a class="jxr_linenumber" name="154" href="#154">154</a> 
-<a class="jxr_linenumber" name="155" href="#155">155</a>             <em class="jxr_comment">// Try to find using the Session</em>
-<a class="jxr_linenumber" name="156" href="#156">156</a>             <strong class="jxr_keyword">if</strong> (asyncContext == <strong class="jxr_keyword">null</strong> &amp;&amp; supportSession()) {
-<a class="jxr_linenumber" name="157" href="#157">157</a>                 asyncContext = (AsyncContext) actionEvent.getRequest().getSession()
-<a class="jxr_linenumber" name="158" href="#158">158</a>                         .getAttribute(<span class="jxr_string">"org.atmosphere.container.asyncContext"</span>);
-<a class="jxr_linenumber" name="159" href="#159">159</a>             }
-<a class="jxr_linenumber" name="160" href="#160">160</a> 
-<a class="jxr_linenumber" name="161" href="#161">161</a>             <strong class="jxr_keyword">if</strong> (asyncContext != <strong class="jxr_keyword">null</strong> &amp;&amp; (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == <strong class="jxr_keyword">null</strong>
-<a class="jxr_linenumber" name="162" href="#162">162</a>                     || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase(<span class="jxr_string">"false"</span>))) {
-<a class="jxr_linenumber" name="163" href="#163">163</a>                 asyncContext.complete();
-<a class="jxr_linenumber" name="164" href="#164">164</a>             }
-<a class="jxr_linenumber" name="165" href="#165">165</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="166" href="#166">166</a>             <strong class="jxr_keyword">if</strong> (!actionEvent.isInScope()) {
-<a class="jxr_linenumber" name="167" href="#167">167</a>                 logger.debug(<span class="jxr_string">"Already resumed or cancelled: event: {}"</span>, actionEvent);
-<a class="jxr_linenumber" name="168" href="#168">168</a>             }
-<a class="jxr_linenumber" name="169" href="#169">169</a>         }
-<a class="jxr_linenumber" name="170" href="#170">170</a>     }
-<a class="jxr_linenumber" name="171" href="#171">171</a> 
-<a class="jxr_linenumber" name="172" href="#172">172</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="173" href="#173">173</a> <em class="jxr_javadoccomment">     * Servlet 3.0 async listener support.</em>
-<a class="jxr_linenumber" name="174" href="#174">174</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="175" href="#175">175</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/Servlet30CometSupport.html">CometListener</a> <strong class="jxr_keyword">implements</strong> AsyncListener {
-<a class="jxr_linenumber" name="176" href="#176">176</a> 
-<a class="jxr_linenumber" name="177" href="#177">177</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onComplete(AsyncEvent event) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="178" href="#178">178</a>             logger.debug(<span class="jxr_string">"Resumed (completed): event: {}"</span>, event.getAsyncContext().getRequest());
-<a class="jxr_linenumber" name="179" href="#179">179</a>         }
-<a class="jxr_linenumber" name="180" href="#180">180</a> 
-<a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onTimeout(AsyncEvent event) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="182" href="#182">182</a>             logger.debug(<span class="jxr_string">"onTimeout(): event: {}"</span>, event.getAsyncContext().getRequest());
-<a class="jxr_linenumber" name="183" href="#183">183</a> 
-<a class="jxr_linenumber" name="184" href="#184">184</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="185" href="#185">185</a>                 timedout((HttpServletRequest) event.getAsyncContext().getRequest(),
-<a class="jxr_linenumber" name="186" href="#186">186</a>                         (HttpServletResponse) event.getAsyncContext().getResponse());
-<a class="jxr_linenumber" name="187" href="#187">187</a>             } <strong class="jxr_keyword">catch</strong> (ServletException ex) {
-<a class="jxr_linenumber" name="188" href="#188">188</a>                 logger.debug(<span class="jxr_string">"onTimeout(): failed timing out comet response: "</span> + event.getAsyncContext().getResponse(), ex);
-<a class="jxr_linenumber" name="189" href="#189">189</a>             }
-<a class="jxr_linenumber" name="190" href="#190">190</a>         }
-<a class="jxr_linenumber" name="191" href="#191">191</a> 
-<a class="jxr_linenumber" name="192" href="#192">192</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onError(AsyncEvent event) {
-<a class="jxr_linenumber" name="193" href="#193">193</a>             logger.debug(<span class="jxr_string">"onError(): event: {}"</span>, event.getAsyncContext().getResponse());
-<a class="jxr_linenumber" name="194" href="#194">194</a> 
-<a class="jxr_linenumber" name="195" href="#195">195</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="196" href="#196">196</a>                 cancelled((HttpServletRequest) event.getAsyncContext().getRequest(),
-<a class="jxr_linenumber" name="197" href="#197">197</a>                         (HttpServletResponse) event.getAsyncContext().getResponse());
-<a class="jxr_linenumber" name="198" href="#198">198</a>             } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
-<a class="jxr_linenumber" name="199" href="#199">199</a>                 logger.debug(<span class="jxr_string">"failed cancelling comet response: "</span> + event.getAsyncContext().getResponse(), ex);
-<a class="jxr_linenumber" name="200" href="#200">200</a>             }
-<a class="jxr_linenumber" name="201" href="#201">201</a>         }
-<a class="jxr_linenumber" name="202" href="#202">202</a> 
-<a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onStartAsync(AsyncEvent event) {
-<a class="jxr_linenumber" name="204" href="#204">204</a>             logger.debug(<span class="jxr_string">"onStartAsync(): event: {}"</span>, event.getAsyncContext().getResponse());
-<a class="jxr_linenumber" name="205" href="#205">205</a>         }
-<a class="jxr_linenumber" name="206" href="#206">206</a>     }
-<a class="jxr_linenumber" name="207" href="#207">207</a> 
-<a class="jxr_linenumber" name="208" href="#208">208</a> }
+<a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">super</strong>.action(actionEvent);
+<a class="jxr_linenumber" name="152" href="#152">152</a>         <strong class="jxr_keyword">if</strong> (actionEvent.action().type == Action.TYPE.RESUME &amp;&amp; actionEvent.isInScope()) {
+<a class="jxr_linenumber" name="153" href="#153">153</a>             AsyncContext asyncContext =
+<a class="jxr_linenumber" name="154" href="#154">154</a>                     (AsyncContext) actionEvent.getRequest().getAttribute(<span class="jxr_string">"org.atmosphere.container.asyncContext"</span>);
+<a class="jxr_linenumber" name="155" href="#155">155</a> 
+<a class="jxr_linenumber" name="156" href="#156">156</a>             <em class="jxr_comment">// Try to find using the Session</em>
+<a class="jxr_linenumber" name="157" href="#157">157</a>             <strong class="jxr_keyword">if</strong> (asyncContext == <strong class="jxr_keyword">null</strong> &amp;&amp; supportSession()) {
+<a class="jxr_linenumber" name="158" href="#158">158</a>                 asyncContext = (AsyncContext) actionEvent.getRequest().getSession()
+<a class="jxr_linenumber" name="159" href="#159">159</a>                         .getAttribute(<span class="jxr_string">"org.atmosphere.container.asyncContext"</span>);
+<a class="jxr_linenumber" name="160" href="#160">160</a>             }
+<a class="jxr_linenumber" name="161" href="#161">161</a> 
+<a class="jxr_linenumber" name="162" href="#162">162</a>             <strong class="jxr_keyword">if</strong> (asyncContext != <strong class="jxr_keyword">null</strong> &amp;&amp; (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == <strong class="jxr_keyword">null</strong>
+<a class="jxr_linenumber" name="163" href="#163">163</a>                     || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase(<span class="jxr_string">"false"</span>))) {
+<a class="jxr_linenumber" name="164" href="#164">164</a>                 asyncContext.complete();
+<a class="jxr_linenumber" name="165" href="#165">165</a>             }
+<a class="jxr_linenumber" name="166" href="#166">166</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="167" href="#167">167</a>             <strong class="jxr_keyword">if</strong> (!actionEvent.isInScope()) {
+<a class="jxr_linenumber" name="168" href="#168">168</a>                 logger.debug(<span class="jxr_string">"Already resumed or cancelled: event: {}"</span>, actionEvent);
+<a class="jxr_linenumber" name="169" href="#169">169</a>             }
+<a class="jxr_linenumber" name="170" href="#170">170</a>         }
+<a class="jxr_linenumber" name="171" href="#171">171</a>     }
+<a class="jxr_linenumber" name="172" href="#172">172</a> 
+<a class="jxr_linenumber" name="173" href="#173">173</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="174" href="#174">174</a> <em class="jxr_javadoccomment">     * Servlet 3.0 async listener support.</em>
+<a class="jxr_linenumber" name="175" href="#175">175</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="176" href="#176">176</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/Servlet30CometSupport.html">CometListener</a> <strong class="jxr_keyword">implements</strong> AsyncListener {
+<a class="jxr_linenumber" name="177" href="#177">177</a> 
+<a class="jxr_linenumber" name="178" href="#178">178</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onComplete(AsyncEvent event) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="179" href="#179">179</a>             logger.debug(<span class="jxr_string">"Resumed (completed): event: {}"</span>, event.getAsyncContext().getRequest());
+<a class="jxr_linenumber" name="180" href="#180">180</a>         }
+<a class="jxr_linenumber" name="181" href="#181">181</a> 
+<a class="jxr_linenumber" name="182" href="#182">182</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onTimeout(AsyncEvent event) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="183" href="#183">183</a>             logger.debug(<span class="jxr_string">"onTimeout(): event: {}"</span>, event.getAsyncContext().getRequest());
+<a class="jxr_linenumber" name="184" href="#184">184</a> 
+<a class="jxr_linenumber" name="185" href="#185">185</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="186" href="#186">186</a>                 timedout((HttpServletRequest) event.getAsyncContext().getRequest(),
+<a class="jxr_linenumber" name="187" href="#187">187</a>                         (HttpServletResponse) event.getAsyncContext().getResponse());
+<a class="jxr_linenumber" name="188" href="#188">188</a>             } <strong class="jxr_keyword">catch</strong> (ServletException ex) {
+<a class="jxr_linenumber" name="189" href="#189">189</a>                 logger.debug(<span class="jxr_string">"onTimeout(): failed timing out comet response: "</span> + event.getAsyncContext().getResponse(), ex);
+<a class="jxr_linenumber" name="190" href="#190">190</a>             }
+<a class="jxr_linenumber" name="191" href="#191">191</a>         }
+<a class="jxr_linenumber" name="192" href="#192">192</a> 
+<a class="jxr_linenumber" name="193" href="#193">193</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onError(AsyncEvent event) {
+<a class="jxr_linenumber" name="194" href="#194">194</a>             logger.debug(<span class="jxr_string">"onError(): event: {}"</span>, event.getAsyncContext().getResponse());
+<a class="jxr_linenumber" name="195" href="#195">195</a> 
+<a class="jxr_linenumber" name="196" href="#196">196</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="197" href="#197">197</a>                 cancelled((HttpServletRequest) event.getAsyncContext().getRequest(),
+<a class="jxr_linenumber" name="198" href="#198">198</a>                         (HttpServletResponse) event.getAsyncContext().getResponse());
+<a class="jxr_linenumber" name="199" href="#199">199</a>             } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
+<a class="jxr_linenumber" name="200" href="#200">200</a>                 logger.debug(<span class="jxr_string">"failed cancelling comet response: "</span> + event.getAsyncContext().getResponse(), ex);
+<a class="jxr_linenumber" name="201" href="#201">201</a>             }
+<a class="jxr_linenumber" name="202" href="#202">202</a>         }
+<a class="jxr_linenumber" name="203" href="#203">203</a> 
+<a class="jxr_linenumber" name="204" href="#204">204</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onStartAsync(AsyncEvent event) {
+<a class="jxr_linenumber" name="205" href="#205">205</a>             logger.debug(<span class="jxr_string">"onStartAsync(): event: {}"</span>, event.getAsyncContext().getResponse());
+<a class="jxr_linenumber" name="206" href="#206">206</a>         }
+<a class="jxr_linenumber" name="207" href="#207">207</a>     }
+<a class="jxr_linenumber" name="208" href="#208">208</a> 
+<a class="jxr_linenumber" name="209" href="#209">209</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

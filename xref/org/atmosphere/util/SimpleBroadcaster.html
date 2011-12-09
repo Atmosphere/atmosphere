@@ -159,7 +159,7 @@
 <a class="jxr_linenumber" name="149" href="#149">149</a>     @Override
 <a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> queueWriteIO(AtmosphereResource&lt;?, ?&gt; r, Object finalMsg, <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a> entry) <strong class="jxr_keyword">throws</strong> InterruptedException {
 <a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">synchronized</strong> (r) {
-<a class="jxr_linenumber" name="152" href="#152">152</a>             executeAsyncWrite(r, finalMsg, entry.future);
+<a class="jxr_linenumber" name="152" href="#152">152</a>             executeAsyncWrite(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a>(r, entry.message, entry.future, entry.originalMessage));
 <a class="jxr_linenumber" name="153" href="#153">153</a>         }
 <a class="jxr_linenumber" name="154" href="#154">154</a>     }
 <a class="jxr_linenumber" name="155" href="#155">155</a> }

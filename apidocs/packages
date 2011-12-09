@@ -24,6 +24,7 @@ org.atmosphere.gwt.server
 org.atmosphere.gwt.server.deflate
 org.atmosphere.gwt.server.impl
 org.atmosphere.guice
+org.atmosphere.spring
 org.atmosphere.grizzly
 org.atmosphere.plugin.jgroups
 org.atmosphere.plugin.jms
