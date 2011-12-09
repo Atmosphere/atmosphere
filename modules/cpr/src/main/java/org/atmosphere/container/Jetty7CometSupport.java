@@ -153,7 +153,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             }
         } else {
             try {
-                actionEvent.getResponse().flushBuffer();
+                actionEvent.getResponse(false).flushBuffer();
             } catch (IOException e) {
             }
         }
