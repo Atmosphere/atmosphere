@@ -364,12 +364,11 @@ public class AtmosphereResourceImpl implements
         }
     }
 
-
     /**
      * {@inheritDoc}
      */
-    public HttpServletRequest getRequest() {
-        if (!isInScope) {
+    public HttpServletRequest getRequest(boolean enforceScope) {
+        if (enforceScope && !isInScope) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
         return req;
@@ -378,11 +377,25 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletResponse getResponse() {
-        if (!isInScope) {
+    public HttpServletResponse getResponse(boolean enforceScope) {
+        if (enforceScope && !isInScope) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
         return response;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public HttpServletRequest getRequest() {
+        return getRequest(true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public HttpServletResponse getResponse() {
+        return getResponse(true);
     }
 
     /**
