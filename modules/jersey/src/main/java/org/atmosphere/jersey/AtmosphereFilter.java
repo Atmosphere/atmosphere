@@ -138,6 +138,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     @Context
     UriInfo uriInfo;
 
+    private boolean useResumeAnnotation = false;
+
     private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>> resumeCandidates =
             new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
 
@@ -669,7 +671,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             URI location = null;
             // Do not add location header if already there.
-            if (!sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
+            if (useResumeAnnotation && !sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
                 String uuid = UUID.randomUUID().toString();
 
                 location = uriInfo.getAbsolutePathBuilder().path(uuid).build("");
@@ -922,6 +924,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         if (am.isAnnotationPresent(Resume.class)) {
+            useResumeAnnotation = true;
             int suspendTimeout = am.getAnnotation(Resume.class).value();
             list.addFirst(new Filter(Action.RESUME, suspendTimeout));
         }
