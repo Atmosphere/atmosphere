@@ -369,7 +369,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             }
         } finally {
             try {
-                aliveRequests.remove(request);
+                r.cancel();
                 if (r != null) {
                     r.notifyListeners();
                 }
@@ -477,7 +477,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             logger.debug("failed to cancel resource: " + r, ex);
         } finally {
             try {
-                aliveRequests.remove(req);
+                r.cancel();
                 if (r != null) {
                     r.notifyListeners();
                 }
