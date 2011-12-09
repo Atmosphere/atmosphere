@@ -191,6 +191,7 @@ public class WebSocketProcessor implements Serializable {
 
                 try {
                     resource.notifyListeners(e);
+                    ((AtmosphereResourceImpl) resource).cancel();
                 } finally {
                     AsynchronousProcessor.destroyResource(resource);
                 }

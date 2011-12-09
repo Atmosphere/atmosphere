@@ -293,7 +293,6 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
                     asyncIOWriter.write(bytes, start, offset);
                 }
             }
-
         };
     }
 
@@ -433,6 +432,10 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
      */
     public HttpServletRequest getRequest() {
         return atmosphereRequest;
+    }
+
+    public void close() throws IOException {
+        asyncIOWriter.close();
     }
 
 
