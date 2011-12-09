@@ -112,6 +112,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
     private final AtomicBoolean requestScoped = new AtomicBoolean(false);
+    private final AtomicBoolean recentActivity = new AtomicBoolean(false);
     private BroadcasterLifeCyclePolicy lifeCyclePolicy = new BroadcasterLifeCyclePolicy.Builder()
             .policy(NEVER).build();
     private Future<?> currentLifecycleTask;
@@ -321,6 +322,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME
                 || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
 
+            recentActivity.set(false);
+
             int time = lifeCyclePolicy.getTimeout();
             if (time == -1) {
                 throw new IllegalStateException("BroadcasterLifeCyclePolicy time is not set");
@@ -332,7 +335,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 @Override
                 public void run() {
                     try {
-                        if (resources.isEmpty()) {
+
+                        // Check for activity since the last execution.
+                        if (recentActivity.getAndSet(false)) {
+                            return;
+                        } else if (resources.isEmpty()) {
                             if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE) {
                                 notifyEmptyListener();
                                 notifyIdleListener();
@@ -506,6 +513,8 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
+        recentActivity.set(true);
+
         String prevMessage = entry.message.toString();
         if (!delayedBroadcast.isEmpty()) {
             Iterator<Entry> i = delayedBroadcast.iterator();
@@ -551,7 +560,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (resources.isEmpty()) {
             logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
-            AtmosphereResource<?,?> r = null;
+            AtmosphereResource<?, ?> r = null;
             if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
                 r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
             }
