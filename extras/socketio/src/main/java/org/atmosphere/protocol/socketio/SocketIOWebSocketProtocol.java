@@ -11,7 +11,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOEvent;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.websocket.WebSocketProcessor;

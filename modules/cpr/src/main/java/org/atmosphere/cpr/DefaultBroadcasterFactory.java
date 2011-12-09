@@ -39,6 +39,7 @@
 package org.atmosphere.cpr;
 
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
@@ -76,7 +77,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereServlet.AtmosphereConfig c) {
+    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         config = c;
         if (factory == null) {
@@ -144,7 +145,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             }
 
             try {
-                b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
+                b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             } catch (Throwable t) {
                 throw new BroadcasterCreationException(t);
             }
@@ -301,12 +302,12 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz A class implementing {@link Broadcaster}
-     * @param c     An instance of {@link AtmosphereServlet.AtmosphereConfig}
+     * @param c     An instance of {@link AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereServlet.AtmosphereConfig c)
+    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereConfig c)
             throws InstantiationException, IllegalAccessException {
 
         factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);

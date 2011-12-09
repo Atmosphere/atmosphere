@@ -37,6 +37,7 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -82,11 +83,11 @@ public class BroadcasterConfig {
     private final Object[] lock = new Object[0];
 
     private BroadcasterCache broadcasterCache;
-    private AtmosphereServlet.AtmosphereConfig config;
+    private AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
 
-    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+    public BroadcasterConfig(String[] list, AtmosphereConfig config) {
         this.config = config;
         configExecutors();
         configureBroadcasterFilter(list);
@@ -112,7 +113,7 @@ public class BroadcasterConfig {
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -575,21 +576,21 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
+     * Return the {@link org.atmosphere.cpr.AtmosphereConfig} value. This value might be null
      * if the associated {@link Broadcaster} has been created manually.
      *
-     * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @return {@link org.atmosphere.cpr.AtmosphereConfig}
      */
-    public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
+    public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
     /**
-     * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * Set the {@link org.atmosphere.cpr.AtmosphereConfig}
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
      */
-    public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
+    public void setAtmosphereConfig(AtmosphereConfig config) {
         this.config = config;
     }
 

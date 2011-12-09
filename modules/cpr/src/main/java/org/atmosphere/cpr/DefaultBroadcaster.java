@@ -37,6 +37,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.di.InjectorProvider;
@@ -99,7 +100,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Future<?> notifierFuture;
     protected Future<?> asyncWriteFuture;
-    protected BroadcasterCache broadcasterCache;
+    public BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
@@ -108,9 +109,9 @@ public class DefaultBroadcaster implements Broadcaster {
             .policy(NEVER).build();
     private Future<?> currentLifecycleTask;
     protected URI uri;
-    protected AtmosphereServlet.AtmosphereConfig config;
+    protected AtmosphereConfig config;
 
-    public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+    public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
         this.uri = uri;
         this.config = config;
@@ -119,7 +120,7 @@ public class DefaultBroadcaster implements Broadcaster {
         bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
     }
 
-    public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
+    public DefaultBroadcaster(String name, AtmosphereConfig config) {
         this(name, URI.create("http://localhost"), config);
     }
 

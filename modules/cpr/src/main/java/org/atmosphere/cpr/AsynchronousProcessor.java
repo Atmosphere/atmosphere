@@ -39,7 +39,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
 import org.eclipse.jetty.websocket.WebSocketFactory;
@@ -264,6 +264,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                 }
             }
         }
+        
 		// DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
         if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
         	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];

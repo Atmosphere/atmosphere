@@ -15,6 +15,7 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -53,7 +54,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public void configure(AtmosphereServlet.AtmosphereConfig config) {
+    public void configure(AtmosphereConfig config) {
         String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
             contentType = "text/html";

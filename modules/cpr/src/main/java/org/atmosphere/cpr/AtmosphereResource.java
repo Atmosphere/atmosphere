@@ -38,7 +38,7 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;

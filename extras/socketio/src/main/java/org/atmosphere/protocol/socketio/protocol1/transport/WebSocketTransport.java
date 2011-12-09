@@ -167,12 +167,13 @@ public class WebSocketTransport extends AbstractTransport {
 		 */
 		@Override
 		public void sendMessage(String message) throws SocketIOException {
-			logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage(string)");
+			logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
 			//sendMessage(SocketIOFrame.TEXT_MESSAGE_TYPE, message);
 			
 			if(webSocket!=null){
 				try {
 					webSocket.write(message);
+					logger.error("WRITE SUCCESS : calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

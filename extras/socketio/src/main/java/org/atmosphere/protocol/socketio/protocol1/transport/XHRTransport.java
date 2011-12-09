@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
@@ -159,22 +160,31 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 									}
 								}
 							} else {
+								
 								session.clearTimeoutTimer();
 								request.setAttribute(SESSION_KEY, session);
 								response.setBufferSize(bufferSize);
 								AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
 								
 								if(resource!=null){
-									//resource.suspend(REQUEST_TIMEOUT, false);
-									//DEBUG
-									resource.suspend(7*1000, false);
 									
-									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+									// on va regarder s'il y a des messages dans le BroadcastCache
+									int i=1;
+									if(i==0){
+										((DefaultBroadcaster)resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
+									} else {
 									
-									// pour le broadcast
-									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, session.getTransportHandler());
-									
-									session.setAtmosphereResourceImpl(resource);
+										//resource.suspend(REQUEST_TIMEOUT, false);
+										//DEBUG
+										resource.suspend(7*1000, false);
+										
+										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+										
+										// pour le broadcast
+										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, session.getTransportHandler());
+										
+										session.setAtmosphereResourceImpl(resource);
+									}
 									
 								}
 								

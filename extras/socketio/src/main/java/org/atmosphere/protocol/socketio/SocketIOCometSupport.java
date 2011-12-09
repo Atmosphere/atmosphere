@@ -20,7 +20,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.Transport;
@@ -73,7 +73,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		
 		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
 		
-		config.getServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
+		config.getAtmosphereServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
 		
 		String transportsWebXML = config.getInitParameter(SOCKETIO_TRANSPORT);
 		

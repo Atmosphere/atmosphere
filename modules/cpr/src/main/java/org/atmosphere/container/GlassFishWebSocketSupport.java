@@ -44,7 +44,7 @@ import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -140,16 +140,16 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             WebSocketProtocol webSocketProtocol;
             try {
                 webSocketProtocol = (WebSocketProtocol) GlassFishWebSocketSupport.class.getClassLoader()
-                        .loadClass(config.getServlet().getWebSocketProtocolClassName()).newInstance();
+                        .loadClass(config.getAtmosphereServlet().getWebSocketProtocolClassName()).newInstance();
             } catch (Exception ex) {
-                logger.error("Cannot load the WebSocketProtocol {}", config.getServlet().getWebSocketProtocolClassName(), ex);
+                logger.error("Cannot load the WebSocketProtocol {}", config.getAtmosphereServlet().getWebSocketProtocolClassName(), ex);
                 webSocketProtocol = new SimpleHttpProtocol();
             }
-            webSocketProtocol.configure(config.getServlet().getAtmosphereConfig());
+            webSocketProtocol.configure(config);
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
-                webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocket(webSocket), webSocketProtocol);
+                webSocketProcessor = new WebSocketProcessor(config.getAtmosphereServlet(), new GrizzlyWebSocket(webSocket), webSocketProtocol);
                 webSocketProcessor.dispatch(webSocket.getRequest());
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);

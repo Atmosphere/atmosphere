@@ -83,6 +83,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,6 +98,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
@@ -274,77 +277,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         return config;
     }
 
-    public class AtmosphereConfig {
-
-        private boolean supportSession = true;
-        private BroadcasterFactory broadcasterFactory;
-        private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
-        private Map<String, Object> properties = new HashMap<String, Object>();
-
-        protected Map<String, AtmosphereHandlerWrapper> handlers() {
-            return AtmosphereServlet.this.atmosphereHandlers;
-        }
-
-        public ServletContext getServletContext() {
-            return AtmosphereServlet.this.getServletContext();
-        }
-
-        public String getDispatcherName() {
-            return dispatcherName;
-        }
-
-        public void setDispatcherName(String dispatcherName) {
-            this.dispatcherName = dispatcherName;
-        }
-
-        public String getInitParameter(String name) {
-            // First looks locally
-            String s = initParams.get(name);
-            if (s != null) {
-                return s;
-            }
-
-            return AtmosphereServlet.this.getInitParameter(name);
-        }
-
-        public Enumeration getInitParameterNames() {
-            return AtmosphereServlet.this.getInitParameterNames();
-        }
-
-        public ServletConfig getServletConfig() {
-            return AtmosphereServlet.this.getServletConfig();
-        }
-
-        public String getWebServerName() {
-            return AtmosphereServlet.this.cometSupport.getContainerName();
-        }
-
-        /**
-         * Return an instance of a {@link DefaultBroadcasterFactory}
-         *
-         * @return an instance of a {@link DefaultBroadcasterFactory}
-         */
-        public BroadcasterFactory getBroadcasterFactory() {
-            return broadcasterFactory;
-        }
-
-        public boolean isSupportSession() {
-            return supportSession;
-        }
-
-        public void setSupportSession(boolean supportSession) {
-            this.supportSession = supportSession;
-        }
-
-        public AtmosphereServlet getServlet() {
-            return AtmosphereServlet.this;
-        }
-
-        public Map<String, Object> properties() {
-            return properties;
-        }
-    }
-
     /**
      * Simple class/struck that hold the current state.
      */
@@ -377,6 +309,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public AtmosphereServlet() {
         this(false);
+        config.setAtmosphereServlet(this);
     }
 
     /**
@@ -614,7 +547,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
         }
 
-        config.broadcasterFactory = broadcasterFactory;
+        config.setBroadcasterFactory(broadcasterFactory);
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         InjectorProvider.getInjector().inject(broadcasterFactory);
 
@@ -703,7 +636,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
         if (s != null) {
-            config.supportSession = Boolean.valueOf(s);
+            config.setSupportSession(Boolean.valueOf(s));
             isSessionSupportSpecified = true;
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
@@ -812,7 +745,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     protected void sessionSupport(boolean sessionSupport) {
         if (!isSessionSupportSpecified) {
-            config.supportSession = sessionSupport;
+            config.setSupportSession(sessionSupport);
         }
     }
 
@@ -881,7 +814,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             return;
         }
         
-        org.atmosphere.config.AtmosphereConfig atmoConfig = AtmosphereConfigParser.getInstance().parse(stream);
+        AtmosphereConfig atmoConfig = AtmosphereConfigParser.getInstance().parse(stream);
         
         for (org.atmosphere.config.AtmosphereHandler atmoHandler : atmoConfig.getAtmosphereHandler()) {
 			try {
@@ -911,7 +844,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 	                
 	            }
 	            
-	            config.supportSession = !isJersey;
+	            config.setSupportSession(!isJersey);
 	            
 	            if (!atmoHandler.getSupportSession().equals("")) {
 	                sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
@@ -1444,6 +1377,37 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     public void setWebSocketProtocolClassName(String webSocketProtocolClassName) {
         this.webSocketProtocolClassName = webSocketProtocolClassName;
+    }
+    
+    public Map<String, AtmosphereHandlerWrapper> getAtmosphereHandlers(){
+    	return atmosphereHandlers;
+    }
+    
+    public String getInitParameter(String name) {
+        // First looks locally
+        String s = initParams.get(name);
+        if (s != null) {
+            return s;
+        }
+
+        return super.getInitParameter(name);
+    }
+
+    public Enumeration<String> getInitParameterNames() {
+    	// First looks locally
+        Map<String, String> map = new HashMap<String, String>(initParams);
+        
+        Enumeration en = super.getInitParameterNames();
+        while (en.hasMoreElements()) {
+        	String name = (String) en.nextElement();
+        	if(!map.containsKey(name)){
+        		map.put(name, name);
+        	}
+		}
+        
+        Vector<String> v = new Vector<String>(map.keySet());
+
+        return v.elements();
     }
 
     protected Map<String, String> configureQueryStringAsRequest(HttpServletRequest request) {
