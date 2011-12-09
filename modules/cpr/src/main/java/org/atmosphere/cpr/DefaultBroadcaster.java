@@ -445,6 +445,7 @@ public class DefaultBroadcaster implements Broadcaster {
             this.multipleAtmoResources = multipleAtmoResources;
             this.future = future;
             this.writeLocally = writeLocally;
+            this.originalMessage = message;
         }
 
         @Override
