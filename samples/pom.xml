@@ -56,7 +56,7 @@
             </plugin>
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
-                <artifactId>maven-jetty-plugin</artifactId>
+                <artifactId>jetty-maven-plugin</artifactId>
                 <version>8.0.1</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
