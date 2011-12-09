@@ -225,7 +225,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * {@inheritDoc}
      */
     public void action(AtmosphereResourceImpl r) {
-        aliveRequests.remove(r.getRequest());
+        aliveRequests.remove(r.getRequest(false));
     }
 
     /**
@@ -353,16 +353,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                     ((DefaultBroadcaster) b).broadcastOnResume(r);
                 }
 
-                if (r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
+                if (request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
                     r.getAtmosphereResourceEvent().setIsResumedOnTimeout(
-                            (Boolean) r.getRequest().getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
+                            (Boolean) request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
                 }
                 invokeAtmosphereHandler(r);
                 try {
-                    r.getResponse().getOutputStream().close();
+                    response.getOutputStream().close();
                 } catch (Throwable t) {
                     try {
-                        r.getResponse().getWriter().close();
+                        response.getWriter().close();
                     } catch (Throwable t2) {
                     }
                 }
@@ -384,14 +384,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     }
 
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
+        if (!r.isInScope()) return;
+
         HttpServletRequest req = r.getRequest();
-        HttpServletResponse response = r.getResponse();
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
 
         try {
-            if (!r.getResponse().equals(response)) {
-                logger.warn("Invalid response: {}", response);
-            } else if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
+            if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                 AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                         (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
