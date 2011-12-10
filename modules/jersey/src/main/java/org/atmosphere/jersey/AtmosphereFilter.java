@@ -241,6 +241,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
+            if (Boolean.parseBoolean((String) servletReq.getAttribute(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
+                useResumeAnnotation = true;
+            }
+
             switch (action) {
                 case ASYNCHRONOUS:
                     // Force the status code to 200 events independently of the value of the entity (null or not)
@@ -806,8 +810,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         logger.error("Error executing callable {}", entity);
                         entity = null;
                     }
+
+                    if (location != null) {
+                        b = b.header(HttpHeaders.LOCATION, location);
+                    }
+                    response.setResponse(b.entity(entity).build());
+                    response.write();
                 }
-                response.setEntity(entity);
+
+                response.setEntity(null);
                 r.suspend(timeout, false);
             } catch (IOException ex) {
                 throw new WebApplicationException(ex);
