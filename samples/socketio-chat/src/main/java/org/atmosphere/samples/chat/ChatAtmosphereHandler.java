@@ -2,6 +2,7 @@ package org.atmosphere.samples.chat;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -92,25 +93,57 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
     		return ;
     	}
     	
-        if(outbound!=null && event.getMessage().toString().length()>0){
+    	
+        if(outbound!=null && event.getMessage()!=null){
         	try {
         		
-        		List<SocketIOEvent> messages = SocketIOEvent.parse(event.getMessage().toString());
-    			
-    			for (SocketIOEvent msg: messages) {
-    				switch(msg.getFrameType()){
-    					case MESSAGE:
-    					case JSON:
-    					case EVENT:
-    					case ACK:
-    					case ERROR:
-    						outbound.sendMessage(event.getMessage().toString());
-    						break;
-    					default:
-    						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
-    				}
-    			}
+        		if(event.getMessage().getClass().isArray()){
+        			List<Object> list = Arrays.asList(event.getMessage());
+        			
+        			for (Object object : list) {
+        				List<SocketIOEvent> messages = SocketIOEvent.parse(object.toString());
+            			
+            			for (SocketIOEvent msg: messages) {
+            				switch(msg.getFrameType()){
+            					case MESSAGE:
+            					case JSON:
+            					case EVENT:
+            					case ACK:
+            					case ERROR:
+            						outbound.sendMessage(event.getMessage().toString());
+            						break;
+            					default:
+            						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
+            				}
+            			}
+        			}
+        			
+        		} else if(event.getMessage() instanceof List){
+        			@SuppressWarnings("unchecked")
+					List<Object> list = List.class.cast(event.getMessage());
+        			
+        			for (Object object : list) {
+        				List<SocketIOEvent> messages = SocketIOEvent.parse(object.toString());
+            			
+            			for (SocketIOEvent msg: messages) {
+            				switch(msg.getFrameType()){
+            					case MESSAGE:
+            					case JSON:
+            					case EVENT:
+            					case ACK:
+            					case ERROR:
+            						outbound.sendMessage(event.getMessage().toString());
+            						break;
+            					default:
+            						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
+            				}
+            			}
+        			}
+        			
+        		}
+        		
     		} catch (Exception e) {
+    			e.printStackTrace();
     			outbound.disconnect();
     		}
         }

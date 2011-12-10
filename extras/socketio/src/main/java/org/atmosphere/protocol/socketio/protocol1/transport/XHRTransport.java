@@ -81,7 +81,8 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 			synchronized (this) {
 				if (is_open) {
 					
-					boolean enabled=true;
+					//DEBUG 
+					boolean enabled=false;
 					
 					if(enabled) {
 						String data = message;
@@ -142,13 +143,49 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 						response.sendError(HttpServletResponse.SC_NOT_FOUND);
 					} else {
 						if (!isConnectionPersistant) {
-							if (!buffer.isEmpty()) {
-								List<String> messages = buffer.drainMessages(1);
-								if (messages.size() > 0) {
-									StringBuilder data = new StringBuilder();
-									for (String msg : messages) {
-										data.append(msg);
+							
+							AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
+							
+							if (!buffer.isEmpty() && resource!=null) {
+								StringBuilder data = new StringBuilder();
+								
+								// on va regarder s'il y a des messages dans le BroadcastCache
+								if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
+									
+									@SuppressWarnings("unchecked")
+									List<String> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
+									
+									List<String> bufferMessages = buffer.drainMessages();
+									
+									if (cachedMessages.size() + bufferMessages.size() > 1) {
+										for (String msg : bufferMessages) {
+											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
+										}
+										for (String msg : cachedMessages) {
+											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
+										}
+									} else {
+										if(!bufferMessages.isEmpty()){
+											data.append(bufferMessages.get(0));
+										} else {
+											data.append(cachedMessages.get(0));
+										}
+										
 									}
+									
+								} else {
+									List<String> bufferMessages = buffer.drainMessages();
+									
+									if (bufferMessages.size() > 1) {
+										for (String msg : bufferMessages) {
+											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
+										}
+									} else if (bufferMessages.size()==1){
+										data.append(bufferMessages.get(0));
+									}
+								}
+								
+								if(data.toString().length()>0){
 									startSend(response);
 									writeData(response, data.toString());
 									finishSend(response);
@@ -158,26 +195,54 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 									} else {
 										abort();
 									}
+								} else {
+									startSend(response);
 								}
+								
 							} else {
 								
 								session.clearTimeoutTimer();
 								request.setAttribute(SESSION_KEY, session);
 								response.setBufferSize(bufferSize);
-								AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
 								
 								if(resource!=null){
 									
 									// on va regarder s'il y a des messages dans le BroadcastCache
-									int i=1;
-									if(i==0){
-										((DefaultBroadcaster)resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
-									} else {
-									
-										//resource.suspend(REQUEST_TIMEOUT, false);
-										//DEBUG
-										resource.suspend(7*1000, false);
+									if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
 										
+										@SuppressWarnings("unchecked")
+										List<String> listMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
+										
+										if(!listMessages.isEmpty()){
+											StringBuilder data = new StringBuilder();
+											
+											if(listMessages.size()>1){
+												for (String msg : listMessages) {
+													data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
+												}
+											} else {
+												data.append(listMessages.get(0));
+											}
+											startSend(response);
+											writeData(response, data.toString());
+											finishSend(response);
+											if (!disconnectWhenEmpty) {
+												logger.error("calling from " + this.getClass().getName() + " : " + "handle");
+												session.startTimeoutTimer();
+											} else {
+												abort();
+											}
+										} else {
+											resource.suspend(REQUEST_TIMEOUT, false);
+											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+											
+											// pour le broadcast
+											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, session.getTransportHandler());
+											
+											session.setAtmosphereResourceImpl(resource);
+										}
+									} else {
+										resource.suspend(REQUEST_TIMEOUT, false);
 										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 										
 										// pour le broadcast

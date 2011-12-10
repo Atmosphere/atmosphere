@@ -7,8 +7,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class XHRPollingTransport extends XHRTransport {
+	
+	private static final Logger logger = LoggerFactory.getLogger(XHRPollingTransport.class);
+	
 	public static final String TRANSPORT_NAME = "xhr-polling";
 
 	public XHRPollingTransport(int bufferSize, int maxIdleTime) {
@@ -36,8 +41,12 @@ public class XHRPollingTransport extends XHRTransport {
 
 		@Override
 		protected void writeData(ServletResponse response, String data) throws IOException {
+			
+			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+			
 			response.getOutputStream().print(data);
 			response.flushBuffer();
+			logger.error("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 		}
 
 		protected void finishSend(ServletResponse response) throws IOException {};
