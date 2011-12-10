@@ -192,4 +192,9 @@ public interface ApplicationConfig {
      * Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is afterFilter
      */
     String BROADCASTER_CACHE_STRATEGY = BroadcasterCache.class.getName() + ".strategy";
+    /**
+     * Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is never
+     * resumed.
+     */
+    String SUPPORT_LOCATION_HEADER = "org.atmosphere.jersey.supportLocationHeader";
 }
