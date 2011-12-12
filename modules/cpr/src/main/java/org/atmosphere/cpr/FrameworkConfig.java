@@ -85,4 +85,8 @@ public interface FrameworkConfig {
      * The SimpleHttpProtocol
       */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
+    /**
+     * Cance suspending a connection
+     */
+    String CANCEL_SUSPEND_OPERATION = "doNotSuspend";
 }

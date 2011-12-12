@@ -80,7 +80,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         if (c.isInitial()) {
             action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 logger.debug("Suspending {}", res);
 
                 // Do nothing except setting the times out
@@ -122,12 +122,12 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
         logger.debug("(resumed) invoked:\n HttpServletRequest: {}\n HttpServletResponse: {}", request, response);
         AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
                 (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
                         request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
-        synchronized(r) {
+        synchronized (r) {
             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
             r.setIsInScope(false);
         }
@@ -138,22 +138,27 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
      * {@inheritDoc}
      */
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.isInScope() && r.action().type == Action.TYPE.RESUME &&
                 (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null ||
                         config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-            Continuation c = ContinuationSupport.getContinuation(actionEvent.getRequest());
+            Continuation c = ContinuationSupport.getContinuation(r.getRequest());
             if (c != null) {
                 try {
-                    c.complete();
+                    if (!c.isInitial()) {
+                        c.complete();
+                    } else {
+                        r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                    }
                 } catch (IllegalStateException ex) {
-                    logger.trace("Continuation.complete() failed", ex);
+                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                    logger.error("Continuation.complete() failed", ex);
                 }
             }
         } else {
             try {
-                actionEvent.getResponse(false).flushBuffer();
+                r.getResponse(false).flushBuffer();
             } catch (IOException e) {
             }
         }
