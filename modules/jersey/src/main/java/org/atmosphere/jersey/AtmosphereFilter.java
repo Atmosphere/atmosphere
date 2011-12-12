@@ -303,7 +303,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
 
                         r.setBroadcaster(bcaster);
-                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response);
+                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, false);
                     } else {
                         Object entity = response.getEntity();
                         if (waitForResource) {
@@ -730,12 +730,18 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
             }
 
-            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response);
+            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, true);
 
         }
 
-        void executeSuspend(AtmosphereResource r, long timeout, boolean comments, boolean resumeOnBroadcast,
-                            URI location, ContainerRequest request, ContainerResponse response) {
+        void executeSuspend(AtmosphereResource r,
+                            long timeout,
+                            boolean comments,
+                            boolean resumeOnBroadcast,
+                            URI location,
+                            ContainerRequest request,
+                            ContainerResponse response,
+                            boolean flushEntity) {
 
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             configureFilter(r.getBroadcaster());
@@ -801,7 +807,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     response.write();
                 }
 
-                if (entity != null) {
+                if (entity != null && flushEntity) {
                     try {
                         if (Callable.class.isAssignableFrom(entity.getClass())) {
                             entity = Callable.class.cast(entity).call();
