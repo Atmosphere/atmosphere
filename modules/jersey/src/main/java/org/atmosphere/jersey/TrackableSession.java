@@ -80,7 +80,7 @@ public class TrackableSession {
     public TrackableResource<? extends Trackable> lookup(String trackingID) {
 
         TrackableResource t = factoryCache.get(trackingID);
-        if (t != null) {
+        if (t != null && t.resource() != null) {
             if (AtmosphereResource.class.isAssignableFrom(t.resource().getClass())) {
                 AtmosphereResource.class.cast(t.resource()).addEventListener(aliveChecker);
             }

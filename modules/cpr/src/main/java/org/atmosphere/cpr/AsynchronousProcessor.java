@@ -99,12 +99,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
                         if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
                             try {
-                                cancelled(req, aliveRequests.get(req).getResponse());
-                                req.setAttribute(MAX_INACTIVE, (long) -1);
-                            } catch (IOException e) {
-                                logger.trace("closedDetector", e);
-                            } catch (ServletException e) {
-                                logger.trace("closedDetector", e);
+                                AtmosphereResourceImpl r = (AtmosphereResourceImpl) aliveRequests.remove(req);
+                                cancelled(req, r.getResponse(false));
+                            } catch (Throwable e) {
+                                logger.warn("closedDetector", e);
+                            } finally {
+                                try {
+                                    req.setAttribute(MAX_INACTIVE, (long) -1);
+                                } catch (Throwable t) {
+                                    logger.trace("closedDetector", t);
+                                }
                             }
                         }
                     }
@@ -386,7 +390,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         if (!r.isInScope()) return;
 
-        HttpServletRequest req = r.getRequest();
+        HttpServletRequest req = r.getRequest(false);
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
 
         try {

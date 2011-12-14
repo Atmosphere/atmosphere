@@ -170,14 +170,14 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void close() {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> resource =
-                (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
+        AtmosphereResourceImpl resource =
+                (AtmosphereResourceImpl) webSocket.resource();
         try {
             webSocketProtocol.onClose(webSocket);
 
-            if (resource != null) {
-                AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-                AtmosphereResourceEventImpl e = new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, true, false);
+            if (resource != null && resource.isInScope()) {
+                AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest(false).getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                AtmosphereResourceEventImpl e = new AtmosphereResourceEventImpl(resource, true, false);
                 synchronized (resource) {
                     if (handler != null) {
                         handler.onStateChange(e);
