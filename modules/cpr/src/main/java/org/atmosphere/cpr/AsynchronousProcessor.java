@@ -214,7 +214,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throw t;
         }
 
-        if (resource.getAtmosphereResourceEvent().isSuspended()) {
+        if (resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, resource);
         }
