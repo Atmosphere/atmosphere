@@ -194,6 +194,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onClose(int closeCode, String message) {
         logger.trace("WebSocket.OnClose.");
+        if (webSocketProcessor == null) return;
+
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         webSocketProcessor.close();
     }
