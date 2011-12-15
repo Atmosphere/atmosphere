@@ -64,8 +64,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty7CometSupport.class);
 
-    protected final ConcurrentLinkedQueue<Continuation> resumed = new ConcurrentLinkedQueue<Continuation>();
-
     public Jetty7CometSupport(AtmosphereConfig config) {
         super(config);
     }
@@ -76,12 +74,15 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     public Action service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
         Action action = null;
 
-        Continuation c = ContinuationSupport.getContinuation(req);
+        Continuation c = (Continuation) req.getAttribute(Continuation.class.getName());
 
-        if (c.isInitial()) {
+        if (c == null || c.isInitial()) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 logger.debug("Suspending {}", res);
+
+                c = ContinuationSupport.getContinuation(req);
+                req.setAttribute(Continuation.class.getName(), c);
 
                 // Do nothing except setting the times out
                 if (action.timeout != -1) {
@@ -100,8 +101,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 }
 
                 logger.debug("Resume {}", res);
-
-                if (!resumed.remove(c)) {
+                if (c.isSuspended()) {
                     try {
                         c.complete();
                     } catch (IllegalStateException ex) {
