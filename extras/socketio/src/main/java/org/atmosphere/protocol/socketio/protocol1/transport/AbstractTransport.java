@@ -35,6 +35,9 @@ import org.atmosphere.protocol.socketio.transport.Transport;
 import org.atmosphere.util.uri.UriComponent;
 
 public abstract class AbstractTransport implements Transport {
+	
+	public static final String POST_MESSAGE_RECEIVED = "POST_MESSAGE_RECEIVED";
+	
 	protected String extractSessionId(HttpServletRequest request) {
 		String path = request.getPathInfo();
 
@@ -95,9 +98,23 @@ public abstract class AbstractTransport implements Transport {
 	}
 	
 	protected String decodePostData(String contentType, String data) {
-		if (contentType.startsWith("application/x-www-form-urlencoded")) {
-			if (data.length()>5 && data.substring(0, 5).equals("data=")) {
-				return UriComponent.decodePath(data.substring(5),true).get(0).getPath();
+		if(contentType==null){
+			return data;
+		} else if (contentType.startsWith("application/x-www-form-urlencoded")) {
+			if (data.length()>2 && data.substring(0, 2).startsWith("d=")) {
+				String extractedData = UriComponent.decodePath(data.substring(2),true).get(0).getPath();
+				if(extractedData!=null && extractedData.length()>2){
+					// on trim les "" et remplace les \" par "
+					if(extractedData.charAt(0)=='\"' && extractedData.charAt(extractedData.length()-1)=='\"'){
+						
+						extractedData = extractedData.substring(1,extractedData.length()-1).replaceAll("\\\\\"", "\""); 
+						
+						return extractedData;
+					}
+					return extractedData;
+				} else {
+					return extractedData;
+				}
 			} else {
 				return data;
 			}
@@ -121,6 +138,7 @@ public abstract class AbstractTransport implements Transport {
 		} else if ("POST".equals(request.getMethod())) {
 			try {
 				String data = decodePostData(request.getContentType(), extractString(request.getReader()));
+				request.setAttribute(POST_MESSAGE_RECEIVED, data);
 				if (data != null && data.length() > 0) {
 					List<SocketIOEvent> list = SocketIOEvent.parse(data);
 					if(!list.isEmpty()){

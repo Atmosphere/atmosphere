@@ -30,12 +30,18 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
+import org.atmosphere.protocol.socketio.protocol1.transport.XHRTransport.XHRSessionHelper;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JSONPPollingTransport extends XHRTransport {
 	public static final String TRANSPORT_NAME = "jsonp-polling";
-	private long jsonpIndex = -1;
+	
+	private static final Logger logger = LoggerFactory.getLogger(JSONPPollingTransport.class);
+	
+	private long jsonpIndex = 0;
 
 	protected class XHRPollingSessionHelper extends XHRSessionHelper {
 
@@ -44,29 +50,44 @@ public class JSONPPollingTransport extends XHRTransport {
 		}
 
 		protected void startSend(HttpServletResponse response) throws IOException {
+			/*
 			response.setContentType("text/javascript; charset=UTF-8");
-			response.getOutputStream().print("io.JSONP["+ jsonpIndex +"]._('");
+			response.getOutputStream().print("io.j["+ jsonpIndex +"](\"");
+			*/
 		}
 
 		@Override
 		protected void writeData(ServletResponse response, String data) throws IOException {
-			response.getOutputStream().print(data);
+			//response.getOutputStream().print(data);
+			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+			
+			response.setContentType("text/javascript; charset=UTF-8");
+			response.getOutputStream().print("io.j["+ jsonpIndex +"](\"" + data + "\");");
+			
+			logger.error("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+			
 		}
 
 		protected void finishSend(ServletResponse response) throws IOException {
-			response.getOutputStream().print("');");
+			//response.getOutputStream().print("\");");
 			response.flushBuffer();
 		}
 
 		protected void customConnect(HttpServletRequest request,
 				HttpServletResponse response) throws IOException {
-	    	String path = request.getPathInfo();
-	    	if (path.startsWith("/")) path = path.substring(1);
-	    	String[] parts = path.split("/");
-	    	if (parts.length >= 4) {
-	    		jsonpIndex = Integer.parseInt(parts[3]);
-	    	}
-			startSend(response);
+			
+			/*  i=0   */
+			
+			if(request.getParameter("i")!=null){
+				jsonpIndex = Integer.parseInt(request.getParameter("i"));
+			} else {
+				jsonpIndex = 0;
+			}
+			
+			//startSend(response);
+	    	
+	    	writeData(response, "1::");
+	    	
 			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
 			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + REQUEST_TIMEOUT));
 		}
@@ -87,8 +108,23 @@ public class JSONPPollingTransport extends XHRTransport {
 	}
 
 	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, Factory sessionFactory) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+		
+		if(session==null){
+			session = sessionFactory.createSession(resource, atmosphereHandler);
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+			
+			// pour le broadcast
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, atmosphereHandler);
+		}
+		
+		XHRPollingSessionHelper handler = createHelper(session);
+		handler.connect(resource, atmosphereHandler);
+		return session;
+	}
+	
+	@Override
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+		return connect(null, resource, atmosphereHandler, sessionFactory);
 	}
 }

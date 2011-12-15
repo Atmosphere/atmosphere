@@ -265,11 +265,13 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 			} else if ("POST".equals(request.getMethod())) {
 				if (is_open) {
 					int size = request.getContentLength();
-					BufferedReader reader = request.getReader();
 					if (size == 0) {
 						response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-					} else { 
-						String data = decodePostData(request.getContentType(), extractString(reader));
+					} else {
+						String data = (String)request.getAttribute(POST_MESSAGE_RECEIVED);
+						if(data==null){
+							data = decodePostData(request.getContentType(), extractString(request.getReader()));
+						}
 						if (data != null && data.length() > 0) {
 							
 							List<SocketIOEvent> list = SocketIOEvent.parse(data);

@@ -63,8 +63,8 @@ public class FlashSocketTransport extends WebSocketTransport {
 	private String flashPolicyDomain = null;
 	private String flashPolicyPorts = null;
 
-	public FlashSocketTransport(int bufferSize, int maxIdleTime) {
-		super(bufferSize, maxIdleTime);
+	public FlashSocketTransport(int bufferSize) {
+		super(bufferSize);
 	}
 
 	@Override

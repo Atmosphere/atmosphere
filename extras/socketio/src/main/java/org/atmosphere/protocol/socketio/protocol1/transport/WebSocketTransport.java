@@ -27,10 +27,8 @@ public class WebSocketTransport extends AbstractTransport {
 
 	public static final String TRANSPORT_NAME = "websocket";
 	public static final long CONNECTION_TIMEOUT = 10 * 1000;
-	private final long maxIdleTime;
 
-	public WebSocketTransport(int bufferSize, int maxIdleTime) {
-		this.maxIdleTime = maxIdleTime;
+	public WebSocketTransport(int bufferSize) {
 	}
 
 	@Override
