@@ -194,15 +194,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return this;
         }
 
-        boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast) {
-            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
+        boolean resumeOnBroadcast(boolean resumeOnBroadcast) {
+            String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
             if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return true;
             }
             return resumeOnBroadcast;
         }
 
-        boolean outputJunk(ContainerRequest request, boolean outputJunk) {
+        boolean outputJunk(boolean outputJunk) {
             boolean webSocketEnabled = false;
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
                 String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
@@ -214,7 +214,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
+            String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
             if (webSocketEnabled) {
                 return false;
             } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
@@ -265,7 +265,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
                         boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
-                        final boolean resumeOnBroadcast = resumeOnBroadcast(request, false);
+                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
 
                         for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                             try {
@@ -331,8 +331,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
 
-                    boolean outputJunk = outputJunk(request, s.outputComments());
-                    boolean resumeOnBroadcast = resumeOnBroadcast(request, s.resumeOnBroadcast());
+                    boolean outputJunk = outputJunk(s.outputComments());
+                    boolean resumeOnBroadcast = resumeOnBroadcast(s.resumeOnBroadcast());
 
                     for (AtmosphereResourceEventListener el : s.listeners()) {
                         if (r instanceof AtmosphereEventLifecycle) {
@@ -368,8 +368,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND:
                 case SUSPEND_TRACKABLE:
                 case SUSPEND_RESUME:
-                    outputJunk = outputJunk(request, outputComments);
-                    resumeOnBroadcast = resumeOnBroadcast(request, (action == Action.SUSPEND_RESUME));
+                    outputJunk = outputJunk(outputComments);
+                    resumeOnBroadcast = resumeOnBroadcast((action == Action.SUSPEND_RESUME));
 
                     for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                         try {
