@@ -127,7 +127,7 @@ public class DefaultBroadcaster implements Broadcaster {
         this.config = config;
 
         broadcasterCache = new DefaultBroadcasterCache();
-        bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+        bc = createBroadcasterConfig(config);
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
             if (s.equalsIgnoreCase("afterFilter")) {
@@ -140,6 +140,15 @@ public class DefaultBroadcaster implements Broadcaster {
 
     public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
         this(name, URI.create("http://localhost"), config);
+    }
+
+    /**
+     * Create {@link BroadcasterConfig}
+     * @param config the {@link AtmosphereServlet.AtmosphereConfig}
+     * @return an instance of {@link BroadcasterConfig}
+     */
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config){
+        return new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
     }
 
     /**

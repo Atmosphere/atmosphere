@@ -62,6 +62,19 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         super(id, config);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config){
+        BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
+        if (bc == null) {
+            bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+            config.properties().put(BroadcasterConfig.class.getName(), bc);
+        }
+        return bc;
+    }
+
     protected void start() {
         if (!started.getAndSet(true)) {
             setID(name);
