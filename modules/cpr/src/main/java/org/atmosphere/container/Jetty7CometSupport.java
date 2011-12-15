@@ -99,6 +99,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 if (resumeOnBroadcast != null && resumeOnBroadcast) {
                     return action;
                 }
+                c = ContinuationSupport.getContinuation(req);
 
                 logger.debug("Resume {}", res);
                 if (c.isSuspended()) {
