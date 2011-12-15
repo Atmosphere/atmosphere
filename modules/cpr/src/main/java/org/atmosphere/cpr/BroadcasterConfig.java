@@ -87,6 +87,7 @@ public class BroadcasterConfig {
     private AtmosphereServlet.AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
+    private boolean shared = false;
 
     public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
         this(list, config, true);
@@ -96,6 +97,8 @@ public class BroadcasterConfig {
         this.config = config;
         if (createExecutor) {
             configExecutors();
+        } else {
+            shared = true;
         }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
@@ -339,6 +342,7 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
+        if (shared) return;
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
