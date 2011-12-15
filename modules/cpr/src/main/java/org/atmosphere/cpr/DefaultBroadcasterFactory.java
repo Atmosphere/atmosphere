@@ -40,6 +40,7 @@ package org.atmosphere.cpr;
 
 
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,7 +147,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         try {
             Broadcaster b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
-            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+
+            if (b.getBroadcasterConfig() == null) {
+                b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+            }
+
             b.setBroadcasterLifeCyclePolicy(policy);
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();

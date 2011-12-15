@@ -89,10 +89,24 @@ public class BroadcasterConfig {
     private boolean isAsyncExecutorShared = false;
 
     public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+        this(list, config, true);
+    }
+
+    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
-        configExecutors();
+        if (createExecutor) {
+            configExecutors();
+        }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+    }
+
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
+                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+        this.executorService = executorService;
+        this.scheduler = scheduler;
+        this.asyncWriteService = asyncWriteService;
+        this.config = config;
     }
 
     private void configureBroadcasterCache() {
@@ -111,14 +125,6 @@ public class BroadcasterConfig {
             throw new RuntimeException(e);
         }
 
-    }
-
-    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
-        this.executorService = executorService;
-        this.scheduler = scheduler;
-        this.asyncWriteService = asyncWriteService;
-        this.config = config;
     }
 
     protected synchronized void configExecutors() {
