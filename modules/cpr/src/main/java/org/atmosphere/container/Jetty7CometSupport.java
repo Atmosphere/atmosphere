@@ -147,14 +147,14 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             Continuation c = ContinuationSupport.getContinuation(r.getRequest());
             if (c != null) {
                 try {
-                    if (!c.isInitial()) {
+                    if (c.isSuspended()) {
                         c.complete();
                     } else {
                         r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                     }
                 } catch (IllegalStateException ex) {
                     r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-                    logger.error("Continuation.complete() failed", ex);
+                    logger.trace("Continuation.complete() failed", ex);
                 }
             }
         } else {
