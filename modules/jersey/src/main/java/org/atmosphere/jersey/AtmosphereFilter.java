@@ -254,7 +254,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
                     if (transport == null) {
-                        logger.debug("Must specify transport using header value " + X_ATMOSPHERE_TRANSPORT);
+                        logger.warn("Must specify transport using header value " + X_ATMOSPHERE_TRANSPORT);
                         response.setStatus(400);
                         return response;
                     }
