@@ -254,8 +254,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
                     if (transport == null) {
-                        throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
-                                + X_ATMOSPHERE_TRANSPORT));
+                        logger.debug("Must specify transport using header value " + X_ATMOSPHERE_TRANSPORT);
+                        response.setStatus(400);
+                        return response;
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
