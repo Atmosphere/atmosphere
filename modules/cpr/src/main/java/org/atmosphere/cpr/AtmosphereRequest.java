@@ -43,7 +43,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Map<String, String[]> queryStrings;
     private final String methodType;
     private final String contentType;
-    private final HttpServletRequest request;
+    private HttpServletRequest request;
     private final String servletPath;
     private final String requestURI;
     private final String requestURL;
@@ -336,6 +336,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         headers.clear();
         queryStrings.clear();
+        request = null;
     }
 
     public final static class Builder {

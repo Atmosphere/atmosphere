@@ -372,10 +372,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                     }
                 }
             }
+        } catch (Throwable t) {
+            logger.error("failed to timeout resource {}", r, t);
         } finally {
             try {
-                r.cancel();
                 if (r != null) {
+                    r.cancel();
                     r.notifyListeners();
                 }
             } finally {
@@ -448,17 +450,17 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r = null;
-        long l = (Long) req.getAttribute(MAX_INACTIVE);
-        if (l == -1) {
-            // The closedDetector closed the connection.
-            return timedoutAction;
-        }
-
-        logger.debug("Cancelling the connection for request {}", req);
-
-        req.setAttribute(MAX_INACTIVE, (long) -1);
-
         try {
+            long l = (Long) req.getAttribute(MAX_INACTIVE);
+            if (l == -1) {
+                // The closedDetector closed the connection.
+                return timedoutAction;
+            }
+
+            logger.debug("Cancelling the connection for request {}", req);
+
+            req.setAttribute(MAX_INACTIVE, (long) -1);
+
             r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             if (r != null) {
                 r.getAtmosphereResourceEvent().setCancelled(true);
@@ -481,8 +483,8 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             logger.debug("failed to cancel resource: " + r, ex);
         } finally {
             try {
-                r.cancel();
                 if (r != null) {
+                    r.cancel();
                     r.notifyListeners();
                 }
             } finally {
