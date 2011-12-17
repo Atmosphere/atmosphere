@@ -57,6 +57,7 @@ import org.atmosphere.util.AtmosphereConfigReader.Property;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -233,6 +234,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private boolean webSocketEnabled = true;
     private String broadcasterLifeCyclePolicy = "NEVER";
     private String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
+    private WebSocketProtocol webSocketProtocol;
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -243,7 +245,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                if (BroadcasterFactory.getDefault() != null)  {
+                if (BroadcasterFactory.getDefault() != null) {
                     this.broadcaster = BroadcasterFactory.getDefault().get(mapping);
                 } else {
                     this.mapping = mapping;
@@ -553,6 +555,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             configureWebDotXmlAtmosphereHandler(sc);
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
+            initWebSocketProtocol();
 
             logger.info("Using broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
@@ -827,6 +830,17 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 }
             });
         }
+    }
+
+    protected void initWebSocketProtocol() {
+        try {
+            webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
+                    .loadClass(webSocketProtocolClassName).newInstance();
+        } catch (Exception ex) {
+            logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
+            webSocketProtocol = new SimpleHttpProtocol();
+        }
+        webSocketProtocol.configure(config);
     }
 
     @Override
@@ -1181,11 +1195,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
-                return cometSupport.service(new AtmosphereRequest.Builder()
+                AtmosphereRequest r = new AtmosphereRequest.Builder()
                         .headers(headers)
                         .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
                         .body(body)
-                        .request(req).build(), res);
+                        .request(req).build();
+
+                Action a = cometSupport.service(r, res);
+                if (a.type != Action.TYPE.SUSPEND) {
+                    r.destroy();
+                }
             } else {
                 return cometSupport.service(req, res);
             }
@@ -1453,6 +1472,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         return false;
     }
 
+    public WebSocketProtocol getWebSocketProtocol() {
+        return webSocketProtocol;
+    }
+
     /**
      * Jetty 7.2 & 8.0.0-M1/M2and up WebSocket support.
      *
@@ -1463,6 +1486,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.debug("WebSocket upgrade requested");
         request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-        return new JettyWebSocketHandler(request, this, webSocketProtocolClassName);
+        return new JettyWebSocketHandler(request, this, webSocketProtocol);
     }
 }

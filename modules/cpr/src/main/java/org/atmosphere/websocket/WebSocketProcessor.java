@@ -126,7 +126,12 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         if (r != null) {
             AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            dispatch(r, w);
+            try {
+                dispatch(r, w);
+            } finally {
+                r.destroy();
+                w.destroy();
+            }
         }
     }
 
@@ -134,7 +139,12 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
         if (r != null) {
             AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            dispatch(r, w);
+            try {
+                dispatch(r, w);
+            } finally {
+                r.destroy();
+                w.destroy();
+            }
         }
     }
 
@@ -191,7 +201,7 @@ public class WebSocketProcessor implements Serializable {
 
                 try {
                     resource.notifyListeners(e);
-                    ((AtmosphereResourceImpl) resource).cancel();
+                    resource.cancel();
                 } finally {
                     AsynchronousProcessor.destroyResource(resource);
                 }
@@ -201,6 +211,13 @@ public class WebSocketProcessor implements Serializable {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
             logger.warn("Failed invoking atmosphere handler onStateChange()", e);
+        } finally {
+            if (AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                AtmosphereRequest.class.cast(resource.getRequest()).destroy();
+            }
+            if (AtmosphereResponse.class.isAssignableFrom(resource.getResponse().getClass())) {
+                AtmosphereResponse.class.cast(resource.getResponse()).destroy();
+            }
         }
     }
 

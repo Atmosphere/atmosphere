@@ -318,6 +318,26 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.enumeration(m.keySet());
     }
 
+    public void destroy() {
+        localAttributes.clear();
+        if (bis != null) {
+            try {
+                bis.close();
+            } catch (IOException e) {
+            }
+        }
+
+        if (br != null) {
+            try {
+                br.close();
+            } catch (IOException e) {
+            }
+        }
+
+        headers.clear();
+        queryStrings.clear();
+    }
+
     public final static class Builder {
 
         private HttpServletRequest request;

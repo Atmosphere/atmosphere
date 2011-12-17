@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
+import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,21 +55,14 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketHandler.class);
 
     private WebSocketProcessor webSocketProcessor;
-    private final HttpServletRequest request;
+    private final JettyRequestFix request;
     private final AtmosphereServlet atmosphereServlet;
     private WebSocketProtocol webSocketProtocol;
 
-    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, final String webSocketProtocolClassName) {
+    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, WebSocketProtocol webSocketProtocol) {
         this.request = new JettyRequestFix(request);
         this.atmosphereServlet = atmosphereServlet;
-
-        try {
-            this.webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
-                    .loadClass(webSocketProtocolClassName).newInstance();
-            webSocketProtocol.configure(atmosphereServlet.getAtmosphereConfig());
-        } catch (Exception ex) {
-            logger.error("Cannot load the WebSocketProtocol {}", webSocketProtocolClassName, ex);
-        }
+        this.webSocketProtocol = webSocketProtocol;
     }
 
     @Override
@@ -116,6 +110,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onDisconnect() {
+        request.destroy();
         logger.trace("WebSocket.onDisconnect");
         webSocketProcessor.close();
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
@@ -194,10 +189,12 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onClose(int closeCode, String message) {
         logger.trace("WebSocket.OnClose.");
+        request.destroy();
         if (webSocketProcessor == null) return;
 
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         webSocketProcessor.close();
+
     }
 
     /**
@@ -210,7 +207,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         private final String servletPath;
         private final String pathInfo;
         private final String requestUri;
-        private final HttpSession httpSession;
+        private final FakeHttpSession httpSession;
         private final StringBuffer requestURL;
         private final HashMap<String, Object> attributes = new HashMap<String, Object>();
         private final HashMap<String, String> headers = new HashMap<String, String>();
@@ -251,6 +248,13 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                 s = e.nextElement();
                 parameters.put(s, request.getParameterValues(s));
             }
+        }
+
+        public void destroy() {
+            attributes.clear();
+            headers.clear();
+            parameters.clear();
+            httpSession.destroy();
         }
 
         @Override
@@ -379,6 +383,10 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             this.sessionId = sessionId;
             this.servletContext = servletContext;
             this.creationTime = creationTime;
+        }
+
+        public void destroy(){
+            attributes.clear();
         }
 
         @Override

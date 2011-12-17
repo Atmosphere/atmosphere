@@ -218,6 +218,14 @@ public class AtmosphereResourceImpl implements
                 } else {
                     logger.debug("Cannot resume an already resumed/cancelled request {}", getRequest());
                 }
+
+                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                    AtmosphereResponse.class.cast(response).destroy();
+                }
+
+                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                    AtmosphereRequest.class.cast(req).destroy();
+                }
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
@@ -656,6 +664,11 @@ public class AtmosphereResourceImpl implements
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
             AtmosphereResponse.class.cast(response).close();
+            AtmosphereResponse.class.cast(response).destroy();
+        }
+
+        if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+            AtmosphereRequest.class.cast(req).destroy();
         }
     }
 
