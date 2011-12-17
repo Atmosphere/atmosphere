@@ -253,14 +253,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
-                    if (transport == null) {
-                        logger.warn("Must specify transport using header value " + X_ATMOSPHERE_TRANSPORT);
-                        response.setStatus(400);
-                        return response;
+                    String broadcasterName = servletReq.getHeader(topic);
+                    if (transport == null || broadcasterName == null) {
+                        throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
+                                +  X_ATMOSPHERE_TRANSPORT
+                                +  " and uuid " + X_ATMOSPHERE_TRACKING_ID));
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
-                    String broadcasterName = servletReq.getHeader(topic);
                     final boolean waitForResource = waitFor == -1 ? true : false;
                     final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
 
