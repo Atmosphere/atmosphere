@@ -15,7 +15,6 @@
  */
 package org.atmosphere.container;
 
-
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -84,7 +83,7 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocolClassName());
+                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocol());
             }
         });
 

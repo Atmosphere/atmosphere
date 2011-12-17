@@ -18,6 +18,7 @@ package org.atmosphere.websocket.protocol;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -51,7 +52,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String contentType;
     private String methodType;
     private String delimiter;
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
 
     /**
      * {@inheritDoc}
@@ -82,6 +82,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public AtmosphereRequest onMessage(WebSocket webSocket, String d) {
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.error("Invalid state. No AtmosphereResource has been suspended");
             return null;
@@ -119,8 +120,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onOpen(WebSocket webSocket) {
-        // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
     }
 
     /**

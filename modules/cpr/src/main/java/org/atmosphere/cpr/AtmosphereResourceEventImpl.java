@@ -62,7 +62,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     // The current message
     protected Object message;
 
-    protected final AtmosphereResourceImpl resource;
+    protected AtmosphereResourceImpl resource;
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
@@ -190,7 +190,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     }
 
     public void setThrowable(Throwable t) {
-        this.throwable = throwable;
+        this.throwable = t;
+    }
+
+    public void destroy(){
+        resource = null;
+        message = null;
     }
 
     @Override

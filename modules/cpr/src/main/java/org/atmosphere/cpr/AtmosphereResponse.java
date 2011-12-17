@@ -63,7 +63,7 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers = new HashMap<String, String>();
-    private final A asyncIOWriter;
+    private A asyncIOWriter;
     private int status = 200;
     private String statusMessage = "";
     private String charSet = "UTF-8";
@@ -71,9 +71,9 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
     private String contentType = "txt/html";
     private boolean isCommited = false;
     private Locale locale;
-    private final AsyncProtocol asyncProtocol;
+    private AsyncProtocol asyncProtocol;
     private boolean headerHandled = false;
-    private final HttpServletRequest atmosphereRequest;
+    private HttpServletRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
 
     public AtmosphereResponse(A asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
@@ -88,6 +88,14 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
+    }
+
+    public void destroy(){
+        cookies.clear();
+        headers.clear();
+        atmosphereRequest = null;
+        asyncIOWriter = null;
+        asyncProtocol = null;
     }
 
     /**
