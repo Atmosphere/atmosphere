@@ -256,7 +256,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-        String path = req.getServletPath() + req.getPathInfo();
+        String path;
+        if (req.getPathInfo() != null) {
+            path = req.getServletPath() + req.getPathInfo();
+        } else {
+            path = req.getServletPath();
+        }
         if (path == null || path.length() <= 1) {
             path = "/all";
         }
