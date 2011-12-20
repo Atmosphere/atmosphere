@@ -40,20 +40,25 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.eclipse.jetty.continuation.Continuation;
+import org.eclipse.jetty.continuation.ContinuationListener;
 import org.eclipse.jetty.continuation.ContinuationSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Comet Portable Runtime implementation on top of Jetty's Continuation.
@@ -71,7 +76,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     /**
      * {@inheritDoc}
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
+    public Action service(final HttpServletRequest req, final HttpServletResponse res) throws IOException, ServletException {
         Action action = null;
 
         Continuation c = (Continuation) req.getAttribute(Continuation.class.getName());
@@ -79,12 +84,9 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         if (c == null || c.isInitial()) {
             action = suspended(req, res);
             if (action.type == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
-                logger.debug("Suspending {}", res);
-
                 c = ContinuationSupport.getContinuation(req);
                 req.setAttribute(Continuation.class.getName(), c);
 
-                // Do nothing except setting the times out
                 if (action.timeout != -1) {
                     c.setTimeout(action.timeout);
                 } else {
@@ -92,28 +94,63 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                     // Long.MAX_VALUE, which is to resume automatically.
                     c.setTimeout(Integer.MAX_VALUE);
                 }
-                c.suspend();
+
+                c.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE));
+                c.addContinuationListener(new ContinuationListener() {
+
+                    @Override
+                    public void onComplete(Continuation continuation) {
+                        AtmosphereResourceImpl r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                        if (r != null) {
+                            try {
+                                r.cancel();
+                            } catch (IOException e) {
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onTimeout(Continuation continuation) {
+                        AtmosphereResourceImpl r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                        if (r != null) {
+                            try {
+                                timedout(r.getRequest(), r.getResponse());
+                            } catch (Throwable t) {
+                                logger.error("", t);
+                            }
+                        } else {
+                            logger.trace("AtmosphereResource was null");
+                        }
+                        try {
+                            continuation.complete();
+                        } catch (Throwable t) {
+                        }
+                    }
+                });
+
+                if (req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE) != null) {
+                    c.suspend(res);
+                }
             } else if (action.type == Action.TYPE.RESUME) {
                 // If resume occurs during a suspend operation, stop processing.
                 Boolean resumeOnBroadcast = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
                 if (resumeOnBroadcast != null && resumeOnBroadcast) {
                     return action;
                 }
-                c = ContinuationSupport.getContinuation(req);
 
-                logger.debug("Resume {}", res);
-                if (c.isSuspended()) {
-                    try {
-                        c.complete();
-                    } catch (IllegalStateException ex) {
-                        logger.trace("Continuation.complete()", ex);
-                    } finally {
-                        resumed(req, res);
+                c = (Continuation) req.getAttribute(Continuation.class.getName());
+                if (c != null) {
+                    if (c.isSuspended()) {
+                        try {
+                            c.complete();
+                        } catch (IllegalStateException ex) {
+                            logger.trace("Continuation.complete()", ex);
+                        } finally {
+                            resumed(req, res);
+                        }
                     }
                 }
             }
-        } else if (!c.isInitial() && c.isExpired()) {
-            timedout(req, res);
         }
         return action;
     }
@@ -121,7 +158,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     @Override
     public Action resumed(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
-        logger.debug("(resumed) invoked:\n HttpServletRequest: {}\n HttpServletResponse: {}", request, response);
         AtmosphereResourceImpl r =
                 (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
@@ -135,33 +171,30 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return new Action(Action.TYPE.RESUME);
     }
 
-    /**
+     /**
      * {@inheritDoc}
      */
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.isInScope() && r.action().type == Action.TYPE.RESUME &&
-                (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null ||
-                        config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-            Continuation c = ContinuationSupport.getContinuation(r.getRequest());
-            if (c != null) {
-                try {
-                    if (c.isSuspended()) {
-                        c.complete();
-                    } else {
-                        r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-                    }
-                } catch (IllegalStateException ex) {
-                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-                    logger.trace("Continuation.complete() failed", ex);
-                }
-            }
-        } else {
+
+        ServletRequest request = r.getRequest();
+        while (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+            request = AtmosphereRequest.class.cast(request).getRequest();
+        }
+
+        Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
+        if (c != null) {
             try {
-                r.getResponse(false).flushBuffer();
-            } catch (IOException e) {
+                if (c.isSuspended()) {
+                    c.complete();
+                }
+            } catch (IllegalStateException ex) {
+                logger.trace("c.complete()", ex);
+            } finally {
+                r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
             }
+            request.removeAttribute(Continuation.class.getName());
         }
     }
 }
