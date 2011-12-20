@@ -1188,6 +1188,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
         req.setAttribute(SUPPORT_LOCATION_HEADER, config.getInitParameter(SUPPORT_LOCATION_HEADER));
 
+        AtmosphereRequest r  = null;
+        Action a = null;
         try {
             if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
                     && (isIECandidate(req) || req.getParameter(HeaderConfig.JSONP_CALLBACK_NAME) != null)
@@ -1195,16 +1197,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
-                AtmosphereRequest r = new AtmosphereRequest.Builder()
+                r = new AtmosphereRequest.Builder()
                         .headers(headers)
                         .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
                         .body(body)
                         .request(req).build();
 
-                Action a = cometSupport.service(r, res);
-                if (a.type != Action.TYPE.SUSPEND) {
-                    r.destroy();
-                }
+                a = cometSupport.service(r, res);
             } else {
                 return cometSupport.service(req, res);
             }
@@ -1223,6 +1222,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 logger.error("AtmosphereServlet exception", ex);
                 throw ex;
             }
+        } finally {
+           if (r != null && a != null && a.type != Action.TYPE.SUSPEND) {
+               r.destroy();
+           }
         }
         return null;
     }

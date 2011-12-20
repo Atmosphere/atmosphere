@@ -336,7 +336,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         headers.clear();
         queryStrings.clear();
-        request = null;
+
+        // Help GC
+        if (request != null) {
+            request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            request = null;
+        }
     }
 
     public final static class Builder {
