@@ -140,13 +140,13 @@ public class TomcatCometSupport extends AsynchronousProcessor {
             event.close();
         } else if (event.getEventType() == EventType.END) {
             if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
-                action = cancelled(req, res);
+                /**
+                 * Ignore END (the application just read the complete InputStream
+                 */
+                //action = cancelled(req, res);
             } else {
                 logger.trace("Cancelling response: {}", res);
             }
-
-            event.close();
         }
         return action;
     }

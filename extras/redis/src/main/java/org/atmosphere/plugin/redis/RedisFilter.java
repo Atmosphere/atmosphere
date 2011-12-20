@@ -159,8 +159,9 @@ public class RedisFilter implements ClusterBroadcastFilter {
 
         if (!(receivedMessages.remove(contents))) {
             jedisPublisher.publish(bc.getID(), contents);
+            return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
         }
-        return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
+        return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.ABORT, o);
     }
 
     /**
