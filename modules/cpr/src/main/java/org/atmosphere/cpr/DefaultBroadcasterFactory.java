@@ -175,7 +175,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public boolean remove(Broadcaster b, Object id) {
         boolean removed = store.remove(id, b);
         if (removed) {
-            logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
+            logger.debug("Removing Broadcaster {} factory size now {} ", id, store.size());
         }
         return removed;
     }
@@ -221,6 +221,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             if (store.putIfAbsent(id, createBroadcaster(c, id)) == null) {
                 logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
             }
+
             b = store.get(id);
         }
 
