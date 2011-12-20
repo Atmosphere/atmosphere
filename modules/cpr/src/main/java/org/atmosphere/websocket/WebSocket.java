@@ -36,13 +36,10 @@
  */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResource;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 
 /**
  * Represent a portable WebSocket implementation which can be used to write message.
@@ -54,12 +51,6 @@ public interface WebSocket extends AsyncIOWriter {
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
-
-    /**
-     * Close the underlying WebSocket connection
-     * @throws IOException
-     */
-    void close() throws IOException;
 
     /**
      * Return the current {@link AtmosphereResource} representing the underlying connection and the original

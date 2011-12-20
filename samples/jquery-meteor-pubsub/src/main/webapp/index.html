@@ -56,7 +56,12 @@
 
                 var location = baseUrl + getElementByIdValue('topic');
                 $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
+<<<<<<< HEAD
                         $.atmosphere.request = { transport: getElementByIdValue('transport') });
+=======
+                        $.atmosphere.request = { attachHeadersAsQueryString : true,
+                                                transport: getElementByIdValue('transport') });
+>>>>>>> atmosphere-0.8.x
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }

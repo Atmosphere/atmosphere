@@ -43,7 +43,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Map<String, String[]> queryStrings;
     private final String methodType;
     private final String contentType;
-    private final HttpServletRequest request;
+    private HttpServletRequest request;
     private final String servletPath;
     private final String requestURI;
     private final String requestURL;
@@ -316,6 +316,32 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
         return Collections.enumeration(m.keySet());
+    }
+
+    public void destroy() {
+        localAttributes.clear();
+        if (bis != null) {
+            try {
+                bis.close();
+            } catch (IOException e) {
+            }
+        }
+
+        if (br != null) {
+            try {
+                br.close();
+            } catch (IOException e) {
+            }
+        }
+
+        headers.clear();
+        queryStrings.clear();
+
+        // Help GC
+        if (request != null) {
+            request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            request = null;
+        }
     }
 
     public final static class Builder {

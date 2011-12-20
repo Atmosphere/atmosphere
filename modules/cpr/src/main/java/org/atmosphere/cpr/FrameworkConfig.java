@@ -77,5 +77,16 @@ public interface FrameworkConfig {
      * Used by a Container to tell Atmosphere Runtime what is the expected content type
      */
     String EXPECTED_CONTENT_TYPE = FrameworkConfig.class.getName() + ".expectedContentType";
-
+    /**
+     * The name of the sub-protocol used.
+     */
+    String WEBSOCKET_SUBPROTOCOL = "websocket-subprotocol";
+    /**
+     * The SimpleHttpProtocol
+      */
+    String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
+    /**
+     * Cance suspending a connection
+     */
+    String CANCEL_SUSPEND_OPERATION = "doNotSuspend";
 }
