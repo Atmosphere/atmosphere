@@ -61,6 +61,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -76,7 +77,6 @@ public class WebSocketProcessor implements Serializable {
     private final AtmosphereServlet atmosphereServlet;
     private final WebSocket webSocket;
     private final WebSocketProtocol webSocketProtocol;
-
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
@@ -116,7 +116,7 @@ public class WebSocketProcessor implements Serializable {
 
         webSocketProtocol.onOpen(webSocket);
 
-        if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
+        if (webSocket.resource() != null && !webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
             webSocketProtocol.onError(webSocket,
                     new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
         }
@@ -212,11 +212,16 @@ public class WebSocketProcessor implements Serializable {
             }
             logger.warn("Failed invoking atmosphere handler onStateChange()", e);
         } finally {
-            if (AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+            if (resource.getRequest() != null && AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
                 AtmosphereRequest.class.cast(resource.getRequest()).destroy();
             }
-            if (AtmosphereResponse.class.isAssignableFrom(resource.getResponse().getClass())) {
+
+            if (resource.getResponse() != null && AtmosphereResponse.class.isAssignableFrom(resource.getResponse().getClass())) {
                 AtmosphereResponse.class.cast(resource.getResponse()).destroy();
+            }
+
+            if (webSocket != null) {
+                WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
             }
         }
     }

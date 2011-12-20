@@ -91,6 +91,7 @@ public class AtmosphereResourceImpl implements
     private final AtmosphereResourceEventImpl event;
     private String beginCompatibleData;
     private boolean useWriter = true;
+    private boolean isResumed = false;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -162,8 +163,9 @@ public class AtmosphereResourceImpl implements
         // Strangely but possible two thread try to resume at the same time.
         try {
             synchronized (event) {
-                if (!event.isResuming() && !event.isResumedOnTimeout() && event.isSuspended() && isInScope) {
+                if (!isResumed && isInScope) {
                     action.type = AtmosphereServlet.Action.TYPE.RESUME;
+                    isResumed = true;
 
                     try {
                         logger.debug("Resuming {}", getRequest());
@@ -229,6 +231,8 @@ public class AtmosphereResourceImpl implements
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
+        } finally {
+            event.setMessage(null);
         }
     }
 
@@ -590,6 +594,7 @@ public class AtmosphereResourceImpl implements
             return;
         }
 
+        Action oldAction = action;
         try {
             if (event.isResuming() || event.isResumedOnTimeout()) {
                 onResume(event);
@@ -601,6 +606,10 @@ public class AtmosphereResourceImpl implements
                 onThrowable(event);
             } else {
                 onBroadcast(event);
+            }
+
+            if (oldAction.type != action.type) {
+                action().type = Action.TYPE.CREATED;
             }
         } catch (Throwable t) {
             logger.trace("Listener error {}", t);
@@ -660,6 +669,7 @@ public class AtmosphereResourceImpl implements
     }
 
     public void cancel() throws IOException {
+        action.type = Action.TYPE.RESUME;
         cometSupport.action(this);
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
@@ -670,6 +680,16 @@ public class AtmosphereResourceImpl implements
         if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
             AtmosphereRequest.class.cast(req).destroy();
         }
+
+        // TODO: Grab some measurement.
+//        req = null;
+//        response = null;
+
+        // Just in case
+        if (broadcaster != null) {
+            broadcaster.removeAtmosphereResource(this);
+        }
+        event.destroy();
     }
 
     @Override

@@ -676,8 +676,8 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean notifyListeners = true;
         boolean lostCandidate = false;
 
+        final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         try {
-            final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
             event.setMessage(token.msg);
 
             // Check again to make sure we are still valid. Remove and silently ignore.
@@ -717,6 +717,8 @@ public class DefaultBroadcaster implements Broadcaster {
             if (lostCandidate) {
                 cacheLostMessage(token.resource);
             }
+            token.destroy();
+            event.setMessage(null);
         }
     }
 
@@ -1196,16 +1198,23 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected final static class AsyncWriteToken {
 
-        final AtmosphereResource<?, ?> resource;
-        final Object msg;
-        final BroadcasterFuture future;
-        final Object originalMessage;
+        AtmosphereResource<?, ?> resource;
+        Object msg;
+        BroadcasterFuture future;
+        Object originalMessage;
 
         public AsyncWriteToken(AtmosphereResource<?, ?> resource, Object msg, BroadcasterFuture future, Object originalMessage) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
             this.originalMessage = originalMessage;
+        }
+
+        public void destroy(){
+            this.resource = null;
+            this.msg = null;
+            this.future = null;
+            this.originalMessage = null;
         }
 
         @Override
