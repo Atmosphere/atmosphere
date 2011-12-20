@@ -423,7 +423,7 @@ jQuery.atmosphere = function() {
 
         reconnect : function (ajaxRequest, request, force) {
             jQuery.atmosphere.request = request;
-            if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming')) {
+            if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && jQuery.atmosphere.subscribed)) { // My fix
                 jQuery.atmosphere.request.method = 'GET';
                 jQuery.atmosphere.request.data = "";
                 jQuery.atmosphere.executeRequest();
