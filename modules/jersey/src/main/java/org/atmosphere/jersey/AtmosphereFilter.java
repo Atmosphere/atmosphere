@@ -786,10 +786,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
                 if (serverInfo.indexOf("jetty") != -1) {
-                    String[] jettyVersion = serverInfo.substring(6).split("\\.");
-                    // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
-                    eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
-                            || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    try {
+                        String[] jettyVersion = serverInfo.substring(6).split("\\.");
+                        // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
+                        eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
+                                || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    } catch (Throwable t) {
+                        logger.warn("Unable to parse server name {}", serverInfo);
+                    }
 
                     if (comments && eclipse362468) {
                         logger.debug("Padding response is disabled to workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468");
