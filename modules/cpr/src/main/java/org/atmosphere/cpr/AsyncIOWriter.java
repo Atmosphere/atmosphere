@@ -63,4 +63,9 @@ public interface AsyncIOWriter {
      */
     void write(byte[] data, int offset, int length) throws IOException;
 
+    /**
+     * Close the underlying connection.
+     */
+    void close() throws IOException;
+
 }

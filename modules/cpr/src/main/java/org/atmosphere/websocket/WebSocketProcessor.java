@@ -61,6 +61,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -76,7 +77,6 @@ public class WebSocketProcessor implements Serializable {
     private final AtmosphereServlet atmosphereServlet;
     private final WebSocket webSocket;
     private final WebSocketProtocol webSocketProtocol;
-
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
 
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
@@ -116,8 +116,9 @@ public class WebSocketProcessor implements Serializable {
 
         webSocketProtocol.onOpen(webSocket);
 
-        if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
-            webSocketProtocol.onError(webSocket, new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed.", wsr));
+        if (webSocket.resource() != null && !webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
+            webSocketProtocol.onError(webSocket,
+                    new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
         }
     }
 
@@ -125,7 +126,12 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         if (r != null) {
             AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            dispatch(r, w);
+            try {
+                dispatch(r, w);
+            } finally {
+                r.destroy();
+                w.destroy();
+            }
         }
     }
 
@@ -133,7 +139,12 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
         if (r != null) {
             AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            dispatch(r, w);
+            try {
+                dispatch(r, w);
+            } finally {
+                r.destroy();
+                w.destroy();
+            }
         }
     }
 
@@ -169,16 +180,17 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void close() {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> resource =
-                (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
+        AtmosphereResourceImpl resource =
+                (AtmosphereResourceImpl) webSocket.resource();
         try {
             webSocketProtocol.onClose(webSocket);
 
-            if (resource != null) {
-                AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+            if (resource != null && resource.isInScope()) {
+                AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest(false).getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                AtmosphereResourceEventImpl e = new AtmosphereResourceEventImpl(resource, true, false);
                 synchronized (resource) {
                     if (handler != null) {
-                        handler.onStateChange(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) resource, false, true));
+                        handler.onStateChange(e);
                     }
 
                     Meteor m = (Meteor) resource.getRequest().getAttribute(AtmosphereResourceImpl.METEOR);
@@ -188,7 +200,8 @@ public class WebSocketProcessor implements Serializable {
                 }
 
                 try {
-                    resource.notifyListeners();
+                    resource.notifyListeners(e);
+                    resource.cancel();
                 } finally {
                     AsynchronousProcessor.destroyResource(resource);
                 }
@@ -198,6 +211,18 @@ public class WebSocketProcessor implements Serializable {
                 AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
             }
             logger.warn("Failed invoking atmosphere handler onStateChange()", e);
+        } finally {
+            if (resource.getRequest() != null && AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
+                AtmosphereRequest.class.cast(resource.getRequest()).destroy();
+            }
+
+            if (resource.getResponse() != null && AtmosphereResponse.class.isAssignableFrom(resource.getResponse().getClass())) {
+                AtmosphereResponse.class.cast(resource.getResponse()).destroy();
+            }
+
+            if (webSocket != null) {
+                WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
+            }
         }
     }
 

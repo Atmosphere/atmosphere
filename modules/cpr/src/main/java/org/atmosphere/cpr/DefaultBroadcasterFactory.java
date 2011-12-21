@@ -41,11 +41,10 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.AbstractBroadcasterProxy;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -65,15 +64,16 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  * from any Classes loaded using the same class loader.
  *
  * @author Jeanfrancois Arcand
+ * @author Jason Burgess
  */
 public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
-
+    
     private final Class<? extends Broadcaster> clazz;
-
+    
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
@@ -130,46 +130,37 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     public final Broadcaster get(Class<? extends Broadcaster> c, Object id) {
 
-        if (id == null) throw new NullPointerException("id is null");
-        if (c == null) throw new NullPointerException("Class is null");
+        if (id == null) {
+            throw new NullPointerException("id is null");
+        }
+        if (c == null) {
+            throw new NullPointerException("Class is null");
+        }
 
-        if (getBroadcaster(id) != null)
+        if (store.containsKey(id)) {
             throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
+        }
 
-        Broadcaster b = null;
-        synchronized (id) {
+        return lookup(c, id, true);
+    }
 
-            // If two thread comes here at the same time, the second ID will erase the
-            if (store.get(id) != null){
-                return store.get(id);
-            }
-
-            try {
-                b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
-            } catch (Throwable t) {
-                throw new BroadcasterCreationException(t);
-            }
+    private Broadcaster createBroadcaster(Class<? extends Broadcaster> c, Object id) throws BroadcasterCreationException {
+        try {
+            Broadcaster b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
-            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
-            b.setBroadcasterLifeCyclePolicy(policy);
 
+            if (b.getBroadcasterConfig() == null) {
+                b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+            }
+
+            b.setBroadcasterLifeCyclePolicy(policy);
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();
             }
-            store.put(id, b);
-            logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+            return b;
+        } catch (Throwable t) {
+            throw new BroadcasterCreationException(t);
         }
-        return b;
-    }
-
-    /**
-     * Return a {@link Broadcaster} based on its name.
-     *
-     * @param name The unique ID
-     * @return a {@link Broadcaster}, or null
-     */
-    private Broadcaster getBroadcaster(Object name) {
-        return store.get(name);
     }
 
     /**
@@ -183,10 +174,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public boolean remove(Broadcaster b, Object id) {
-        boolean removed = (store.get(b.getID()) == b);
+        boolean removed = store.remove(id, b);
         if (removed) {
-            store.remove(id, b);
-            logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
+            logger.debug("Removing Broadcaster {} factory size now {} ", id, store.size());
         }
         return removed;
     }
@@ -217,10 +207,10 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     @Override
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
-        Broadcaster b = getBroadcaster(id);
+        Broadcaster b = store.get(id);
         if (b != null && !c.isAssignableFrom(b.getClass())) {
             String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
-            logger.debug("{}", msg);
+            logger.debug(msg);
             throw new IllegalStateException(msg);
         }
 
@@ -229,7 +219,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 logger.debug("Removing destroyed Broadcaster {}", b.getID());
                 store.remove(b.getID(), b);
             }
-            b = get(c, id);
+            if (store.putIfAbsent(id, createBroadcaster(c, id)) == null) {
+                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+            }
+
+            b = store.get(id);
         }
 
         return b;
@@ -302,7 +296,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz A class implementing {@link Broadcaster}
-     * @param c     An instance of {@link AtmosphereConfig}
+     * @param c     An instance of {@link AtmosphereServlet.AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException

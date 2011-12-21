@@ -57,7 +57,7 @@ public class JerseyBroadcaster extends DefaultBroadcaster {
 
     @Override
     protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
-        JerseyBroadcasterUtil.broadcast(r, e);
+        JerseyBroadcasterUtil.broadcast(r, e, this);
     }
 
 }

@@ -44,7 +44,7 @@ public class AtmosphereWebSocketFactory {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getAtmosphereServlet(), config.getAtmosphereServlet().getWebSocketProtocolClassName());
+                return new JettyWebSocketHandler(request, config.getAtmosphereServlet(), config.getAtmosphereServlet().getWebSocketProtocol());
             }
         });
 

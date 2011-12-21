@@ -39,7 +39,6 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class EchoProtocol implements WebSocketProtocol {
     private static final Logger logger = LoggerFactory.getLogger(EchoProtocol.class);
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
 
     /**
      * {@inheritDoc}
@@ -47,7 +46,7 @@ public class EchoProtocol implements WebSocketProtocol {
     @Override
     public AtmosphereRequest onMessage(WebSocket webSocket, String data) {
         logger.trace("broadcast String");
-        resource.getBroadcaster().broadcast(data);
+        webSocket.resource().getBroadcaster().broadcast(data);
         return null;
     }
 
@@ -59,7 +58,7 @@ public class EchoProtocol implements WebSocketProtocol {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
-        resource.getBroadcaster().broadcast(b);
+        webSocket.resource().getBroadcaster().broadcast(b);
         return null;
     }
 
@@ -75,8 +74,6 @@ public class EchoProtocol implements WebSocketProtocol {
      */
     @Override
     public void onOpen(WebSocket webSocket) {
-        // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
     }
 
     /**

@@ -184,12 +184,12 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
      * {@inheritDoc}
      */
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
+    public void action(AtmosphereResourceImpl r) {
         try {
-            super.action(actionEvent);
-            if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
+            super.action(r);
+            if (r.action().type == Action.TYPE.RESUME) {
                 int latchId = -1;
-                HttpServletRequest req = actionEvent.getRequest();
+                HttpServletRequest req = r.getRequest(false);
 
                 if (req.getAttribute(LATCH) != null) {
                     latchId = (Integer) req.getAttribute(LATCH);

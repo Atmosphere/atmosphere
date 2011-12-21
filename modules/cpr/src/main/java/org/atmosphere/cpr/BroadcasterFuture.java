@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Simple {@link Future} that can be used when awiting for a {@link Broadcaster} to finish
+ * Simple {@link Future} that can be used when awaiting for a {@link Broadcaster} to finish
  * it's broadcast operations to {@link AtmosphereHandler}
  *
  * @author Jeanfrancois Arcand

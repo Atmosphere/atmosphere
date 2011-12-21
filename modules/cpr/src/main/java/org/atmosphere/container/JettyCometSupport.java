@@ -41,6 +41,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.config.AtmosphereConfig;
 import org.mortbay.util.ajax.Continuation;
 import org.mortbay.util.ajax.ContinuationSupport;
@@ -77,7 +78,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
         Continuation c = ContinuationSupport.getContinuation(req, null);
         Action action = null;
 
-        if (!c.isResumed() && !c.isPending()) {
+        if (!c.isResumed() && !c.isPending() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
             // This will throw an exception
             action = suspended(req, response);
             if (action.type == Action.TYPE.SUSPEND) {
@@ -105,7 +106,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
         } else {
             logger.debug("Resuming response: {}", response);
 
-            if (!resumed.remove(c)) {
+            if (!resumed.remove(c) && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 c.reset();
 
                 if (req.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) == null) {
@@ -129,7 +130,12 @@ public class JettyCometSupport extends AsynchronousProcessor {
             resumed.offer(c);
             if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                     || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
-                c.resume();
+
+                if (!c.isNew()) {
+                    c.resume();
+                } else {
+                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                }
             } else {
                 try {
                     r.getResponse().flushBuffer();

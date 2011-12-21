@@ -37,6 +37,7 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcasterCacheBase;
 import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
@@ -52,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -86,12 +88,29 @@ public class BroadcasterConfig {
     private AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
+    private boolean shared = false;
 
     public BroadcasterConfig(String[] list, AtmosphereConfig config) {
+        this(list, config, true);
+    }
+
+    public BroadcasterConfig(String[] list, AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
-        configExecutors();
+        if (createExecutor) {
+            configExecutors();
+        } else {
+            shared = true;
+        }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+    }
+
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
+                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
+        this.executorService = executorService;
+        this.scheduler = scheduler;
+        this.asyncWriteService = asyncWriteService;
+        this.config = config;
     }
 
     private void configureBroadcasterCache() {
@@ -110,14 +129,6 @@ public class BroadcasterConfig {
             throw new RuntimeException(e);
         }
 
-    }
-
-    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
-        this.executorService = executorService;
-        this.scheduler = scheduler;
-        this.asyncWriteService = asyncWriteService;
-        this.config = config;
     }
 
     protected synchronized void configExecutors() {
@@ -332,10 +343,7 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (executorService.isShutdown()) {
-            return;
-        }
-
+        if (shared) return;
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
@@ -368,7 +376,7 @@ public class BroadcasterConfig {
     /**
      * Force shutdown of all {@link ExecutorService}
      */
-    public void forceDestroy(){
+    public void forceDestroy() {
         destroy(true);
     }
 
@@ -515,6 +523,9 @@ public class BroadcasterConfig {
      */
     public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
         this.broadcasterCache = broadcasterCache;
+        if (BroadcasterCacheBase.class.isAssignableFrom(broadcasterCache.getClass())) {
+            BroadcasterCacheBase.class.cast(broadcasterCache).setExecutorService(getScheduledExecutorService());
+        }
         return this;
     }
 
@@ -576,22 +587,21 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereConfig} value. This value might be null
+     * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
      * if the associated {@link Broadcaster} has been created manually.
      *
-     * @return {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
     /**
-     * Set the {@link org.atmosphere.cpr.AtmosphereConfig}
+     * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
     public void setAtmosphereConfig(AtmosphereConfig config) {
         this.config = config;
     }
-
 }

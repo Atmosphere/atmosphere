@@ -148,6 +148,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
      */
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
+        super.action(actionEvent);
         if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
             AsyncContext asyncContext =
                     (AsyncContext) actionEvent.getRequest().getAttribute("org.atmosphere.container.asyncContext");

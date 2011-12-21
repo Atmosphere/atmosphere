@@ -80,7 +80,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
 
     protected final List<CachedMessage> queue = new CopyOnWriteArrayList<CachedMessage>();
 
-    protected final ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
+    protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 
     protected int maxCachedinMs = 1000 * 5 * 60;
 
@@ -98,10 +98,10 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
                 CachedMessage message;
                 while (i.hasNext()) {
                     message = i.next();
-                    logger.debug("Message: {}", message.message());
+                    logger.trace("Message: {}", message.message());
 
                     if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
-                        logger.debug("Pruning: {}", message.message());
+                        logger.trace("Pruning: {}", message.message());
                         queue.remove(message);
                     } else {
                         break;
@@ -109,6 +109,13 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
                 }
             }
         }, 0, 60, TimeUnit.SECONDS);
+    }
+
+    public void setExecutorService(ScheduledExecutorService reaper){
+        if (reaper != null) {
+            stop();
+        }
+        this.reaper = reaper;
     }
 
     /**
@@ -123,7 +130,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      */
     public final synchronized void addToCache(
             final AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, final Object object) {
-        logger.debug("Adding message for resource: {}, object: {}", resource, object);
+        logger.trace("Adding message for resource: {}, object: {}", resource, object);
 
         CachedMessage cm = new CachedMessage(object, System.currentTimeMillis(), null);
         CachedMessage prev = null;

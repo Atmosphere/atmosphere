@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -30,6 +31,9 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
@@ -89,12 +93,15 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             pathInfo = token[1];
             d = token[2];
         }
+        Map<String,Object> m = new HashMap<String, Object>();
+        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
         return new AtmosphereRequest.Builder()
                 .request(resource.getRequest())
                 .method(methodType)
                 .contentType(contentType)
                 .body(d)
+                .attributes(m)
                 .pathInfo(pathInfo)
                 .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
                 .build();
@@ -113,8 +120,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onOpen(WebSocket webSocket) {
-        // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
     }
 
     /**
@@ -129,7 +134,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
-        logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
+        logger.warn(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
     /**
