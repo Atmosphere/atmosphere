@@ -179,7 +179,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         super.action(r);
 
         ServletRequest request = r.getRequest();
-        while (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+        while (!AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             request = AtmosphereRequest.class.cast(request).getRequest();
         }
 
