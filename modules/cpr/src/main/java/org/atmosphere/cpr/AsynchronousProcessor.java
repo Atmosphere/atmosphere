@@ -41,6 +41,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -238,6 +241,23 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
     }
 
+    protected AtmosphereHandlerWrapper map(String path) {
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+        if (atmosphereHandlerWrapper == null) {
+            final Map<String, String> m = new HashMap<String, String>();
+            for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
+                UriTemplate t = new UriTemplate(e.getKey());
+                logger.trace("Trying to map {} to {}", t, path);
+                if (t.match(path, m)) {
+                    atmosphereHandlerWrapper = e.getValue();
+                    logger.trace("Mapped {} to {}", t, e.getValue());
+                    break;
+                }
+            }
+        }
+        return atmosphereHandlerWrapper;
+    }
+
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
@@ -246,55 +266,23 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-        String path = req.getServletPath();
-        if (path == null || path.length() == 0) {
-            path = "/";
+        String path;
+        if (req.getPathInfo() != null) {
+            path = req.getServletPath() + req.getPathInfo();
+        } else {
+            path = req.getServletPath();
+        }
+        if (path == null || path.length() <= 1) {
+            path = "/all";
         }
 
-        // The Algorithm as been fixed in 0.9
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
         if (atmosphereHandlerWrapper == null) {
-            // Try the /*
-            if (!path.endsWith("/")) {
-                path += "/*";
-            } else {
-                path += "*";
-            }
-            atmosphereHandlerWrapper = config.handlers().get(path);
-            if (atmosphereHandlerWrapper == null) {
-                atmosphereHandlerWrapper = config.handlers().get("/*");
-                if (atmosphereHandlerWrapper == null) {
+            atmosphereHandlerWrapper = map("/all");
+        }
 
-                    if (req.getPathInfo() != null) {
-                        // Try appending the pathInfo
-                        path = req.getServletPath() + req.getPathInfo();
-                    }
-
-                    atmosphereHandlerWrapper = config.handlers().get(path);
-                    if (atmosphereHandlerWrapper == null) {
-                        String ppath = path;
-                        path = path.substring(0, path.lastIndexOf("/")) + "/*";
-
-                        atmosphereHandlerWrapper = config.handlers().get(path);
-                        if (atmosphereHandlerWrapper == null) {
-                            path = ppath;
-                            if (!path.endsWith("/")) {
-                                path += "/*";
-                            } else {
-                                path += "*";
-                            }
-                            atmosphereHandlerWrapper = config.handlers().get(path);
-                            if (atmosphereHandlerWrapper == null) {
-                                logger.warn("No AtmosphereHandler maps request for {}", path);
-                                for (String m : config.handlers().keySet()) {
-                                    logger.warn("\tAtmosphereHandler registered: {}", m);
-                                }
-                                throw new ServletException("No AtmosphereHandler maps request for " + path);
-                            }
-                        }
-                    }
-                }
-            }
+        if (atmosphereHandlerWrapper == null) {
+            throw new ServletException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
@@ -414,12 +402,12 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
                 synchronized (r) {
                     atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-
                     Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
                     if (m != null) {
                         m.destroy();
                     }
                 }
+
                 req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                 r.setIsInScope(false);
             }

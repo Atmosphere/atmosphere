@@ -433,7 +433,13 @@ jQuery.atmosphere = function() {
         attachHeaders : function(request) {
             var url = request.url;
 
+            // If not enabled
             if (!request.attachHeadersAsQueryString) return url;
+
+            // If already added
+            if (url.indexOf("X-Atmosphere-Framework") != -1) {
+                return url;
+            }
 
             url += "?X-Atmosphere-tracking-id=" + jQuery.atmosphere.uuid;
             url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;

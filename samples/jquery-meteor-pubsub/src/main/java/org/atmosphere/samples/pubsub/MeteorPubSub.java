@@ -82,6 +82,20 @@ public class MeteorPubSub extends HttpServlet {
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Return the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
+     * @param req the {@link HttpServletRequest}
+     * @return  the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
+     */
+    String trackingId(HttpServletRequest req) {
+        String trackingId = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
+                req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        return trackingId;
+    }
+
+    /**
+>>>>>>> atmosphere-0.8.x
      * Retrieve the {@link Broadcaster} based on the request's path info.
      * @param pathInfo
      * @return the {@link Broadcaster} based on the request's path info.
