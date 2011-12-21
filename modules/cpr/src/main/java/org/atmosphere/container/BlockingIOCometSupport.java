@@ -116,9 +116,17 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 }
             }
         } finally {
-            CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
-            if (event != null) {
-                event.close();
+            try {
+                CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
+                if (event != null) {
+                    event.close();
+                }
+            } catch (ClassCastException ex) {
+                // Tomcat 7
+                org.apache.catalina.connector.CometEventImpl event = (org.apache.catalina.connector.CometEventImpl) req.getAttribute(TomcatCometSupport.COMET_EVENT);
+                if (event != null) {
+                    event.close();
+                }
             }
 
             HttpEvent he = (HttpEvent) req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
