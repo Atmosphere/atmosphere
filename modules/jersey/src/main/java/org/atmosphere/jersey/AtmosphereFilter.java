@@ -313,20 +313,21 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             bcaster.broadcast(entity);
                         }
 
-                        if (subProtocol == null) {
-                            try {
-                                if (Callable.class.isAssignableFrom(entity.getClass())) {
-                                    entity = Callable.class.cast(entity).call();
-                                }
-                                response.setEntity(entity);
-                                response.write();
-                            } catch (Throwable t) {
-                                logger.debug("Error running Callable", t);
-                                response.setEntity(null);
-                            }
-                        } else {
-                            response.setEntity(null);
-                        }
+//                        if (subProtocol == null) {
+//                            try {
+//                                if (Callable.class.isAssignableFrom(entity.getClass())) {
+//                                    entity = Callable.class.cast(entity).call();
+//                                }
+//                                response.setEntity(entity);
+//                                response.write();
+//                            } catch (Throwable t) {
+//                                logger.debug("Error running Callable", t);
+//                                response.setEntity(null);
+//                            }
+//                        } else {
+//                            response.setEntity(null);
+//                        }
+                        response.setEntity(null);
                     }
                     break;
                 case SUSPEND_RESPONSE:
