@@ -1202,6 +1202,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
+                if (body.isEmpty()) {
+                    body = null;
+                }
+
                 r = new AtmosphereRequest.Builder()
                         .headers(headers)
                         .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
