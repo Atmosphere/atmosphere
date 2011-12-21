@@ -40,6 +40,7 @@ package org.atmosphere.cpr;
 
 
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  * from any Classes loaded using the same class loader.
  *
  * @author Jeanfrancois Arcand
+ * @author Jason Burgess
  */
 public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
@@ -145,7 +147,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         try {
             Broadcaster b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
-            b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+
+            if (b.getBroadcasterConfig() == null) {
+                b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+            }
+
             b.setBroadcasterLifeCyclePolicy(policy);
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();
@@ -169,7 +175,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     public boolean remove(Broadcaster b, Object id) {
         boolean removed = store.remove(id, b);
         if (removed) {
-            logger.debug("Removing Broadcaster {} which internal reference is {} ", id, b.getID());
+            logger.debug("Removing Broadcaster {} factory size now {} ", id, store.size());
         }
         return removed;
     }
@@ -215,6 +221,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             if (store.putIfAbsent(id, createBroadcaster(c, id)) == null) {
                 logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
             }
+
             b = store.get(id);
         }
 
