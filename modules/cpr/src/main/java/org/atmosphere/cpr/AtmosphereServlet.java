@@ -1197,7 +1197,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
-                if (body.isEmpty()) {
+                if (body != null && body.isEmpty()) {
                     body = null;
                 }
 
