@@ -14,6 +14,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
+import org.atmosphere.protocol.socketio.SocketIOClosedException;
 import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.protocol.socketio.transport.SocketIOSession;

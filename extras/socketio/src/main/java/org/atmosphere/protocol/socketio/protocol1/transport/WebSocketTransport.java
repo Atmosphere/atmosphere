@@ -1,4 +1,3 @@
-
 package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.io.IOException;
