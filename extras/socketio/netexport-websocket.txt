@@ -1,0 +1,74 @@
+The "sys" module is now called "util". It should have a similar interface.
+   info  - socket.io started
+   app listening on http://0.0.0.0:3000
+   debug - served static content /socket.io.js
+   debug - client authorized
+   info  - handshake authorized 863147871251329762
+   debug - setting request GET /socket.io/1/websocket/863147871251329762
+   debug - set heartbeat interval for client 863147871251329762
+   debug - client authorized for 
+   debug - websocket writing 1::
+   debug - sending data ack packet
+   debug - websocket writing 6:::1+[false]
+   debug - broadcasting packet
+   debug - websocket writing 5:::{"name":"nicknames","args":[{"testwebsocket":"testwebsocket"}]}
+   debug - emitting heartbeat for client 863147871251329762
+   debug - websocket writing 2::
+   debug - set heartbeat timeout for client 863147871251329762
+   debug - got heartbeat packet
+   debug - cleared heartbeat timeout for client 863147871251329762
+   debug - set heartbeat interval for client 863147871251329762
+   debug - client authorized
+   info  - handshake authorized 795331462348004787
+   debug - setting request GET /socket.io/1/xhr-polling/795331462348004787
+   debug - setting poll timeout
+   debug - client authorized for 
+   debug - clearing poll timeout
+   debug - xhr-polling writing 1::
+   debug - set close timeout for client 795331462348004787
+   debug - setting request GET /socket.io/1/xhr-polling/795331462348004787
+   debug - setting poll timeout
+   debug - discarding transport
+   debug - cleared close timeout for client 795331462348004787
+onData=5:1+::{"name":"nickname","args":["test_1324609415399"]}
+   debug - xhr-polling received data packet 5:1+::{"name":"nickname","args":["test_1324609415399"]}
+   debug - sending data ack packet
+   debug - clearing poll timeout
+   debug - xhr-polling writing 6:::1+[false]
+   debug - set close timeout for client 795331462348004787
+   debug - broadcasting packet
+   debug - websocket writing 5:::{"name":"announcement","args":["test_1324609415399 connected"]}
+   debug - websocket writing 5:::{"name":"nicknames","args":[{"testwebsocket":"testwebsocket","test_1324609415399":"test_1324609415399"}]}
+   debug - setting request GET /socket.io/1/xhr-polling/795331462348004787
+   debug - setting poll timeout
+   debug - clearing poll timeout
+   debug - xhr-polling writing 5:::{"name":"nicknames","args":[{"testwebsocket":"testwebsocket","test_1324609415399":"test_1324609415399"}]}
+   debug - set close timeout for client 795331462348004787
+   debug - discarding transport
+   debug - cleared close timeout for client 795331462348004787
+   debug - setting request GET /socket.io/1/xhr-polling/795331462348004787
+   debug - setting poll timeout
+   debug - discarding transport
+   debug - cleared close timeout for client 795331462348004787
+onData=0:::
+   debug - xhr-polling received data packet 0:::
+   debug - got disconnection packet
+   info  - transport end by forced client disconnection
+   debug - clearing poll timeout
+   debug - xhr-polling writing 0::
+   debug - set close timeout for client 795331462348004787
+   info  - transport end
+   debug - cleared close timeout for client 795331462348004787
+   debug - broadcasting packet
+   debug - websocket writing 5:::{"name":"announcement","args":["test_1324609415399 disconnected"]}
+   debug - broadcasting packet
+   debug - websocket writing 5:::{"name":"nicknames","args":[{"testwebsocket":"testwebsocket"}]}
+   debug - discarding transport
+   debug - emitting heartbeat for client 863147871251329762
+   debug - websocket writing 2::
+   debug - set heartbeat timeout for client 863147871251329762
+   debug - got heartbeat packet
+   debug - cleared heartbeat timeout for client 863147871251329762
+   debug - set heartbeat interval for client 863147871251329762
+
+

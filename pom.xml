@@ -388,7 +388,6 @@
             <groupId>com.ning</groupId>
             <artifactId>async-http-client</artifactId>
             <version>${ahc.version}</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -454,7 +453,7 @@
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
         <wicket.version>1.4.12</wicket.version>
-        <ahc.version>1.6.5</ahc.version>
+        <ahc.version>1.7.0-SNAPSHOT</ahc.version>
         <jedis.version>2.0.0</jedis.version>
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.6.1</slf4j-version>

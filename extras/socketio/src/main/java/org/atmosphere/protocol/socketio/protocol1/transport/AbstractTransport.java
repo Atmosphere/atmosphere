@@ -25,7 +25,9 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
+import java.net.URLDecoder;
 import java.util.List;
 
 import javax.servlet.ServletConfig;
@@ -101,20 +103,23 @@ public abstract class AbstractTransport implements Transport {
 		if(contentType==null){
 			return data;
 		} else if (contentType.startsWith("application/x-www-form-urlencoded")) {
-			if (data.length()>2 && data.substring(0, 2).startsWith("d=")) {
-				String extractedData = UriComponent.decodePath(data.substring(2),true).get(0).getPath();
-				if(extractedData!=null && extractedData.length()>2){
-					// on trim les "" et remplace les \" par "
-					if(extractedData.charAt(0)=='\"' && extractedData.charAt(extractedData.length()-1)=='\"'){
-						
-						extractedData = extractedData.substring(1,extractedData.length()-1).replaceAll("\\\\\"", "\""); 
-						
-						return extractedData;
-					}
-					return extractedData;
-				} else {
-					return extractedData;
+			if (data.length()>2 && data.substring(0, 2).startsWith("d=")){
+				String extractedData = data.substring(3);
+				try {
+						extractedData = URLDecoder.decode(extractedData, "UTF-8");
+						if(extractedData!=null && extractedData.length()>2){
+							// on trim les "" et remplace les \" par "
+							if(extractedData.charAt(0)=='\"' && extractedData.charAt(extractedData.length()-1)=='\"'){
+								
+								extractedData = extractedData.substring(1,extractedData.length()-1).replaceAll("\\\\\"", "\""); 
+							}
+						}
+
+				} catch (UnsupportedEncodingException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
+				return extractedData;
 			} else {
 				return data;
 			}
