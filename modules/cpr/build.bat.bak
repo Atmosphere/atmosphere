@@ -1,9 +1,0 @@
-call f:\maven\bin\mvn clean install -Dmaven.test.skip=true -o
-copy "F:\temp\socket io\Atmosphere-master\modules\cpr\target\atmosphere-runtime-*.jar" "F:\temp\socket io\SocketIOChat\WebContent\WEB-INF\lib"
-copy "F:\temp\socket io\Atmosphere-master\modules\cpr\target\atmosphere-runtime-*.jar" F:\DEV\jetty8.0.3\webapps\socketiochat\WEB-INF\lib
-copy "F:\temp\socket io\Atmosphere-master\modules\cpr\target\atmosphere-runtime-*.jar" F:\DEV\jetty8.0.3\webapps\atmosphere-websocket-chat\WEB-INF\lib
-copy "F:\temp\socket io\Atmosphere-master\modules\cpr\target\atmosphere-runtime-*.jar" F:\DEV\jetty-distribution-8.0.4.v20111024\webapps\atmosphere-websocket-chat\WEB-INF\lib
-copy "F:\temp\socket io\Atmosphere-master\modules\cpr\target\atmosphere-runtime-*.jar" F:\DEV\jetty-distribution-8.0.4.v20111024\webapps\socketiochat\WEB-INF\lib
-
-xcopy "F:\temp\socket io\SocketIOChat\WebContent\WEB-INF\classes" F:\DEV\jetty-distribution-8.0.4.v20111024\webapps\socketiochat\WEB-INF\classes /Q /S /Y
-
