@@ -9,13 +9,14 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
-import org.atmosphere.protocol.socketio.SessionWrapper;
+import org.atmosphere.protocol.socketio.SocketIOPacket;
+import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOCometSupport;
 import org.atmosphere.protocol.socketio.SocketIOException;
+import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOWebSocketEventListener;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,11 +63,11 @@ public class WebSocketTransport extends AbstractTransport {
 		        resource.addEventListener(socketioEventListener);
 		        request.setAttribute(SocketIOCometSupport.SOCKETIOEVENTLISTENER, socketioEventListener);
 				
-		        SessionWrapperImpl sessionWrapper = new SessionWrapperImpl(session, socketioEventListener);
+		        SocketIOWebSocketSessionWrapperImpl sessionWrapper = new SocketIOWebSocketSessionWrapperImpl(session, socketioEventListener);
 		        
 		        socketioEventListener.setSessionWrapper(sessionWrapper);
 		        
-		        request.setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, sessionWrapper);
+		        request.setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, sessionWrapper);
 		        
 				resource.suspend(-1, false);
 				
@@ -80,13 +81,13 @@ public class WebSocketTransport extends AbstractTransport {
 		}
 	}
 	
-	public class SessionWrapperImpl implements SessionWrapper {
+	public class SocketIOWebSocketSessionWrapperImpl implements SocketIOWebSocketSessionWrapper {
 		public final SocketIOSession session;
 		public final SocketIOWebSocketEventListener socketioEventListener;
 		public boolean initiated = false;
 		public WebSocket webSocket;
 		
-		SessionWrapperImpl(SocketIOSession session, SocketIOWebSocketEventListener socketioEventListener) {
+		SocketIOWebSocketSessionWrapperImpl(SocketIOSession session, SocketIOWebSocketEventListener socketioEventListener) {
 			this.session = session;
 			this.socketioEventListener = socketioEventListener;
 			this.socketioEventListener.setSessionWrapper(this);
@@ -157,6 +158,13 @@ public class WebSocketTransport extends AbstractTransport {
 			logger.error("calling from " + this.getClass().getName() + " : " + "getConncetionState");
 			return session.getConnectionState();
 		}
+		
+		@Override
+		public void sendMessage(SocketIOPacket packet) throws SocketIOException {
+			if(packet!=null){
+				sendMessage(packet.toString());
+			}
+		}
 
 		/*
 		 * (non-Javadoc)
@@ -183,7 +191,7 @@ public class WebSocketTransport extends AbstractTransport {
 
 		/*
 		 * (non-Javadoc)
-		 * @see com.glines.socketio.SocketIOSession.SessionTransportHandler#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, com.glines.socketio.SocketIOSession)
+		 * @see com.glines.socketio.SocketIOSession.SocketIOSessionOutbound#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, com.glines.socketio.SocketIOSession)
 		 */
 		@Override
 		public void handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException {
@@ -192,12 +200,6 @@ public class WebSocketTransport extends AbstractTransport {
 			
     		response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unexpected request on upgraded WebSocket connection");
     		return;
-		}
-
-		@Override
-		public void disconnectWhenEmpty() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "disconnectWhenEmpty");
-			disconnect();
 		}
 
 		@Override

@@ -8,12 +8,11 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.SessionTransportHandler;
 
 public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G> {
 	
 	
-	public static final String SessionTransportHandler = "SessionTransportHandler";
+	public static final String SocketIOSessionOutbound = "SocketIOSessionOutbound";
 	
 	public static final String SOCKETIO_SESSION_ID = SocketIOAtmosphereHandler.class.getPackage().getName() + ".sessionid";
 	
@@ -23,7 +22,7 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
      *
      * @param outbound The SocketOutbound associated with the connection
      */
-	void onConnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler) throws IOException;
+	void onConnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound handler) throws IOException;
 	void onDisconnect() throws IOException;
 	
     /**
@@ -44,7 +43,7 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
      * @param reason       The reason for the disconnect.
      * @param errorMessage Possibly non null error message associated with the reason for disconnect.
      */
-    void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler, DisconnectReason reason);
+    void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound handler, DisconnectReason reason);
 
     /**
      * Called one per arriving message.
@@ -52,6 +51,6 @@ public interface SocketIOAtmosphereHandler<F, G> extends AtmosphereHandler<F, G>
      * @param messageType
      * @param message
      */
-    void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SessionTransportHandler handler, String message);
+    void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound handler, String message);
 	
 }

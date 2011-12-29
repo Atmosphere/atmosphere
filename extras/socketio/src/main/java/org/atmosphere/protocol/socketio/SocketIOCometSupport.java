@@ -22,7 +22,6 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.atmosphere.protocol.socketio.transport.Transport;
 import org.atmosphere.websocket.AtmosphereWebSocketFactory;
 import org.eclipse.jetty.websocket.WebSocketFactory;

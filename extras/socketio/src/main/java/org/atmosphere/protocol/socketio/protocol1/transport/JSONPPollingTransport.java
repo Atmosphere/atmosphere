@@ -8,9 +8,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
+import org.atmosphere.protocol.socketio.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSession.Factory;
 import org.atmosphere.protocol.socketio.protocol1.transport.XHRTransport.XHRSessionHelper;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,14 +86,14 @@ public class JSONPPollingTransport extends XHRTransport {
 	}
 
 	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		
 		if(session==null){
 			session = sessionFactory.createSession(resource, atmosphereHandler);
 			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 			
 			// pour le broadcast
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, atmosphereHandler);
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, atmosphereHandler);
 		}
 		
 		XHRPollingSessionHelper handler = createHelper(session);
@@ -102,7 +102,7 @@ public class JSONPPollingTransport extends XHRTransport {
 	}
 	
 	@Override
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		return connect(null, resource, atmosphereHandler, sessionFactory);
 	}
 }

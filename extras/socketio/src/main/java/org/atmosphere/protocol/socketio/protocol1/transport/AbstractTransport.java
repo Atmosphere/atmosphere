@@ -12,7 +12,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 
 import org.atmosphere.protocol.socketio.transport.Transport;
-import org.atmosphere.util.uri.UriComponent;
 
 public abstract class AbstractTransport implements Transport {
 	
@@ -122,9 +121,9 @@ public abstract class AbstractTransport implements Transport {
 				String data = decodePostData(request.getContentType(), extractString(request.getReader()));
 				request.setAttribute(POST_MESSAGE_RECEIVED, data);
 				if (data != null && data.length() > 0) {
-					List<SocketIOEvent> list = SocketIOEvent.parse(data);
+					List<SocketIOPacketImpl> list = SocketIOPacketImpl.parse(data);
 					if(!list.isEmpty()){
-						if(SocketIOEvent.FrameType.DISCONNECT.equals(list.get(0).getFrameType())){
+						if(SocketIOPacketImpl.PacketType.DISCONNECT.equals(list.get(0).getFrameType())){
 							return true;
 						}
 					}

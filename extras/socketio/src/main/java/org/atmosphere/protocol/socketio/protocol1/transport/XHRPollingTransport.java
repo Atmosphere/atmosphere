@@ -6,7 +6,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

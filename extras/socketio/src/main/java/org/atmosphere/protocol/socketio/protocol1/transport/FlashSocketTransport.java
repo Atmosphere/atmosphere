@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSession;
 
 public class FlashSocketTransport extends WebSocketTransport {
 	public static final String TRANSPORT_NAME = "flashsocket";

@@ -1,6 +1,5 @@
 package org.atmosphere.protocol.socketio.protocol1.transport;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,28 +9,53 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOClosedException;
 import org.atmosphere.protocol.socketio.SocketIOException;
+import org.atmosphere.protocol.socketio.SocketIOPacket;
+import org.atmosphere.protocol.socketio.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSessionOutbound;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.SessionTransportHandler;
 import org.atmosphere.protocol.socketio.transport.TransportBuffer;
-import org.atmosphere.util.uri.UriComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class XHRTransport extends AbstractHttpTransport {
+public abstract class XHRTransport extends AbstractTransport {
 	
 	private static final Logger logger = LoggerFactory.getLogger(XHRTransport.class);
 	
 	private final int bufferSize;
 	private final int maxIdleTime;
+	
+	/**
+	 * This is a sane default based on the timeout values of various browsers.
+	 */
+	public static final long HTTP_REQUEST_TIMEOUT = 30 * 1000;
 
-	protected abstract class XHRSessionHelper implements SessionTransportHandler {
+	/**
+	 * The amount of time the session will wait before trying to send a ping. Using a value of half the HTTP_REQUEST_TIMEOUT should be good enough.
+	 */
+	public static final long HEARTBEAT_DELAY = HTTP_REQUEST_TIMEOUT / 2;
+
+	/**
+	 * This specifies how long to wait for a pong (ping response).
+	 */
+	public static final long HEARTBEAT_TIMEOUT = 10 * 1000;
+
+	/**
+	 * For non persistent connection transports, this is the amount of time to wait for messages before returning empty results.
+	 */
+	public static long REQUEST_TIMEOUT = 20 * 1000;
+
+	protected static final String SESSION_KEY = "com.glines.socketio.server.AbstractHttpTransport.Session";
+	
+	
+
+	protected abstract class XHRSessionHelper implements SocketIOSessionOutbound {
 		protected final SocketIOSession session;
 		private final TransportBuffer buffer = new TransportBuffer(bufferSize);
 		private volatile boolean is_open = false;
@@ -73,6 +97,13 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 		@Override
 		public ConnectionState getConnectionState() {
 			return session.getConnectionState();
+		}
+		
+		@Override
+		public void sendMessage(SocketIOPacket packet) throws SocketIOException {
+			if(packet!=null){
+				sendMessage(packet.toString());
+			}
 		}
 		
 		@Override
@@ -238,7 +269,7 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 											
 											// pour le broadcast
-											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, session.getTransportHandler());
+											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
 											
 											session.setAtmosphereResourceImpl(resource);
 										}
@@ -247,7 +278,7 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 										
 										// pour le broadcast
-										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, session.getTransportHandler());
+										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
 										
 										session.setAtmosphereResourceImpl(resource);
 									}
@@ -275,12 +306,12 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 						}
 						if (data != null && data.length() > 0) {
 							
-							List<SocketIOEvent> list = SocketIOEvent.parse(data);
+							List<SocketIOPacketImpl> list = SocketIOPacketImpl.parse(data);
 							
 							synchronized (session) {
-								for (SocketIOEvent msg : list) {
+								for (SocketIOPacketImpl msg : list) {
 									
-									if(msg.getFrameType().equals(SocketIOEvent.FrameType.EVENT)){
+									if(msg.getFrameType().equals(SocketIOPacketImpl.PacketType.EVENT)){
 										
 										session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 										session.getAtmosphereResourceImpl().resume();
@@ -383,11 +414,6 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 		}
 
 		@Override
-		public void disconnectWhenEmpty() {
-			disconnectWhenEmpty = true;
-		}
-
-		@Override
 		public void abort() {
 			logger.error("calling from " + this.getClass().getName() + " : " + "abort");
 			session.clearHeartbeatTimer();
@@ -422,15 +448,14 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 	protected abstract XHRSessionHelper createHelper(SocketIOSession session);
 
 	
-	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		
 		if(session==null){
 			session = sessionFactory.createSession(resource, atmosphereHandler);
 			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 			
 			// pour le broadcast
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, atmosphereHandler);
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, atmosphereHandler);
 		}
 		
 		XHRSessionHelper handler = createHelper(session);
@@ -438,9 +463,63 @@ public abstract class XHRTransport extends AbstractHttpTransport {
 		return session;
 	}
 	
-	@Override
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		return connect(null, resource, atmosphereHandler, sessionFactory);
+	}
+	
+	@Override
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
+
+		HttpServletRequest request = resource.getRequest();
+		HttpServletResponse response = resource.getResponse();
+		
+		Object obj = request.getAttribute(SESSION_KEY);
+		SocketIOSession session = null;
+		String sessionId = null;
+		if (obj != null) {
+			session = (SocketIOSession) obj;
+		} else {
+			sessionId = extractSessionId(request);
+			if (sessionId != null && sessionId.length() > 0) {
+				session = sessionFactory.getSession(sessionId);
+			}
+		}
+		
+		boolean isDisconnectRequest = isDisconnectRequest(request);
+		
+		if (session != null) {
+			SocketIOSessionOutbound handler = session.getTransportHandler();
+			if (handler != null) {
+				if(!isDisconnectRequest){
+					handler.handle(request, response, session);
+				} else {
+					handler.disconnect();
+					response.setStatus(200);
+				}
+			} else {
+				if(!isDisconnectRequest){
+					// on fait un connect
+					session = connect(session, resource, atmosphereHandler, sessionFactory);
+					if (session == null) {
+						response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+					}
+				} else {
+					response.setStatus(200);
+				}
+			}
+		} else if (sessionId != null && sessionId.length() > 0) {
+			logger.error("Session NULL but not sessionId : Soit un mauvais sessionID ou il y a eu un DISCONNECT");
+			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+		} else {
+			if ("GET".equals(request.getMethod())) {
+				session = connect(resource, atmosphereHandler, sessionFactory);
+				if (session == null) {
+					response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+				}
+			} else {
+				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+			}
+		}
 	}
 
 }

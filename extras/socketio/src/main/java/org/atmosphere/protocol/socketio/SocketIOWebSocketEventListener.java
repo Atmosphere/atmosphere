@@ -7,8 +7,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOEvent;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
+import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 import org.slf4j.Logger;
@@ -17,18 +16,18 @@ import org.slf4j.LoggerFactory;
 public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketEventListener.class);
-	private SessionWrapper sessionWrapper = null;
+	private SocketIOWebSocketSessionWrapper sessionWrapper = null;
 	
 	
 	public SocketIOWebSocketEventListener(){
 		logger.error("SocketIOWebSocketEventListener CONSTRUCTEUR");
 	}
 	
-	public void setSessionWrapper(SessionWrapper sessionWrapper){
+	public void setSessionWrapper(SocketIOWebSocketSessionWrapper sessionWrapper){
 		this.sessionWrapper = sessionWrapper;
 	}
 	
-	public SessionWrapper getSessionWrapper(){
+	public SocketIOWebSocketSessionWrapper getSessionWrapper(){
 		return sessionWrapper;
 	}
 	
@@ -93,10 +92,10 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 				sessionWrapper.getSession().onShutdown();
 			}
 		} else {
-			List<SocketIOEvent> messages = SocketIOEvent.parse(event.message());
+			List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(event.message());
 			
 			SocketIOSession session = sessionWrapper.getSession();
-			for (SocketIOEvent msg: messages) {
+			for (SocketIOPacketImpl msg: messages) {
 				//sessionWrapper.getSession().onMessage(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper, msg);
 				session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 			}

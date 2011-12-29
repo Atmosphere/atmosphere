@@ -10,8 +10,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession.Factory;
+import org.atmosphere.protocol.socketio.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSession.Factory;
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class HTMLFileTransport extends XHRTransport {

@@ -17,9 +17,10 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
+import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOSessionManager;
+import org.atmosphere.protocol.socketio.SocketIOSessionOutbound;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
-import org.atmosphere.protocol.socketio.transport.SocketIOSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		
 		private AtmosphereResourceImpl resource = null;
 		private SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler;
-		private SessionTransportHandler handler = null;
+		private SocketIOSessionOutbound handler = null;
 		private ConnectionState state = ConnectionState.CONNECTING;
 		private long hbDelay = 0;
 		private SessionTask hbDelayTask = null;
@@ -83,12 +84,12 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 
 		@Override
-		public SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> getInbound() {
+		public SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> getSocketIOAtmosphereHandler() {
 			return atmosphereHandler;
 		}
 
 		@Override
-		public SessionTransportHandler getTransportHandler() {
+		public SocketIOSessionOutbound getTransportHandler() {
 			return handler;
 		}
 
@@ -210,7 +211,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 				state = ConnectionState.CLOSING;
 				try {
 					handler.sendMessage(data);
-					handler.disconnectWhenEmpty();
 				} catch (SocketIOException e) {
 					logger.error("handler.sendMessage failed: ", e);
 					handler.abort();
@@ -231,7 +231,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 		
 		@Override
-		public void onConnect(AtmosphereResourceImpl resource, SessionTransportHandler handler) {
+		public void onConnect(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler) {
 			if (handler == null) {
 				state = ConnectionState.CLOSED;
 				atmosphereHandler = null;
@@ -243,7 +243,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 					
 					// pour le broadcast
 					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, sessionId);
-					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SessionTransportHandler, handler);
+					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, handler);
 					
 					startHeartbeatTimer();
 					
@@ -259,7 +259,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 
 		@Override
-		public void onMessage(AtmosphereResourceImpl resource, SessionTransportHandler handler, String message) {
+		public void onMessage(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler, String message) {
 			startHeartbeatTimer();
 			
 			if (atmosphereHandler != null && message!=null) {
