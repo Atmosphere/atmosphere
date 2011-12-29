@@ -51,7 +51,7 @@ public abstract class XHRTransport extends AbstractTransport {
 	 */
 	public static long REQUEST_TIMEOUT = 20 * 1000;
 
-	protected static final String SESSION_KEY = "com.glines.socketio.server.AbstractHttpTransport.Session";
+	protected static final String SESSION_KEY = XHRTransport.class.getName() + ".Session";
 	
 	
 
@@ -394,7 +394,7 @@ public abstract class XHRTransport extends AbstractTransport {
 
 		protected abstract void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException;
 
-		public void connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler) throws IOException {
+		public void connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler) throws IOException {
 			
 			HttpServletRequest request = resource.getRequest();
 			HttpServletResponse response = resource.getResponse();
@@ -448,7 +448,7 @@ public abstract class XHRTransport extends AbstractTransport {
 	protected abstract XHRSessionHelper createHelper(SocketIOSession session);
 
 	
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		
 		if(session==null){
 			session = sessionFactory.createSession(resource, atmosphereHandler);
@@ -463,12 +463,12 @@ public abstract class XHRTransport extends AbstractTransport {
 		return session;
 	}
 	
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, org.atmosphere.protocol.socketio.SocketIOSession.Factory sessionFactory) throws IOException {
 		return connect(null, resource, atmosphereHandler, sessionFactory);
 	}
 	
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();

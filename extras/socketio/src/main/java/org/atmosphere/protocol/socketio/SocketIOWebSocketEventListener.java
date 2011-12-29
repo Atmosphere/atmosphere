@@ -9,7 +9,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
 import org.atmosphere.websocket.WebSocketEventListener;
-import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

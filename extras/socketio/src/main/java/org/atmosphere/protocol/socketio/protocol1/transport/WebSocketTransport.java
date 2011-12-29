@@ -37,7 +37,7 @@ public class WebSocketTransport extends AbstractTransport {
 	}
 
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();

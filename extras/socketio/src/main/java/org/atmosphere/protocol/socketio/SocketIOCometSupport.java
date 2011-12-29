@@ -1,8 +1,8 @@
 package org.atmosphere.protocol.socketio;
 
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,24 +12,18 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.protocol.socketio.transport.Transport;
 import org.atmosphere.websocket.AtmosphereWebSocketFactory;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 // on pourrait problablement juset avoir un interface : pourrait etre utile
 // pour le destroy dans AtmosphereServlet
@@ -105,7 +99,8 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		
 		AtmosphereHandlerWrapper handlerWrapper = map(request);
         
-		AtmosphereHandler atmosphereHandler = (AtmosphereHandler)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+		@SuppressWarnings("unchecked")
+		AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler = (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
 		if (supportSession() && (resource==null)) {
@@ -194,7 +189,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         		response.setStatus(200);
         		
         		
-        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
+        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse>)atmosphereHandler);
         		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
         		
         		return resource.action();
@@ -205,7 +200,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         	Transport transport = transports.get(protocol + "-" + version);
         	
         	if(transport!=null){
-        		transport.handle(processor, resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
+        		transport.handle(processor, resource, (SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse>)atmosphereHandler, getSessionManager(version));
         	} else {
         		logger.error("Protocol not supported : " + protocol);
         	}
@@ -307,21 +302,6 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	@Override
 	public boolean supportWebSocket() {
 		return containerWrapper.supportWebSocket();
-	}
-	
-	private void copy(InputStream in, OutputStream out) throws IOException {
-		int bufferSize = 2*8192;
-		
-		byte buffer[] = new byte[bufferSize];
-        int len=bufferSize;
-        
-        while (true)
-        {
-            len=in.read(buffer,0,bufferSize);
-            if (len<0 )
-                break;
-            out.write(buffer,0,len);
-        }
 	}
 	
 	public WebSocketFactory getWebSocketFactory(){

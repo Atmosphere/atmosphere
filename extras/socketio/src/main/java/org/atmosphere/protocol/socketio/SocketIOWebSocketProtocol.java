@@ -1,19 +1,14 @@
 package org.atmosphere.protocol.socketio;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.config.AtmosphereConfig;
-import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor.WebSocketException;
 import org.atmosphere.websocket.WebSocketProtocol;

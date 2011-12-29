@@ -64,7 +64,7 @@ public class HTMLFileTransport extends XHRTransport {
 	}
 
 	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, Factory sessionFactory) throws IOException {
 		// TODO Auto-generated method stub
 		return null;
 	}
