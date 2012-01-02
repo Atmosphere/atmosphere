@@ -18,19 +18,18 @@ import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 import org.atmosphere.protocol.socketio.SocketIOSessionManager;
 import org.atmosphere.protocol.socketio.SocketIOSessionOutbound;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SocketIOSessionManagerImpl implements SocketIOSessionManager, SocketIOSession.Factory {
+public class SocketIOSessionManagerImpl implements SocketIOSessionManager, SocketIOSessionFactory {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOSessionManagerImpl.class);
 	
-	private static final char[] BASE64_ALPHABET =
-	      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-	      .toCharArray();
+	private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
 	private static final int SESSION_ID_LENGTH = 20;
 
 	private static Random random = new SecureRandom();
@@ -55,9 +54,9 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		private SocketIOSessionOutbound handler = null;
 		private ConnectionState state = ConnectionState.CONNECTING;
 		private long hbDelay = 0;
-		private SessionTask hbDelayTask = null;
 		private long timeout = 0;
-		private SessionTask timeoutTask = null;
+		private HeartBeatSessionMonitor heartBeatSessionMonitor = new HeartBeatSessionMonitor(this, executor);
+		private TimeoutSessionMonitor timeoutSessionMonitor = new TimeoutSessionMonitor(this, executor);
 		private boolean timedout = false;
 		private AtomicLong messageId = new AtomicLong(0);
 		private String closeId = null;
@@ -93,40 +92,26 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			return handler;
 		}
 
-		private void onTimeout() {
-			logger.error("Session["+sessionId+"]: onTimeout");
-			if (!timedout) {
-				timedout = true;
-				state = ConnectionState.CLOSED;
-				onDisconnect(DisconnectReason.TIMEOUT);
-				handler.abort();
-			}
-		}
-		
 		@Override
 		public void startTimeoutTimer() {
 			logger.error("startTimeoutTimer");
 			clearTimeoutTimer();
 			if (!timedout && timeout > 0) {
-				timeoutTask = scheduleTask(new Runnable() {
-					@Override
-					public void run() {
-						SessionImpl.this.onTimeout();
-					}
-				}, timeout);
+				timeoutSessionMonitor.start();
 			}
 		}
 
 		@Override
 		public void clearTimeoutTimer() {
 			logger.error("clearTimeoutTimer");
-			if (timeoutTask != null) {
-				timeoutTask.cancel();
-				timeoutTask = null;
+			if (timeoutSessionMonitor != null) {
+				timeoutSessionMonitor.cancel();
+				timeoutSessionMonitor = null;
 			}
 		}
 		
-		private void sendPing() {
+		@Override
+		public void sendHeartBeat() {
 			String data = "" + messageId.incrementAndGet();
 			logger.error("Session["+sessionId+"]: sendPing " + data);
 			try {
@@ -140,26 +125,32 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 
 		@Override
+		public void timeout() {
+			logger.error("Session["+sessionId+"]: onTimeout");
+			if (!timedout) {
+				timedout = true;
+				state = ConnectionState.CLOSED;
+				onDisconnect(DisconnectReason.TIMEOUT);
+				handler.abort();
+			}
+		}
+		
+		@Override
 		public void startHeartbeatTimer() {
 			logger.error("startHeartbeatTimer");
 			clearHeartbeatTimer();
 			clearTimeoutTimer();
 			if (!timedout && hbDelay > 0) {
-				hbDelayTask = scheduleTask(new Runnable() {
-					@Override
-					public void run() {
-						sendPing();
-					}
-				}, hbDelay);
+				heartBeatSessionMonitor.start();
 			}
 		}
 
 		@Override
 		public void clearHeartbeatTimer() {
 			logger.error("clearHeartbeatTimer");
-			if (hbDelayTask != null) {
-				hbDelayTask.cancel();
-				hbDelayTask = null;
+			if (heartBeatSessionMonitor != null) {
+				heartBeatSessionMonitor.cancel();
+				heartBeatSessionMonitor = null;
 			}
 		}
 
@@ -218,18 +209,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			}
 		}
 
-		@Override
-		public SessionTask scheduleTask(Runnable task, long delay) {
-			logger.error("scheduleTask");
-			final Future<?> future = executor.schedule(task, delay, TimeUnit.MILLISECONDS);
-			return new SessionTask() {
-				@Override
-				public boolean cancel() {
-					return future.cancel(false);
-				}
-			};
-		}
-		
 		@Override
 		public void onConnect(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler) {
 			if (handler == null) {
@@ -313,6 +292,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		public void setAtmosphereResourceImpl(AtmosphereResourceImpl resource) {
 			this.resource = resource;
 		}
+
 	}
 	
 	private String generateSessionId() {

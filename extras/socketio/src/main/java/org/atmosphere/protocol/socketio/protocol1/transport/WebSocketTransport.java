@@ -10,6 +10,7 @@ import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOPacket;
+import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOCometSupport;
@@ -37,7 +38,7 @@ public class WebSocketTransport extends AbstractTransport {
 	}
 
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSession.Factory sessionFactory) throws IOException {
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();

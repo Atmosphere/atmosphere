@@ -918,3 +918,7 @@
 18:31:59.428 INFO [AsyncHttpClient-Callback] o.a.p.s.SocketIOTest [SocketIOTest.java:483] POST login message received = 1
 18:31:59.428 INFO [AsyncHttpClient-Callback] o.a.p.s.SocketIOTest [SocketIOTest.java:483] POST login message received = 1
 18:31:59.433 INFO [AsyncHttpClient-Callback] o.a.p.s.SocketIOTest [SocketIOTest.java:447] GET login message received = io.j[0]("�13�6:::1+[false]�77�5:::{\"name\":\"nicknames\",\"args\":[{\"test_1325028719237\":\"test_1325028719237\"}]}");
+13:25:35.010 WARN [Finalizer] c.n.h.c.AsyncHttpClient [AsyncHttpClient.java:372] AsyncHttpClient.close() hasn't been invoked, which may produce file descriptor leaks
+13:25:35.095 WARN [Finalizer] c.n.h.c.AsyncHttpClient [AsyncHttpClient.java:372] AsyncHttpClient.close() hasn't been invoked, which may produce file descriptor leaks
+13:46:27.516 WARN [Finalizer] c.n.h.c.AsyncHttpClient [AsyncHttpClient.java:372] AsyncHttpClient.close() hasn't been invoked, which may produce file descriptor leaks
+13:46:27.520 WARN [Finalizer] c.n.h.c.AsyncHttpClient [AsyncHttpClient.java:372] AsyncHttpClient.close() hasn't been invoked, which may produce file descriptor leaks

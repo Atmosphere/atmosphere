@@ -11,7 +11,8 @@ import org.slf4j.LoggerFactory;
  * @author Sebastien Dionne
  */
 public class SocketIOWebSocketProcessor extends WebSocketProcessor {
-    private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProcessor.class);
+	private static final long serialVersionUID = 1565529569653072539L;
+	private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProcessor.class);
 
     public SocketIOWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         super(atmosphereServlet, webSocket, webSocketProtocol);

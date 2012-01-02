@@ -11,7 +11,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOSession;
-import org.atmosphere.protocol.socketio.SocketIOSession.Factory;
+import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 import org.codehaus.jackson.map.ObjectMapper;
 
 public class HTMLFileTransport extends XHRTransport {
@@ -64,7 +64,7 @@ public class HTMLFileTransport extends XHRTransport {
 	}
 
 	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, Factory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 		// TODO Auto-generated method stub
 		return null;
 	}

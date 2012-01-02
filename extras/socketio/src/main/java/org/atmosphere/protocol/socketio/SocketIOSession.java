@@ -7,18 +7,6 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 
 public interface SocketIOSession {
-	interface Factory {
-		SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> inbound);
-		SocketIOSession getSession(String sessionId);
-	}
-
-	interface SessionTask {
-		/**
-		 * @return True if task was or was already canceled, false if the task is executing or has executed.
-		 */
-		boolean cancel();
-	}
-	
 	String generateRandomString(int length);
 	
 	String getSessionId();
@@ -35,8 +23,13 @@ public interface SocketIOSession {
 	
 	void setHeartbeat(long delay);
 	long getHeartbeat();
+	
+	void sendHeartBeat();
+	
 	void setTimeout(long timeout);
 	long getTimeout();
+	
+	void timeout();
 
 	void startTimeoutTimer();
 	void clearTimeoutTimer();
@@ -51,14 +44,6 @@ public interface SocketIOSession {
 
 	void onClose(String data);
 
-	/**
-	 * Schedule a task (e.g. timeout timer)
-	 * @param task The task to execute after specified delay.
-	 * @param delay Delay in milliseconds.
-	 * @return
-	 */
-	SessionTask scheduleTask(Runnable task, long delay);
-	
 	/**
 	 * @param handler The handler or null if the connection failed.
 	 */

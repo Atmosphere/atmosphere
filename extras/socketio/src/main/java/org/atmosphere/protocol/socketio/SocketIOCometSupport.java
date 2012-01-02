@@ -94,12 +94,12 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	}
 	
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Action processAction(AsynchronousProcessor processor, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		
 		AtmosphereHandlerWrapper handlerWrapper = map(request);
         
-		@SuppressWarnings("unchecked")
 		AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler = (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
