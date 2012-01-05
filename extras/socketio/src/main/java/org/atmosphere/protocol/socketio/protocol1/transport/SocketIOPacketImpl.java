@@ -17,6 +17,10 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		this(frameType, null, null, null);
 	}
 	
+	public SocketIOPacketImpl(PacketType frameType, String data){
+		this(frameType, null, null, data);
+	}
+	
 	public SocketIOPacketImpl(PacketType frameType, String id, String endpoint, String data){
 		this.packetType = frameType;
 		this.id = id;
@@ -36,7 +40,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		StringBuilder sb = new StringBuilder();
 		
 		//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 
-		sb.append(packetType).append(":");
+		sb.append(packetType.value).append(":");
 		
 		if(id!=null){
 			sb.append(id);
@@ -48,9 +52,8 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 			sb.append(endpoint);
 		}
 		
-		sb.append(":");
-		
 		if(data!=null){
+			sb.append(":");
 			sb.append(data);
 		}
 		

@@ -16,7 +16,6 @@ import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOCometSupport;
 import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOSession;
-import org.atmosphere.protocol.socketio.SocketIOWebSocketEventListener;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;

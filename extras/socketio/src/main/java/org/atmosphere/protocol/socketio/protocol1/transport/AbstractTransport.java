@@ -76,9 +76,7 @@ public abstract class AbstractTransport implements Transport {
 	}
 	
 	protected String decodePostData(String contentType, String data) {
-		if(contentType==null){
-			return data;
-		} else if (contentType.startsWith("application/x-www-form-urlencoded")) {
+		if(contentType==null || contentType.startsWith("application/x-www-form-urlencoded")) {
 			if (data.length()>2 && data.substring(0, 2).startsWith("d=")){
 				String extractedData = data.substring(3);
 				try {

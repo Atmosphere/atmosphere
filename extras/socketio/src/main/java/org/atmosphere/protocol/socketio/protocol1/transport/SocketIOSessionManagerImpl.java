@@ -106,7 +106,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			logger.error("clearTimeoutTimer");
 			if (timeoutSessionMonitor != null) {
 				timeoutSessionMonitor.cancel();
-				timeoutSessionMonitor = null;
 			}
 		}
 		
@@ -150,7 +149,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			logger.error("clearHeartbeatTimer");
 			if (heartBeatSessionMonitor != null) {
 				heartBeatSessionMonitor.cancel();
-				heartBeatSessionMonitor = null;
 			}
 		}
 
