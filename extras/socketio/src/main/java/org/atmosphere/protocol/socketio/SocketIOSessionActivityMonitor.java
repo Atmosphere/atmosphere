@@ -9,18 +9,18 @@ public abstract class SocketIOSessionActivityMonitor {
 
 	protected ScheduledExecutorService executor = null;
 	protected ScheduledFuture<Boolean> future = null;
-	protected int delay = 0;
-	protected TimeUnit timeUnit = null;
+	protected long delay = 0;
+	protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 	
 	public SocketIOSessionActivityMonitor(ScheduledExecutorService executor){
 		this.executor = executor;
 	}
 	
-	public int getDelay() {
+	public long getDelay() {
 		return delay;
 	}
 
-	public void setDelay(int delay) {
+	public void setDelay(long delay) {
 		this.delay = delay;
 	}
 
@@ -39,7 +39,9 @@ public abstract class SocketIOSessionActivityMonitor {
 	}
 	
 	public void cancel(){
-		future.cancel(true);
+		if(future!=null){
+			future.cancel(true);
+		}
 	}
 
 }

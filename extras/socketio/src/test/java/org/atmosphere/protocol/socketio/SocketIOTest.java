@@ -23,11 +23,11 @@ import com.ning.http.client.websocket.WebSocketUpgradeHandler;
 public abstract class SocketIOTest {
 	protected final Logger log = LoggerFactory.getLogger(SocketIOTest.class);
 	
-	//public static final String GET_SESSION_URL = "http://localhost:8080/socketiochat/ChatAtmosphereHandler/1/";
-	//public static final String WS_GET_SESSION_URL = "ws://localhost:8080/socketiochat/ChatAtmosphereHandler/1/";
+	public static final String GET_SESSION_URL = "http://localhost:8080/socketiochat/ChatAtmosphereHandler/1/";
+	public static final String WS_GET_SESSION_URL = "ws://localhost:8080/socketiochat/ChatAtmosphereHandler/1/";
 	
-	public static final String GET_SESSION_URL = "http://192.168.10.144:3000/socket.io/1/";
-	public static final String WS_GET_SESSION_URL = "ws://192.168.10.144:3000/socket.io/1/";
+	//public static final String GET_SESSION_URL = "http://192.168.10.144:3000/socket.io/1/";
+	//public static final String WS_GET_SESSION_URL = "ws://192.168.10.144:3000/socket.io/1/";
 	
 	public final static int TIMEOUT = 5;
 	

@@ -37,22 +37,24 @@ public class XHRPollingTransport extends XHRTransport {
 
 		protected void startSend(HttpServletResponse response) throws IOException {
 			response.setContentType("text/plain; charset=UTF-8");
+			response.setCharacterEncoding("UTF-8");
 		}
 
 		@Override
 		protected void writeData(ServletResponse response, String data) throws IOException {
 			
 			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
-			
-			response.getOutputStream().print(data);
-			response.flushBuffer();
+			//response.getWriter().print(data);
+			response.getOutputStream().write(data.getBytes("UTF-8"));
 			logger.error("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 		}
 
-		protected void finishSend(ServletResponse response) throws IOException {};
+		protected void finishSend(ServletResponse response) throws IOException {
+			response.flushBuffer();
+			response.getOutputStream().flush();
+		};
 
-		protected void customConnect(HttpServletRequest request,
-				HttpServletResponse response) throws IOException {
+		protected void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException {
 			startSend(response);
 			//writeData(response, "1::"  + request.getRequestURI() + "/"+ request.getQueryString());
 			writeData(response, "1::");

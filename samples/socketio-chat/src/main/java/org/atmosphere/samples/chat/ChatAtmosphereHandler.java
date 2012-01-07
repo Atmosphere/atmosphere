@@ -65,35 +65,20 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
     public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
     	//logger.error("onStateChange event = " + event);
     	
-    	HttpServletRequest req = event.getResource().getRequest();
-        HttpServletResponse res = event.getResource().getResponse();
-        
-        SocketIOSessionOutbound outbound = (org.atmosphere.protocol.socketio.SocketIOSessionOutbound) req.getAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound);
-    	
-    	if(event.getMessage()!=null){
-    		//logger.error("onStateChange Event isResumedOnTimeout =" + event.isResumedOnTimeout() + " Event isResuming =" + event.isResuming() + " Event isSuspended =" + event.isSuspended() + " Message = " + event.getMessage().toString());
-    	} else {
-    		//logger.error("onStateChange Message = null");
-    		
-    		if(event.isResumedOnTimeout()){
-    			
-    			if(outbound!=null){
-    	        	try {
-    	        		outbound.sendMessage(new SocketIOPacketImpl(PacketType.NOOP));
-    	    		} catch (Exception e) {
-    	    			outbound.disconnect();
-    	    		}
-    	        }
-    			
-    		} 
-    		
-    		return;
-    	}
-    	
-    	if(event.isResuming()){
+    	if(event.isResuming() || event.isResumedOnTimeout()){
     		return ;
     	}
     	
+    	HttpServletRequest request = event.getResource().getRequest();
+        HttpServletResponse response = event.getResource().getResponse();
+        
+        logger.error("onStateChange on SessionID=" + request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + "  Method=" + request.getMethod());
+        
+        if(request.getMethod()==null){
+        	System.err.println("HEU !");
+        }
+        
+        SocketIOSessionOutbound outbound = (org.atmosphere.protocol.socketio.SocketIOSessionOutbound) request.getAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound);
     	
         if(outbound!=null && event.getMessage()!=null){
         	try {
@@ -103,20 +88,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
         			
         			for (Object object : list) {
         				List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(object.toString());
-            			
-            			for (SocketIOPacketImpl msg: messages) {
-            				switch(msg.getFrameType()){
-            					case MESSAGE:
-            					case JSON:
-            					case EVENT:
-            					case ACK:
-            					case ERROR:
-            						outbound.sendMessage(event.getMessage().toString());
-            						break;
-            					default:
-            						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
-            				}
-            			}
+        				outbound.sendMessage(messages);
         			}
         			
         		} else if(event.getMessage() instanceof List){
@@ -125,38 +97,12 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
         			
         			for (Object object : list) {
         				List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(object.toString());
-            			
-            			for (SocketIOPacketImpl msg: messages) {
-            				switch(msg.getFrameType()){
-            					case MESSAGE:
-            					case JSON:
-            					case EVENT:
-            					case ACK:
-            					case ERROR:
-            						outbound.sendMessage(event.getMessage().toString());
-            						break;
-            					default:
-            						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
-            				}
-            			}
+        				outbound.sendMessage(messages);
         			}
         		} else if(event.getMessage() instanceof String){
-        				List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(event.getMessage().toString());
-            			
-            			for (SocketIOPacketImpl msg: messages) {
-            				switch(msg.getFrameType()){
-            					case MESSAGE:
-            					case JSON:
-            					case EVENT:
-            					case ACK:
-            					case ERROR:
-            						outbound.sendMessage(event.getMessage().toString());
-            						break;
-            					default:
-            						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
-            				}
-            			}
-        			}
+    				List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(event.getMessage().toString());
+    				outbound.sendMessage(messages);
+        		}
         		
     		} catch (Exception e) {
     			e.printStackTrace();
@@ -207,16 +153,16 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 
 	@SuppressWarnings("unused")
 	public void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound outbound, String message) {
-		logger.error("onMessage Message Received=" + message);
 		
-		HttpServletRequest req = event.getRequest();
-        HttpServletResponse res = event.getResponse();
-		
-        if(message==null || message.length()==0){
+        if(outbound==null || message==null || message.length()==0){
         	return;
         }
         
+        HttpServletRequest request = event.getRequest();
+        HttpServletResponse response = event.getResponse();
+        
         try {
+        	logger.error("onMessage on SessionID=" + request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + "  : Message Received = " + message);
         	
         	ObjectMapper mapper = new ObjectMapper();
 
@@ -226,7 +172,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
         		
         		//debug pour java.lang.IllegalStateException: No SessionManager
         		try {
-        			req.getSession().setAttribute("LOGINNAME", chat.getArgs().toArray()[0]);
+        			request.getSession().setAttribute("LOGINNAME", chat.getArgs().toArray()[0]);
         		} catch(Exception e){
         			e.printStackTrace();
         		}
@@ -240,37 +186,44 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
         			outbound.sendMessage(new SocketIOPacketImpl(PacketType.ACK, "1+[false]").toString());
         		}
         		
-    			// on broadcast l'info aux autres usagers
-    			//event.getBroadcaster().broadcast("5:::{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}");
-        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}").toString());
-    			
-    	        // rendu ici c'est que nous avons recu un broadcast pour NOUS, il 
-    	        // ne concerne pas les autres
+	        	try {
+	        		
+	        		ChatJSONObject out = new ChatJSONObject();
+	        		
+	        		out.setName(ChatJSONObject.USERCONNECTEDLIST);
+	        		List list = new ArrayList();
+	        		
+	        		list.add(loggedUserMap);
+	        		
+	        		out.setArgs(list);
+	        		
+	        		// on envoye au user qui vient de se logger, la liste des usernames dans le chat
+	        		outbound.sendMessage(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out)).toString());
+	        		
+	        		
+	        		//DEBUG
+	        		logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out), false).toString());
+	        		
+	        		// on broadcast la liste des usernames dans le chat aux autres usagers
+	        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out), false).toString(), event);
+
+	        		//DEBUG
+	        		logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
+	        		
+	        		// on broadcast le username du nouveau dans le chat aux autres usagers
+	        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
+	        		
+	    		} catch (Exception e) {
+	    			e.printStackTrace();
+	    			outbound.disconnect();
+	    		}
     	        
-    	        if(outbound!=null){
-    	        	try {
-    	        		
-    	        		ChatJSONObject out = new ChatJSONObject();
-    	        		
-    	        		out.setName(ChatJSONObject.USERCONNECTEDLIST);
-    	        		List list = new ArrayList();
-    	        		
-    	        		list.add(loggedUserMap);
-    	        		
-    	        		out.setArgs(list);
-    	        		
-    	        		outbound.sendMessage(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out)).toString());
-    	    		} catch (Exception e) {
-    	    			outbound.disconnect();
-    	    		}
-    	        }
-    			
         	} else if(ChatJSONObject.MESSAGE.equalsIgnoreCase(chat.name)) {
         		
         		//debug pour java.lang.IllegalStateException: No SessionManager
         		String username = "user1";
         		try {
-        			username = (String)req.getSession().getAttribute("LOGINNAME");
+        			username = (String)request.getSession().getAttribute("LOGINNAME");
         		} catch(Exception e){
         			e.printStackTrace();
         		}
@@ -282,11 +235,13 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
         		ChatJSONObject out = new ChatJSONObject();
         		
         		out.setName(ChatJSONObject.MESSAGE);
-        		out.setArgs(msg);
+        		out.setArgs(msg); 
         		
+        		//DEBUG
+        		logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out)).toString());
         		
-        		// on broadcast l'info aux autres usagers
-        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out)).toString());
+        		// on broadcast le nouveau message aux autres usagers
+        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out)).toString(), event);
         		
         	}
 			
@@ -305,10 +260,17 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 	public void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound outbound, DisconnectReason reason) {
 		logger.error("onDisconnect");
 		
-		// on broadcast l'info aux autres usagers
-		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[],\"name\":\"disconnect\"}").toString());
+		//debug pour java.lang.IllegalStateException: No SessionManager
+		String username = "user1";
+		try {
+			username = (String)event.getRequest().getSession().getAttribute("LOGINNAME");
+		} catch(Exception e){
+			//e.printStackTrace();
+		}
 		
-		 
+		// on broadcast l'info aux autres usagers
+		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"name\":\"announcement\",\"args\":[\"" + username + " disconnected\"]}").toString());
+		
 	}
 	
 }

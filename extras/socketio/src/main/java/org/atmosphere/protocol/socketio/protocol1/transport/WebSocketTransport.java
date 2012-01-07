@@ -2,6 +2,7 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -163,6 +164,26 @@ public class WebSocketTransport extends AbstractTransport {
 		public void sendMessage(SocketIOPacket packet) throws SocketIOException {
 			if(packet!=null){
 				sendMessage(packet.toString());
+			}
+		}
+		
+		@Override
+		public void sendMessage(List<SocketIOPacketImpl> messages) throws SocketIOException {
+			if(messages!=null){
+				for (SocketIOPacketImpl msg: messages) {
+    				switch(msg.getFrameType()){
+    					case MESSAGE:
+    					case JSON:
+    					case EVENT:
+    					case ACK:
+    					case ERROR:
+    						msg.setPadding(messages.size()>1);
+    						sendMessage(msg.toString());
+    						break;
+    					default:
+    						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
+    				}
+    			}
 			}
 		}
 

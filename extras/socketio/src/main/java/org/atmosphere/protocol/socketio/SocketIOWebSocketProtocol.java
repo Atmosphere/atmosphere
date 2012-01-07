@@ -1,6 +1,8 @@
 package org.atmosphere.protocol.socketio;
 
-import java.io.UnsupportedEncodingException;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -9,8 +11,9 @@ import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketProcessor.WebSocketException;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,37 +21,20 @@ import org.slf4j.LoggerFactory;
 /**
  * @author Sebastien Dionne
  */
-public class SocketIOWebSocketProtocol implements WebSocketProtocol {
-    private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProtocol.class);
+public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializable {
+	private static final long serialVersionUID = 4015694886940858031L;
+	
+	private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProtocol.class);
     private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
     
-	@Override
-	public boolean inspectResponse() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	/**
+    /**
      * {@inheritDoc}
      */
-    @Override
-    public String handleResponse(AtmosphereResponse<?> res, String message) {
-        // Should never be called
-        return message;
-    }
-
-    @Override
-    public byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length) {
-        // Should never be called
-        return message;
-    }
-
 	@Override
 	public void configure(AtmosphereConfig config) {
-		// TODO Auto-generated method stub
 		
 	}
-
+	
 	/**
      * {@inheritDoc}
      */
@@ -85,42 +71,60 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol {
         
         return null;
     }
-
+    
     /**
      * {@inheritDoc}
      */
     @Override
     public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.error("calling from " + this.getClass().getName() + " : " + "broadcast byte");
-        
-        String msg = null;
-		try {
-			msg = new String(data, offset, length, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
-        
-        //resource.getBroadcaster().broadcast(msg);
-        return null;
+        return onMessage(webSocket, new String(data, offset, length));
+    }
+	
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onOpen(WebSocket webSocket) {
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onOpen(WebSocket webSocket) {
-        // eurk!!
-        this.resource = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
+    public void onClose(WebSocket webSocket) {
+    	logger.error("calling from " + this.getClass().getName() + " : " + "onClose = " + webSocket.toString());
     }
 
-	@Override
-	public void onClose(WebSocket webSocket) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onClose = " + webSocket.toString());
-	}
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
+    	logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
+    }
 
-	@Override
-	public void onError(WebSocket webSocket, WebSocketException t) {
-		logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
-		
-	}
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean inspectResponse() {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String handleResponse(AtmosphereResponse<?> res, String message) {
+        // Should never be called
+        return message;
+    }
+
+    @Override
+    public byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length) {
+        // Should never be called
+        return message;
+    }
+
 }

@@ -1,5 +1,9 @@
 package org.atmosphere.protocol.socketio;
 
+import java.util.List;
+
+import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
+
 public interface SocketIOOutbound {
     /**
      * Terminate the connection. This method may return before the connection disconnect
@@ -39,5 +43,16 @@ public interface SocketIOOutbound {
      * @throws SocketIOException
      */
     void sendMessage(SocketIOPacket packet) throws SocketIOException;
+    
+    /**
+     * Send a message to the client. This method will block if the message will not fit in the
+     * outbound buffer.
+     * If the socket is closed, becomes closed, or times out, while trying to send the message,
+     * the SocketClosedException will be thrown.
+     *
+     * @param message The message to send
+     * @throws SocketIOException
+     */
+    void sendMessage(List<SocketIOPacketImpl> messages) throws SocketIOException;
     
 }

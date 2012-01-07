@@ -23,13 +23,18 @@ public class AtmosphereWebSocketFactory {
 
 		this.config = config;
 		
-		String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
-        if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-            webSocketFactory = getFactory();
-        } else {
-            webSocketFactory = null;
-        }
-        //TODO: Add Grizzly support here as well.
+		try {
+			String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
+	        if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
+	            webSocketFactory = getFactory();
+	        } else {
+	            webSocketFactory = null;
+	        }
+	        //TODO: Add Grizzly support here as well.
+		} catch(Exception e){
+			// if that is run on another web container than Jetty
+			webSocketFactory = null;
+		}
 
     }
 

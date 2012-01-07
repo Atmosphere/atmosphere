@@ -89,6 +89,10 @@ public class TransportBuffer {
 		}
 	}
 	
+	public int size(){
+		return queue.size();
+	}
+	
 	public boolean putMessage(String message, long timeout) {
 		BufferListener listener = listenerRef.get();
 		if (listener != null) {

@@ -12,7 +12,7 @@
 		</init-param>
 		<init-param>
 			<param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
-			<param-value>org.atmosphere.cache.SessionBroadcasterCache</param-value>
+			<param-value>org.atmosphere.protocol.socketio.cache.SocketIOSessionBroadcasterCache</param-value>
 		</init-param>
 		<init-param>
 			<param-name>org.atmosphere.cpr.customCometSupport</param-name>

@@ -7,6 +7,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl.PacketType;
@@ -69,8 +70,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 		if (!sessionWrapper.initiated()) {
 			if ("OPEN".equals(event.message())) {
 				try {
-					//event.webSocket().write((byte)0x8, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, sessionWrapper.getSession().getSessionId()));
-					//event.webSocket().write((byte)0x8, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + sessionWrapper.getSession().getHeartbeat()));
 					sessionWrapper.getSession().onConnect(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper);
 					sessionWrapper.initiated(true);
 				} catch (Exception e) {
@@ -78,7 +77,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 					try {
 						sessionWrapper.webSocket().close();
 					} catch (IOException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 					sessionWrapper.getSession().onShutdown();
@@ -87,7 +85,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 				try {
 					sessionWrapper.webSocket().close();
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 				sessionWrapper.getSession().onShutdown();
@@ -131,11 +128,12 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 		try {
 			event.webSocket().write(new SocketIOPacketImpl(PacketType.CONNECT).toString());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
+			sessionWrapper.getSession().onShutdown();
 		}
 		
 		try {
+			sessionWrapper.getSession().setAtmosphereResourceImpl((AtmosphereResourceImpl) event.webSocket().resource());
 			sessionWrapper.getSession().onConnect(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper);
 			sessionWrapper.initiated(true);
 		} catch (Exception e) {

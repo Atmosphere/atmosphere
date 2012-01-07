@@ -12,20 +12,30 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 	private final String id;
 	private final String endpoint;
 	private final String data;
+	private boolean padding = false;
 	
 	public SocketIOPacketImpl(PacketType frameType){
-		this(frameType, null, null, null);
+		this(frameType, null, null, null, false);
 	}
 	
 	public SocketIOPacketImpl(PacketType frameType, String data){
-		this(frameType, null, null, data);
+		this(frameType, null, null, data, false);
+	}
+	
+	public SocketIOPacketImpl(PacketType frameType, String data, boolean padding){
+		this(frameType, null, null, data, false);
 	}
 	
 	public SocketIOPacketImpl(PacketType frameType, String id, String endpoint, String data){
+		this(frameType, id, endpoint, data, false);
+	}
+	
+	public SocketIOPacketImpl(PacketType frameType, String id, String endpoint, String data, boolean padding){
 		this.packetType = frameType;
 		this.id = id;
 		this.endpoint = endpoint;
 		this.data = data;
+		this.padding = padding;
 	}
 	
 	public PacketType getFrameType() {
@@ -36,8 +46,16 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		return data;
 	}
 	
+	public void setPadding(boolean padding) {
+		this.padding = padding;
+	}
+
 	public String toString(){
 		StringBuilder sb = new StringBuilder();
+		
+		if(padding && data!=null){
+			sb.append('\ufffd').append(data.length()).append('\ufffd');
+		}
 		
 		//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 
 		sb.append(packetType.value).append(":");

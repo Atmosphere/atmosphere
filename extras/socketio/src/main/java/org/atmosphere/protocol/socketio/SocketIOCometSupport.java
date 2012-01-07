@@ -103,7 +103,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler = (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
-		if (supportSession() && (resource==null)) {
+		if (supportSession() && resource==null) {
             // Create the session needed to support the Resume
             // operation from disparate requests.
             HttpSession session = request.getSession(true);

@@ -175,7 +175,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
     /**
      * {@inheritDoc}
      */
-    public final synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
 
         CachedMessage cm = retrieveLastMessage(r);
         boolean isNew = false;

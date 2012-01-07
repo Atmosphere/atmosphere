@@ -5,7 +5,6 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -53,7 +52,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		private SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler;
 		private SocketIOSessionOutbound handler = null;
 		private ConnectionState state = ConnectionState.CONNECTING;
-		private long hbDelay = 0;
+		private long heartBeatInterval = 0;
 		private long timeout = 0;
 		private HeartBeatSessionMonitor heartBeatSessionMonitor = new HeartBeatSessionMonitor(this, executor);
 		private TimeoutSessionMonitor timeoutSessionMonitor = new TimeoutSessionMonitor(this, executor);
@@ -139,7 +138,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			logger.error("startHeartbeatTimer");
 			clearHeartbeatTimer();
 			clearTimeoutTimer();
-			if (!timedout && hbDelay > 0) {
+			if (!timedout && heartBeatInterval > 0) {
 				heartBeatSessionMonitor.start();
 			}
 		}
@@ -154,17 +153,19 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void setHeartbeat(long delay) {
-			hbDelay = delay;
+			heartBeatInterval = delay;
+			heartBeatSessionMonitor.setDelay(delay);
 		}
 
 		@Override
 		public long getHeartbeat() {
-			return hbDelay;
+			return heartBeatInterval;
 		}
 		
 		@Override
 		public void setTimeout(long timeout) {
 			this.timeout = timeout;
+			timeoutSessionMonitor.setDelay(timeout);
 		}
 
 		@Override
