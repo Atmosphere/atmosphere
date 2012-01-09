@@ -15,6 +15,10 @@
 */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.ApplicationConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -29,11 +33,21 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * A Servlet Filter for configuring which WebSocket protocol version an application want to support.
+ *
+ * @author Jeanfrancois Arcand
  */
 public class WebSocketHandshakeFilter implements Filter {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketHandshakeFilter.class);
+    private String[] bannedVersion;
+
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
+        String draft = filterConfig.getInitParameter(ApplicationConfig.WEB_SOCKET_BANNED_VERSION);
+        if (draft != null) {
+            bannedVersion = draft.split(",");
+            logger.debug("Blocked WebSocket Draft version {}", draft);
+        }
     }
 
     @Override
@@ -45,19 +59,17 @@ public class WebSocketHandshakeFilter implements Filter {
                 draft = HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Draft");
             }
 
-            switch (draft) {
-                case -1:
-                case 0:
-                    HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                    HttpServletResponse.class.cast(response).sendError(202, "Websocket protocol not supported");
-                    break;
-                default:
-                    chain.doFilter(request, response);
-                    break;
+            if (bannedVersion != null) {
+                for (String s : bannedVersion) {
+                    if (Integer.getInteger(s) == draft) {
+                        HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                        HttpServletResponse.class.cast(response).sendError(202, "Websocket protocol not supported");
+                        return;
+                    }
+                }
             }
-        } else {
-            chain.doFilter(request, response);
         }
+        chain.doFilter(request, response);
     }
 
     @Override

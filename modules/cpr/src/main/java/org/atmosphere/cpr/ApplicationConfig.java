@@ -197,4 +197,8 @@ public interface ApplicationConfig {
      * resumed.
      */
     String SUPPORT_LOCATION_HEADER = "org.atmosphere.jersey.supportLocationHeader";
+    /**
+     * WebSocket version to exclude and downgrade to comet. Version are separated by comma
+     */
+    String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
 }
