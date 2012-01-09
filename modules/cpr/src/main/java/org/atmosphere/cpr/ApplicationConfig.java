@@ -201,4 +201,5 @@ public interface ApplicationConfig {
      * WebSocket version to exclude and downgrade to comet. Version are separated by comma
      */
     String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
+
 }
