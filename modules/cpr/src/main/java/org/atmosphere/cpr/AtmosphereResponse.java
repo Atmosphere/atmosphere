@@ -429,7 +429,7 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
      *
      * @return A
      */
-    public A getasyncIOWriter() {
+    public A getAsyncIOWriter() {
         return asyncIOWriter;
     }
 
