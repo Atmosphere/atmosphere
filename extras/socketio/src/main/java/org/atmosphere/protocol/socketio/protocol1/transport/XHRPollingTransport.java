@@ -16,8 +16,8 @@ public class XHRPollingTransport extends XHRTransport {
 	
 	public static final String TRANSPORT_NAME = "xhr-polling";
 
-	public XHRPollingTransport(int bufferSize, int maxIdleTime) {
-		super(bufferSize, maxIdleTime);
+	public XHRPollingTransport(int bufferSize) {
+		super(bufferSize);
 	}
 
 	@Override

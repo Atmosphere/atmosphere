@@ -1621,6 +1621,7 @@
           xhr.onreadystatechange = empty;
 
           if (xhr.status == 200) {
+          	console.log("xhr.responseText=" + xhr.responseText);
             complete(xhr.responseText);
           } else {
             !self.reconnecting && self.onError(xhr.responseText);
@@ -3037,6 +3038,7 @@ var swfobject=function(){var D="undefined",r="object",S="Shockwave Flash",W="Sho
    */
 
   XHR.prototype.send = function (data) {
+  	console.log("XHR sending=" + data);
     this.post(data);
     return this;
   };

@@ -382,7 +382,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                             (Boolean) request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
                 }
 
-                invokeAtmosphereHandler(r);
+invokeAtmosphereHandler(r);
                 
                 try {
                     response.getOutputStream().close();
@@ -421,6 +421,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
 
         return timedoutAction;
+
     }
 
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {

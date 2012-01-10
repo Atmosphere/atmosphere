@@ -36,6 +36,9 @@ public interface SocketIOSession {
 
 	void startHeartbeatTimer();
 	void clearHeartbeatTimer();
+	
+	void setRequestSuspendTime(long suspendTime);
+	long getRequestSuspendTime();
 
 	/**
 	 * Initiate close.

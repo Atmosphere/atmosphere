@@ -35,6 +35,10 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	private static Random random = new SecureRandom();
 	private ConcurrentMap<String, SocketIOSession> socketIOSessions = new ConcurrentHashMap<String, SocketIOSession>();
 	private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+	
+	private long heartbeatInterval = 15;
+	private long timeout = 2500;
+	private long requestSuspendTime = 20000; // 20 sec.
 
 	private static String generateRandomString(int length) {
 	    StringBuilder result = new StringBuilder(length);
@@ -44,6 +48,52 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	      result.append(BASE64_ALPHABET[bytes[i] & 0x3F]);
 	    }
 	    return result.toString();
+	}
+	
+	private String generateSessionId() {
+		return generateRandomString(SESSION_ID_LENGTH);
+	}
+
+	@Override
+	public SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> inbound) {
+		SessionImpl impl = new SessionImpl(generateSessionId(), resource, inbound, getTimeout(), getHeartbeatInterval(), getRequestSuspendTime());
+		socketIOSessions.put(impl.getSessionId(), impl);
+		return impl;
+	}
+
+	@Override
+	public SocketIOSession getSession(String sessionId) {
+		return socketIOSessions.get(sessionId);
+	}
+
+	@Override
+	public void setTimeout(long timeout) {
+		this.timeout = timeout;
+	}
+
+	@Override
+	public long getTimeout() {
+		return timeout;
+	}
+
+	@Override
+	public void setHeartbeatInterval(long interval) {
+		this.heartbeatInterval = interval;
+	}
+
+	@Override
+	public long getHeartbeatInterval() {
+		return heartbeatInterval;
+	}
+	
+	@Override
+	public void setRequestSuspendTime(long suspendTime) {
+		this.requestSuspendTime = suspendTime;
+	}
+
+	@Override
+	public long getRequestSuspendTime() {
+		return requestSuspendTime;
 	}
 
 	private class SessionImpl implements SocketIOSession {
@@ -55,16 +105,20 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		private ConnectionState state = ConnectionState.CONNECTING;
 		private long heartBeatInterval = 0;
 		private long timeout = 0;
+		private long requestSuspendTime = 0;
 		private HeartBeatSessionMonitor heartBeatSessionMonitor = new HeartBeatSessionMonitor(this, executor);
 		private TimeoutSessionMonitor timeoutSessionMonitor = new TimeoutSessionMonitor(this, executor);
 		private boolean timedout = false;
 		private AtomicLong messageId = new AtomicLong(0);
 		private String closeId = null;
 
-		SessionImpl(String sessionId, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler) {
+		SessionImpl(String sessionId, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, long timeout, long heartBeatInterval, long requestSuspendTime) {
 			this.sessionId = sessionId;
 			this.atmosphereHandler = atmosphereHandler;
 			this.resource = resource;
+			this.timeout = timeout;
+			this.heartBeatInterval = heartBeatInterval;
+			this.requestSuspendTime = requestSuspendTime;
 		}
 
 		@Override
@@ -172,6 +226,16 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		@Override
 		public long getTimeout() {
 			return timeout;
+		}
+		
+		@Override
+		public void setRequestSuspendTime(long suspendTime) {
+			this.requestSuspendTime = suspendTime;
+		}
+
+		@Override
+		public long getRequestSuspendTime() {
+			return requestSuspendTime;
 		}
 
 		@Override
@@ -294,20 +358,5 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 
 	}
-	
-	private String generateSessionId() {
-		return generateRandomString(SESSION_ID_LENGTH);
-	}
 
-	@Override
-	public SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> inbound) {
-		SessionImpl impl = new SessionImpl(generateSessionId(), resource, inbound);
-		socketIOSessions.put(impl.getSessionId(), impl);
-		return impl;
-	}
-
-	@Override
-	public SocketIOSession getSession(String sessionId) {
-		return socketIOSessions.get(sessionId);
-	}
 }

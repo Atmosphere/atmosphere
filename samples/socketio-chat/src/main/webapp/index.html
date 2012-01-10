@@ -5,17 +5,35 @@
 	<script src="./dist/jquery-1.7.js"></script>
 	<script src="./dist/socket.io.js"></script>
 	
-	<script>// socket.io specific code
+	<script>
+// socket.io specific code
 var socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'});
+
+
+var connectedUrl = "";
 
 socket.on('connect', function () {
   $('#chat').addClass('connected');
-	console.log(io.transports);
+	console.log(this.socket.transports);
+	
+	$.each(this.socket.transports, function(index, item){   
+     $("#transport").append(new Option(item, item));
+	});
+	
+	/*
+	console.log(this.socket.options.resource);
+	console.log(this.socket.transport.name);
+	console.log(this.socket.sessionid);
+	console.log(io.protocol);
+	
+	//connectedUrl =  document.location.protocol + "://" + document.location.host + "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
+	connectedUrl =  "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
+	var getDisconnectURL = connectedUrl + "/?t="+ +new Date + "&disconnect";
+	
+	console.log(getDisconnectURL);
+	*/
 
-});
-
-socket.on('connecting', function () {
-  //
+	
 });
 
 socket.on('announcement', function (msg) {
@@ -34,6 +52,11 @@ socket.on('user message', message);
 socket.on('reconnect', function () {
   $('#lines').remove();
   message('System', 'Reconnected to the server');
+});
+
+socket.on('disconnect', function () {
+  message('System', 'Disconnected');
+	console.log("Disconnected");
 });
 
 socket.on('reconnecting', function () {
@@ -76,8 +99,51 @@ $(function () {
 });
 </script></head>
 
+
+<script>
+  $(document).ready(function() {
+  	
+  	$("#transport").change( function() {
+		  //alert($(this).val());
+		  socket.disconnect();
+		  // voir pull request 343 : https://github.com/LearnBoost/socket.io-client/pull/343
+		  //socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'}); 
+		  io.j = [];
+			io.sockets = [];
+		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':'socketiochat/ChatAtmosphereHandler'}); 
+		  
+		});
+		
+		$("#manualDisconnectGet").bind("click", function(){
+				// faudrait faire un GET avec /?disconnect;
+				
+				//alert("get");
+				var getDisconnectURL = connectedUrl + "?t="+ +new Date + "&disconnect";
+				
+				$.get(getDisconnectURL, function(data) {
+					  //$('.result').html(data);
+					  //alert('Load was performed.'  +data);
+					});
+				
+		});
+		$("#manualDisconnectPost").bind("click", function(){
+				// faudrait faire un GET avec /?disconnect;
+				
+				var getDisconnectURL = connectedUrl;
+				
+				$.post(getDisconnectURL, "0:::", function(data) {
+					     //alert("Data Loaded: " + data);
+					   });
+		});
+
+  	
+  });
+</script>  
+
+
+
 	<body>
-		<div class="connected" id="chat">
+		<div id="chat">
 			<div id="nickname">
 				<form id="set-nickname" class="wrap">
 					<p>Please type in your nickname and press enter.</p>
@@ -94,6 +160,11 @@ $(function () {
 			<form id="send-message">
 				<input id="message"><button>Send</button>
 			</form>
+			<div id="transports">
+				<select id="transport"></select>
+				<div id="manualDisconnectGet">Force Disconnect with GET</div>
+				<div id="manualDisconnectPost">Force Disconnect with Post</div>
+			</div>	
 		</div>
 	</body>
 </html>

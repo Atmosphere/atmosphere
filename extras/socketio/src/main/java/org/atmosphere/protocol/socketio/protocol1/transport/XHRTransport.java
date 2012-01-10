@@ -31,32 +31,9 @@ public abstract class XHRTransport extends AbstractTransport {
 	private static final Logger logger = LoggerFactory.getLogger(XHRTransport.class);
 	
 	private final int bufferSize;
-	private final int maxIdleTime;
 	
-	/**
-	 * This is a sane default based on the timeout values of various browsers.
-	 */
-	public static final long HTTP_REQUEST_TIMEOUT = 30 * 1000;
-
-	/**
-	 * The amount of time the session will wait before trying to send a ping. Using a value of half the HTTP_REQUEST_TIMEOUT should be good enough.
-	 */
-	public static final long HEARTBEAT_DELAY = HTTP_REQUEST_TIMEOUT / 2;
-
-	/**
-	 * This specifies how long to wait for a pong (ping response).
-	 */
-	public static final long HEARTBEAT_TIMEOUT = 10 * 1000;
-
-	/**
-	 * For non persistent connection transports, this is the amount of time to wait for messages before returning empty results.
-	 */
-	public static long REQUEST_TIMEOUT = 20 * 1000;
-
 	protected static final String SESSION_KEY = XHRTransport.class.getName() + ".Session";
 	
-	
-
 	protected abstract class XHRSessionHelper implements SocketIOSessionOutbound {
 		protected final SocketIOSession session;
 		private volatile boolean is_open = false;
@@ -65,12 +42,6 @@ public abstract class XHRTransport extends AbstractTransport {
 		XHRSessionHelper(SocketIOSession session, boolean isConnectionPersistant) {
 			this.session = session;
 			this.isConnectionPersistant = isConnectionPersistant;
-			if (isConnectionPersistant) {
-				session.setHeartbeat(HEARTBEAT_DELAY);
-				session.setTimeout(HEARTBEAT_TIMEOUT);
-			} else {
-				session.setTimeout((HTTP_REQUEST_TIMEOUT - REQUEST_TIMEOUT) / 2);
-			}
 		}
 
 		protected abstract void startSend(HttpServletResponse response) throws IOException;
@@ -197,7 +168,14 @@ public abstract class XHRTransport extends AbstractTransport {
 						if (!isConnectionPersistant) {
 							
 							if(resource!=null){
-							
+								
+								resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+								
+								// pour le broadcast
+								resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
+								
+								session.setAtmosphereResourceImpl(resource);
+								
 								resource.addEventListener(new AtmosphereResourceEventListener() {
 									
 									@Override
@@ -260,18 +238,12 @@ public abstract class XHRTransport extends AbstractTransport {
 										// on vient d'envoyer du data, donc on resume
 										resource.resume();
 									} else {
-										resource.suspend(REQUEST_TIMEOUT, false);
-										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
-										
-										// pour le broadcast
-										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
-										
-										session.setAtmosphereResourceImpl(resource);
+										resource.suspend(session.getRequestSuspendTime(), false);
 									}
 								} else {
 									// on suspend donc la request
 									
-									resource.suspend(REQUEST_TIMEOUT, false);
+									resource.suspend(session.getRequestSuspendTime(), false);
 									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 									
 									// pour le broadcast
@@ -404,9 +376,8 @@ public abstract class XHRTransport extends AbstractTransport {
 		}
 	}
 
-	public XHRTransport(int bufferSize, int maxIdleTime) {
+	public XHRTransport(int bufferSize) {
 		this.bufferSize = bufferSize;
-		this.maxIdleTime = maxIdleTime;
 	}
 
 	/**

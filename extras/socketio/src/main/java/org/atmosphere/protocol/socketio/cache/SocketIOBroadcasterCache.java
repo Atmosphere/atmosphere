@@ -2,6 +2,7 @@ package org.atmosphere.protocol.socketio.cache;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -53,12 +54,12 @@ public class SocketIOBroadcasterCache implements BroadcasterCache<HttpServletReq
 	@Override
 	public void addToCache(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String object) {
 		
-		logger.info("Message to cache : " + object);
-		
 		if(resource==null){
-			logger.warn("Impossible to cache : " + object);
+			logger.warn("Impossible to cache because resource is null: " + object);
 			return;
 		}
+		
+		logger.info("Message from : " + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to cache : " + object);
 		
 		Queue<String> queue = null;
 		
@@ -81,8 +82,14 @@ public class SocketIOBroadcasterCache implements BroadcasterCache<HttpServletReq
 			return null;
 		}
 		
-		logger.info("retrieveFromCache=" + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		logger.info("retrieveFromCache sessionid=" + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		if(resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID)==null){
+			return null;
+		}
 		
+		for (Entry<AtmosphereResource<HttpServletRequest, HttpServletResponse>, Queue<String>> entry : cache.entrySet()) {
+			logger.info("SessionID Cached = " + entry.getKey().getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		}
 		
 		if(cache.containsKey(resource)){
 			List<String> list = new LinkedList<String>();

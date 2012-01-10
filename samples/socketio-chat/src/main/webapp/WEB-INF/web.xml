@@ -8,7 +8,7 @@
 		<servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
 		<init-param>
 			<param-name>org.atmosphere.cpr.broadcasterClass</param-name>
-			<param-value>org.atmosphere.util.ExcludeSessionBroadcaster</param-value>
+			<param-value>org.atmosphere.protocol.socketio.util.SocketIOExcludeSessionBroadcaster</param-value>
 		</init-param>
 		<init-param>
 			<param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
@@ -20,8 +20,14 @@
 		</init-param>
 		<init-param>
 			<param-name>socketio-transport</param-name>
-			<param-value>websocket,htmlfile,xhr-polling</param-value>
+			<param-value>websocket,xhr-polling,jsonp-polling</param-value>
 		</init-param>
+		<!--
+		<init-param>
+			<param-name>socketio-transport</param-name>
+			<param-value>websocket,htmlfile,xhr-polling,jsonp-polling</param-value>
+		</init-param>
+		-->
 		<init-param>
 			<param-name>socketio-timeout</param-name>
 			<param-value>2500</param-value>
@@ -31,8 +37,8 @@
 			<param-value>15</param-value>
 		</init-param>
 		<init-param>
-			<param-name>maxIdleTime</param-name>
-			<param-value>99999999</param-value>
+			<param-name>socketio-suspendTime</param-name>
+			<param-value>20000</param-value>
 		</init-param>
 
 <!-- 

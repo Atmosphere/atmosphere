@@ -25,8 +25,6 @@ import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// on pourrait problablement juset avoir un interface : pourrait etre utile
-// pour le destroy dans AtmosphereServlet
 public class SocketIOCometSupport extends AsynchronousProcessor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOCometSupport.class);
@@ -40,20 +38,19 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	
 	public static final String SOCKETIOEVENTLISTENER = "SOCKETIOEVENTLISTENER";
 	
-	public static final String BUFFER_SIZE_INIT_PARAM = "bufferSize";
-	public static final String MAX_IDLE_TIME_INIT_PARAM = "maxIdleTime";
 	public static final int BUFFER_SIZE_DEFAULT = 8192;
-	public static final int MAX_IDLE_TIME_DEFAULT = 300*1000;
 	
+	public static final String BUFFER_SIZE_INIT_PARAM = "socketio-bufferSize";
 	public static final String SOCKETIO_TRANSPORT = "socketio-transport";
 	public static final String SOCKETIO_TIMEOUT = "socketio-timeout";
 	public static final String SOCKETIO_HEARTBEAT = "socketio-heartbeat";
+	public static final String SOCKETIO_SUSPEND = "socketio-suspendTime";
 	
 	public int bufferSize = BUFFER_SIZE_DEFAULT;
-	public int maxIdleTime = MAX_IDLE_TIME_DEFAULT;
 	
 	private int heartbeatInterval = 15;
 	private int timeout = 2500;
+	private int suspendTime = 20000;
 	
 	
 	private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
@@ -63,8 +60,6 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		super(config);
 		containerWrapper = container;
 		containerWrapper.setIProcessor(this);
-		
-		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
 		
 		config.getAtmosphereServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
 		
@@ -83,6 +78,16 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		if(heartbeatWebXML!=null){
 			heartbeatInterval = Integer.parseInt(heartbeatWebXML);
 		}
+		
+		String suspendWebXML = config.getInitParameter(SOCKETIO_SUSPEND);
+		if(suspendWebXML!=null){
+			suspendTime = Integer.parseInt(suspendWebXML);
+		}
+		
+		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
+		sessionManager1.setTimeout(timeout);
+		sessionManager1.setHeartbeatInterval(heartbeatInterval);
+		sessionManager1.setRequestSuspendTime(suspendTime);
 		
 		webSocketFactory = new AtmosphereWebSocketFactory(config);
 	}
@@ -238,14 +243,13 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		
 		String str = sc.getInitParameter(BUFFER_SIZE_INIT_PARAM);
 		int bufferSize = str==null ? BUFFER_SIZE_DEFAULT : Integer.parseInt(str);
-		str = sc.getInitParameter(MAX_IDLE_TIME_INIT_PARAM);
 		
 		// VERSION 1
 		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport(bufferSize);
 		org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport(bufferSize);
-		org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(bufferSize, maxIdleTime);
-		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(bufferSize, maxIdleTime);
-		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(bufferSize, maxIdleTime);
+		org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(bufferSize);
+		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(bufferSize);
+		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(bufferSize);
 		transports.put(websocketTransport1.getName()+ "-1", websocketTransport1);
 		transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
 		transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);

@@ -50,8 +50,8 @@ public class HTMLFileTransport extends XHRTransport {
 		}
 	}
 
-	public HTMLFileTransport(int bufferSize, int maxIdleTime) {
-		super(bufferSize, maxIdleTime);
+	public HTMLFileTransport(int bufferSize) {
+		super(bufferSize);
 	}
 
 	@Override

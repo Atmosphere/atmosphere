@@ -69,8 +69,8 @@ public class JSONPPollingTransport extends XHRTransport {
 		}
 	}
 	
-	public JSONPPollingTransport(int bufferSize, int maxIdleTime) {
-		super(bufferSize, maxIdleTime);
+	public JSONPPollingTransport(int bufferSize) {
+		super(bufferSize);
 	}
 
 	@Override
