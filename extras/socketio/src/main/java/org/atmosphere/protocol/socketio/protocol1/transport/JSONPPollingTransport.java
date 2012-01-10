@@ -10,6 +10,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
+import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl.PacketType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +54,6 @@ public class JSONPPollingTransport extends XHRTransport {
 		protected void customConnect(HttpServletRequest request,
 				HttpServletResponse response) throws IOException {
 			
-			/*  i=0   */
-			
 			if(request.getParameter("i")!=null){
 				jsonpIndex = Integer.parseInt(request.getParameter("i"));
 			} else {
@@ -63,7 +62,7 @@ public class JSONPPollingTransport extends XHRTransport {
 			
 			//startSend(response);
 	    	
-	    	writeData(response, "1::");
+	    	writeData(response, new SocketIOPacketImpl(PacketType.CONNECT).toString());
 	    	
 			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
 			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + REQUEST_TIMEOUT));

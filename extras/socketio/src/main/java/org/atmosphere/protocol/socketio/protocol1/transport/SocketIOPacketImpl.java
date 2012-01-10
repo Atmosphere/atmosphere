@@ -7,6 +7,9 @@ import org.atmosphere.protocol.socketio.SocketIOPacket;
 
 public class SocketIOPacketImpl implements SocketIOPacket {
 	
+	public static final char SOCKETIO_MSG_DELIMITER = '\ufffd';
+	
+	public final static String POST_RESPONSE = "1";
 	private final PacketType packetType;
 	
 	private final String id;
@@ -54,7 +57,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		StringBuilder sb = new StringBuilder();
 		
 		if(padding && data!=null){
-			sb.append('\ufffd').append(data.length()).append('\ufffd');
+			sb.append(SOCKETIO_MSG_DELIMITER).append(data.length()).append(SOCKETIO_MSG_DELIMITER);
 		}
 		
 		//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 

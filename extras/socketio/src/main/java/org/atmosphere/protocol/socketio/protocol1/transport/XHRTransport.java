@@ -1,7 +1,6 @@
 package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.servlet.ServletResponse;
@@ -24,7 +23,6 @@ import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 import org.atmosphere.protocol.socketio.SocketIOSessionOutbound;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl.PacketType;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
-import org.atmosphere.protocol.socketio.transport.TransportBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +59,6 @@ public abstract class XHRTransport extends AbstractTransport {
 
 	protected abstract class XHRSessionHelper implements SocketIOSessionOutbound {
 		protected final SocketIOSession session;
-		private final TransportBuffer buffer = new TransportBuffer(bufferSize);
 		private volatile boolean is_open = false;
 		private final boolean isConnectionPersistant;
 
@@ -168,13 +165,17 @@ public abstract class XHRTransport extends AbstractTransport {
 							session.startHeartbeatTimer();
 						}
 					} else {
+						/*
 						String data = message;
-						if (buffer.putMessage(data, maxIdleTime) == false) {
+						if (cache.putMessage(data, maxIdleTime) == false) {
 							logger.error("calling from " + this.getClass().getName() + " : " + "On Disconnect sur sendMessage parce que resource==null");
 							session.onDisconnect(DisconnectReason.TIMEOUT);
 							abort();
 							throw new SocketIOException();
 						}
+						*/
+						logger.error("calling from " + this.getClass().getName() + " : " + "On Disconnect sur sendMessage parce que resource==null");
+						throw new SocketIOException();
 					}
 				} else {
 					logger.error("calling from " + this.getClass().getName() + " : " + "SocketIOClosedException sendMessage");
@@ -188,49 +189,49 @@ public abstract class XHRTransport extends AbstractTransport {
 		public void handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
 			if ("GET".equals(request.getMethod())) {
 				synchronized (this) {
-					if (!is_open && buffer.isEmpty()) {
+					AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
+					
+					if (!is_open) {
 						response.sendError(HttpServletResponse.SC_NOT_FOUND);
 					} else {
 						if (!isConnectionPersistant) {
 							
-							AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
+							if(resource!=null){
 							
-							if(resource==null){
-								return;
-							}
-							
-							resource.addEventListener(new AtmosphereResourceEventListener() {
-								
-								@Override
-								public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-								}
-								
-								@Override
-								public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-								}
-								
-								@Override
-								public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-									if(event.isResumedOnTimeout()){
-										try {
-											event.getResource().write(response.getOutputStream(), new SocketIOPacketImpl(PacketType.NOOP).toString());
-										} catch (IOException e) {
-											// TODO Auto-generated catch block
-											e.printStackTrace();
+								resource.addEventListener(new AtmosphereResourceEventListener() {
+									
+									@Override
+									public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									}
+									
+									@Override
+									public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									}
+									
+									@Override
+									public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+										if(event.isResumedOnTimeout()){
+											try {
+												event.getResource().write(response.getOutputStream(), new SocketIOPacketImpl(PacketType.NOOP).toString());
+											} catch (IOException e) {
+												// TODO Auto-generated catch block
+												e.printStackTrace();
+											}
 										}
 									}
-								}
+									
+									@Override
+									public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									}
+									
+									@Override
+									public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									}
+								});
 								
-								@Override
-								public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-								}
+								session.clearTimeoutTimer();
+								request.setAttribute(SESSION_KEY, session);
 								
-								@Override
-								public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
-								}
-							});
-							
-							if (!buffer.isEmpty() && resource!=null) {
 								StringBuilder data = new StringBuilder();
 								
 								// on va regarder s'il y a des messages dans le BroadcastCache
@@ -239,86 +240,25 @@ public abstract class XHRTransport extends AbstractTransport {
 									@SuppressWarnings("unchecked")
 									List<String> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
 									
-									List<String> bufferMessages = buffer.drainMessages();
-									
-									if (cachedMessages.size() + bufferMessages.size() > 1) {
-										for (String msg : bufferMessages) {
-											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
-										}
-										for (Object object : cachedMessages) {
-											String msg = object.toString();
-											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
-										}
-									} else {
-										if(!bufferMessages.isEmpty()){
-											data.append(bufferMessages.get(0));
-										} else {
+									if(cachedMessages!=null){
+										if (cachedMessages.size()> 1) {
+											for (Object object : cachedMessages) {
+												String msg = object.toString();
+												data.append(SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER).append(msg.length()).append(SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER).append(msg);
+											}
+										} else if (cachedMessages.size()== 1){
 											data.append(cachedMessages.get(0));
 										}
-										
 									}
 									
-								} else {
-									List<String> bufferMessages = buffer.drainMessages();
-									
-									if (bufferMessages.size() > 1) {
-										for (String msg : bufferMessages) {
-											data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
-										}
-									} else if (bufferMessages.size()==1){
-										data.append(bufferMessages.get(0));
-									}
-								}
-								
-								if(data.toString().length()>0){
-									startSend(response);
-									writeData(response, data.toString());
-									finishSend(response);
-									session.startTimeoutTimer();
-								} else {
-									startSend(response);
-								}
-								
-							} else {
-								
-								session.clearTimeoutTimer();
-								request.setAttribute(SESSION_KEY, session);
-								//response.setBufferSize(bufferSize);
-								
-								if(resource!=null){
-									
-									// on va regarder s'il y a des messages dans le BroadcastCache
-									if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
+									// avons-nous du data a envoyer ?
+									if(data.toString().length()>0){
+										startSend(response);
+										writeData(response, data.toString());
+										finishSend(response);
 										
-										@SuppressWarnings("unchecked")
-										List<Object> listMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
-										
-										if(!listMessages.isEmpty()){
-											StringBuilder data = new StringBuilder();
-											
-											if(listMessages.size()>1){
-												for (Object object : listMessages) {
-													String msg = object.toString();
-													data.append('\ufffd').append(msg.length()).append('\ufffd').append(msg);
-												}
-											} else {
-												data.append(listMessages.get(0));
-											}
-											startSend(response);
-											writeData(response, data.toString());
-											finishSend(response);
-											
-											resource.resume();
-											
-										} else {
-											resource.suspend(REQUEST_TIMEOUT, false);
-											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
-											
-											// pour le broadcast
-											resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
-											
-											session.setAtmosphereResourceImpl(resource);
-										}
+										// on vient d'envoyer du data, donc on resume
+										resource.resume();
 									} else {
 										resource.suspend(REQUEST_TIMEOUT, false);
 										resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
@@ -328,16 +268,26 @@ public abstract class XHRTransport extends AbstractTransport {
 										
 										session.setAtmosphereResourceImpl(resource);
 									}
-									
 								} else {
-									startSend(response);
+									// on suspend donc la request
+									
+									resource.suspend(REQUEST_TIMEOUT, false);
+									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+									
+									// pour le broadcast
+									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
+									
+									session.setAtmosphereResourceImpl(resource);
 								}
 								
-							}
+								
+							} 
+							
+								
 						} else {
+							// ce cas n'est pas prevu pour le moment, mais ca serait pour le xhr-streaming
 							response.sendError(HttpServletResponse.SC_NOT_FOUND);
 						}
-						
 					}
 				}
 			} else if ("POST".equals(request.getMethod())) {
@@ -361,11 +311,10 @@ public abstract class XHRTransport extends AbstractTransport {
 										
 										session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 										//session.getAtmosphereResourceImpl().resume();
-										
-										writeData(response, "1");
+										writeData(response, SocketIOPacketImpl.POST_RESPONSE);
 										
 									} else {
-										writeData(response, "1");
+										writeData(response, SocketIOPacketImpl.POST_RESPONSE);
 									}
 									
 								}
@@ -385,7 +334,7 @@ public abstract class XHRTransport extends AbstractTransport {
 				session.onDisconnect(DisconnectReason.DISCONNECT);
 				abort();
 			} else {
-				if (!is_open && buffer.isEmpty()) {
+				if (!is_open) {
 					session.onDisconnect(DisconnectReason.DISCONNECT);
 					abort();
 				} else {
@@ -451,18 +400,6 @@ public abstract class XHRTransport extends AbstractTransport {
 			is_open = false;
 			session.getAtmosphereResourceImpl().resume();
 
-			buffer.setListener(new TransportBuffer.BufferListener() {
-				@Override
-				public boolean onMessages(List<String> messages) {
-					return false;
-				}
-
-				@Override
-				public boolean onMessage(String message) {
-					return false;
-				}
-			});
-			buffer.clear();
 			session.onShutdown();
 		}
 	}

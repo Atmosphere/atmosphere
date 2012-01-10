@@ -211,7 +211,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 	        		logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
 	        		
 	        		// on broadcast le username du nouveau dans le chat aux autres usagers
-	        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
+	        		event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString(), event);
 	        		
 	    		} catch (Exception e) {
 	    			e.printStackTrace();

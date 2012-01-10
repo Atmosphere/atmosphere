@@ -67,7 +67,7 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	public void onMessage(WebSocketEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onMessage event = " + event);
 		
-		if (!sessionWrapper.initiated()) {
+		if (!sessionWrapper.isInitiated()) {
 			if ("OPEN".equals(event.message())) {
 				try {
 					sessionWrapper.getSession().onConnect(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper);

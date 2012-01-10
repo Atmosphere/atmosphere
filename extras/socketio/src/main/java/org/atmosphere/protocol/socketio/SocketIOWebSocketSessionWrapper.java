@@ -12,7 +12,7 @@ public interface SocketIOWebSocketSessionWrapper extends SocketIOSessionOutbound
 	
 	void onMessage(byte frame, byte[] data, int offset, int length);
 	
-	boolean initiated();
+	boolean isInitiated();
 	
 	WebSocket webSocket();
 	 

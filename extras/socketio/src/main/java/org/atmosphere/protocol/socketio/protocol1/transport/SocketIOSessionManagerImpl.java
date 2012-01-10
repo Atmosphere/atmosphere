@@ -6,7 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.http.HttpServletRequest;
@@ -14,12 +13,14 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
+import org.atmosphere.protocol.socketio.HeartBeatSessionMonitor;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 import org.atmosphere.protocol.socketio.SocketIOSessionManager;
 import org.atmosphere.protocol.socketio.SocketIOSessionOutbound;
+import org.atmosphere.protocol.socketio.TimeoutSessionMonitor;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

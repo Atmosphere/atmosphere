@@ -777,7 +777,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         List<?> missedMsg = broadcasterCache.retrieveFromCache(r);
-        if (!missedMsg.isEmpty()) {
+        if (missedMsg!=null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
         }

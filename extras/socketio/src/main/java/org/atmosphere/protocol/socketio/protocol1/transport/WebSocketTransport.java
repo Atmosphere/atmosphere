@@ -242,7 +242,7 @@ public class WebSocketTransport extends AbstractTransport {
 		}
 
 		@Override
-		public boolean initiated() {
+		public boolean isInitiated() {
 			return initiated;
 		}
 

@@ -48,7 +48,7 @@ import java.util.List;
  * @param <V>
  * @param <W>
  */
-public interface BroadcasterCache<V, W> {
+public interface BroadcasterCache<V, W, T> {
 
     public final static String BROADCASTER_CACHE_TRACKER = BroadcasterCache.class.getName();
 
@@ -70,7 +70,7 @@ public interface BroadcasterCache<V, W> {
      * @param r {@link AtmosphereResource}
      * @param e a broadcasted message.
      */
-    void addToCache(AtmosphereResource<V, W> r, Object e);
+    void addToCache(AtmosphereResource<V, W> r, T e);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}
@@ -78,6 +78,6 @@ public interface BroadcasterCache<V, W> {
      * @param r {@link AtmosphereResource}
      * @return a {@link List} of messages (String).
      */
-    List<Object> retrieveFromCache(AtmosphereResource<V, W> r);
+    List<T> retrieveFromCache(AtmosphereResource<V, W> r);
 
 }

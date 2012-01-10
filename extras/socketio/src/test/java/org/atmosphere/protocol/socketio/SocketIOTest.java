@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -316,7 +317,7 @@ public abstract class SocketIOTest {
 				
 				//System.err.println("byte=" + message.getBytes());
 				
-				if(message.charAt(0)==(byte)'\ufffd'){
+				if(message.charAt(0)==(byte)SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
 					System.err.println("Multi-message");
 				}
 				

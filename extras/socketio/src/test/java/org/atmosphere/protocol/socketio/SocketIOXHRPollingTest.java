@@ -3,6 +3,7 @@ package org.atmosphere.protocol.socketio;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -209,7 +210,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 				
 				System.err.println("broadcastXHRPollingTest byte=" + message.getBytes());
 				
-				if(message.charAt(0)=='\ufffd'){
+				if(message.charAt(0)==SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
 					System.err.println("Multi-message");
 				}
 				

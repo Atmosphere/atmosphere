@@ -74,7 +74,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse> {
+public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse, Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheBase.class);
 
