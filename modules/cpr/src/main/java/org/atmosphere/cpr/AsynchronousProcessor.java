@@ -384,8 +384,6 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
                 invokeAtmosphereHandler(r);
                 
-                r.notifyListeners();
-                
                 try {
                     response.getOutputStream().close();
                 } catch (Throwable t) {
@@ -401,10 +399,21 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
             try {
                 if (r != null) {
                     r.cancel();
+                    r.notifyListeners();
                 }
             } catch (Throwable t) {
                 logger.trace("timedout", t);
             } finally {
+
+                try {
+                    response.getOutputStream().close();
+                } catch (Throwable t) {
+                    try {
+                        response.getWriter().close();
+                    } catch (Throwable t2) {
+                    }
+                }
+
                 if (r != null) {
                     destroyResource(r);
                 }
