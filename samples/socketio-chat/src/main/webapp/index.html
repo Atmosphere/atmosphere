@@ -7,7 +7,7 @@
 	
 	<script>
 // socket.io specific code
-var socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'});
+var socket = io.connect('', {'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'});
 
 
 var connectedUrl = "";
@@ -110,7 +110,7 @@ $(function () {
 		  //socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'}); 
 		  io.j = [];
 			io.sockets = [];
-		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':'socketiochat/ChatAtmosphereHandler'}); 
+		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 
 		  
 		});
 		
