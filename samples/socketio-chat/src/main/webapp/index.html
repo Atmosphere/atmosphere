@@ -107,7 +107,7 @@ $(function () {
 		  //alert($(this).val());
 		  socket.disconnect();
 		  // voir pull request 343 : https://github.com/LearnBoost/socket.io-client/pull/343
-		  //socket = io.connect('', {'resource':'socketiochat/ChatAtmosphereHandler'}); 
+		  //socket = io.connect('', {'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 
 		  io.j = [];
 			io.sockets = [];
 		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 

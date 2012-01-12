@@ -240,7 +240,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		} 
         
 	}
  

@@ -443,7 +443,9 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
     }
 
     public void close() throws IOException {
-        asyncIOWriter.close();
+    	if (asyncIOWriter != null) {
+            asyncIOWriter.close();
+        }
     }
 
 

@@ -192,7 +192,6 @@ public abstract class XHRTransport extends AbstractTransport {
 											try {
 												event.getResource().write(response.getOutputStream(), new SocketIOPacketImpl(PacketType.NOOP).toString());
 											} catch (IOException e) {
-												// TODO Auto-generated catch block
 												e.printStackTrace();
 											}
 										}

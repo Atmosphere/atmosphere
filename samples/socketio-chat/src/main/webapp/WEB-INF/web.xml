@@ -30,15 +30,15 @@
 		-->
 		<init-param>
 			<param-name>socketio-timeout</param-name>
-			<param-value>2500</param-value>
+			<param-value>25000</param-value>
 		</init-param>
 		<init-param>
 			<param-name>socketio-heartbeat</param-name>
-			<param-value>15</param-value>
+			<param-value>15000</param-value>
 		</init-param>
 		<init-param>
 			<param-name>socketio-suspendTime</param-name>
-			<param-value>20000</param-value>
+			<param-value>30000</param-value>
 		</init-param>
 
 <!-- 

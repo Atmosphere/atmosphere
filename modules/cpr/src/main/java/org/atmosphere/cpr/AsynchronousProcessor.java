@@ -382,26 +382,19 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                             (Boolean) request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
                 }
 
-invokeAtmosphereHandler(r);
+                invokeAtmosphereHandler(r);
                 
-                try {
-                    response.getOutputStream().close();
-                } catch (Throwable t) {
-                    try {
-                        response.getWriter().close();
-                    } catch (Throwable t2) {
-                    }
-                }
             }
         } catch (Throwable t) {
             logger.error("failed to timeout resource {}", r, t);
         } finally {
             try {
                 if (r != null) {
-                    r.cancel();
                     r.notifyListeners();
+                    r.cancel();
                 }
             } catch (Throwable t) {
+            	t.printStackTrace();
                 logger.trace("timedout", t);
             } finally {
 

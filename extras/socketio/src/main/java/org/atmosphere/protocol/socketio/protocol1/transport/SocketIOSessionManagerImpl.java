@@ -119,6 +119,9 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			this.timeout = timeout;
 			this.heartBeatInterval = heartBeatInterval;
 			this.requestSuspendTime = requestSuspendTime;
+			
+			heartBeatSessionMonitor.setDelay(heartBeatInterval);
+			timeoutSessionMonitor.setDelay(timeout);
 		}
 
 		@Override
@@ -200,7 +203,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearHeartbeatTimer() {
-			logger.error("clearHeartbeatTimer");
+			logger.error("clearHeartbeatTimer : Clear previous Timer");
 			if (heartBeatSessionMonitor != null) {
 				heartBeatSessionMonitor.cancel();
 			}

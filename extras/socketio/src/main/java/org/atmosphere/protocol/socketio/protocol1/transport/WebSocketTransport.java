@@ -27,9 +27,8 @@ public class WebSocketTransport extends AbstractTransport {
 	private static final Logger logger = LoggerFactory.getLogger(WebSocketTransport.class);
 
 	public static final String TRANSPORT_NAME = "websocket";
-	public static final long CONNECTION_TIMEOUT = 10 * 1000;
 
-	public WebSocketTransport(int bufferSize) {
+	public WebSocketTransport() {
 	}
 
 	@Override
@@ -92,9 +91,6 @@ public class WebSocketTransport extends AbstractTransport {
 			this.session = session;
 			this.socketioEventListener = socketioEventListener;
 			this.socketioEventListener.setSessionWrapper(this);
-			
-	        session.setHeartbeat(15000);
-	        session.setTimeout(25000);
 		}
 		
         /*

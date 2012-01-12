@@ -22,7 +22,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
 
 public class FlashSocketTransport extends WebSocketTransport {
@@ -42,8 +41,8 @@ public class FlashSocketTransport extends WebSocketTransport {
 	private String flashPolicyDomain = null;
 	private String flashPolicyPorts = null;
 
-	public FlashSocketTransport(int bufferSize) {
-		super(bufferSize);
+	public FlashSocketTransport() {
+		super();
 	}
 
 	@Override
