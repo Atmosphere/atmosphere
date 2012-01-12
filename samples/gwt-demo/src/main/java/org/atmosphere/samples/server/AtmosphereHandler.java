@@ -15,6 +15,10 @@
  */
 package org.atmosphere.samples.server;
 
+import java.io.Serializable;
+import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.gwt.server.AtmosphereGwtHandler;
 import org.atmosphere.gwt.server.GwtAtmosphereResource;
 
@@ -34,7 +38,8 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
     public void init(ServletConfig servletConfig) throws ServletException {
         super.init(servletConfig);
         Logger.getLogger("").setLevel(Level.INFO);
-        Logger.getLogger("gwtcomettest").setLevel(Level.ALL);
+        Logger.getLogger("org.atmosphere.gwt").setLevel(Level.ALL);
+        Logger.getLogger("org.atmosphere.samples").setLevel(Level.ALL);
         Logger.getLogger("").getHandlers()[0].setLevel(Level.ALL);
         logger.trace("Updated logging levels");
     }
@@ -53,6 +58,8 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
             logger.debug("Url: " + resource.getAtmosphereResource().getRequest().getRequestURL()
                     + "?" + resource.getAtmosphereResource().getRequest().getQueryString());
         }
+        String agent = resource.getRequest().getHeader("user-agent");
+        logger.info(agent);
         return NO_TIMEOUT;
     }
 
@@ -60,6 +67,17 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
     public void cometTerminated(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
         super.cometTerminated(cometResponse, serverInitiated);
         logger.debug("Comet disconnected");
+    }
+
+    @Override
+    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, List<Serializable> messages, GwtAtmosphereResource cometResource) {
+        HttpSession session = postRequest.getSession(false);
+        if (session != null) {
+            logger.info("Post has session with id: " + session.getId());
+        } else {
+            logger.info("Post has no session");
+        }
+        super.doPost(postRequest, postResponse, messages, cometResource);
     }
 
 }

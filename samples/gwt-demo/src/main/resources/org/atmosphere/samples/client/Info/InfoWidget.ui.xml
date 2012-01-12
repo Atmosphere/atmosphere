@@ -21,7 +21,7 @@
             </tr>
             <tr>
                 <td>
-                    <g:Label styleName="{style.message}" ui:field="message"/>
+                    <g:HTML styleName="{style.message}" ui:field="message"/>
                 </td>
             </tr>
         </table>

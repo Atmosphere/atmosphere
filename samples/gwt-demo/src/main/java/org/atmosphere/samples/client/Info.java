@@ -21,6 +21,7 @@ import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -101,12 +102,12 @@ public class Info extends PopupPanel {
         @UiField
         Label title;
         @UiField
-        Label message;
+        HTML message;
 
         private InfoWidget(String title, String message) {
             initWidget(binder.createAndBindUi(this));
             this.title.setText(title);
-            this.message.setText(message);
+            this.message.setHTML(message);
         }
     }
 
