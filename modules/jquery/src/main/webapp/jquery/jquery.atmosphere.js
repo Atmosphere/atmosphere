@@ -718,8 +718,7 @@ jQuery.atmosphere = function() {
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
             var webSocketSupported = false;
-            var url = jQuery.atmosphere.request.url;
-            url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+            var url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
             var callback = jQuery.atmosphere.request.callback;
 
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
@@ -783,7 +782,7 @@ jQuery.atmosphere = function() {
                 if (jQuery.atmosphere.request.method == 'POST') {
                     data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.response.state = 'messageReceived';
-                    websocket.send(jQuery.atmosphere.request.data);
+                    websocket.send(data);
                 }
             };
 
@@ -840,6 +839,11 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.log(logLevel, ["Websocket closed, reason: " + reason]);
                 jQuery.atmosphere.log(logLevel, ["Websocket closed, wasClean: " + message.wasClean]);
 
+                jQuery.atmosphere.response.state = 'closed';
+                jQuery.atmosphere.response.responseBody = "";
+                jQuery.atmosphere.response.status = 200;
+                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
                 if (!webSocketSupported) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
@@ -856,6 +860,7 @@ jQuery.atmosphere = function() {
                     if (request.requestCount++ < request.maxRequest) {
                         jQuery.atmosphere.request.requestCount = request.requestCount;
                         jQuery.atmosphere.request.maxRequest = request.maxRequest;
+                        jQuery.atmosphere.request.method = request.method;
 
                         jQuery.atmosphere.request.url = jQuery.atmosphere.attachHeaders(request);
 
