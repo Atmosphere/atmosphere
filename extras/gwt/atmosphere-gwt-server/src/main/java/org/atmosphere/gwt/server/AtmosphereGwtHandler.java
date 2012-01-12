@@ -88,13 +88,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * Default implementation echo's the message back to the client
      *
      * @param messages
-     * @param r
+     * @param cometResource
      */
-    public void doPost(List<Serializable> messages, GwtAtmosphereResource r) {
+    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, 
+            List<Serializable> messages, GwtAtmosphereResource cometResource) {
         if (messages.size() == 1) {
-            r.post(messages.get(0));
+            cometResource.post(messages.get(0));
         } else {
-            r.post((List) messages);
+            cometResource.post((List) messages);
         }
     }
 
@@ -177,7 +178,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         String servertransport = request.getParameter("servertransport");
         if ("rpcprotocol".equals(servertransport)) {
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
-            doServerMessage(request.getReader(), connectionID);
+            doServerMessage(request, resource.getResponse(), connectionID);
             return;
         }
 
@@ -207,7 +208,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
     /// --- server message handlers
 
-    protected void doServerMessage(BufferedReader data, int connectionID) {
+    protected void doServerMessage(HttpServletRequest request, HttpServletResponse response, int connectionID) 
+        throws IOException{
+        BufferedReader data = request.getReader();
         List<Serializable> postMessages = new ArrayList<Serializable>();
         GwtAtmosphereResource resource = lookupResource(connectionID);
         if (resource == null) {
@@ -260,7 +263,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if (postMessages.size() > 0) {
-            post(postMessages, resource);
+            post(request, response, postMessages, resource);
         }
     }
 //    protected void writePostResponse(HttpServletRequest request,
@@ -290,12 +293,13 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //        return streamWriter.toString();
 //	}
 
-    final public void post(List<Serializable> messages, GwtAtmosphereResource resource) {
+    final public void post(HttpServletRequest postRequest, HttpServletResponse postResponse, 
+            List<Serializable> messages, GwtAtmosphereResource cometResource) {
         if (messages == null) {
             return;
         }
-        if (resource != null) {
-            doPost(messages, resource);
+        if (cometResource != null) {
+            doPost(postRequest, postResponse, messages, cometResource);
         }
     }
 
