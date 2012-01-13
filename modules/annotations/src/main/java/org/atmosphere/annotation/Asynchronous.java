@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
 public @interface Asynchronous {
 
     /**
-     * Wait for {@link AtmosphereResource} before executing the {@link org.atmosphere.cpr.Broadcaster#awaitAndBroadcast(Object, long, java.util.concurrent.TimeUnit)}.
+     * Wait for {@link org.atmosphere.cpr.AtmosphereResource} before executing the {@link org.atmosphere.cpr.Broadcaster#awaitAndBroadcast(Object, long, java.util.concurrent.TimeUnit)}.
      * @return true if the broadcast operation must wait before executing.
      */
     boolean waitForResource() default true;
@@ -64,5 +64,11 @@ public @interface Asynchronous {
      * Add {@link AtmosphereResourceEventListener} to the broadcast operation.
      */
     public Class<? extends AtmosphereResourceEventListener>[] eventListeners() default {};
+
+    /**
+     * Write the returned entity back to the calling connection. Default is false.
+     * @return true if the entity needs to be written back to the calling connection.
+     */
+    public boolean writeEntity() default true;
 
 }

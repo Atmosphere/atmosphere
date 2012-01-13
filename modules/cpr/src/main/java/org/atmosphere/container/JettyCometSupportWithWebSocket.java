@@ -62,11 +62,19 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
         super(config);
 
         String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
-        if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-            webSocketFactory = JettyWebSocketUtil.getFactory(config);
-        } else {
-            webSocketFactory = null;
+        WebSocketFactory wsf;
+        try {
+            if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
+                wsf = JettyWebSocketUtil.getFactory(config);
+            } else {
+                wsf = null;
+            }
+        } catch (Throwable e) {
+            // If we can't parse Jetty version, assume it's 8 and up.
+            logger.trace("Unable to parse Jetty version {}", config.getServletContext().getServerInfo());
+            wsf = JettyWebSocketUtil.getFactory(config);
         }
+        webSocketFactory = wsf;
     }
 
     /**
