@@ -85,4 +85,10 @@ public @interface Broadcast {
      * happens. Any other value will be evaluated as seconds
      */
     public int delay() default -1;
+
+    /**
+     * Write the returned entity back to the calling connection. Default is false.
+     * @return true if the entity needs to be written back to the calling connection.
+     */
+    public boolean writeEntity() default true;
 }

@@ -146,7 +146,11 @@ jQuery.atmosphere = function() {
             var data = jQuery.atmosphere.request.data;
             if (jQuery.atmosphere.request.attachHeadersAsQueryString) {
                 url = jQuery.atmosphere.attachHeaders(request);
-                url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                if (data != "") {
+                    if (jQuery.atmosphere.request.data != '') {
+                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                    }
+                }
                 data = '';
             }
 
@@ -155,7 +159,11 @@ jQuery.atmosphere = function() {
                 type : request.method,
                 dataType: "jsonp",
                 error : function(jqXHR, textStatus, errorThrown) {
-                    jQuery.atmosphere.ieCallback(textStatus, "error", jqXHR.status, request.transport);
+                    if (jqXHR.status < 300) {
+                        jQuery.atmosphere.reconnect(jqxhr, request);
+                    } else {
+                        jQuery.atmosphere.ieCallback(textStatus, "error", jqXHR.status, request.transport);
+                    }
                 },
                 jsonp : "jsonpTransport",
                 success: function(json) {
@@ -407,6 +415,7 @@ jQuery.atmosphere = function() {
             if (create) {
                 ajaxRequest.open(request.method, url, true);
             }
+
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
             ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
@@ -423,7 +432,7 @@ jQuery.atmosphere = function() {
 
         reconnect : function (ajaxRequest, request, force) {
             jQuery.atmosphere.request = request;
-            if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming')) {
+            if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && jQuery.atmosphere.subscribed)) {
                 jQuery.atmosphere.request.method = 'GET';
                 jQuery.atmosphere.request.data = "";
                 jQuery.atmosphere.executeRequest();
@@ -464,8 +473,7 @@ jQuery.atmosphere = function() {
         },
 
         configureIE : function() {
-            var stop,
-                doc = new window.ActiveXObject("htmlfile");
+            var stop, doc = new window.ActiveXObject("htmlfile");
 
             doc.open();
             doc.close();
@@ -485,7 +493,9 @@ jQuery.atmosphere = function() {
                     var iframe = doc.createElement("iframe");
                     if (request.method == 'POST') {
                         url = jQuery.atmosphere.attachHeaders(request);
-                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                        if (jQuery.atmosphere.request.data != '') {
+                            url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                        }
                     }
 
                     // Finally attach a timestamp to prevent Android and IE caching.
@@ -512,38 +522,36 @@ jQuery.atmosphere = function() {
                             }
                         }
 
-                        var res = cdoc.body ? cdoc.body.lastChild : cdoc,
-                            readResponse = function() {
-                                // Clones the element not to disturb the original one
-                                var clone = res.cloneNode(true);
+                        var res = cdoc.body ? cdoc.body.lastChild : cdoc, readResponse = function() {
+                            // Clones the element not to disturb the original one
+                            var clone = res.cloneNode(true);
 
-                                // If the last character is a carriage return or a line feed, IE ignores it in the innerText property
-                                // therefore, we add another non-newline character to preserve it
-                                clone.appendChild(cdoc.createTextNode("."));
+                            // If the last character is a carriage return or a line feed, IE ignores it in the innerText property
+                            // therefore, we add another non-newline character to preserve it
+                            clone.appendChild(cdoc.createTextNode("."));
 
-                                var text = clone.innerText;
-                                var isJunkEnded = true;
+                            var text = clone.innerText;
+                            var isJunkEnded = true;
 
-                                if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                                    isJunkEnded = false;
-                                }
+                            if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
+                                isJunkEnded = false;
+                            }
 
-                                if (isJunkEnded) {
-                                    var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLenght = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+                            if (isJunkEnded) {
+                                var endOfJunk = "<!-- EOD -->";
+                                var endOfJunkLenght = endOfJunk.length;
+                                var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
 
-                                    text = text.substring(junkEnd);
-                                }
-                                return text.substring(0, text.length - 1);
-                            };
+                                text = text.substring(junkEnd);
+                            }
+                            return text.substring(0, text.length - 1);
+                        };
 
                         //To support text/html content type
                         if (!jQuery.nodeName(res, "pre")) {
                             // Injects a plaintext element which renders text without interpreting the HTML and cannot be stopped
                             // it is deprecated in HTML5, but still works
-                            var head = cdoc.head || cdoc.getElementsByTagName("head")[0] || cdoc.documentElement || cdoc,
-                                script = cdoc.createElement("script");
+                            var head = cdoc.head || cdoc.getElementsByTagName("head")[0] || cdoc.documentElement || cdoc, script = cdoc.createElement("script");
 
                             script.text = "document.write('<plaintext>')";
 
@@ -643,29 +651,28 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.ieCallback(responseBody, "messageReceived", 200, transport);
             };
 
-            var xdr = new window.XDomainRequest(),
-                rewriteURL = jQuery.atmosphere.request.rewriteURL || function(url) {
-                    // Maintaining session by rewriting URL
-                    // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
-                    var rewriters = {
-                        JSESSIONID: function(sid) {
-                            return url.replace(/;jsessionid=[^\?]*|(\?)|$/, ";jsessionid=" + sid + "$1");
-                        },
-                        PHPSESSID: function(sid) {
-                            return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + sid + "&").replace(/&$/, "");
-                        }
-                    };
-
-                    for (var name in rewriters) {
-                        // Finds session id from cookie
-                        var matcher = new RegExp("(?:^|;\\s*)" + encodeURIComponent(name) + "=([^;]*)").exec(document.cookie);
-                        if (matcher) {
-                            return rewriters[name](matcher[1]);
-                        }
+            var xdr = new window.XDomainRequest(), rewriteURL = jQuery.atmosphere.request.rewriteURL || function(url) {
+                // Maintaining session by rewriting URL
+                // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
+                var rewriters = {
+                    JSESSIONID: function(sid) {
+                        return url.replace(/;jsessionid=[^\?]*|(\?)|$/, ";jsessionid=" + sid + "$1");
+                    },
+                    PHPSESSID: function(sid) {
+                        return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + sid + "&").replace(/&$/, "");
                     }
-
-                    return url;
                 };
+
+                for (var name in rewriters) {
+                    // Finds session id from cookie
+                    var matcher = new RegExp("(?:^|;\\s*)" + encodeURIComponent(name) + "=([^;]*)").exec(document.cookie);
+                    if (matcher) {
+                        return rewriters[name](matcher[1]);
+                    }
+                }
+
+                return url;
+            };
 
             // Handles open and message event
             xdr.onprogress = function() {
@@ -694,7 +701,9 @@ jQuery.atmosphere = function() {
                 open: function() {
                     var url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
                     if (jQuery.atmosphere.request.method == 'POST') {
-                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                        if (jQuery.atmosphere.request.data != '') {
+                            url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
+                        }
                     }
                     xdr.open(jQuery.atmosphere.request.method, rewriteURL(url));
                     xdr.send();
@@ -709,8 +718,7 @@ jQuery.atmosphere = function() {
         executeWebSocket : function() {
             var request = jQuery.atmosphere.request;
             var webSocketSupported = false;
-            var url = jQuery.atmosphere.request.url;
-            url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+            var url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
             var callback = jQuery.atmosphere.request.callback;
 
             jQuery.atmosphere.log(logLevel, ["Invoking executeWebSocket"]);
@@ -774,7 +782,7 @@ jQuery.atmosphere = function() {
                 if (jQuery.atmosphere.request.method == 'POST') {
                     data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.response.state = 'messageReceived';
-                    websocket.send(jQuery.atmosphere.request.data);
+                    websocket.send(data);
                 }
             };
 
@@ -831,6 +839,11 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.log(logLevel, ["Websocket closed, reason: " + reason]);
                 jQuery.atmosphere.log(logLevel, ["Websocket closed, wasClean: " + message.wasClean]);
 
+                jQuery.atmosphere.response.state = 'closed';
+                jQuery.atmosphere.response.responseBody = "";
+                jQuery.atmosphere.response.status = 200;
+                jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
                 if (!webSocketSupported) {
                     var data = jQuery.atmosphere.request.data;
                     jQuery.atmosphere.log(logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
@@ -847,6 +860,7 @@ jQuery.atmosphere = function() {
                     if (request.requestCount++ < request.maxRequest) {
                         jQuery.atmosphere.request.requestCount = request.requestCount;
                         jQuery.atmosphere.request.maxRequest = request.maxRequest;
+                        jQuery.atmosphere.request.method = request.method;
 
                         jQuery.atmosphere.request.url = jQuery.atmosphere.attachHeaders(request);
 
@@ -1005,8 +1019,7 @@ jQuery.atmosphere = function() {
         // From jQuery-Stream
         prepareURL: function(url) {
             // Attaches a time stamp to prevent caching
-            var ts = jQuery.now(),
-                ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
+            var ts = jQuery.now(), ret = url.replace(/([?&])_=[^&]*/, "$1_=" + ts);
 
             return ret + (ret === url ? (/\?/.test(url) ? "&" : "?") + "_=" + ts : "");
         },
@@ -1132,83 +1145,82 @@ jQuery.atmosphere = function() {
  */
 // This plugin is heavily based on Douglas Crockford's reference implementation
 (function($) {
-	
-	var escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, 
-		meta = {
-			'\b' : '\\b',
-			'\t' : '\\t',
-			'\n' : '\\n',
-			'\f' : '\\f',
-			'\r' : '\\r',
-			'"' : '\\"',
-			'\\' : '\\\\'
-		};
-	
-	function quote(string) {
-		return '"' + string.replace(escapable, function(a) {
-			var c = meta[a];
-			return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-		}) + '"';
-	}
-	
-	function f(n) {
-		return n < 10 ? "0" + n : n;
-	}
-	
-	function str(key, holder) {
-		var i, v, len, partial, value = holder[key], type = typeof value;
-				
-		if (value && typeof value === "object" && typeof value.toJSON === "function") {
-			value = value.toJSON(key);
-			type = typeof value;
-		}
-		
-		switch (type) {
-		case "string":
-			return quote(value);
-		case "number":
-			return isFinite(value) ? String(value) : "null";
-		case "boolean":
-			return String(value);
-		case "object":
-			if (!value) {
-				return "null";
-			}
-			
-			switch (Object.prototype.toString.call(value)) {
-			case "[object Date]":
-				return isFinite(value.valueOf()) ? '"' + value.getUTCFullYear() + "-" + f(value.getUTCMonth() + 1) + "-" + f(value.getUTCDate()) + "T" + 
-						f(value.getUTCHours()) + ":" + f(value.getUTCMinutes()) + ":" + f(value.getUTCSeconds()) + "Z" + '"' : "null";
-			case "[object Array]":
-				len = value.length;
-				partial = [];
-				for (i = 0; i < len; i++) {
-					partial.push(str(i, value) || "null");
-				}
-				
-				return "[" + partial.join(",") + "]";
-			default:
-				partial = [];
-				for (i in value) {
-					if (Object.prototype.hasOwnProperty.call(value, i)) {
-						v = str(i, value);
-						if (v) {
-							partial.push(quote(i) + ":" + v);
-						}
-					}
-				}
-				
-				return "{" + partial.join(",") + "}";
-			}
-		}
-	}
-	
-	$.stringifyJSON = function(value) {
-		if (window.JSON && window.JSON.stringify) {
-			return window.JSON.stringify(value);
-		}
-		
-		return str("", {"": value});
-	};
-	
+
+    var escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, meta = {
+        '\b' : '\\b',
+        '\t' : '\\t',
+        '\n' : '\\n',
+        '\f' : '\\f',
+        '\r' : '\\r',
+        '"' : '\\"',
+        '\\' : '\\\\'
+    };
+
+    function quote(string) {
+        return '"' + string.replace(escapable, function(a) {
+            var c = meta[a];
+            return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+        }) + '"';
+    }
+
+    function f(n) {
+        return n < 10 ? "0" + n : n;
+    }
+
+    function str(key, holder) {
+        var i, v, len, partial, value = holder[key], type = typeof value;
+
+        if (value && typeof value === "object" && typeof value.toJSON === "function") {
+            value = value.toJSON(key);
+            type = typeof value;
+        }
+
+        switch (type) {
+            case "string":
+                return quote(value);
+            case "number":
+                return isFinite(value) ? String(value) : "null";
+            case "boolean":
+                return String(value);
+            case "object":
+                if (!value) {
+                    return "null";
+                }
+
+                switch (Object.prototype.toString.call(value)) {
+                    case "[object Date]":
+                        return isFinite(value.valueOf()) ? '"' + value.getUTCFullYear() + "-" + f(value.getUTCMonth() + 1) + "-" + f(value.getUTCDate()) + "T" +
+                            f(value.getUTCHours()) + ":" + f(value.getUTCMinutes()) + ":" + f(value.getUTCSeconds()) + "Z" + '"' : "null";
+                    case "[object Array]":
+                        len = value.length;
+                        partial = [];
+                        for (i = 0; i < len; i++) {
+                            partial.push(str(i, value) || "null");
+                        }
+
+                        return "[" + partial.join(",") + "]";
+                    default:
+                        partial = [];
+                        for (i in value) {
+                            if (Object.prototype.hasOwnProperty.call(value, i)) {
+                                v = str(i, value);
+                                if (v) {
+                                    partial.push(quote(i) + ":" + v);
+                                }
+                            }
+                        }
+
+                        return "{" + partial.join(",") + "}";
+                }
+        }
+    }
+
+    $.stringifyJSON = function(value) {
+        if (window.JSON && window.JSON.stringify) {
+            return window.JSON.stringify(value);
+        }
+
+        return str("", {"": value});
+    };
+
 }(jQuery));

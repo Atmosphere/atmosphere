@@ -37,7 +37,7 @@ public class JSONPTransportFilter implements PerRequestBroadcastFilter {
             if (contentType == null) {
                 contentType = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
             }
-            if (contentType == null || !contentType.contains("json")) {
+            if (contentType != null && !contentType.contains("json")) {
                 String jsonPMessage = s + "({\"message\" : \"" + message + "\"})";
                 return new BroadcastAction(jsonPMessage);
             } else {

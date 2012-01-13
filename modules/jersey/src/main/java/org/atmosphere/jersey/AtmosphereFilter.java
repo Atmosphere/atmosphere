@@ -143,6 +143,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>> resumeCandidates =
             new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
 
+    /**
+     * TODO: Fix that messy class.
+     */
     private class Filter implements ResourceFilter, ContainerResponseFilter {
 
         private final Action action;
@@ -152,9 +155,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         private final Class<BroadcastFilter>[] filters;
         private Class<? extends AtmosphereResourceEventListener>[] listeners = null;
         private final boolean outputComments;
-        private final ArrayList<ClusterBroadcastFilter> clusters
-                = new ArrayList<ClusterBroadcastFilter>();
+        private final ArrayList<ClusterBroadcastFilter> clusters = new ArrayList<ClusterBroadcastFilter>();
         private final String topic;
+        private final boolean writeEntity;
 
         protected Filter(Action action) {
             this(action, -1);
@@ -173,10 +176,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments) {
-            this(action, timeout, waitFor, scope, outputComments, null, null);
+            this(action, timeout, waitFor, scope, outputComments, null, null, true);
         }
 
-        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic) {
+        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic, boolean writeEntity) {
             this.action = action;
             this.timeout = timeout;
             this.scope = scope;
@@ -184,6 +187,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.waitFor = waitFor;
             this.filters = filters;
             this.topic = topic;
+            this.writeEntity = writeEntity;
         }
 
         public ContainerRequestFilter getRequestFilter() {
@@ -304,7 +308,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
 
                         r.setBroadcaster(bcaster);
-                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, false);
+                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
                     } else {
                         Object entity = response.getEntity();
                         if (waitForResource) {
@@ -313,7 +317,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             bcaster.broadcast(entity);
                         }
 
-                        if (subProtocol == null) {
+                        if (subProtocol == null && writeEntity) {
                             try {
                                 if (Callable.class.isAssignableFrom(entity.getClass())) {
                                     entity = Callable.class.cast(entity).call();
@@ -356,7 +360,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(resumeOnBroadcast, outputJunk,
-                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope());
+                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope(), s.writeEntity());
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -409,7 +413,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
-                            broadcaster, r, scope);
+                            broadcaster, r, scope, writeEntity);
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -663,7 +667,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      ContainerResponse response,
                      Broadcaster bc,
                      AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
-                     Suspend.SCOPE localScope) {
+                     Suspend.SCOPE localScope,
+                     boolean flushEntity) {
 
             // Force the status code to 200 events independently of the value of the entity (null or not)
             if (response.getStatus() == 204) {
@@ -731,7 +736,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
             }
 
-            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, true);
+            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, flushEntity);
 
         }
 
@@ -870,9 +875,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Broadcast.class).value();
 
             if (am.getAnnotation(Broadcast.class).resumeOnBroadcast()) {
-                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null);
+                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             } else {
-                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null);
+                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             }
 
             list.addLast(f);
@@ -897,7 +904,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Asynchronous.class).broadcastFilter();
 
             boolean wait = am.getAnnotation(Asynchronous.class).waitForResource();
-            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter, am.getAnnotation(Asynchronous.class).header());
+            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter,
+                    am.getAnnotation(Asynchronous.class).header(), am.getAnnotation(Asynchronous.class).writeEntity());
             f.setListeners(am.getAnnotation(Asynchronous.class).eventListeners());
             list.addFirst(f);
         }
@@ -933,7 +941,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             f = new Filter(trackable ? Action.SUBSCRIBE_TRACKABLE : Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Subscribe.class).value());
+                    false, null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
             list.addFirst(f);
@@ -941,7 +949,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Publish.class)) {
             f = new Filter(Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Publish.class).value());
+                    false, null, am.getAnnotation(Publish.class).value(), true);
             list.addFirst(f);
         }
 

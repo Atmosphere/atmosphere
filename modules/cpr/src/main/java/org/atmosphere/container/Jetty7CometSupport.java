@@ -56,9 +56,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Comet Portable Runtime implementation on top of Jetty's Continuation.
@@ -179,22 +176,27 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         super.action(r);
 
         ServletRequest request = r.getRequest();
-        while (!AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-            request = AtmosphereRequest.class.cast(request).getRequest();
-        }
-
-        Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
-        if (c != null) {
-            try {
-                if (c.isSuspended()) {
-                    c.complete();
+        while (request != null) {
+            Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
+            if (c != null) {
+                try {
+                    if (c.isSuspended()) {
+                        c.complete();
+                    }
+                } catch (IllegalStateException ex) {
+                    logger.trace("c.complete()", ex);
+                } finally {
+                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                 }
-            } catch (IllegalStateException ex) {
-                logger.trace("c.complete()", ex);
-            } finally {
-                r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                request.removeAttribute(Continuation.class.getName());
+                return;
+            } else {
+                if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+                    request = AtmosphereRequest.class.cast(request).getRequest();
+                } else {
+                    return;
+                }
             }
-            request.removeAttribute(Continuation.class.getName());
         }
     }
 }

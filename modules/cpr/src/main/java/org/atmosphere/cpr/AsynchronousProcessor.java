@@ -358,15 +358,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                 }
 
                 invokeAtmosphereHandler(r);
-
-                try {
-                    response.getOutputStream().close();
-                } catch (Throwable t) {
-                    try {
-                        response.getWriter().close();
-                    } catch (Throwable t2) {
-                    }
-                }
             }
         } catch (Throwable t) {
             logger.error("failed to timeout resource {}", r, t);
@@ -379,6 +370,16 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             } catch (Throwable t) {
                 logger.trace("timedout", t);
             } finally {
+
+                try {
+                    response.getOutputStream().close();
+                } catch (Throwable t) {
+                    try {
+                        response.getWriter().close();
+                    } catch (Throwable t2) {
+                    }
+                }
+
                 if (r != null) {
                     destroyResource(r);
                 }

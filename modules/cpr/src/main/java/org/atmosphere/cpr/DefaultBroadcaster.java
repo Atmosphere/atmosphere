@@ -119,7 +119,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected URI uri;
     protected AtmosphereServlet.AtmosphereConfig config;
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
-    private final CyclicBarrier awaitBarrier = new CyclicBarrier(1);
+    private final Object[] awaitBarrier = new Object[0];
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         this.name = name;
@@ -144,10 +144,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Create {@link BroadcasterConfig}
+     *
      * @param config the {@link AtmosphereServlet.AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
      */
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config){
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config) {
         return new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
     }
 
@@ -429,12 +430,14 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit) {
         if (resources.isEmpty()) {
-            try {
-                logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
-                awaitBarrier.await(time, timeUnit);
-            } catch (Throwable e) {
-                logger.warn("awaitAndBroadcast", e);
-                return null;
+            synchronized (awaitBarrier) {
+                try {
+                    logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
+                    awaitBarrier.wait(translateTimeUnit(time, timeUnit));
+                } catch (Throwable e) {
+                    logger.warn("awaitAndBroadcast", e);
+                    return null;
+                }
             }
         }
         return broadcast(t);
@@ -1012,8 +1015,10 @@ public class DefaultBroadcaster implements Broadcaster {
             checkCachedAndPush(r, r.getAtmosphereResourceEvent());
         } finally {
             // OK reset
-            if (resources.size() > 0 && awaitBarrier.getParties() > 0) {
-                awaitBarrier.reset();
+            if (resources.size() > 0) {
+                synchronized (awaitBarrier) {
+                    awaitBarrier.notifyAll();
+                }
             }
         }
         return r;
@@ -1214,7 +1219,7 @@ public class DefaultBroadcaster implements Broadcaster {
             this.originalMessage = originalMessage;
         }
 
-        public void destroy(){
+        public void destroy() {
             this.resource = null;
             this.msg = null;
             this.future = null;
@@ -1229,6 +1234,28 @@ public class DefaultBroadcaster implements Broadcaster {
                     ", future=" + future +
                     '}';
         }
+    }
+
+    private long translateTimeUnit(long period, TimeUnit tu) {
+        if (period == -1) return period;
+
+        switch (tu) {
+            case SECONDS:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.SECONDS);
+            case MINUTES:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.MINUTES);
+            case HOURS:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.HOURS);
+            case DAYS:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.DAYS);
+            case MILLISECONDS:
+                return period;
+            case MICROSECONDS:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.MICROSECONDS);
+            case NANOSECONDS:
+                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.NANOSECONDS);
+        }
+        return period;
     }
 
 }

@@ -52,4 +52,9 @@ public @interface Subscribe {
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
+    /**
+     * Write the returned entity back to the calling connection. Default is false.
+     * @return true if the entity needs to be written back to the calling connection.
+     */
+    public boolean writeEntity() default true;
 }
