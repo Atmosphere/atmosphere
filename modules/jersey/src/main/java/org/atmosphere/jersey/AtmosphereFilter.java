@@ -44,6 +44,7 @@ import com.sun.jersey.spi.container.ContainerResponse;
 import com.sun.jersey.spi.container.ContainerResponseFilter;
 import com.sun.jersey.spi.container.ResourceFilter;
 import com.sun.jersey.spi.container.ResourceFilterFactory;
+import org.atmosphere.annotation.Asynchronous;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Cluster;
 import org.atmosphere.annotation.Publish;
@@ -56,6 +57,7 @@ import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
@@ -86,6 +88,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -97,7 +100,9 @@ import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
 import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
 import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
+import static org.atmosphere.cpr.HeaderConfig.STREAMING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -122,7 +127,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     enum Action {
         SUSPEND, RESUME, BROADCAST, SUSPEND_RESUME,
         SCHEDULE_RESUME, RESUME_ON_BROADCAST, NONE, SCHEDULE, SUSPEND_RESPONSE,
-        SUSPEND_TRACKABLE, SUBSCRIBE, SUBSCRIBE_TRACKABLE, PUBLISH
+        SUSPEND_TRACKABLE, SUBSCRIBE, SUBSCRIBE_TRACKABLE, PUBLISH, ASYNCHRONOUS
     }
 
     private
@@ -133,9 +138,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     @Context
     UriInfo uriInfo;
 
+    private boolean useResumeAnnotation = false;
+
     private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>> resumeCandidates =
             new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
 
+    /**
+     * TODO: Fix that messy class.
+     */
     private class Filter implements ResourceFilter, ContainerResponseFilter {
 
         private final Action action;
@@ -145,9 +155,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         private final Class<BroadcastFilter>[] filters;
         private Class<? extends AtmosphereResourceEventListener>[] listeners = null;
         private final boolean outputComments;
-        private final ArrayList<ClusterBroadcastFilter> clusters
-                = new ArrayList<ClusterBroadcastFilter>();
+        private final ArrayList<ClusterBroadcastFilter> clusters = new ArrayList<ClusterBroadcastFilter>();
         private final String topic;
+        private final boolean writeEntity;
 
         protected Filter(Action action) {
             this(action, -1);
@@ -166,10 +176,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments) {
-            this(action, timeout, waitFor, scope, outputComments, null, null);
+            this(action, timeout, waitFor, scope, outputComments, null, null, true);
         }
 
-        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic) {
+        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic, boolean writeEntity) {
             this.action = action;
             this.timeout = timeout;
             this.scope = scope;
@@ -177,6 +187,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.waitFor = waitFor;
             this.filters = filters;
             this.topic = topic;
+            this.writeEntity = writeEntity;
         }
 
         public ContainerRequestFilter getRequestFilter() {
@@ -187,15 +198,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return this;
         }
 
-        boolean resumeOnBroadcast(ContainerRequest request, boolean resumeOnBroadcast) {
-            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
+        boolean resumeOnBroadcast(boolean resumeOnBroadcast) {
+            String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
             if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return true;
             }
             return resumeOnBroadcast;
         }
 
-        boolean outputJunk(ContainerRequest request, boolean outputJunk) {
+        boolean outputJunk(boolean outputJunk) {
             boolean webSocketEnabled = false;
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
                 String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
@@ -207,7 +218,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            String transport = request.getHeaderValue(X_ATMOSPHERE_TRANSPORT);
+            String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
             if (webSocketEnabled) {
                 return false;
             } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
@@ -225,7 +236,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
          * @param response the {@link ContainerResponse}
          * @return the {@link ContainerResponse}
          */
-        public ContainerResponse filter(ContainerRequest request, ContainerResponse response) {
+        public ContainerResponse filter(final ContainerRequest request, final ContainerResponse response) {
             if (response.getMappedThrowable() != null) {
                 return response;
             }
@@ -234,18 +245,103 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-            boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
+            if (Boolean.parseBoolean((String) servletReq.getAttribute(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
+                useResumeAnnotation = true;
+            }
 
             switch (action) {
+                case ASYNCHRONOUS:
+                    // Force the status code to 200 events independently of the value of the entity (null or not)
+                    if (response.getStatus() == 204) {
+                        response.setStatus(200);
+                    }
+
+                    String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
+                    String broadcasterName = servletReq.getHeader(topic);
+                    if (transport == null || broadcasterName == null) {
+                        throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
+                                +  X_ATMOSPHERE_TRANSPORT
+                                +  " and uuid " + X_ATMOSPHERE_TRACKING_ID));
+                    }
+                    String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
+
+                    final boolean waitForResource = waitFor == -1 ? true : false;
+                    final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+
+                    if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
+                        boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
+                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
+
+                        for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
+                            try {
+                                AtmosphereResourceEventListener el = listener.newInstance();
+                                InjectorProvider.getInjector().inject(el);
+                                if (r instanceof AtmosphereEventLifecycle) {
+                                    r.addEventListener(el);
+                                }
+                            } catch (Throwable t) {
+                                throw new WebApplicationException(
+                                        new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
+                            }
+                        }
+                        final Object entity = response.getEntity();
+
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                            @Override
+                            public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                                try {
+                                    if (entity != null) {
+                                        if (waitForResource) {
+                                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                                        } else {
+                                            bcaster.broadcast(entity);
+                                        }
+                                    }
+                                } finally {
+                                    event.getResource().removeEventListener(this);
+                                }
+                            }
+                        });
+
+                        if (resumeOnBroadcast) {
+                            servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
+                        }
+
+                        r.setBroadcaster(bcaster);
+                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
+                    } else {
+                        Object entity = response.getEntity();
+                        if (waitForResource) {
+                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                        } else {
+                            bcaster.broadcast(entity);
+                        }
+
+                        if (subProtocol == null && writeEntity) {
+                            try {
+                                if (Callable.class.isAssignableFrom(entity.getClass())) {
+                                    entity = Callable.class.cast(entity).call();
+                                }
+                                response.setEntity(entity);
+                                response.write();
+                            } catch (Throwable t) {
+                                logger.debug("Error running Callable", t);
+                                response.setEntity(null);
+                            }
+                        } else {
+                            response.setEntity(null);
+                        }
+                    }
+                    break;
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
 
-                    boolean outputJunk = outputJunk(request, s.outputComments());
-                    boolean resumeOnBroadcast = resumeOnBroadcast(request, s.resumeOnBroadcast());
+                    boolean outputJunk = outputJunk(s.outputComments());
+                    boolean resumeOnBroadcast = resumeOnBroadcast(s.resumeOnBroadcast());
 
                     for (AtmosphereResourceEventListener el : s.listeners()) {
                         if (r instanceof AtmosphereEventLifecycle) {
-                            ((AtmosphereEventLifecycle) r).addEventListener(el);
+                            r.addEventListener(el);
                         }
                     }
 
@@ -263,8 +359,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         trackableResource = preTrack(request, response);
                     }
 
-                    suspend(sessionSupported, resumeOnBroadcast, outputJunk,
-                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope());
+                    suspend(resumeOnBroadcast, outputJunk,
+                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope(), s.writeEntity());
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -277,8 +373,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND:
                 case SUSPEND_TRACKABLE:
                 case SUSPEND_RESUME:
-                    outputJunk = outputJunk(request, outputComments);
-                    resumeOnBroadcast = resumeOnBroadcast(request, (action == Action.SUSPEND_RESUME));
+                    outputJunk = outputJunk(outputComments);
+                    resumeOnBroadcast = resumeOnBroadcast((action == Action.SUSPEND_RESUME));
 
                     for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                         try {
@@ -316,8 +412,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         trackableResource = null;
                     }
 
-                    suspend(sessionSupported, resumeOnBroadcast, outputJunk, timeout, request, response,
-                            broadcaster, r, scope);
+                    suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
+                            broadcaster, r, scope, writeEntity);
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -333,6 +429,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                     }
 
+                    boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
                     if (sessionSupported) {
                         r = (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
                     } else {
@@ -563,15 +660,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             clusters.add(f);
         }
 
-        void suspend(boolean sessionSupported,
-                     boolean resumeOnBroadcast,
+        void suspend(boolean resumeOnBroadcast,
                      boolean comments,
                      long timeout,
                      ContainerRequest request,
                      ContainerResponse response,
                      Broadcaster bc,
                      AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
-                     Suspend.SCOPE localScope) {
+                     Suspend.SCOPE localScope,
+                     boolean flushEntity) {
 
             // Force the status code to 200 events independently of the value of the entity (null or not)
             if (response.getStatus() == 204) {
@@ -581,9 +678,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             BroadcasterFactory broadcasterFactory = (BroadcasterFactory) servletReq
                     .getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
 
+            boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             URI location = null;
             // Do not add location header if already there.
-            if (!sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
+            if (useResumeAnnotation && !sessionSupported && !resumeOnBroadcast && response.getHttpHeaders().getFirst("Location") == null) {
                 String uuid = UUID.randomUUID().toString();
 
                 location = uriInfo.getAbsolutePathBuilder().path(uuid).build("");
@@ -618,16 +716,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if ((localScope == Suspend.SCOPE.REQUEST) && bc == null) {
                 if (bc == null) {
                     try {
-                        String id = UUID.randomUUID().toString();
-
-                        // Re-generate a new one with proper scope.
-                        Class<Broadcaster> c = null;
-                        try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
-                        } catch (Throwable e) {
-                            throw new IllegalStateException(e.getMessage());
+                        String id = servletReq.getHeader(X_ATMOSPHERE_TRACKING_ID);
+                        if (id == null) {
+                            id = UUID.randomUUID().toString();
                         }
-                        bc = broadcasterFactory.get(c, id);
+
+                        bc = broadcasterFactory.get(id);
                         bc.setScope(Broadcaster.SCOPE.REQUEST);
                     } catch (Exception ex) {
                         logger.error("failed to instantiate broadcaster with factory: " + broadcasterFactory, ex);
@@ -636,9 +730,27 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     bc.setScope(Broadcaster.SCOPE.REQUEST);
                 }
             }
-            configureFilter(bc);
             r.setBroadcaster(bc);
 
+            if (resumeOnBroadcast) {
+                servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
+            }
+
+            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, flushEntity);
+
+        }
+
+        void executeSuspend(AtmosphereResource r,
+                            long timeout,
+                            boolean comments,
+                            boolean resumeOnBroadcast,
+                            URI location,
+                            ContainerRequest request,
+                            ContainerResponse response,
+                            boolean flushEntity) {
+
+            boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
+            configureFilter(r.getBroadcaster());
             if (sessionSupported) {
                 servletReq.getSession().setAttribute(SUSPENDED_RESOURCE, r);
                 servletReq.getSession().setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
@@ -648,11 +760,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
 
             logger.debug("Linked HttpServletRequest {} with ContainerResponse {}", servletReq, response);
-
-            if (resumeOnBroadcast) {
-                servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
-            }
-
             // Set the content-type based on the returned entity.
             try {
                 MediaType contentType = response.getMediaType();
@@ -684,10 +791,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
                 if (serverInfo.indexOf("jetty") != -1) {
-                    String[] jettyVersion = serverInfo.substring(6).split("\\.");
-                    // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
-                    eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
-                            || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    try {
+                        String[] jettyVersion = serverInfo.substring(6).split("\\.");
+                        // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
+                        eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
+                                || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    } catch (Throwable t) {
+                        logger.warn("Unable to parse server name {}", serverInfo);
+                    }
 
                     if (comments && eclipse362468) {
                         logger.debug("Padding response is disabled to workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468");
@@ -706,16 +817,25 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     response.write();
                 }
 
-                if (entity != null) {
+                if (entity != null && flushEntity) {
+                    try {
+                        if (Callable.class.isAssignableFrom(entity.getClass())) {
+                            entity = Callable.class.cast(entity).call();
+                        }
+                    } catch (Throwable t) {
+                        logger.error("Error executing callable {}", entity);
+                        entity = null;
+                    }
+
                     if (location != null) {
                         b = b.header(HttpHeaders.LOCATION, location);
                     }
                     response.setResponse(b.entity(entity).build());
                     response.write();
                 }
+
                 response.setEntity(null);
                 r.suspend(timeout, false);
-
             } catch (IOException ex) {
                 throw new WebApplicationException(ex);
             }
@@ -752,19 +872,21 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Broadcast.class)) {
             int delay = am.getAnnotation(Broadcast.class).delay();
-            Class[] suspendTimeout = am.getAnnotation(Broadcast.class).value();
+            Class[] broadcastFilter = am.getAnnotation(Broadcast.class).value();
 
             if (am.getAnnotation(Broadcast.class).resumeOnBroadcast()) {
-                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, suspendTimeout, null);
+                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             } else {
-                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, suspendTimeout, null);
+                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             }
 
             list.addLast(f);
 
             if (am.isAnnotationPresent(Cluster.class)) {
-                suspendTimeout = am.getAnnotation(Cluster.class).value();
-                for (Class<ClusterBroadcastFilter> c : suspendTimeout) {
+                broadcastFilter = am.getAnnotation(Cluster.class).value();
+                for (Class<ClusterBroadcastFilter> c : broadcastFilter) {
                     try {
                         ClusterBroadcastFilter cbf = c.newInstance();
                         InjectorProvider.getInjector().inject(cbf);
@@ -775,6 +897,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
                 }
             }
+        }
+
+        if (am.isAnnotationPresent(Asynchronous.class)) {
+            int suspendTimeout = am.getAnnotation(Asynchronous.class).period();
+            Class[] broadcastFilter = am.getAnnotation(Asynchronous.class).broadcastFilter();
+
+            boolean wait = am.getAnnotation(Asynchronous.class).waitForResource();
+            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter,
+                    am.getAnnotation(Asynchronous.class).header(), am.getAnnotation(Asynchronous.class).writeEntity());
+            f.setListeners(am.getAnnotation(Asynchronous.class).eventListeners());
+            list.addFirst(f);
         }
 
         if (am.isAnnotationPresent(Suspend.class)) {
@@ -808,7 +941,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             f = new Filter(trackable ? Action.SUBSCRIBE_TRACKABLE : Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Subscribe.class).value());
+                    false, null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
             list.addFirst(f);
@@ -816,11 +949,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Publish.class)) {
             f = new Filter(Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Publish.class).value());
+                    false, null, am.getAnnotation(Publish.class).value(), true);
             list.addFirst(f);
         }
 
         if (am.isAnnotationPresent(Resume.class)) {
+            useResumeAnnotation = true;
             int suspendTimeout = am.getAnnotation(Resume.class).value();
             list.addFirst(new Filter(Action.RESUME, suspendTimeout));
         }
@@ -863,3 +997,4 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     }
 
 }
+

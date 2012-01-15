@@ -116,9 +116,17 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 }
             }
         } finally {
-            CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
-            if (event != null) {
-                event.close();
+            try {
+                CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
+                if (event != null) {
+                    event.close();
+                }
+            } catch (ClassCastException ex) {
+                // Tomcat 7
+                org.apache.catalina.connector.CometEventImpl event = (org.apache.catalina.connector.CometEventImpl) req.getAttribute(TomcatCometSupport.COMET_EVENT);
+                if (event != null) {
+                    event.close();
+                }
             }
 
             HttpEvent he = (HttpEvent) req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
@@ -184,12 +192,12 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
      * {@inheritDoc}
      */
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
+    public void action(AtmosphereResourceImpl r) {
         try {
-            super.action(actionEvent);
-            if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
+            super.action(r);
+            if (r.action().type == Action.TYPE.RESUME) {
                 int latchId = -1;
-                HttpServletRequest req = actionEvent.getRequest();
+                HttpServletRequest req = r.getRequest(false);
 
                 if (req.getAttribute(LATCH) != null) {
                     latchId = (Integer) req.getAttribute(LATCH);

@@ -4,7 +4,6 @@
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
         <version>0.9-SNAPSHOT</version>
-
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
@@ -16,6 +15,7 @@
     <modules>
         <module>gwt</module>
         <module>guice</module>
+        <module>spring</module>
         <module>grizzly-adapter</module>
         <module>jgroups</module>
         <module>jms</module>

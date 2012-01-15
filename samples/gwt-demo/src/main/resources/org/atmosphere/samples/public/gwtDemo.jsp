@@ -13,6 +13,9 @@
 <html>
 <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <!-- add the following if you want to run using chromeframe in IE (experimental) -->
+    <!-- <meta http-equiv="X-UA-Compatible" content="chrome=1"> -->
+    
     <!--                                           -->
     <!-- Any title is fine                         -->
     <!--                                           -->

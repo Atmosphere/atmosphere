@@ -24,7 +24,7 @@ import org.springframework.web.context.support.SpringBeanAutowiringSupport;
  * An injector for Spring Beans. Any bean that you want to inject must use annotations (autowiring).
  * 
  * @author Jason Burgess
- * @since 0.9
+ * @since 0.8.2
  */
 public class SpringInjector implements Injector {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpringInjector.class);

@@ -54,6 +54,11 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-compat-tomcat7</artifactId>
+            <version>${pom.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jetty</artifactId>
             <version>${pom.version}</version>
         </dependency>

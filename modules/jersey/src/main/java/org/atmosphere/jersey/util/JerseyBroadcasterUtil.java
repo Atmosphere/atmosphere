@@ -31,9 +31,9 @@ public final class JerseyBroadcasterUtil {
 
     public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
         HttpServletRequest request = (HttpServletRequest) r.getRequest();
-
+        ContainerResponse cr = null;
         try {
-            ContainerResponse cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
+            cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
             boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
             if (cr == null || isCancelled) {
@@ -88,6 +88,9 @@ public final class JerseyBroadcasterUtil {
                 onException(t,r);
             }
         } finally {
+            if (cr != null) {
+                cr.setEntity(null);
+            }
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
@@ -99,6 +102,7 @@ public final class JerseyBroadcasterUtil {
                 }
                 r.resume();
             }
+
         }
     }
 

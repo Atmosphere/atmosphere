@@ -48,6 +48,7 @@ public class SuspendResponse<E> extends JResponse {
     private final boolean resumeOnBroadcast;
     private final Collection<AtmosphereResourceEventListener> listeners;
     private final Broadcaster broadcaster;
+    private final boolean writeEntity;
 
     protected SuspendResponse(SuspendResponseBuilder<E> b) {
         super(b);
@@ -57,6 +58,7 @@ public class SuspendResponse<E> extends JResponse {
         this.resumeOnBroadcast = b.resumeOnBroadcast;
         this.listeners = b.listeners;
         this.broadcaster = b.broadcaster;
+        this.writeEntity = b.writeEntity;
     }
 
     /**
@@ -96,6 +98,13 @@ public class SuspendResponse<E> extends JResponse {
     }
 
     /**
+     * Write the returned entity back to the calling connection. Default is false.
+     */
+    public boolean writeEntity() {
+        return writeEntity;
+    }
+
+    /**
      * Return the {@link Broadcaster} that will be used to broadcast events.
      *
      * @return the {@link Broadcaster} that will be used to broadcast events.
@@ -127,6 +136,7 @@ public class SuspendResponse<E> extends JResponse {
         protected final Collection<AtmosphereResourceEventListener> listeners
                 = new ArrayList<AtmosphereResourceEventListener>();
         private Broadcaster broadcaster;
+        private boolean writeEntity = true;
 
         /**
          * Default constructor.
@@ -197,6 +207,14 @@ public class SuspendResponse<E> extends JResponse {
          */
         public SuspendResponseBuilder<E> broadcaster(Broadcaster broadcaster) {
             this.broadcaster = broadcaster;
+            return this;
+        }
+
+        /**
+         * Write the returned entity back to the calling connection. Default is false.
+         */
+        public SuspendResponseBuilder<E> writeEntity(boolean writeEntity) {
+            this.writeEntity = writeEntity;
             return this;
         }
 

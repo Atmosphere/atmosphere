@@ -152,10 +152,6 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
             }
         };
-
-        if (l.isEmpty()) {
-            return detectContainersPresent();
-        }
         return l;
     }
 
@@ -227,10 +223,15 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     public CometSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
         CometSupport cs;
+        List<Class<? extends CometSupport>> l;
         if (!useWebsocketIfPossible) {
             cs = resolve(useNativeIfPossible, defaultToBlocking);
         } else {
-            cs = resolveWebSocket(detectWebSocketPresent());
+            l = detectWebSocketPresent();
+            if (l.isEmpty()) {
+                return resolve(useNativeIfPossible,defaultToBlocking);
+            }
+            cs = resolveWebSocket(l);
         }
 
         if (cs == null) {
