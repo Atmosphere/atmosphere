@@ -1,0 +1,4 @@
+<!-- File "context.xml" use for tomcat -->
+<Context>
+      <Loader delegate="true"/>
+</Context>

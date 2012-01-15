@@ -982,6 +982,14 @@ jQuery.atmosphere = function() {
                 _pushAjaxMessage(message);
             }
 
+            function _getStringMessage(message) {
+            	var msg = message;
+            	if (typeof(msg) == 'object') {
+            		msg = message.data;
+            	}
+            	return msg;
+            }
+            
             /**
              * Build request use to push message using method 'POST' <br>.
              * Transport is defined as 'polling' and 'suspend' is set to false.
@@ -990,10 +998,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _getPushRequest(message) {
-            	var msg = message;
-            	if (typeof(msg) == 'object') {
-            		msg = message.data;
-            	}
+            	var msg = _getStringMessage(message);
 
                 var rq = {
                     connected: false,
@@ -1027,14 +1032,15 @@ jQuery.atmosphere = function() {
              */
             function _pushWebSocket(message) {
                 var data;
+                var msg = _getStringMessage(message);
                 try {
                     if (_request.webSocketUrl != null) {
                         data = _request.webSocketPathDelimiter
                             + _request.webSocketUrl
                             + _request.webSocketPathDelimiter
-                            + message;
+                            + msg;
                     } else {
-                        data = message.data;
+                        data = msg;
                     }
 
                     _websocket.send(data);
