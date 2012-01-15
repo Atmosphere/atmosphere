@@ -22,6 +22,7 @@ import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.user.client.Cookies;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.StatusCodeException;
 import com.google.gwt.user.client.ui.Button;
@@ -138,12 +139,21 @@ public class GWTDemo implements EntryPoint {
 
     }
 
+    public static void displayCookies() {
+        StringBuilder cookies = new StringBuilder();
+        for (String name : Cookies.getCookieNames()) {
+            String value = Cookies.getCookie(name);
+            cookies.append(name).append(" = ").append(value).append("<br/>");
+        }
+        Info.display("Cookies", cookies.toString());        
+    }
 
     private class MyCometListener implements AtmosphereListener {
 
         @Override
         public void onConnected(int heartbeat, int connectionID) {
             GWT.log("comet.connected [" + heartbeat + ", " + connectionID + "]");
+            displayCookies();
         }
 
         @Override

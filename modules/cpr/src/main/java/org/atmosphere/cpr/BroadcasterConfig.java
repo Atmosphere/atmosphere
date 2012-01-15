@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -86,12 +87,29 @@ public class BroadcasterConfig {
     private AtmosphereServlet.AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
+    private boolean shared = false;
 
     public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+        this(list, config, true);
+    }
+
+    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
-        configExecutors();
+        if (createExecutor) {
+            configExecutors();
+        } else {
+            shared = true;
+        }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+    }
+
+    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
+                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+        this.executorService = executorService;
+        this.scheduler = scheduler;
+        this.asyncWriteService = asyncWriteService;
+        this.config = config;
     }
 
     private void configureBroadcasterCache() {
@@ -110,14 +128,6 @@ public class BroadcasterConfig {
             throw new RuntimeException(e);
         }
 
-    }
-
-    public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
-        this.executorService = executorService;
-        this.scheduler = scheduler;
-        this.asyncWriteService = asyncWriteService;
-        this.config = config;
     }
 
     protected synchronized void configExecutors() {
@@ -332,6 +342,7 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
+        if (shared) return;
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }
@@ -592,5 +603,4 @@ public class BroadcasterConfig {
     public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
         this.config = config;
     }
-
 }

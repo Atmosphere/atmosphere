@@ -294,4 +294,10 @@ public interface Broadcaster extends Trackable {
      */
     boolean isDestroyed();
 
+    /**
+     * Await for available {@link AtmosphereResource} before broadcasting. This method will block until
+     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} gets invoked.
+     */
+    <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit);
+
 }

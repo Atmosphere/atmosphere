@@ -17,6 +17,7 @@
     <modules>
         <module>compat-jetty</module>
         <module>compat-tomcat</module>
+        <module>compat-tomcat7</module>
         <module>compat-jbossweb</module>
         <module>compat-weblogic</module>
         <module>cpr</module>

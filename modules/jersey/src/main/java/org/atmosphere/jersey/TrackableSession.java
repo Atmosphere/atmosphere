@@ -15,10 +15,17 @@
  */
 package org.atmosphere.jersey;
 
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -36,6 +43,7 @@ public class TrackableSession {
     private final static TrackableSession factory = new TrackableSession();
     private final ConcurrentHashMap<String, TrackableResource> factoryCache = new ConcurrentHashMap<String, TrackableResource>();
     private final ConcurrentHashMap<String, CountDownLatch> pendingLock = new ConcurrentHashMap<String, CountDownLatch>();
+    private final AliveChecker aliveChecker = new AliveChecker();
 
     private TrackableSession() {
     }
@@ -55,7 +63,7 @@ public class TrackableSession {
      * @param trackableResource a {@link TrackableResource}
      */
     public void track(TrackableResource<? extends Trackable> trackableResource) {
-        logger.debug("Tracking {}", trackableResource.trackingID());
+        logger.trace("Tracking {}", trackableResource.trackingID());
         factoryCache.put(trackableResource.trackingID(), trackableResource);
         CountDownLatch latch = pendingLock.remove(trackableResource.trackingID());
         if (latch != null) {
@@ -70,7 +78,15 @@ public class TrackableSession {
      * @return the {@link TrackableResource} associated with the trackingID
      */
     public TrackableResource<? extends Trackable> lookup(String trackingID) {
-        return factoryCache.get(trackingID);
+
+        TrackableResource t = factoryCache.get(trackingID);
+        if (t != null && t.resource() != null) {
+            if (AtmosphereResource.class.isAssignableFrom(t.resource().getClass())) {
+                AtmosphereResource.class.cast(t.resource()).addEventListener(aliveChecker);
+            }
+        }
+
+        return t;
     }
 
     /**
@@ -95,5 +111,23 @@ public class TrackableSession {
             }
         }
         return  factoryCache.get(trackingID);
+    }
+
+    private static final class AliveChecker extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+            String id = event.getResource().getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            if (id != null) {
+                factory.factoryCache.remove(id);
+            }
+        }
+
+        @Override
+        public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+            String id = event.getResource().getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            if (id != null) {
+                factory.factoryCache.remove(id);
+            }
+        }
     }
 }

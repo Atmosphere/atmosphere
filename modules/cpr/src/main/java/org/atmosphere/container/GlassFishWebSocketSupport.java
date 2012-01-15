@@ -125,9 +125,11 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         private final AtmosphereConfig config;
 
         private WebSocketProcessor webSocketProcessor;
+        private final WebSocketProtocol webSocketProtocol;
 
         public GrizzlyApplication(AtmosphereConfig config) {
             this.config = config;
+            this.webSocketProtocol = config.getServlet().getWebSocketProtocol();
         }
 
         public void onConnect(com.sun.grizzly.websockets.WebSocket w) {
@@ -136,16 +138,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             if (!DefaultWebSocket.class.isAssignableFrom(w.getClass())) {
                 throw new IllegalStateException();
             }
-
-            WebSocketProtocol webSocketProtocol;
-            try {
-                webSocketProtocol = (WebSocketProtocol) GlassFishWebSocketSupport.class.getClassLoader()
-                        .loadClass(config.getServlet().getWebSocketProtocolClassName()).newInstance();
-            } catch (Exception ex) {
-                logger.error("Cannot load the WebSocketProtocol {}", config.getServlet().getWebSocketProtocolClassName(), ex);
-                webSocketProtocol = new SimpleHttpProtocol();
-            }
-            webSocketProtocol.configure(config.getServlet().getAtmosphereConfig());
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
