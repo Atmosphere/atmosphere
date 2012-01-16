@@ -16,7 +16,7 @@
  * Comet Streaming JavaScript Library
  * http://code.google.com/p/jquery-stream/
  *
- * Copyright 2012, Donghwan Kim
+ * Copyright 2011, Donghwan Kim
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -79,7 +79,6 @@ jQuery.atmosphere = function() {
                 headers : [],
                 state : "messageReceived",
                 transport : "polling",
-                push : [],
                 error: null,
                 id : 0
             };
@@ -106,9 +105,32 @@ jQuery.atmosphere = function() {
              */
             var _activeRequest = null;
 
+            /**
+             * {Object} Object use for streaming with IE.
+             * 
+             * @private
+             */
             var _ieStream = null;
 
+            /**
+             * {Object} Object use for jsonp transport.
+             * 
+             * @private
+             */
+            var _jqxhr = null;
+
+            /**
+             * {boolean} If request has been subscribed or not.
+             * 
+             * @private
+             */
             var _subscribed = true;
+
+            /**
+             * {number} Number of test reconnection.
+             * 
+             * @private
+             */
             var _requestCount = 0;
 
             /**
@@ -197,6 +219,14 @@ jQuery.atmosphere = function() {
                 }
             }
 
+            /**
+             * Execute request using jsonp transport.
+             * 
+             * @param request
+             *            {Object} request Request parameters, if
+             *            undefined _request object will be used.
+             * @private
+             */
             function _jsonp(request) {
                 var rq = _request;
                 if ((request != null) && (typeof(request) != 'undefined')) {
@@ -213,13 +243,13 @@ jQuery.atmosphere = function() {
                     data = '';
                 }
 
-                var jqxhr = jQuery.ajax({
+                _jqxhr = jQuery.ajax({
                     url : url,
                     type : rq.method,
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
                     	if (jqXHR.status < 300) {
-                            _reconnect(jqxhr, rq);
+                            _reconnect(_jqxhr, rq);
                         } else {
                             _ieCallback(textStatus, "error", jqXHR.status, rq.transport);
                         }
@@ -227,7 +257,7 @@ jQuery.atmosphere = function() {
                     jsonp : "jsonpTransport",
                     success: function(json) {
                         if (rq.executeCallbackBeforeReconnect) {
-                            _reconnect(jqxhr, rq);
+                            _reconnect(_jqxhr, rq);
                         }
 
                         var msg = json.message;
@@ -237,7 +267,7 @@ jQuery.atmosphere = function() {
                         _ieCallback(msg, "messageReceived", 200, rq.transport);
 
                         if (!rq.executeCallbackBeforeReconnect) {
-                            _reconnect(jqxhr, rq);
+                            _reconnect(_jqxhr, rq);
                         }
                     },
                     data : rq.data,
@@ -251,7 +281,7 @@ jQuery.atmosphere = function() {
              * Build websocket object.
              * 
              * @param location
-             *            Web socket url.
+             *            {string} Web socket url.
              * @returns {websocket} Web socket object.
              * @private
              */
@@ -407,7 +437,12 @@ jQuery.atmosphere = function() {
             /**
              * Get url from request and attach headers to it.
              * 
-             * @returns {Object} Request object, if undefined, _request object will be used.
+             * @param request
+             *            {Object} request Request parameters, if
+             *            undefined _request object will be used.
+             * 
+             * @returns {Object} Request object, if undefined,
+             *          _request object will be used.
              * @private
              */
             function _attachHeaders(request) {
@@ -468,7 +503,10 @@ jQuery.atmosphere = function() {
 
             /**
              * Execute ajax request. <br>
-             * @param {Object} request Request parameters, if undefined _request object will be used.
+             * 
+             * @param request
+             *            {Object} request Request parameters, if
+             *            undefined _request object will be used.
              * @private
              */
             function _executeRequest(request) {
@@ -952,6 +990,8 @@ jQuery.atmosphere = function() {
                     _pushAjaxMessage(message);
                 } else if (_ieStream != null) {
                     _pushIE(message);
+                } else if (_jqxhr != null) {
+                	_pushJsonp(message);
                 } else if (_websocket != null) {
                     _pushWebSocket(message);
                 }
@@ -982,6 +1022,17 @@ jQuery.atmosphere = function() {
                 _pushAjaxMessage(message);
             }
 
+            /**
+             * Send a message using jsonp transport. <br>
+             * 
+             * @param {string, Object} Message to send. This is an object, string
+             *            message is saved in data member.
+             * @private
+             */
+            function _pushJsonp(message) {
+            	_pushAjaxMessage(message);
+            }
+
             function _getStringMessage(message) {
             	var msg = message;
             	if (typeof(msg) == 'object') {
@@ -989,7 +1040,7 @@ jQuery.atmosphere = function() {
             	}
             	return msg;
             }
-            
+
             /**
              * Build request use to push message using method 'POST' <br>.
              * Transport is defined as 'polling' and 'suspend' is set to false.
@@ -1031,8 +1082,8 @@ jQuery.atmosphere = function() {
              *            saved in data member.
              */
             function _pushWebSocket(message) {
-                var data;
-                var msg = _getStringMessage(message);
+            	var msg = _getStringMessage(message);
+            	var data;
                 try {
                     if (_request.webSocketUrl != null) {
                         data = _request.webSocketPathDelimiter
@@ -1100,6 +1151,11 @@ jQuery.atmosphere = function() {
                     _ieStream.close();
                     _ieStream = null;
                     _abordingConnection = false;
+                }
+                if (_jqxhr != null) {
+                	_jqxhr.abort();
+                	_jqxhr = null;
+                	_abordingConnection = false;
                 }
                 if (_activeRequest != null) {
                     _activeRequest.abort();
@@ -1351,7 +1407,7 @@ jQuery.atmosphere = function() {
  * jQuery stringifyJSON
  * http://github.com/flowersinthesand/jquery-stringifyJSON
  * 
- * Copyright 2012, Donghwan Kim
+ * Copyright 2011, Donghwan Kim 
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
