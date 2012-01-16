@@ -53,7 +53,7 @@ public class WebSocketHandshakeFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 
-        if (HttpServletRequest.class.cast(request).getHeader("Upgrade") != null) {
+        if (HttpServletRequest.class.cast(request).getHeader("Connection") != null && HttpServletRequest.class.cast(request).getHeader("Connection").equalsIgnoreCase("upgrade")) {
             int draft = HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version");
             if (draft < 0) {
                 draft = HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Draft");
@@ -68,6 +68,11 @@ public class WebSocketHandshakeFilter implements Filter {
                     }
                 }
             }
+        } else if (HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version") > 0) {
+            logger.error("Invalid WebSocket Specification {} with {} ", HttpServletRequest.class.cast(request).getHeader("Connection"), HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version"));
+            HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+            HttpServletResponse.class.cast(response).sendError(202, "Websocket protocol not supported");
+            return;
         }
         chain.doFilter(request, response);
     }
