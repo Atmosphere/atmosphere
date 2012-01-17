@@ -260,8 +260,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     String broadcasterName = servletReq.getHeader(topic);
                     if (transport == null || broadcasterName == null) {
                         throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
-                                +  X_ATMOSPHERE_TRANSPORT
-                                +  " and uuid " + X_ATMOSPHERE_TRACKING_ID));
+                                + X_ATMOSPHERE_TRANSPORT
+                                + " and uuid " + X_ATMOSPHERE_TRACKING_ID));
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
@@ -782,11 +782,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                 Response.ResponseBuilder b = Response.ok();
                 b = configureHeaders(b);
-                if (entity != null) {
-                    b = b.header("Content-Type", contentType != null ?
-                            contentType.toString() : "text/html; charset=ISO-8859-1");
-                    servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
-                }
+                b = b.header("Content-Type", contentType != null ?
+                        contentType.toString() : "text/html; charset=ISO-8859-1");
+                servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
 
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
