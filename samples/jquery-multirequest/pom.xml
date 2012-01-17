@@ -15,23 +15,9 @@
     <url>http://maven.apache.org</url>
 
 	<properties>
-		<jetty.version>7.6.0.RC3</jetty.version>
-		<maven-jetty-plugin.version>${jetty.version}</maven-jetty-plugin.version>
-
 		<log4j.version>1.2.12</log4j.version>
 		<geronimo-servlet_3.0_spec.version>1.0</geronimo-servlet_3.0_spec.version>
 		<quartz.version>1.6.1</quartz.version>
-
-		<jersey.version>1.8</jersey.version>
-		<jersey-core.version>${jersey.version}</jersey-core.version>
-		<jersey-server.version>${jersey.version}</jersey-server.version>
-		<jersey-json.version>${jersey.version}</jersey-json.version>
-
-		<!--atmosphere.version>0.8.0-RC3</atmosphere.version-->
-		<atmosphere.version>0.8.3</atmosphere.version>
-		<atmosphere-annotations.version>${atmosphere.version}</atmosphere-annotations.version>
-		<atmosphere-jersey.version>${atmosphere.version}</atmosphere-jersey.version>
-		<atmosphere-jquery.version>${atmosphere.version}</atmosphere-jquery.version>
 
 		<spring.version>3.0.5.RELEASE</spring.version>
 		<spring-core.version>${spring.version}</spring-core.version>
