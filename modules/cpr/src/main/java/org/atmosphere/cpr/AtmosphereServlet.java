@@ -306,7 +306,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 return s;
             }
 
-            return AtmosphereServlet.this.getInitParameter(name);
+            try {
+                return AtmosphereServlet.this.getInitParameter(name);
+            } catch(NullPointerException ex) {
+                // Don't fail if Tomcat crash on startyp with an NPE
+                return null;
+            }
         }
 
         public Enumeration getInitParameterNames() {
