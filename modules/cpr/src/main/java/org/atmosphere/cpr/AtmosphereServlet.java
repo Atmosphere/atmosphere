@@ -553,9 +553,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
+            initWebSocketProtocol();
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            initWebSocketProtocol();
 
             logger.info("Using broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());

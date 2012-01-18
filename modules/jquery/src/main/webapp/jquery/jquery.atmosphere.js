@@ -777,6 +777,8 @@ jQuery.atmosphere = function() {
                 jQuery.atmosphere.debug("Websocket successfully opened");
                 webSocketSupported = true;
                 jQuery.atmosphere.response.state = 'opening';
+                jQuery.atmosphere.response.status = 200;
+
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
 
                 if (jQuery.atmosphere.request.method == 'POST') {

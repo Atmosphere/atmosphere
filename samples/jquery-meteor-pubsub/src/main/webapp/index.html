@@ -43,7 +43,7 @@
                     $.atmosphere.log('info', ["response.status: " + response.status]);
 
                     detectedTransport = response.transport;
-                    if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
+                    if (response.transport != 'polling' && response.state == 'messageReceived') {
                         $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
                             var data = response.responseBody;
