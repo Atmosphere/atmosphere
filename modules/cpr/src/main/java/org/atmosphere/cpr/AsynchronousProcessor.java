@@ -376,8 +376,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         } finally {
             try {
                 if (r != null) {
-                    r.cancel();
                     r.notifyListeners();
+                    r.setIsInScope(false);
+                    r.cancel();
                 }
             } catch (Throwable t) {
                 logger.trace("timedout", t);
@@ -422,7 +423,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                     }
                 }
                 req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-                r.setIsInScope(false);
             }
         } catch (IOException ex) {
             try {
@@ -493,8 +493,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                         } catch (Throwable t2) {
                         }
                     }
-
-                    r.setIsInScope(false);
                 }
             } catch (Throwable ex) {
                 // Something wrong happenned, ignore the exception
@@ -502,8 +500,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             } finally {
                 try {
                     if (r != null) {
-                        r.cancel();
                         r.notifyListeners();
+                        r.setIsInScope(false);
+                        r.cancel();
                     }
                 } catch (Throwable t) {
                     logger.trace("cancel", t);
