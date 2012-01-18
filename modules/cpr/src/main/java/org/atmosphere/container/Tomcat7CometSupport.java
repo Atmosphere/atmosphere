@@ -49,16 +49,16 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     private static final Logger logger = LoggerFactory.getLogger(Tomcat7CometSupport.class);
 
     public static final String COMET_EVENT = "CometEvent";
+    private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
+    private final Boolean closeConnectionOnInputStream;
 
     private static final IllegalStateException unableToDetectComet
             = new IllegalStateException(unableToDetectComet());
 
-    // Client disconnection is broken on Tomcat.
-    private final ConcurrentLinkedQueue<CometEvent> resumed
-            = new ConcurrentLinkedQueue<CometEvent>();
-
     public Tomcat7CometSupport(AtmosphereConfig config) {
         super(config);
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
     }
 
     /**
@@ -93,6 +93,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
+                    req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
@@ -108,8 +109,8 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
             logger.debug("Client closed connection: response: {}", res);
 
-            if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
+            if (req.getAttribute(SUSPENDED) != null) {
+                req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
@@ -124,11 +125,9 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.ERROR) {
             bz51881(event);
         } else if (event.getEventType() == EventType.END) {
-            if (!resumed.remove(event)) {
-                /**
-                 * Ignore END (the application just read the complete InputStream
-                 */
-                //action = cancelled(req, res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
+                action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
                 bz51881(event);
@@ -196,7 +195,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
             try {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;
-                resumed.offer(event);
 
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
@@ -216,7 +214,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            resumed.offer(event);
             bz51881(event);
         }
         return action;

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -201,5 +202,10 @@ public interface ApplicationConfig {
      * WebSocket version to exclude and downgrade to comet. Version are separated by comma
      */
     String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
+    /**
+     * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
+     * the tomcat documentation
+     */
+    String TOMCAT_CLOSE_STREAM = TomcatCometSupport.class.getName() + ".discardEOF";
 
 }
