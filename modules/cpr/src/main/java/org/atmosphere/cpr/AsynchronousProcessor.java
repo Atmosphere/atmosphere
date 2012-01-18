@@ -479,53 +479,55 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public synchronized Action cancelled(HttpServletRequest req, HttpServletResponse res)
+    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r = null;
-        try {
-            if (trackActiveRequest) {
-                long l = (Long) req.getAttribute(MAX_INACTIVE);
-                if (l == -1) {
-                    // The closedDetector closed the connection.
-                    return timedoutAction;
-                }
-                req.setAttribute(MAX_INACTIVE, (long) -1);
-            }
-
-            logger.debug("Cancelling the connection for request {}", req);
-
-            r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            if (r != null) {
-                r.getAtmosphereResourceEvent().setCancelled(true);
-                invokeAtmosphereHandler(r);
-
-                try {
-                    r.getResponse().sendError(503);
-                    r.getResponse().getOutputStream().close();
-                } catch (Throwable t) {
-                    try {
-                        r.getResponse().getWriter().close();
-                    } catch (Throwable t2) {
-                    }
-                }
-
-                r.setIsInScope(false);
-            }
-        } catch (Throwable ex) {
-            // Something wrong happenned, ignore the exception
-            logger.debug("failed to cancel resource: " + r, ex);
-        } finally {
+        synchronized (req) {
             try {
-                if (r != null) {
-                    r.cancel();
-                    r.notifyListeners();
+                if (trackActiveRequest) {
+                    long l = (Long) req.getAttribute(MAX_INACTIVE);
+                    if (l == -1) {
+                        // The closedDetector closed the connection.
+                        return timedoutAction;
+                    }
+                    req.setAttribute(MAX_INACTIVE, (long) -1);
                 }
-            } catch (Throwable t) {
-                logger.trace("cancel", t);
-            } finally {
+
+                logger.debug("Cancelling the connection for request {}", req);
+
+                r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                 if (r != null) {
-                    destroyResource(r);
+                    r.getAtmosphereResourceEvent().setCancelled(true);
+                    invokeAtmosphereHandler(r);
+
+                    try {
+                        r.getResponse().sendError(503);
+                        r.getResponse().getOutputStream().close();
+                    } catch (Throwable t) {
+                        try {
+                            r.getResponse().getWriter().close();
+                        } catch (Throwable t2) {
+                        }
+                    }
+
+                    r.setIsInScope(false);
+                }
+            } catch (Throwable ex) {
+                // Something wrong happenned, ignore the exception
+                logger.debug("failed to cancel resource: " + r, ex);
+            } finally {
+                try {
+                    if (r != null) {
+                        r.cancel();
+                        r.notifyListeners();
+                    }
+                } catch (Throwable t) {
+                    logger.trace("cancel", t);
+                } finally {
+                    if (r != null) {
+                        destroyResource(r);
+                    }
                 }
             }
         }
