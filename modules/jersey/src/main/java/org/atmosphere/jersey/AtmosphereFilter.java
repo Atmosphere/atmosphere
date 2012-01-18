@@ -257,8 +257,26 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
+                    if (transport == null) {
+                        transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT);
+                    }
+
                     String broadcasterName = servletReq.getHeader(topic);
+                    if (broadcasterName == null) {
+                        broadcasterName = servletReq.getParameter(topic);
+                    }
+
                     if (transport == null || broadcasterName == null) {
+                        StringBuffer s = new StringBuffer();
+                        Enumeration<String> e = servletReq.getHeaderNames();
+                        String t;
+                        while(e.hasMoreElements()) {
+                            t = e.nextElement();
+                            s.append(t).append("=").append(servletReq.getHeader(t)).append("\n");
+                        }
+
+                        logger.error("\nQueryString:\n{}\n\nHeaders:\n{}", servletReq.getQueryString(), s.toString());
+
                         throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
                                 +  transport
                                 +  " and uuid " + broadcasterName));
