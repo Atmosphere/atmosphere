@@ -367,7 +367,7 @@ jQuery.atmosphere = function() {
                         }
 
                         if (request.suspend) {
-                            response.state = "messageReceived";
+                            response.state = response.status == 0 ? "closed" : "messageReceived";
                         } else {
                             response.state = "messagePublished";
                         }
@@ -792,6 +792,7 @@ jQuery.atmosphere = function() {
 
                 }
                 jQuery.atmosphere.response.state = 'messageReceived';
+                jQuery.atmosphere.response.status = 200;
                 jQuery.atmosphere.response.responseBody = message.data;
                 jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
             };
@@ -1001,6 +1002,12 @@ jQuery.atmosphere = function() {
         ,
 
         unsubscribe : function() {
+            logLevel = 'info';
+            jQuery.atmosphere.response.state = 'unsubscribe';
+            jQuery.atmosphere.response.responseBody = "";
+            jQuery.atmosphere.response.status = 408;
+            jQuery.atmosphere.invokeCallback(jQuery.atmosphere.response);
+
             jQuery.atmosphere.subscribed = false;
             jQuery.atmosphere.closeSuspendedConnection();
             jQuery.atmosphere.callbacks = [];
