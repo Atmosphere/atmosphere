@@ -364,8 +364,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         } finally {
             try {
                 if (r != null) {
-                    r.cancel();
                     r.notifyListeners();
+                    r.setIsInScope(false);
+                    r.cancel();
                 }
             } catch (Throwable t) {
                 logger.trace("timedout", t);
@@ -403,14 +404,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
                 synchronized (r) {
                     atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+
                     Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
                     if (m != null) {
                         m.destroy();
                     }
                 }
-
                 req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-                r.setIsInScope(false);
             }
         } catch (IOException ex) {
             try {
@@ -453,8 +453,8 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl r = null;
         synchronized (req) {
+            AtmosphereResourceImpl r = null;
             try {
                 if (trackActiveRequest) {
                     long l = (Long) req.getAttribute(MAX_INACTIVE);
@@ -481,8 +481,6 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
                         } catch (Throwable t2) {
                         }
                     }
-
-                    r.setIsInScope(false);
                 }
             } catch (Throwable ex) {
                 // Something wrong happenned, ignore the exception
@@ -490,8 +488,9 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
             } finally {
                 try {
                     if (r != null) {
-                        r.cancel();
                         r.notifyListeners();
+                        r.setIsInScope(false);
+                        r.cancel();
                     }
                 } catch (Throwable t) {
                     logger.trace("cancel", t);

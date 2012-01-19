@@ -83,9 +83,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
 
     public JMSBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         super(id, null, config);
+        setUp();
     }
 
-    public synchronized void configure(AtmosphereServlet.AtmosphereConfig config) {
+    private synchronized void setUp() {
         try {
             // For backward compatibility.
             if (config.getInitParameter(JMS_TOPIC) != null) {
