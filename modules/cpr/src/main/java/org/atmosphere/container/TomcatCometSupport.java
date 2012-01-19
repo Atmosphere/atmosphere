@@ -64,16 +64,16 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     private static final Logger logger = LoggerFactory.getLogger(TomcatCometSupport.class);
 
     public static final String COMET_EVENT = "CometEvent";
+    private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
 
     private static final IllegalStateException unableToDetectComet
             = new IllegalStateException(unableToDetectComet());
-
-    // Client disconnection is broken on Tomcat.
-    private final ConcurrentLinkedQueue<CometEvent> resumed
-            = new ConcurrentLinkedQueue<CometEvent>();
+    private final Boolean closeConnectionOnInputStream;
 
     public TomcatCometSupport(AtmosphereConfig config) {
         super(config);
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
     }
 
     /**
@@ -123,8 +123,8 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
             logger.debug("Client closed connection: response: {}", res);
 
-            if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
@@ -139,11 +139,9 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.ERROR) {
             event.close();
         } else if (event.getEventType() == EventType.END) {
-            if (!resumed.remove(event)) {
-                /**
-                 * Ignore END (the application just read the complete InputStream
-                 */
-                //action = cancelled(req, res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
+                action = cancelled(req, res);
             } else {
                 logger.trace("Cancelling response: {}", res);
             }
@@ -161,7 +159,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
             try {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;
-                resumed.offer(event);
 
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
@@ -182,7 +179,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            resumed.offer(event);
             event.close();
         }
         return action;
