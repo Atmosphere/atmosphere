@@ -28,7 +28,7 @@ jQuery.atmosphere = function() {
     });
 
     return {
-        version : 0.8,
+        version : 0.9,
         requests : [],
         callbacks : [],
 
@@ -251,7 +251,7 @@ jQuery.atmosphere = function() {
                     	if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
-                            _ieCallback(textStatus, "error", jqXHR.status, rq.transport);
+                            _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
                         }
                     },
                     jsonp : "jsonpTransport",
@@ -264,7 +264,7 @@ jQuery.atmosphere = function() {
                         if (msg != null && typeof msg != 'string') {
                             msg = jQuery.stringifyJSON(msg);
                         }
-                        _ieCallback(msg, "messageReceived", 200, rq.transport);
+                        _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
                         if (!rq.executeCallbackBeforeReconnect) {
                             _reconnect(_jqxhr, rq);
@@ -341,10 +341,16 @@ jQuery.atmosphere = function() {
 
                     _subscribed = true;
                     _response.state = 'opening';
+                    _response.status = 200;
                     _response.responseBody = "";
                     _invokeCallback();
 
                     webSocketOpened = true;
+
+                    if (_request.method == 'POST') {
+                        _response.state = "messageReceived";
+                        _websocket.send(_request.data);
+                    }
                 };
 
                 _websocket.onmessage = function(message) {
@@ -353,6 +359,7 @@ jQuery.atmosphere = function() {
                     }
 
                     _response.state = 'messageReceived';
+                    _response.status = 200;
                     _response.responseBody = message.data;
                     _invokeCallback();
                 };
@@ -400,6 +407,11 @@ jQuery.atmosphere = function() {
 
                     jQuery.atmosphere.warn("Websocket closed, reason: " + reason);
                     jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
+
+                    _response.state = 'closed';
+                    _response.responseBody = "";
+                    _response.status = 200;
+                    _invokeCallback();
 
                     if (_abordingConnection) {
                         _abordingConnection = false;
@@ -665,7 +677,7 @@ jQuery.atmosphere = function() {
                             }
 
                             if (rq.suspend) {
-                                _response.state = "messageReceived";
+                                _response.state = _response.status == 0 ? "closed" : "messageReceived";
                             } else {
                                 _response.state = "messagePublished";
                             }
@@ -776,7 +788,7 @@ jQuery.atmosphere = function() {
                         lastIndex += responseBody.length;
                     }
 
-                    _ieCallback(responseBody, "messageReceived", 200, transport);
+                    _prepareCallback(responseBody, "messageReceived", 200, transport);
                 };
 
                 var xdr = new window.XDomainRequest();
@@ -809,7 +821,7 @@ jQuery.atmosphere = function() {
                 };
                 // Handles error event
                 xdr.onerror = function() {
-                    _ieCallback(xdr.responseText, "error", 500, transport);
+                    _prepareCallback(xdr.responseText, "error", 500, transport);
                 };
                 // Handles close event
                 xdr.onload = function() {
@@ -835,7 +847,7 @@ jQuery.atmosphere = function() {
                     },
                     close: function() {
                         xdr.abort();
-                        _ieCallback(xdr.responseText, "closed", 200, transport);
+                        _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
             }
@@ -894,7 +906,7 @@ jQuery.atmosphere = function() {
                                 try {
                                     jQuery.noop(cdoc.fileSize);
                                 } catch(e) {
-                                    _ieCallback("Connection Failure", "error", 500, rq.transport);
+                                    _prepareCallback("Connection Failure", "error", 500, rq.transport);
                                     return false;
                                 }
                             }
@@ -942,14 +954,14 @@ jQuery.atmosphere = function() {
                             }
 
                             // Handles open event
-                            _ieCallback(readResponse(), "opening", 200, rq.transport);
+                            _prepareCallback(readResponse(), "opening", 200, rq.transport);
 
                             // Handles message and close event
                             stop = jQuery.atmosphere.iterate(function() {
                                 var text = readResponse();
                                 if (text.length > rq.lastIndex) {
                                     _response.status = 200;
-                                    _ieCallback(text, "messageReceived", 200, rq.transport);
+                                    _prepareCallback(text, "messageReceived", 200, rq.transport);
 
                                     // Empties response every time that it is handled
                                     res.innerText = "";
@@ -957,7 +969,7 @@ jQuery.atmosphere = function() {
                                 }
 
                                 if (cdoc.readyState === "complete") {
-                                    _ieCallback("", "completed", 200, rq.transport);
+                                    _prepareCallback("", "completed", 200, rq.transport);
                                     return false;
                                 }
                             }, null);
@@ -972,7 +984,7 @@ jQuery.atmosphere = function() {
                         }
 
                         doc.execCommand("Stop");
-                        _ieCallback("", "closed", 200, rq.transport);
+                        _prepareCallback("", "closed", 200, rq.transport);
                     }
                 };
             }
@@ -1108,7 +1120,7 @@ jQuery.atmosphere = function() {
                 }
             }
 
-            function _ieCallback(messageBody, state, errorCode, transport) {
+            function _prepareCallback(messageBody, state, errorCode, transport) {
                 _response.transport = transport;
                 _response.status = errorCode;
                 _response.responseBody = messageBody;
@@ -1147,6 +1159,11 @@ jQuery.atmosphere = function() {
              */
             function _close() {
                 _abordingConnection = true;
+                _response.state = 'unsubscribe';
+                _response.responseBody = "";
+                _response.status = 408;
+                _invokeCallback();
+
                 if (_ieStream != null) {
                     _ieStream.close();
                     _ieStream = null;
@@ -1253,6 +1270,12 @@ jQuery.atmosphere = function() {
             if (jQuery.browser.msie && !window.XDomainRequest) {
                 return true;
             } else if (jQuery.browser.opera) {
+                return true;
+            }
+            // Force Android to use CORS as some version like 2.2.3 fail otherwise
+            var ua = navigator.userAgent.toLowerCase();
+            var isAndroid = ua.indexOf("android") > -1;
+            if (isAndroid) {
                 return true;
             }
             return false;
