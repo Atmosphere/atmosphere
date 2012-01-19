@@ -29,7 +29,7 @@ import javax.ws.rs.Produces;
 
 /**
  * Simple Redis PubSub resource that demonstrate many functionality supported by
- * Atmosphere JQuery Plugin,  Atmosphere Jersey extension and Atmosphere Redis Plugin
+ * Atmosphere JQuery Plugin,  Atmosphere Jersey extension and Atmosphere Hazelcast Plugin
  *
  * @author Jeanfrancois Arcand
  */
