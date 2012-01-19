@@ -112,6 +112,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
+import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -401,6 +402,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * The order of addition is quite important here.
      */
     private void populateBroadcasterType() {
+        broadcasterTypes.add(HAZELCAST_BROADCASTER);
         broadcasterTypes.add(XMPP_BROADCASTER);
         broadcasterTypes.add(REDIS_BROADCASTER);
         broadcasterTypes.add(JGROUPS_BROADCASTER);
