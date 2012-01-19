@@ -42,6 +42,7 @@
         <module>channel</module>
         <module>async-channel</module>
         <module>websocket-pubsub</module>
+        <module>jquery-multirequest</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
