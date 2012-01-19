@@ -86,6 +86,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
      * {@inheritDoc}
      */
     public boolean isResuming() {
+    	if (resource == null) return false;
         return resource.action().type == AtmosphereServlet.Action.TYPE.RESUME;
     }
 
@@ -93,6 +94,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
      * {@inheritDoc}
      */
     public boolean isSuspended() {
+    	if (resource == null) return false;
         return resource.action().type == AtmosphereServlet.Action.TYPE.SUSPEND;
     }
 

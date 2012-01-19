@@ -492,12 +492,12 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
-            
+            initWebSocketProtocol();
             doInitCustomProtocolHandler(scFacade);
             
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            initWebSocketProtocol();
+            
 
             logger.info("Using broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
@@ -1417,8 +1417,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             return s;
         }
-
-        return super.getInitParameter(name);
+        
+        try {
+        	return super.getInitParameter(name);
+        } catch(NullPointerException ex) {
+            // Don't fail if Tomcat crash on startup with an NPE
+            return null;
+        }
     }
 
     public Enumeration<String> getInitParameterNames() {

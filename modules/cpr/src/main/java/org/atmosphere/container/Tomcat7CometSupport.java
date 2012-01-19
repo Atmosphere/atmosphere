@@ -1,18 +1,18 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+* Copyright 2011 Jeanfrancois Arcand
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* use this file except in compliance with the License. You may obtain a copy of
+* the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations under
+* the License.
+*/
 package org.atmosphere.container;
 
 import org.apache.catalina.comet.CometEvent;
@@ -22,11 +22,11 @@ import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.tomcat.util.http.mapper.MappingData;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.config.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,35 +40,35 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
- * Comet Portable Runtime implementation on top of Tomcat AIO.
- *
- * @author Jeanfrancois Arcand
- */
+* Comet Portable Runtime implementation on top of Tomcat AIO.
+*
+* @author Jeanfrancois Arcand
+*/
 public class Tomcat7CometSupport extends AsynchronousProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(Tomcat7CometSupport.class);
 
     public static final String COMET_EVENT = "CometEvent";
+    private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
+    private final Boolean closeConnectionOnInputStream;
 
     private static final IllegalStateException unableToDetectComet
             = new IllegalStateException(unableToDetectComet());
 
-    // Client disconnection is broken on Tomcat.
-    private final ConcurrentLinkedQueue<CometEvent> resumed
-            = new ConcurrentLinkedQueue<CometEvent>();
-
     public Tomcat7CometSupport(AtmosphereConfig config) {
         super(config);
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
     }
 
     /**
-     * Invoked by the Tomcat AIO when a Comet request gets detected.
-     *
-     * @param req the {@link javax.servlet.http.HttpServletRequest}
-     * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
+* Invoked by the Tomcat AIO when a Comet request gets detected.
+*
+* @param req the {@link javax.servlet.http.HttpServletRequest}
+* @param res the {@link javax.servlet.http.HttpServletResponse}
+* @throws java.io.IOException
+* @throws javax.servlet.ServletException
+*/
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
@@ -93,6 +93,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
+                    req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
@@ -108,8 +109,8 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
             logger.debug("Client closed connection: response: {}", res);
 
-            if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
+            if (req.getAttribute(SUSPENDED) != null) {
+                req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
@@ -124,11 +125,9 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.ERROR) {
             bz51881(event);
         } else if (event.getEventType() == EventType.END) {
-            if (!resumed.remove(event)) {
-                /**
-                 * Ignore END (the application just read the complete InputStream
-                 */
-                //action = cancelled(req, res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
+                action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
                 bz51881(event);
@@ -138,7 +137,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     }
 
     private void bz51881(CometEvent event) throws IOException {
-        String[] tomcatVersion =  config.getServletContext().getServerInfo().substring(14).split("\\.");
+        String[] tomcatVersion = config.getServletContext().getServerInfo().substring(14).split("\\.");
         String minorVersion = tomcatVersion[2];
         if (minorVersion.indexOf("-") != -1) {
             minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
@@ -187,8 +186,8 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
 
     /**
-     * {@inheritDoc}
-     */
+* {@inheritDoc}
+*/
     @Override
     public void action(AtmosphereResourceImpl resource) {
         super.action(resource);
@@ -196,7 +195,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
             try {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;
-                resumed.offer(event);
 
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
@@ -216,17 +214,16 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            resumed.offer(event);
             bz51881(event);
         }
         return action;
     }
 
     /**
-     * Tomcat was unable to detect Atmosphere's CometProcessor implementation.
-     *
-     * @return an error message describing how to fix the issue.
-     */
+* Tomcat was unable to detect Atmosphere's CometProcessor implementation.
+*
+* @return an error message describing how to fix the issue.
+*/
     private static String unableToDetectComet() {
         StringBuilder sb = new StringBuilder();
         sb.append("Tomcat failed to detect this is a Comet application because context.xml ");

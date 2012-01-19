@@ -383,7 +383,6 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                 }
 
                 invokeAtmosphereHandler(r);
-                
             }
         } catch (Throwable t) {
             logger.error("failed to timeout resource {}", r, t);
@@ -391,10 +390,10 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
             try {
                 if (r != null) {
                     r.notifyListeners();
+                    r.setIsInScope(false);
                     r.cancel();
                 }
             } catch (Throwable t) {
-            	t.printStackTrace();
                 logger.trace("timedout", t);
             } finally {
 
@@ -414,7 +413,6 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
 
         return timedoutAction;
-
     }
 
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
@@ -452,7 +450,6 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
     public static void destroyResource(AtmosphereResource<?, ?> r) {
         if (r == null) return;
 
-        r.removeEventListeners();
         try {
             r.removeEventListeners();
             try {
@@ -469,21 +466,21 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
     }
 
     /**
-     * All proprietary Comet based {@link Servlet} must invoke the cancelled
-     * method when the underlying WebServer detect that the client closed
-     * the connection.
-     *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
-     * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
+* All proprietary Comet based {@link Servlet} must invoke the cancelled
+* method when the underlying WebServer detect that the client closed
+* the connection.
+*
+* @param req the {@link HttpServletRequest}
+* @param res the {@link HttpServletResponse}
+* @return action the Action operation.
+* @throws java.io.IOException
+* @throws javax.servlet.ServletException
+*/
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl r = null;
         synchronized (req) {
+            AtmosphereResourceImpl r = null;
             try {
                 if (trackActiveRequest) {
                     long l = (Long) req.getAttribute(MAX_INACTIVE);

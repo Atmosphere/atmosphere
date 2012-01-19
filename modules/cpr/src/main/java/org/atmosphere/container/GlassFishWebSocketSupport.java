@@ -1,40 +1,40 @@
 /*
- *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
- * and Distribution License("CDDL") (collectively, the "License").  You
- * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
- * language governing permissions and limitations under the License.
- *
- * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
- * Sun designates this particular file as subject to the "Classpath" exception
- * as provided by Sun in the GPL Version 2 section of the License file that
- * accompanied this code.  If applicable, add the following below the License
- * Header, with the fields enclosed by brackets [] replaced by your own
- * identifying information: "Portions Copyrighted [year]
- * [name of copyright owner]"
- *
- * Contributor(s):
- *
- * If you wish your version of this file to be governed by only the CDDL or
- * only the GPL Version 2, indicate your decision by adding "[Contributor]
- * elects to include this software in this distribution under the [CDDL or GPL
- * Version 2] license."  If you don't indicate a single choice of license, a
- * recipient has the option to distribute your version of this file under
- * either the CDDL, the GPL Version 2 or to extend the choice of license to
- * its licensees as provided above.  However, if you add GPL Version 2 code
- * and therefore, elected the GPL Version 2 license, then the option applies
- * only if the new code is made subject to such option by the copyright
- * holder.
- *
- */
+*
+* DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+*
+* Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
+*
+* The contents of this file are subject to the terms of either the GNU
+* General Public License Version 2 only ("GPL") or the Common Development
+* and Distribution License("CDDL") (collectively, the "License"). You
+* may not use this file except in compliance with the License. You can obtain
+* a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
+* or glassfish/bootstrap/legal/LICENSE.txt. See the License for the specific
+* language governing permissions and limitations under the License.
+*
+* When distributing the software, include this License Header Notice in each
+* file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
+* Sun designates this particular file as subject to the "Classpath" exception
+* as provided by Sun in the GPL Version 2 section of the License file that
+* accompanied this code. If applicable, add the following below the License
+* Header, with the fields enclosed by brackets [] replaced by your own
+* identifying information: "Portions Copyrighted [year]
+* [name of copyright owner]"
+*
+* Contributor(s):
+*
+* If you wish your version of this file to be governed by only the CDDL or
+* only the GPL Version 2, indicate your decision by adding "[Contributor]
+* elects to include this software in this distribution under the [CDDL or GPL
+* Version 2] license." If you don't indicate a single choice of license, a
+* recipient has the option to distribute your version of this file under
+* either the CDDL, the GPL Version 2 or to extend the choice of license to
+* its licensees as provided above. However, if you add GPL Version 2 code
+* and therefore, elected the GPL Version 2 license, then the option applies
+* only if the new code is made subject to such option by the copyright
+* holder.
+*
+*/
 package org.atmosphere.container;
 
 import com.sun.grizzly.tcp.Request;
@@ -62,10 +62,10 @@ import java.io.IOException;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
- * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
- *
- * @author Jeanfrancois Arcand
- */
+* Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
+*
+* @author Jeanfrancois Arcand
+*/
 public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
@@ -125,23 +125,21 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         private final AtmosphereConfig config;
 
         private WebSocketProcessor webSocketProcessor;
-        private final WebSocketProtocol webSocketProtocol;
 
         public GrizzlyApplication(AtmosphereConfig config) {
             this.config = config;
-            this.webSocketProtocol = config.getAtmosphereServlet().getWebSocketProtocol();
         }
 
         public void onConnect(com.sun.grizzly.websockets.WebSocket w) {
             super.onConnect(w);
-            logger.debug("onOpen");
+            //logger.debug("onOpen");
             if (!DefaultWebSocket.class.isAssignableFrom(w.getClass())) {
                 throw new IllegalStateException();
             }
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
-                webSocketProcessor = new WebSocketProcessor(config.getAtmosphereServlet(), new GrizzlyWebSocket(webSocket), webSocketProtocol);
+                webSocketProcessor = new WebSocketProcessor(config.getAtmosphereServlet(), new GrizzlyWebSocket(webSocket), config.getAtmosphereServlet().getWebSocketProtocol());
                 webSocketProcessor.dispatch(webSocket.getRequest());
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
