@@ -308,7 +308,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
             try {
                 return AtmosphereServlet.this.getInitParameter(name);
-            } catch (NullPointerException ex) {
+            } catch (Throwable ex) {
                 // Don't fail if Tomcat crash on startyp with an NPE
                 return null;
             }
