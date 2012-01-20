@@ -257,11 +257,29 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
+                    if (transport == null) {
+                        transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT);
+                    }
+
                     String broadcasterName = servletReq.getHeader(topic);
+                    if (broadcasterName == null) {
+                        broadcasterName = servletReq.getParameter(topic);
+                    }
+
                     if (transport == null || broadcasterName == null) {
+                        StringBuffer s = new StringBuffer();
+                        Enumeration<String> e = servletReq.getHeaderNames();
+                        String t;
+                        while(e.hasMoreElements()) {
+                            t = e.nextElement();
+                            s.append(t).append("=").append(servletReq.getHeader(t)).append("\n");
+                        }
+
+                        logger.error("\nQueryString:\n{}\n\nHeaders:\n{}", servletReq.getQueryString(), s.toString());
+
                         throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
-                                +  X_ATMOSPHERE_TRANSPORT
-                                +  " and uuid " + X_ATMOSPHERE_TRACKING_ID));
+                                +  transport
+                                +  " and uuid " + broadcasterName));
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
@@ -785,8 +803,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 if (entity != null) {
                     b = b.header("Content-Type", contentType != null ?
                             contentType.toString() : "text/html; charset=ISO-8859-1");
-                    servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
                 }
+                servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
 
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();

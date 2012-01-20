@@ -15,6 +15,8 @@
 */
 package org.atmosphere.container.version;
 
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
@@ -31,9 +33,11 @@ public class Jetty8WebSocket extends WebSocketAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
+    private final AtmosphereServlet.AtmosphereConfig config;
 
-    public Jetty8WebSocket(Connection connection) {
+    public Jetty8WebSocket(Connection connection, AtmosphereServlet.AtmosphereConfig config) {
         this.connection = connection;
+        this.config = config;
     }
 
     /**
@@ -69,7 +73,12 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     public void write(byte[] data) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
-        connection.sendMessage(data, 0, data.length);
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
+        if (s != null && Boolean.parseBoolean(s)) {
+            connection.sendMessage(data, 0, data.length);
+        } else {
+            connection.sendMessage(new String(data, 0, data.length, "UTF-8"));
+        }
     }
 
     /**
@@ -79,8 +88,12 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     public void write(byte[] data, int offset, int length) throws IOException {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
-        // Chrome doesn't like it, throwing: Received a binary frame which is not supported yet. So send a String instead
-        connection.sendMessage(new String(data, offset, length, "UTF-8"));
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
+        if (s != null && Boolean.parseBoolean(s)) {
+            connection.sendMessage(data, offset, length);
+        } else {
+            connection.sendMessage(new String(data, offset, length, "UTF-8"));
+        }
     }
     /**
      * {@inheritDoc}
