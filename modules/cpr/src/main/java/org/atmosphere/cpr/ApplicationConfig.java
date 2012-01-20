@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2011 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.TomcatCometSupport;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -201,5 +203,14 @@ public interface ApplicationConfig {
      * WebSocket version to exclude and downgrade to comet. Version are separated by comma
      */
     String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
+    /**
+     * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
+     * the tomcat documentation
+     */
+    String TOMCAT_CLOSE_STREAM = TomcatCometSupport.class.getName() + ".discardEOF";
+    /**
+     * Let Jetty send blob instead of String
+     */
+    String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
 
 }

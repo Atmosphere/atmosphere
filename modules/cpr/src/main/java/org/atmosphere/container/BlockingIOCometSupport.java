@@ -72,10 +72,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(BlockingIOCometSupport.class);
 
-    protected static final String LATCH = "org.atmosphere.container.BlockingIOCometSupport.latch";
-
-    protected final ConcurrentHashMap<Integer, CountDownLatch> latchs
-            = new ConcurrentHashMap<Integer, CountDownLatch>();
+    protected static final String LATCH = BlockingIOCometSupport.class.getName() + ".latch";
 
     public BlockingIOCometSupport(AtmosphereConfig config) {
         super(config);
@@ -95,12 +92,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 suspend(action, req, res);
             } else if (action.type == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
-
-                int latchId = (req.getAttribute(LATCH) == null ? 0 : (Integer) req.getAttribute(LATCH));
-                if (req.getSession(false) != null && req.getSession(false).getAttribute(LATCH) != null) {
-                    latchId = (Integer) req.getSession(false).getAttribute(LATCH);
-                }
-                CountDownLatch latch = latchs.get(latchId);
+                CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
 
                 if (latch == null && req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
                     logger.debug("response wasn't suspended: {}", res);
@@ -116,17 +108,9 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 }
             }
         } finally {
-            try {
-                CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
-                if (event != null) {
-                    event.close();
-                }
-            } catch (ClassCastException ex) {
-                // Tomcat 7
-                org.apache.catalina.connector.CometEventImpl event = (org.apache.catalina.connector.CometEventImpl) req.getAttribute(TomcatCometSupport.COMET_EVENT);
-                if (event != null) {
-                    event.close();
-                }
+            CometEvent event = (CometEvent) req.getAttribute(TomcatCometSupport.COMET_EVENT);
+            if (event != null) {
+                event.close();
             }
 
             HttpEvent he = (HttpEvent) req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
@@ -148,17 +132,9 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
      */
     protected void suspend(Action action, HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
+
         CountDownLatch latch = new CountDownLatch(1);
-
-        int hash = latch.hashCode();
-        req.setAttribute(LATCH, hash);
-        latchs.put(hash, latch);
-
-        if (supportSession()) {
-            // Store as well in the session in case the resume operation
-            // happens outside the AtmosphereHandler.onStateChange scope.
-            req.getSession().setAttribute(String.valueOf(req.hashCode()), hash);
-        }
+        req.setAttribute(LATCH, latch);
 
         try {
             if (action.timeout != -1) {
@@ -169,7 +145,6 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         } catch (InterruptedException ex) {
             logger.debug("", ex);
         } finally {
-            latchs.remove(hash);
             timedout(req, res);
         }
     }
@@ -177,14 +152,12 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     @Override
     public Action cancelled(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        int latchId = -1;
 
-        if (req.getAttribute(LATCH) != null) {
-            latchId = (Integer) req.getAttribute(LATCH);
-        }
-        CountDownLatch latch = latchs.remove(latchId);
         Action a = super.cancelled(req, res);
-        latch.countDown();
+        if (req.getAttribute(LATCH) != null) {
+            CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
+            latch.countDown();
+        }
         return a;
     }
 
@@ -196,27 +169,16 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         try {
             super.action(r);
             if (r.action().type == Action.TYPE.RESUME) {
-                int latchId = -1;
                 HttpServletRequest req = r.getRequest(false);
+                CountDownLatch latch = null;
 
                 if (req.getAttribute(LATCH) != null) {
-                    latchId = (Integer) req.getAttribute(LATCH);
-                }
-
-                if (latchId == -1 && supportSession()) {
-                    if (req.getSession().getAttribute(LATCH) != null) {
-                        latchId = (Integer) req.getSession().getAttribute(LATCH);
-                    }
+                    latch = (CountDownLatch) req.getAttribute(LATCH);
                 }
 
                 String s = config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE);
-                if (latchId != -1 && (s == null || s.equalsIgnoreCase("false"))) {
-                    CountDownLatch latch = latchs.remove(latchId);
-                    if (latch == null) {
-                        logger.error("Unable to resume the suspended connection with latchId: {}", latchId);
-                    } else {
-                        latch.countDown();
-                    }
+                if (latch != null && (s == null || s.equalsIgnoreCase("false"))) {
+                    latch.countDown();
                 } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
                     logger.error("Unable to resume the suspended connection");
                 }

@@ -43,7 +43,7 @@
                     $.atmosphere.log('info', ["response.status: " + response.status]);
 
                     detectedTransport = response.transport;
-                    if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
+                    if (response.transport != 'polling' && response.state == 'messageReceived') {
                         $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
                         if (response.status == 200) {
                             var data = response.responseBody;
@@ -56,12 +56,8 @@
 
                 var location = baseUrl + getElementByIdValue('topic');
                 $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-<<<<<<< HEAD
-                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
-=======
                         $.atmosphere.request = { attachHeadersAsQueryString : true,
                                                 transport: getElementByIdValue('transport') });
->>>>>>> atmosphere-0.8.x
                 connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }

@@ -22,6 +22,10 @@ package org.atmosphere.cpr;
  */
 public interface FrameworkConfig {
     /**
+     * The default Hazelcast Broadcaster class
+     */
+    String HAZELCAST_BROADCASTER = "org.atmosphere.plugin.hazelcast.HazelcastBroadcaster";
+    /**
      * The default Jersey Broadcaster class
      */
     String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
@@ -83,7 +87,7 @@ public interface FrameworkConfig {
     String WEBSOCKET_SUBPROTOCOL = "websocket-subprotocol";
     /**
      * The SimpleHttpProtocol
-      */
+     */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
     /**
      * Cance suspending a connection
