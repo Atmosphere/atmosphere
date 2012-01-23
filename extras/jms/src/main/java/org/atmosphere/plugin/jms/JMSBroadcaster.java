@@ -142,7 +142,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void incomingBroadcast() {
-        restartConsumer();
+        // we setup the consumer in the setID method. No need to do it here too
     }
 
     @Override
