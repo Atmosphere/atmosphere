@@ -142,25 +142,13 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
      */
     @Override
     public void incomingBroadcast() {
-        // This method is called by a task runner in an asynchronous fashion before the
-        // call to configure(). Wait for the configure() method to finish
-        synchronized (this) {
-            while (consumerSession == null) {
-                try {
-                    this.wait(1000);
-                } catch (InterruptedException e) {/* Ignore */}
-            }
-        }
         restartConsumer();
     }
 
     @Override
     public void setID(String id) {
         super.setID(id);
-        synchronized (this) {
-            if (consumerSession != null)
-                restartConsumer();
-        }
+        restartConsumer();
     }
 
     void restartConsumer() {
