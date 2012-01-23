@@ -72,7 +72,8 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private static final Logger logger = LoggerFactory.getLogger(JMSBroadcaster.class);
 
     private Connection connection;
-    private Session session;
+    private Session consumerSession;
+    private Session publisherSession;
     private Topic topic;
     private MessageConsumer consumer;
     private MessageProducer publisher;
@@ -113,9 +114,10 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             topic = (Topic) ctx.lookup(namespace + topicId);
 
             connection = connectionFactory.createConnection();
-            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            consumerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            publisherSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
-            publisher = session.createProducer(topic);
+            publisher = publisherSession.createProducer(topic);
             connection.start();
             logger.info("JMS created for topic {}", topicId);
             // Unfortunately we need the getID() to complete the configuration
@@ -143,7 +145,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
         // This method is called by a task runner in an asynchronous fashion before the
         // call to configure(). Wait for the configure() method to finish
         synchronized (this) {
-            while (session == null) {
+            while (consumerSession == null) {
                 try {
                     this.wait(1000);
                 } catch (InterruptedException e) {/* Ignore */}
@@ -156,7 +158,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     public void setID(String id) {
         super.setID(id);
         synchronized (this) {
-            if (session != null)
+            if (consumerSession != null)
                 restartConsumer();
         }
     }
@@ -175,7 +177,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             logger.info("Create JMS consumer: {}", id);
             String selector = String.format("BroadcasterId = '%s'", id);
 
-            consumer = session.createConsumer(topic, selector);
+            consumer = consumerSession.createConsumer(topic, selector);
             consumer.setMessageListener(new MessageListener() {
                 @Override
                 public void onMessage(Message msg) {
@@ -211,11 +213,11 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
                 id = "atmosphere";
             }
 
-            if (session == null) {
+            if (publisherSession == null) {
                 throw new IllegalStateException("JMS Session is null");
             }
 
-            TextMessage textMessage = session.createTextMessage(message
+            TextMessage textMessage = publisherSession.createTextMessage(message
                     .toString());
             textMessage.setStringProperty("BroadcasterId", id);
             publisher.send(textMessage);
@@ -231,7 +233,8 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     public synchronized void releaseExternalResources() {
         try {
             connection.close();
-            session.close();
+            consumerSession.close();
+            publisherSession.close();
             consumer.close();
             publisher.close();
         } catch (Throwable ex) {
