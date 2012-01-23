@@ -87,7 +87,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
         setUp();
     }
 
-    private synchronized void setUp() {
+    private void setUp() {
         try {
             // For backward compatibility.
             if (config.getInitParameter(JMS_TOPIC) != null) {
