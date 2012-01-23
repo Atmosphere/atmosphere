@@ -127,9 +127,6 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
             // incomingBroadcast() though, as using bc.getAtmosphereConfig() would
             // introduce a race condition (the configuration is loaded in a different
             // thread).
-
-            // Notify the async running thread on incomingBroadcast()
-            this.notify();
         } catch (Exception e) {
             String msg = "Unable to configure JMSBroadcaster";
             logger.error(msg, e);
