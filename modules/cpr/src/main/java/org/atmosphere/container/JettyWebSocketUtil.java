@@ -53,7 +53,6 @@ public class JettyWebSocketUtil {
         if (b == null) b = Boolean.FALSE;
 
         if (!webSocketEnabled) {
-            logger.error("Invalid WebSocketRequest: No Connection header with browser {}.", req.getHeader("User-Agent"));
             return null;
         } else {
             if (webSocketFactory != null && !b) {
