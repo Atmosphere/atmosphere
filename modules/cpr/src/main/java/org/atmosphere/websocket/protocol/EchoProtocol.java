@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.List;
 
 /**
  * Simple {@link org.atmosphere.websocket.WebSocketProcessor} that invoke the {@link org.atmosphere.cpr.Broadcaster#broadcast} API when a WebSocket message
@@ -44,7 +43,7 @@ public class EchoProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String data) {
+    public AtmosphereRequest onMessage(WebSocket webSocket, String data) {
         logger.trace("broadcast String");
         webSocket.resource().getBroadcaster().broadcast(data);
         return null;
@@ -54,7 +53,7 @@ public class EchoProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);
