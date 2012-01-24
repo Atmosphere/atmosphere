@@ -59,6 +59,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,27 +124,35 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
-        AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-        if (r != null) {
-            AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            try {
-                dispatch(r, w);
-            } finally {
-                r.destroy();
-                w.destroy();
+        List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
+        if (list == null) return;
+
+        for (AtmosphereRequest r : list) {
+            if (r != null) {
+                AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
+                try {
+                    dispatch(r, w);
+                } finally {
+                    r.destroy();
+                    w.destroy();
+                }
             }
         }
     }
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
-        AtmosphereRequest r = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        if (r != null) {
-            AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
-            try {
-                dispatch(r, w);
-            } finally {
-                r.destroy();
-                w.destroy();
+        List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
+        if (list == null) return;
+
+        for (AtmosphereRequest r : list) {
+            if (r != null) {
+                AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
+                try {
+                    dispatch(r, w);
+                } finally {
+                    r.destroy();
+                    w.destroy();
+                }
             }
         }
     }
