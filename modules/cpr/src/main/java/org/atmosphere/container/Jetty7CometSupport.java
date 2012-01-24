@@ -175,27 +175,32 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
 
-        ServletRequest request = r.getRequest();
+        ServletRequest request = r.getRequest(false);
         while (request != null) {
-            Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
-            if (c != null) {
-                try {
-                    if (c.isSuspended()) {
-                        c.complete();
+            try {
+                Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
+                if (c != null) {
+                    try {
+                        if (c.isSuspended()) {
+                            c.complete();
+                        }
+                    } catch (IllegalStateException ex) {
+                        logger.trace("c.complete()", ex);
+                    } finally {
+                        r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                     }
-                } catch (IllegalStateException ex) {
-                    logger.trace("c.complete()", ex);
-                } finally {
-                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-                }
-                request.removeAttribute(Continuation.class.getName());
-                return;
-            } else {
-                if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-                    request = AtmosphereRequest.class.cast(request).getRequest();
-                } else {
+                    request.removeAttribute(Continuation.class.getName());
                     return;
+                } else {
+                    if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+                        request = AtmosphereRequest.class.cast(request).getRequest();
+                    } else {
+                        return;
+                    }
                 }
+            } catch (Throwable t) {
+                // Ignore
+                logger.trace("action" , t);
             }
         }
     }
