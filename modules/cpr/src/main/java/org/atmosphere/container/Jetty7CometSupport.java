@@ -175,7 +175,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
 
-        ServletRequest request = r.getRequest(false);
+        ServletRequest request = r.getRequest(true);
         while (request != null) {
             try {
                 Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
