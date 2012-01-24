@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
@@ -49,7 +50,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     }
 
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, String message) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String message) {
         AtmosphereResource<HttpServletRequest,HttpServletResponse> r = (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
 
@@ -62,7 +63,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     }
 
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         //Do not dispatch to another Container
         return null;
     }
