@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * A WebSocket based protocol implementation. Implement this call to process WebSocket message and dispatch it to
@@ -50,7 +51,7 @@ public interface WebSocketProtocol extends AsyncProtocol{
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
      */
-    AtmosphereRequest onMessage(WebSocket webSocket, String data);
+    List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
@@ -66,7 +67,7 @@ public interface WebSocketProtocol extends AsyncProtocol{
      * @param offset    offset message index
      * @param length    length of the message.
      */
-    AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length);
+    List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 
     /**
      * Invoked when a WebSocket is opened
