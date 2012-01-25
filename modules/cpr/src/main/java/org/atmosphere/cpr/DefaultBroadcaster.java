@@ -193,7 +193,6 @@ public class DefaultBroadcaster implements Broadcaster {
             messages.clear();
             asyncWriteQueue.clear();
             delayedBroadcast.clear();
-            broadcasterCache = null;
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
