@@ -15,6 +15,8 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import java.util.List;
+
 import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -44,7 +46,7 @@ public class EchoProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, String data) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String data) {
         logger.trace("broadcast String");
         webSocket.resource().getBroadcaster().broadcast(data);
         return null;
@@ -54,7 +56,7 @@ public class EchoProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
         byte[] b = new byte[length];
         System.arraycopy(data, offset, b, 0, length);

@@ -19,6 +19,7 @@ import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -31,7 +32,9 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -79,41 +82,46 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     }
 
     /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, String d) {
-        if (resource == null) {
-            logger.error("Invalid state. No AtmosphereResource has been suspended");
-            return null;
-        }
-        String pathInfo = resource.getRequest().getPathInfo();
-        if (d.startsWith(delimiter)) {
-            String[] token = d.split(delimiter);
-            pathInfo = token[1];
-            d = token[2];
-        }
-        Map<String,Object> m = new HashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+    * {@inheritDoc}
+    */
+        @Override
+        public List<AtmosphereRequest> onMessage(WebSocket webSocket, String d) {
+            AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+            if (resource == null) {
+                logger.error("Invalid state. No AtmosphereResource has been suspended");
+                return null;
+            }
+            String pathInfo = resource.getRequest().getPathInfo();
+            if (d.startsWith(delimiter)) {
+                String[] token = d.split(delimiter);
+                pathInfo = token[1];
+                d = token[2];
+            }
+            Map<String,Object> m = new HashMap<String, Object>();
+            m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
-        return new AtmosphereRequest.Builder()
-                .request(resource.getRequest())
-                .method(methodType)
-                .contentType(contentType)
-                .body(d)
-                .attributes(m)
-                .pathInfo(pathInfo)
-                .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
-                .build();
-    }
+            List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
-        return onMessage(webSocket, new String(d, offset, length));
-    }
+            list.add(new AtmosphereRequest.Builder()
+                    .request(resource.getRequest())
+                    .method(methodType)
+                    .contentType(contentType)
+                    .body(d)
+                    .attributes(m)
+                    .pathInfo(pathInfo)
+                    .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
+                    .build());
+
+            return list;
+        }
+
+        /**
+    * {@inheritDoc}
+    */
+        @Override
+        public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
+            return onMessage(webSocket, new String(d, offset, length));
+        }
 
     /**
      * {@inheritDoc}

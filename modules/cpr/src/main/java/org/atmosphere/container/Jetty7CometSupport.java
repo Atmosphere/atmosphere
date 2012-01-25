@@ -172,30 +172,40 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return new Action(Action.TYPE.RESUME);
     }
 
-     /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void action(AtmosphereResourceImpl r) {
-        super.action(r);
+    /**
+    * {@inheritDoc}
+    */
+        @Override
+        public void action(AtmosphereResourceImpl r) {
+            super.action(r);
 
-        ServletRequest request = r.getRequest();
-        while (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-            request = AtmosphereRequest.class.cast(request).getRequest();
-        }
-
-        Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
-        if (c != null) {
-            try {
-                if (c.isSuspended()) {
-                    c.complete();
+            ServletRequest request = r.getRequest(true);
+            while (request != null) {
+                try {
+                    Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
+                    if (c != null) {
+                        try {
+                            if (c.isSuspended()) {
+                                c.complete();
+                            }
+                        } catch (IllegalStateException ex) {
+                            logger.trace("c.complete()", ex);
+                        } finally {
+                            r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                        }
+                        request.removeAttribute(Continuation.class.getName());
+                        return;
+                    } else {
+                        if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+                            request = AtmosphereRequest.class.cast(request).getRequest();
+                        } else {
+                            return;
+                        }
+                    }
+                } catch (Throwable t) {
+                    // Ignore
+                    logger.trace("action" , t);
                 }
-            } catch (IllegalStateException ex) {
-                logger.trace("c.complete()", ex);
-            } finally {
-                r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
             }
-            request.removeAttribute(Continuation.class.getName());
         }
-    }
 }

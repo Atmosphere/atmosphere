@@ -15,6 +15,8 @@
 */
 package org.atmosphere.websocket;
 
+import java.util.List;
+
 import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AsyncProtocol;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -51,7 +53,7 @@ public interface WebSocketProtocol extends AsyncProtocol{
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
      */
-    AtmosphereRequest onMessage(WebSocket webSocket, String data);
+    List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
@@ -67,7 +69,7 @@ public interface WebSocketProtocol extends AsyncProtocol{
      * @param offset    offset message index
      * @param length    length of the message.
      */
-    AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length);
+    List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 
     /**
      * Invoked when a WebSocket is opened

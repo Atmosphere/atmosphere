@@ -2,6 +2,7 @@ package org.atmosphere.protocol.socketio;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializabl
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, String data){
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String data){
         logger.error("calling from " + this.getClass().getName() + " : " + "broadcast String");
         
         //resource.getBroadcaster().broadcast(data);
@@ -76,7 +77,7 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializabl
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereRequest onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.error("calling from " + this.getClass().getName() + " : " + "broadcast byte");
         return onMessage(webSocket, new String(data, offset, length));
     }
