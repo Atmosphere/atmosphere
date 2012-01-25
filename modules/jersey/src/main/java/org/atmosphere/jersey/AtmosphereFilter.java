@@ -259,11 +259,19 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
                     if (transport == null) {
                         transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT);
+                        // https://github.com/Atmosphere/atmosphere/issues/166
+                        if (transport == null) {
+                            transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT.toLowerCase());
+                        }
                     }
 
                     String broadcasterName = servletReq.getHeader(topic);
                     if (broadcasterName == null) {
                         broadcasterName = servletReq.getParameter(topic);
+                        // https://github.com/Atmosphere/atmosphere/issues/166
+                        if (broadcasterName == null) {
+                            broadcasterName = servletReq.getParameter(topic.toLowerCase());
+                        }
                     }
 
                     if (transport == null || broadcasterName == null) {
