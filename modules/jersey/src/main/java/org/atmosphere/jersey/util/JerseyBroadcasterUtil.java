@@ -91,7 +91,7 @@ public final class JerseyBroadcasterUtil {
             if (cr != null) {
                 cr.setEntity(null);
             }
-
+            e.setMessage(null);
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
