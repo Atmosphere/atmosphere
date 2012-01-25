@@ -201,6 +201,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             } catch (Throwable t) {
                 // Ignore
                 logger.trace("action" , t);
+                return;
             }
         }
     }
