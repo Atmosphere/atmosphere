@@ -274,6 +274,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                     }
 
+
                     if (transport == null || broadcasterName == null) {
                         StringBuffer s = new StringBuffer();
                         Enumeration<String> e = servletReq.getHeaderNames();
