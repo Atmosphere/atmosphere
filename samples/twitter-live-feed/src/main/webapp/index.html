@@ -57,10 +57,9 @@
                 }
 
                 /* transport can be : long-polling, streaming or websocket */
-                $.atmosphere.subscribe(document.location.toString() + 'search/' + getElementByIdValue('topic'),
+                connectedEndpoint = $.atmosphere.subscribe(document.location.toString() + 'search/' + getElementByIdValue('topic'),
                         !callbackAdded ? callback : null,
                         $.atmosphere.request = {transport: getElementByIdValue('transport')});
-                connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 
