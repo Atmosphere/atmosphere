@@ -207,5 +207,8 @@ public interface ApplicationConfig {
      * the tomcat documentation
      */
     String TOMCAT_CLOSE_STREAM = TomcatCometSupport.class.getName() + ".discardEOF";
-
+    /**
+     * Let Jetty send blob instead of String
+     */
+    String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
 }
