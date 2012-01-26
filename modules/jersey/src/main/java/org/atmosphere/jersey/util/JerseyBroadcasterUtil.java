@@ -65,9 +65,11 @@ public final class JerseyBroadcasterUtil {
                     cr.setResponse(Response.ok(msg).build());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
-                    if (!cr.isCommitted()) {
-                        cr.getOutputStream().flush();
-                    }
+                }
+
+                // https://github.com/Atmosphere/atmosphere/issues/169
+                if (!cr.isCommitted()) {
+                    cr.getOutputStream().flush();
                 }
             } else {
                 if (e.getMessage() == null) {
