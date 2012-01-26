@@ -98,9 +98,7 @@
                         m = " sent trying to use " + detectedTransport;
                     }
 
-                    connectedEndpoint.push(baseUrl + getElementByIdValue('api') + getElementByIdValue('topic'),
-                            null,
-                            $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + m});
+                    connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -120,9 +118,7 @@
                     m = " sent trying to use " + detectedTransport;
                 }
 
-                connectedEndpoint.push(baseUrl + getElementByIdValue('api') + getElementByIdValue('topic'),
-                        null,
-                        $.atmosphere.request = {data: 'message=' + getElementByIdValue('phrase') + m});
+                connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                 getElementById('phrase').value = '';
                 return false;
