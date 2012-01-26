@@ -55,10 +55,9 @@
                 }
 
                 var location = baseUrl + getElementByIdValue('topic');
-                $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
+                connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
                         $.atmosphere.request = { attachHeadersAsQueryString : true,
                                                 transport: getElementByIdValue('transport') });
-                connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 

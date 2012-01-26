@@ -53,9 +53,8 @@
                 }
 
                 var location = baseUrl + getElementByIdValue('api') + getElementByIdValue('topic');
-                $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
+                connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
                         $.atmosphere.request = { transport: getElementByIdValue('transport') });
-                connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 

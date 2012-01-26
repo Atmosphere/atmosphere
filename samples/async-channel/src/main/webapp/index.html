@@ -54,10 +54,9 @@
                 }
 
                 var location = document.location.toString() + 'async';
-                $.atmosphere.subscribe(location,
+                connectedEndpoint = $.atmosphere.subscribe(location,
                         !callbackAdded ? callback : null,
                         $.atmosphere.request = { transport: getElementByIdValue('transport'), attachHeadersAsQueryString:true /*, Uncomments for IE CORS support attachHeadersAsQueryString : true, enableXDR : true */ });
-                connectedEndpoint = $.atmosphere.response;
                 callbackAdded = true;
             }
 
