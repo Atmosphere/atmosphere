@@ -71,6 +71,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
+import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 
 /**
  * {@link Broadcaster} implementation.
@@ -595,6 +596,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (entry.writeLocally) {
+                        pushCachedMessage(r);
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
@@ -607,6 +609,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 if (entry.writeLocally) {
+                    pushCachedMessage((AtmosphereResource<?, ?>) entry.multipleAtmoResources);
                     queueWriteIO((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
@@ -620,6 +623,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (entry.writeLocally) {
+                        pushCachedMessage(r);
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
@@ -628,6 +632,13 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
+    }
+
+    protected void pushCachedMessage(AtmosphereResource<?,?> r) {
+        AtmosphereResourceImpl ari = AtmosphereResourceImpl.class.cast(r);
+        // Check lost message send from the last 2 seconds.
+        ari.getRequest(false).setAttribute(X_CACHE_DATE, System.currentTimeMillis() - 2000);
+        retrieveTrackedBroadcast(r, new AtmosphereResourceEventImpl(ari, false, false));
     }
 
     protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
