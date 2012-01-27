@@ -571,6 +571,7 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
+            // We need to synchronize
             // https://github.com/Atmosphere/atmosphere/issues/170
             synchronized (concurrentSuspendBroadcast) {
                 logger.debug("Broadcaster {} doesn't have any associated resource", getID());
