@@ -168,7 +168,7 @@ public class AtmosphereResourceImpl implements
                     isResumed = true;
 
                     try {
-                        logger.debug("Resuming {}", getRequest());
+                        logger.debug("Resuming {}", getRequest(false));
                     } catch (Throwable ex) {
                         // Jetty NPE toString()
                         // Ignore
@@ -211,14 +211,15 @@ public class AtmosphereResourceImpl implements
                             m.destroy();
                         }
                     } catch (Exception ex) {
-                        logger.debug("Cannot resume an already resumed/cancelled request");
+                        logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
                     }
 
                     if (req.getAttribute(PRE_SUSPEND) == null) {
                         cometSupport.action(this);
                     }
                 } else {
-                    logger.debug("Cannot resume an already resumed/cancelled request {}", getRequest());
+                    logger.debug("", new Throwable());
+                    logger.debug("Cannot resume an already resumed/cancelled request {}", this);
                 }
 
                 if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
