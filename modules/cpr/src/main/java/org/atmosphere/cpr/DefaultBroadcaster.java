@@ -571,6 +571,7 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
+            // https://github.com/Atmosphere/atmosphere/issues/170
             synchronized (concurrentSuspendBroadcast) {
                 logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
@@ -1010,7 +1011,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // We need to synchronize here to let the push method cache message.
-            //
+            // https://github.com/Atmosphere/atmosphere/issues/170
             synchronized (concurrentSuspendBroadcast) {
                 // Re-add yourself
                 if (resources.isEmpty()) {
