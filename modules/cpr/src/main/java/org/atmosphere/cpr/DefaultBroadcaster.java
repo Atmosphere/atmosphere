@@ -121,6 +121,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected AtmosphereServlet.AtmosphereConfig config;
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
+    private final Object[] concurrentSuspendBroadcast = new Object[0];
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         this.name = name;
@@ -194,7 +195,6 @@ public class DefaultBroadcaster implements Broadcaster {
             messages.clear();
             asyncWriteQueue.clear();
             delayedBroadcast.clear();
-            broadcasterCache = null;
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
@@ -571,18 +571,20 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
-            logger.debug("Broadcaster {} doesn't have any associated resource", getID());
+            synchronized (concurrentSuspendBroadcast) {
+                logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
-            AtmosphereResource<?, ?> r = null;
-            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
-                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-            }
-            trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
+                AtmosphereResource<?, ?> r = null;
+                if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
+                    r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+                }
+                trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
 
-            if (entry.future != null) {
-                entry.future.done();
+                if (entry.future != null) {
+                    entry.future.done();
+                }
+                return;
             }
-            return;
         }
 
         try {
@@ -596,7 +598,6 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (entry.writeLocally) {
-                        pushCachedMessage(r);
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
@@ -609,7 +610,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 if (entry.writeLocally) {
-                    pushCachedMessage((AtmosphereResource<?, ?>) entry.multipleAtmoResources);
                     queueWriteIO((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
@@ -623,7 +623,6 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (entry.writeLocally) {
-                        pushCachedMessage(r);
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
@@ -632,13 +631,6 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
-    }
-
-    protected void pushCachedMessage(AtmosphereResource<?,?> r) {
-        AtmosphereResourceImpl ari = AtmosphereResourceImpl.class.cast(r);
-        // Check lost message send from the last 2 seconds.
-        ari.getRequest(false).setAttribute(X_CACHE_DATE, System.currentTimeMillis() - 2000);
-        retrieveTrackedBroadcast(r, new AtmosphereResourceEventImpl(ari, false, false));
     }
 
     protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
@@ -1017,13 +1009,17 @@ public class DefaultBroadcaster implements Broadcaster {
                 return r;
             }
 
-            // Re-add yourself
-            if (resources.isEmpty()) {
-                BroadcasterFactory.getDefault().add(this, name);
-            }
+            // We need to synchronize here to let the push method cache message.
+            //
+            synchronized (concurrentSuspendBroadcast) {
+                // Re-add yourself
+                if (resources.isEmpty()) {
+                    BroadcasterFactory.getDefault().add(this, name);
+                }
 
-            resources.add(r);
-            checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+                resources.add(r);
+                checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+            }
         } finally {
             // OK reset
             if (resources.size() > 0) {
