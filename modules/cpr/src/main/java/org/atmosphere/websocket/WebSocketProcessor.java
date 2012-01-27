@@ -93,15 +93,6 @@ public class WebSocketProcessor implements Serializable {
 
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
-        if (atmosphereServlet.getAtmosphereConfig().getWebServerName().toLowerCase().indexOf("glassfish") != -1) {
-            try {
-                pathInfo = pathInfo.substring(pathInfo.indexOf("/", 1));
-                requestURI = requestURI.substring(requestURI.indexOf("/", 1));
-            } catch (IndexOutOfBoundsException e) {
-                // Jersey will not work.
-                logger.warn("Unable to patch GlassFish WebSocket http://java.net/jira/browse/GRIZZLY-1114");
-            }
-        }
 
         AtmosphereResponse wsr = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, request);
         AtmosphereRequest r = new AtmosphereRequest.Builder()

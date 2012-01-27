@@ -42,7 +42,7 @@ public class JettyWebSocketUtil {
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
         boolean webSocketEnabled = false;
         if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().split(",");
+            String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
             for (String upgrade : e) {
                 if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;

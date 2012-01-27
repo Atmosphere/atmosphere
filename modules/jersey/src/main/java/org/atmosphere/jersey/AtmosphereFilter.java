@@ -6,17 +6,17 @@
 *
 * The contents of this file are subject to the terms of either the GNU
 * General Public License Version 2 only ("GPL") or the Common Development
-* and Distribution License("CDDL") (collectively, the "License").  You
+* and Distribution License("CDDL") (collectively, the "License"). You
 * may not use this file except in compliance with the License. You can obtain
 * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
-* or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
+* or glassfish/bootstrap/legal/LICENSE.txt. See the License for the specific
 * language governing permissions and limitations under the License.
 *
 * When distributing the software, include this License Header Notice in each
 * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
 * Sun designates this particular file as subject to the "Classpath" exception
 * as provided by Sun in the GPL Version 2 section of the License file that
-* accompanied this code.  If applicable, add the following below the License
+* accompanied this code. If applicable, add the following below the License
 * Header, with the fields enclosed by brackets [] replaced by your own
 * identifying information: "Portions Copyrighted [year]
 * [name of copyright owner]"
@@ -26,10 +26,10 @@
 * If you wish your version of this file to be governed by only the CDDL or
 * only the GPL Version 2, indicate your decision by adding "[Contributor]
 * elects to include this software in this distribution under the [CDDL or GPL
-* Version 2] license."  If you don't indicate a single choice of license, a
+* Version 2] license." If you don't indicate a single choice of license, a
 * recipient has the option to distribute your version of this file under
 * either the CDDL, the GPL Version 2 or to extend the choice of license to
-* its licensees as provided above.  However, if you add GPL Version 2 code
+* its licensees as provided above. However, if you add GPL Version 2 code
 * and therefore, elected the GPL Version 2 license, then the option applies
 * only if the new code is made subject to such option by the copyright
 * holder.
@@ -109,12 +109,12 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
- * {@link ResourceFilterFactory} which intercept the response and appropriately
- * set the {@link AtmosphereResourceEvent} filed based on the annotation the application
- * has defined.
- *
- * @author Jeanfrancois Arcand
- */
+* {@link ResourceFilterFactory} which intercept the response and appropriately
+* set the {@link AtmosphereResourceEvent} filed based on the annotation the application
+* has defined.
+*
+* @author Jeanfrancois Arcand
+*/
 public class AtmosphereFilter implements ResourceFilterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereFilter.class);
@@ -143,6 +143,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>> resumeCandidates =
             new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
 
+    /**
+* TODO: Fix that messy class.
+*/
     private class Filter implements ResourceFilter, ContainerResponseFilter {
 
         private final Action action;
@@ -152,9 +155,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         private final Class<BroadcastFilter>[] filters;
         private Class<? extends AtmosphereResourceEventListener>[] listeners = null;
         private final boolean outputComments;
-        private final ArrayList<ClusterBroadcastFilter> clusters
-                = new ArrayList<ClusterBroadcastFilter>();
+        private final ArrayList<ClusterBroadcastFilter> clusters = new ArrayList<ClusterBroadcastFilter>();
         private final String topic;
+        private final boolean writeEntity;
 
         protected Filter(Action action) {
             this(action, -1);
@@ -173,10 +176,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments) {
-            this(action, timeout, waitFor, scope, outputComments, null, null);
+            this(action, timeout, waitFor, scope, outputComments, null, null, true);
         }
 
-        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic) {
+        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic, boolean writeEntity) {
             this.action = action;
             this.timeout = timeout;
             this.scope = scope;
@@ -184,6 +187,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.waitFor = waitFor;
             this.filters = filters;
             this.topic = topic;
+            this.writeEntity = writeEntity;
         }
 
         public ContainerRequestFilter getRequestFilter() {
@@ -225,13 +229,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         /**
-         * Configure the {@link AtmosphereResourceEvent} state (suspend, resume, broadcast)
-         * based on the annotation the web application has used.
-         *
-         * @param request  the {@link ContainerRequest}
-         * @param response the {@link ContainerResponse}
-         * @return the {@link ContainerResponse}
-         */
+* Configure the {@link AtmosphereResourceEvent} state (suspend, resume, broadcast)
+* based on the annotation the web application has used.
+*
+* @param request the {@link ContainerRequest}
+* @param response the {@link ContainerResponse}
+* @return the {@link ContainerResponse}
+*/
         public ContainerResponse filter(final ContainerRequest request, final ContainerResponse response) {
             if (response.getMappedThrowable() != null) {
                 return response;
@@ -253,11 +257,37 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
+                    if (transport == null) {
+                        transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT);
+                        // https://github.com/Atmosphere/atmosphere/issues/166
+                        if (transport == null) {
+                            transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT.toLowerCase());
+                        }
+                    }
+
                     String broadcasterName = servletReq.getHeader(topic);
+                    if (broadcasterName == null) {
+                        broadcasterName = servletReq.getParameter(topic);
+                        // https://github.com/Atmosphere/atmosphere/issues/166
+                        if (broadcasterName == null) {
+                            broadcasterName = servletReq.getParameter(topic.toLowerCase());
+                        }
+                    }
+
                     if (transport == null || broadcasterName == null) {
+                        StringBuffer s = new StringBuffer();
+                        Enumeration<String> e = servletReq.getHeaderNames();
+                        String t;
+                        while(e.hasMoreElements()) {
+                            t = e.nextElement();
+                            s.append(t).append("=").append(servletReq.getHeader(t)).append("\n");
+                        }
+
+                        logger.error("\nQueryString:\n{}\n\nHeaders:\n{}", servletReq.getQueryString(), s.toString());
+
                         throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
-                                +  X_ATMOSPHERE_TRANSPORT
-                                +  " and uuid " + X_ATMOSPHERE_TRACKING_ID));
+                                + transport
+                                + " and uuid " + broadcasterName));
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
@@ -304,7 +334,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
 
                         r.setBroadcaster(bcaster);
-                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, false);
+                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
                     } else {
                         Object entity = response.getEntity();
                         if (waitForResource) {
@@ -313,7 +343,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             bcaster.broadcast(entity);
                         }
 
-                        if (subProtocol == null) {
+                        if (subProtocol == null && writeEntity) {
                             try {
                                 if (Callable.class.isAssignableFrom(entity.getClass())) {
                                     entity = Callable.class.cast(entity).call();
@@ -356,7 +386,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(resumeOnBroadcast, outputJunk,
-                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope());
+                            translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope(), s.writeEntity());
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -409,7 +439,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
-                            broadcaster, r, scope);
+                            broadcaster, r, scope, writeEntity);
 
                     // Associate the tracked resource.
                     if (isTracked && trackableResource != null) {
@@ -566,9 +596,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if (bc == null) throw new WebApplicationException(new IllegalStateException("Broadcaster cannot be null"));
 
             /**
-             * Here we can't predict if it's the same set of filter shared across all Broadcaster as
-             * Broadcaster can have their own BroadcasterConfig instance.
-             */
+* Here we can't predict if it's the same set of filter shared across all Broadcaster as
+* Broadcaster can have their own BroadcasterConfig instance.
+*/
             BroadcasterConfig c = bc.getBroadcasterConfig();
             // Already configured
             if (c.hasFilters()) {
@@ -663,7 +693,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      ContainerResponse response,
                      Broadcaster bc,
                      AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
-                     Suspend.SCOPE localScope) {
+                     Suspend.SCOPE localScope,
+                     boolean flushEntity) {
 
             // Force the status code to 200 events independently of the value of the entity (null or not)
             if (response.getStatus() == 204) {
@@ -731,7 +762,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
             }
 
-            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, true);
+            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, flushEntity);
 
         }
 
@@ -780,16 +811,20 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 if (entity != null) {
                     b = b.header("Content-Type", contentType != null ?
                             contentType.toString() : "text/html; charset=ISO-8859-1");
-                    servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
                 }
+                servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
 
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
                 if (serverInfo.indexOf("jetty") != -1) {
-                    String[] jettyVersion = serverInfo.substring(6).split("\\.");
-                    // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
-                    eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
-                            || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    try {
+                        String[] jettyVersion = serverInfo.substring(6).split("\\.");
+                        // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
+                        eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
+                                || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
+                    } catch (Throwable t) {
+                        logger.warn("Unable to parse server name {}", serverInfo);
+                    }
 
                     if (comments && eclipse362468) {
                         logger.debug("Padding response is disabled to workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468");
@@ -834,14 +869,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     }
 
     /**
-     * Create a {@link ResourceFilter} which contains the information about the
-     * annotation being processed.
-     * <p/>
-     * XXX Need to filter invalid mix of annotation.
-     *
-     * @param am an {@link AbstractMethod}
-     * @return a List of {@link ResourceFilter} to invoke.
-     */
+* Create a {@link ResourceFilter} which contains the information about the
+* annotation being processed.
+* <p/>
+* XXX Need to filter invalid mix of annotation.
+*
+* @param am an {@link AbstractMethod}
+* @return a List of {@link ResourceFilter} to invoke.
+*/
     public List<ResourceFilter> create(AbstractMethod am) {
         LinkedList<ResourceFilter> list = new LinkedList<ResourceFilter>();
         Filter f;
@@ -866,9 +901,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Broadcast.class).value();
 
             if (am.getAnnotation(Broadcast.class).resumeOnBroadcast()) {
-                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null);
+                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             } else {
-                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null);
+                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                        am.getAnnotation(Broadcast.class).writeEntity());
             }
 
             list.addLast(f);
@@ -893,7 +930,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Asynchronous.class).broadcastFilter();
 
             boolean wait = am.getAnnotation(Asynchronous.class).waitForResource();
-            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter, am.getAnnotation(Asynchronous.class).header());
+            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter,
+                    am.getAnnotation(Asynchronous.class).header(), am.getAnnotation(Asynchronous.class).writeEntity());
             f.setListeners(am.getAnnotation(Asynchronous.class).eventListeners());
             list.addFirst(f);
         }
@@ -929,7 +967,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             f = new Filter(trackable ? Action.SUBSCRIBE_TRACKABLE : Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Subscribe.class).value());
+                    false, null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
             list.addFirst(f);
@@ -937,7 +975,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Publish.class)) {
             f = new Filter(Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Publish.class).value());
+                    false, null, am.getAnnotation(Publish.class).value(), true);
             list.addFirst(f);
         }
 
@@ -985,4 +1023,3 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     }
 
 }
-

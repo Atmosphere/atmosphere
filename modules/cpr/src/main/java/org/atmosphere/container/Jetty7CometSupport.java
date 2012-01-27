@@ -191,7 +191,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                         } catch (IllegalStateException ex) {
                             logger.trace("c.complete()", ex);
                         } finally {
-                            r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                            r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                         }
                         request.removeAttribute(Continuation.class.getName());
                         return;
@@ -205,6 +205,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 } catch (Throwable t) {
                     // Ignore
                     logger.trace("action" , t);
+                    return;
                 }
             }
         }
