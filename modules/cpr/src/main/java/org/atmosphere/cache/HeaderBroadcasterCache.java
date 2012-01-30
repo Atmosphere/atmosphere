@@ -52,6 +52,7 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -69,15 +70,23 @@ public class HeaderBroadcasterCache extends BroadcasterCacheBase {
     /**
      * {@inheritDoc}
      */
-    public void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm) {
+    public void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> ar, CachedMessage cm) {
         long time = cm.next() == null ? cm.currentTime() : cm.next().currentTime();
-        r.getResponse().addHeader(X_CACHE_DATE, String.valueOf(time));
+
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
+        if (r.isInScope() && !r.getResponse().isCommitted()) {
+            r.getResponse().addHeader(X_CACHE_DATE, String.valueOf(time));
+        }
     }
 
     /**
      * {@inheritDoc}
      */
-    public CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> ar) {
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
+
+        if (!r.isInScope()) return null;
+
         HttpServletRequest request = r.getRequest();
         return retrieveUsingHeader(request.getHeader(X_CACHE_DATE));
     }

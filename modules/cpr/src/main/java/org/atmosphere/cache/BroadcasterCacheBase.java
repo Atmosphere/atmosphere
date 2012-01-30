@@ -237,8 +237,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
         this.maxCachedinMs = maxCachedinMs;
     }
 
-
-    protected static class CachedMessage implements Serializable {
+    protected final static class CachedMessage implements Serializable {
 
         public final Object message;
         public final long currentTime;
