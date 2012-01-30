@@ -841,8 +841,8 @@ public class DefaultBroadcaster implements Broadcaster {
             });
         } else {
             r.resume();
-        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest(false)).getAttribute(ASYNC_TOKEN));
         }
+        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest(false)).getAttribute(ASYNC_TOKEN));
     }
 
     /**
@@ -850,7 +850,7 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param r
      */
-    public void cacheLostMessage(AtmosphereResource<?,?> r, AsyncWriteToken token) {
+    public void cacheLostMessage(AtmosphereResource<?, ?> r, AsyncWriteToken token) {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
