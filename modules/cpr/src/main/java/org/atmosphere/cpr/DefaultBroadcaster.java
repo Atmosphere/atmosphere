@@ -687,8 +687,10 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             event.setMessage(token.msg);
 
-            // Check again to make sure we are still valid. Remove and silently ignore.
-            if (!r.isInScope()) {
+            // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
+            if (!r.isInScope()
+                    || AtmosphereResourceImpl.class.cast(r).isResumed()
+                    || AtmosphereResourceImpl.class.cast(r).isCancelled()) {
                 resources.remove(r);
                 lostCandidate = true;
                 return;
@@ -842,6 +844,18 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest(false)).getAttribute(ASYNC_TOKEN));
     }
+
+    /**
+     * Cache the message because an unexpected exception occurred.
+     *
+     * @param r
+     */
+    public void cacheLostMessage(AtmosphereResource<?, ?> r) {
+        // Quite ugly cast that need to be fixed all over the place
+        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(
+                AtmosphereResourceImpl.class.cast(r).getRequest(false)).getAttribute(ASYNC_TOKEN));
+    }
+
 
     /**
      * Cache the message because an unexpected exception occurred.

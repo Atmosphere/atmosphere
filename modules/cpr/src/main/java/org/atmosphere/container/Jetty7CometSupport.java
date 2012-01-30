@@ -163,7 +163,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         synchronized (r) {
             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-            r.setIsInScope(false);
         }
         return new Action(Action.TYPE.RESUME);
     }
