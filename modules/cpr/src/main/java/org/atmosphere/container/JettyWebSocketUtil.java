@@ -15,8 +15,6 @@
  */
 package org.atmosphere.container;
 
-
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -75,7 +73,7 @@ public class JettyWebSocketUtil {
         }
     }
 
-    public final static WebSocketFactory getFactory(final AtmosphereConfig config) {
+    public final static WebSocketFactory getFactory(final AtmosphereServlet.AtmosphereConfig config) {
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
             public boolean checkOrigin(HttpServletRequest request, String origin) {
                 // Allow all origins
@@ -85,7 +83,7 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getAtmosphereServlet(), config.getAtmosphereServlet().getWebSocketProtocol());
+                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocol());
             }
         });
 

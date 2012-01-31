@@ -15,7 +15,6 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AsyncProtocol;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -35,9 +34,9 @@ public interface WebSocketProtocol extends AsyncProtocol{
     /**
      * Allow an implementation to query the AtmosphereConfig of init-param, etc.
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    void configure(AtmosphereConfig config);
+    void configure(AtmosphereServlet.AtmosphereConfig config);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or

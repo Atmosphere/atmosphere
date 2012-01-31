@@ -15,7 +15,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -44,7 +43,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private Method jerseyBroadcast;
 
-    public AbstractBroadcasterProxy(String id, URI uri, AtmosphereConfig config) {
+    public AbstractBroadcasterProxy(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         super(id, uri, config);
     }
 

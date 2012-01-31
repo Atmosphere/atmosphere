@@ -17,7 +17,6 @@ package org.atmosphere.plugin.redis;
 
 
 import org.apache.commons.pool.impl.GenericObjectPool;
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
@@ -49,11 +48,11 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
     private boolean sharedPool = false;
     private JedisPool jedisPool;
 
-    public RedisBroadcaster(String id, AtmosphereConfig config) {
+    public RedisBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         this(id, URI.create("http://localhost:6379"), config);
     }
 
-    public RedisBroadcaster(String id, URI uri, AtmosphereConfig config) {
+    public RedisBroadcaster(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
         super(id, uri, config);
     }
 

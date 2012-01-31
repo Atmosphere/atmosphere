@@ -38,8 +38,6 @@
 package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.container.ContainerResponse;
-
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.*;
 import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
 
@@ -51,7 +49,7 @@ import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
  */
 public class JerseyBroadcaster extends DefaultBroadcaster {
 
-    public JerseyBroadcaster(String id, AtmosphereConfig config) {
+    public JerseyBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         super(id, config);
     }
 

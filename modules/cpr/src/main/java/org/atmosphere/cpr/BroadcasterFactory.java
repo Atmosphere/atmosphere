@@ -38,8 +38,6 @@ package org.atmosphere.cpr;
 
 import java.util.Collection;
 
-import org.atmosphere.config.AtmosphereConfig;
-
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
  *
@@ -48,7 +46,7 @@ import org.atmosphere.config.AtmosphereConfig;
 public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
-    protected static AtmosphereConfig config;
+    protected static AtmosphereServlet.AtmosphereConfig config;
 
     /**
      * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
@@ -162,7 +160,7 @@ public abstract class BroadcasterFactory {
         return factory;
     }
 
-    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {
+    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereServlet.AtmosphereConfig c) {
         factory = f;
         config = c;
     }

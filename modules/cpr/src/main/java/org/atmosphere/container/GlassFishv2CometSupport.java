@@ -41,13 +41,12 @@ import com.sun.enterprise.web.connector.grizzly.comet.CometContext;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
-
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

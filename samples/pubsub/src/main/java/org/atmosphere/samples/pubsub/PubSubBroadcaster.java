@@ -37,7 +37,6 @@
  */
 package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -60,7 +59,7 @@ public class PubSubBroadcaster extends JerseyBroadcaster {
 
     private final AtomicBoolean isSet = new AtomicBoolean(false);
 
-    public PubSubBroadcaster(String id, AtmosphereConfig config) {
+    public PubSubBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
         super(id, config);
     }
 
