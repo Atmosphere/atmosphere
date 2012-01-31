@@ -432,8 +432,8 @@ jQuery.atmosphere = function() {
 
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
-            if (request.lastTimestamp != undefined) {
-                ajaxRequest.setRequestHeader("X-Cache-Date", lastTimestamp);
+            if (request.lastTimestamp != 0) {
+                ajaxRequest.setRequestHeader("X-Cache-Date", request.lastTimestamp);
             } else {
                 ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
             }
@@ -471,7 +471,7 @@ jQuery.atmosphere = function() {
             url += "?X-Atmosphere-tracking-id=" + jQuery.atmosphere.uuid;
             url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;
             url += "&X-Atmosphere-Transport=" + request.transport;
-            if (request.lastTimestamp != undefined) {
+            if (request.lastTimestamp != 0) {
                 url += "&X-Cache-Date=" + request.lastTimestamp;
             } else {
                 url += "&X-Cache-Date=" + new Date().getTime();
