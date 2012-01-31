@@ -2,8 +2,9 @@ package org.atmosphere.jersey.tests;
 
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+
+import org.atmosphere.config.ApplicationConfig;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -29,7 +30,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest {
         urlTarget = "http://127.0.0.1:" + port + "/builder/invoke";
         atmoServlet = new AtmosphereServlet();
         atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
-        atmoServlet.addInitParameter(ApplicationConfig.SUPPORT_LOCATION_HEADER, "true");
+        atmoServlet.addInitParameter(org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER, "true");
         configureCometSupport();
         startServer();
     }

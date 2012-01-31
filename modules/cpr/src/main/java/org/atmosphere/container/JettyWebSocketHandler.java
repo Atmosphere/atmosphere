@@ -178,7 +178,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection , atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection, atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
             webSocketProcessor.dispatch(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
