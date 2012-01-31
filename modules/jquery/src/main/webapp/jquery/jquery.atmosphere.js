@@ -83,7 +83,9 @@ jQuery.atmosphere = function() {
                 rewriteURL : false,
                 attachHeadersAsQueryString : false,
                 executeCallbackBeforeReconnect : true,
-                readyState : 0
+                readyState : 0,
+                lastTimestamp : 0
+
 
             }, request);
 
@@ -295,6 +297,11 @@ jQuery.atmosphere = function() {
                     }
                     request.readyState = ajaxRequest.readyState;
 
+                    var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                    if (tempDate != null || tempDate != undefined) {
+                        request.lastTimestamp = tempDate.split(" ").pop();
+                    }
+
                     if (ajaxRequest.readyState == 4) {
                         if (jQuery.browser.msie) {
                             update = true;
@@ -425,7 +432,11 @@ jQuery.atmosphere = function() {
 
             ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
             ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
-            ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+            if (request.lastTimestamp != undefined) {
+                ajaxRequest.setRequestHeader("X-Cache-Date", lastTimestamp);
+            } else {
+                ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+            }
 
             if (jQuery.atmosphere.request.contentType != '') {
                 ajaxRequest.setRequestHeader("Content-Type", jQuery.atmosphere.request.contentType);
@@ -460,7 +471,11 @@ jQuery.atmosphere = function() {
             url += "?X-Atmosphere-tracking-id=" + jQuery.atmosphere.uuid;
             url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;
             url += "&X-Atmosphere-Transport=" + request.transport;
-            url += "&X-Cache-Date=" + new Date().getTime();
+            if (request.lastTimestamp != undefined) {
+                url += "&X-Cache-Date=" + request.lastTimestamp;
+            } else {
+                url += "&X-Cache-Date=" + new Date().getTime();
+            }
 
             if (jQuery.atmosphere.request.contentType != '') {
                 url += "&Content-Type=" + jQuery.atmosphere.request.contentType;

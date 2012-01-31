@@ -866,7 +866,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
-                broadcasterCache.addToCache(token.resource, m);
+                broadcasterCache.addToCache(r, m);
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {

@@ -74,7 +74,7 @@ public class HeaderBroadcasterCache extends BroadcasterCacheBase {
         long time = cm.next() == null ? cm.currentTime() : cm.next().currentTime();
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
-        if (r.isInScope() && !r.getResponse().isCommitted()) {
+        if (r != null && r.isInScope() && !r.getResponse().isCommitted()) {
             r.getResponse().addHeader(X_CACHE_DATE, String.valueOf(time));
         }
     }

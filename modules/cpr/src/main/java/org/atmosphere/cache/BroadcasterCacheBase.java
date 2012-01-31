@@ -151,9 +151,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
             cm = new CachedMessage(true);
         }
 
-        if (resource != null) {
-            cache(resource, cm);
-        }
+        cache(resource, cm);
     }
 
     /**
