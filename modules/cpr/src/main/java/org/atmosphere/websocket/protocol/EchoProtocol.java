@@ -15,6 +15,7 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -66,7 +67,7 @@ public class EchoProtocol implements WebSocketProtocol {
      * {@inheritDoc}
      */
     @Override
-    public void configure(AtmosphereServlet.AtmosphereConfig config) {
+    public void configure(AtmosphereConfig config) {
     }
 
     /**

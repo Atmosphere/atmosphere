@@ -172,6 +172,16 @@
             <artifactId>atmosphere-compat-tomcat</artifactId>
             <version>${pom.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.thoughtworks.xstream</groupId>
+					  <artifactId>xstream</artifactId>
+					  <version>1.4.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.kxml</groupId>
+				    <artifactId>kxml2</artifactId>
+					  <version>2.3.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.mockito</groupId>

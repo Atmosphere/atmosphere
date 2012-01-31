@@ -15,7 +15,7 @@
 */
 package org.atmosphere.container.version;
 
-import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
@@ -33,7 +33,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
-    private final AtmosphereServlet.AtmosphereConfig config;
+    private final AtmosphereConfig config;
 
     public Jetty8WebSocket(Connection connection, AtmosphereServlet.AtmosphereConfig config) {
         this.connection = connection;

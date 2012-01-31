@@ -159,7 +159,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
         logger.trace("WebSocket.onHandshake");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection, atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -178,7 +178,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection , atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection), webSocketProtocol);
             webSocketProcessor.dispatch(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
