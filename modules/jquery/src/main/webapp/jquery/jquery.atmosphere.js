@@ -435,7 +435,7 @@ jQuery.atmosphere = function() {
             if (request.lastTimestamp != 0) {
                 ajaxRequest.setRequestHeader("X-Cache-Date", request.lastTimestamp);
             } else {
-                ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+                ajaxRequest.setRequestHeader("X-Cache-Date", 0);
             }
 
             if (jQuery.atmosphere.request.contentType != '') {
@@ -474,7 +474,7 @@ jQuery.atmosphere = function() {
             if (request.lastTimestamp != 0) {
                 url += "&X-Cache-Date=" + request.lastTimestamp;
             } else {
-                url += "&X-Cache-Date=" + new Date().getTime();
+                url += "&X-Cache-Date=" + 0;
             }
 
             if (jQuery.atmosphere.request.contentType != '') {
