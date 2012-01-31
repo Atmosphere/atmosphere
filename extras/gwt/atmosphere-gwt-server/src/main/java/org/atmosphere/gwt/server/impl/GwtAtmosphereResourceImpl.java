@@ -132,6 +132,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         return suspended;
     }
 
+    @Override
+    public boolean isSystemMessage(Serializable message) {
+        return HEARTBEAT_MESSAGE.equals(message);
+    }    
+
     long getStartTime() {
         return startTime;
     }
