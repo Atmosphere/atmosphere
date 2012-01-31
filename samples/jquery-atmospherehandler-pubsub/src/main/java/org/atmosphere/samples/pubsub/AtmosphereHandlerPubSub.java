@@ -43,7 +43,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
 
-    @Override
     public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
 
         HttpServletRequest req = r.getRequest();
@@ -77,7 +76,6 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
         }
     }
 
-    @Override
     public void destroy() {
     }
 

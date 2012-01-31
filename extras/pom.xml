@@ -22,6 +22,6 @@
         <module>redis</module>
         <module>xmpp</module>
         <module>hazelcast</module>
-		<module>socketio</module>
+        <module>socketio</module>
     </modules>
 </project>

@@ -16,6 +16,7 @@
 package org.atmosphere.container.version;
 
 import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
@@ -35,7 +36,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     private final Connection connection;
     private final AtmosphereConfig config;
 
-    public Jetty8WebSocket(Connection connection, AtmosphereServlet.AtmosphereConfig config) {
+    public Jetty8WebSocket(Connection connection, AtmosphereConfig config) {
         this.connection = connection;
         this.config = config;
     }
