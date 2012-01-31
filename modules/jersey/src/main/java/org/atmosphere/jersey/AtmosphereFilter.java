@@ -209,7 +209,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         boolean outputJunk(boolean outputJunk) {
             boolean webSocketEnabled = false;
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
-                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         webSocketEnabled = true;
@@ -567,7 +567,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             boolean webSocketSupported = servletReq.getAttribute(WebSocket.WEBSOCKET_SUSPEND) != null;
 
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
-                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade != null && upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (!webSocketSupported) {

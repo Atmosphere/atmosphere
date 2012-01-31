@@ -97,7 +97,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         boolean webSocketEnabled = false;
         if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
-            String[] e = request.getHeaders("Connection").nextElement().split(",");
+            String[] e = request.getHeaders("Connection").nextElement().toString().split(",");
             for (String upgrade : e) {
                 if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;

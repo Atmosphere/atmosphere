@@ -174,7 +174,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
 
-        ServletRequest request = r.getRequest();
+        ServletRequest request = r.getRequest(false);
         while (request != null) {
             Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
             if (c != null) {
@@ -185,7 +185,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 } catch (IllegalStateException ex) {
                     logger.trace("c.complete()", ex);
                 } finally {
-                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+                    r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                 }
                 request.removeAttribute(Continuation.class.getName());
                 return;
