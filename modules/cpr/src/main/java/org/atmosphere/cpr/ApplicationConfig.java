@@ -212,5 +212,6 @@ public interface ApplicationConfig {
      * Let Jetty send blob instead of String
      */
     String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
+    String PROPERTY_CUSTOM_COMET_SUPPORT = "org.atmosphere.cpr.customCometSupport";
 
 }

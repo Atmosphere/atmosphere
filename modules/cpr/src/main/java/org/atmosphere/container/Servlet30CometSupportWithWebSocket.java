@@ -16,7 +16,7 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,5 +70,8 @@ public class Servlet30CometSupportWithWebSocket extends Servlet30CometSupport {
     @Override
     public boolean supportWebSocket() {
         return true;
+    }
+	public WebSocketFactory getWebSocketFactory(){
+    	return webSocketFactory;
     }
 }
