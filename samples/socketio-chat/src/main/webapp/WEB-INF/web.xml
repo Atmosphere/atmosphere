@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"	xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+
+	<display-name>SocketIOChat</display-name>
+	<servlet>
+		<description>AtmosphereServlet</description>
+		<servlet-name>AtmosphereServlet</servlet-name>
+		<servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterClass</param-name>
+			<param-value>org.atmosphere.protocol.socketio.util.SocketIOExcludeSessionBroadcaster</param-value>
+		</init-param>
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
+			<param-value>org.atmosphere.protocol.socketio.cache.SocketIOBroadcasterCache</param-value>
+		</init-param>
+		<init-param>
+			<param-name>org.atmosphere.cpr.customCometSupport</param-name>
+			<param-value>org.atmosphere.protocol.socketio.SocketIOCometSupport</param-value>
+		</init-param>
+		<init-param>
+			<param-name>socketio-transport</param-name>
+			<param-value>websocket,xhr-polling,jsonp-polling</param-value>
+		</init-param>
+		<!--
+		<init-param>
+			<param-name>socketio-transport</param-name>
+			<param-value>websocket,htmlfile,xhr-polling,jsonp-polling</param-value>
+		</init-param>
+		-->
+		<init-param>
+			<param-name>socketio-timeout</param-name>
+			<param-value>25000</param-value>
+		</init-param>
+		<init-param>
+			<param-name>socketio-heartbeat</param-name>
+			<param-value>15000</param-value>
+		</init-param>
+		<init-param>
+			<param-name>socketio-suspendTime</param-name>
+			<param-value>30000</param-value>
+		</init-param>
+
+<!-- 
+		<init-param>
+			<param-name>org.atmosphere.jersey.servlet-mapping</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.useBlocking</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.useNative</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.useWebSocket</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.useStream</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterFactory</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterClass</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.cometSupport</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.sessionSupport</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.resumeOnBroadcast</param-name>
+			<param-value></param-value>
+		</init-param>
+
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.noCacheHeaders</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.dropAccessControlAllowOriginHeader</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcasterLifeCyclePolicy</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.WebSocketProcessor</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.messageContentType</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.messageMethod</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.maxIdleTime</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.bufferSize</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.websocket.pathDelimiter</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.AtmosphereResource</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.disableOnStateEvent</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.CometSupport.maxInactiveActivity</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.Trackable</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.allowQueryStreamAsPostOrGet</param-name>
+			<param-value></param-value>
+		</init-param>
+
+		<init-param>
+			<param-name>org.atmosphere.cpr.customCometSupport</param-name>
+			<param-value></param-value>
+		</init-param>
+ -->
+ 
+		<load-on-startup>0</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>AtmosphereServlet</servlet-name>
+		<url-pattern>/ChatAtmosphereHandler/*</url-pattern>
+	</servlet-mapping>
+	<welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+	</welcome-file-list>
+</web-app>
