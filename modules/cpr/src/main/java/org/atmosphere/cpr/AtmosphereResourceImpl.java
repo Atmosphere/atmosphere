@@ -232,8 +232,6 @@ public class AtmosphereResourceImpl implements
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
-        } finally {
-            event.setMessage(null);
         }
     }
 

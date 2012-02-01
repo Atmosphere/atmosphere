@@ -729,7 +729,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 cacheLostMessage(r, token);
             }
             token.destroy();
-            event.setMessage(null);
         }
     }
 
@@ -1034,8 +1033,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     BroadcasterFactory.getDefault().add(this, name);
                 }
 
-                resources.add(r);
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+                if (!AtmosphereResourceImpl.class.cast(r).isResumed() ||
+                        AtmosphereResourceImpl.class.cast(r).isCancelled()) {
+                    resources.add(r);
+                }
             }
         } finally {
             // OK reset
