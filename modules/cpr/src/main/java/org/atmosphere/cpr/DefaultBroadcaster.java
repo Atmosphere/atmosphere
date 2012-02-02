@@ -641,27 +641,28 @@ public class DefaultBroadcaster implements Broadcaster {
         Object finalMsg = msg.message;
 
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-            if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
-                if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
-                    Object message = msg.originalMessage;
-                    BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
-                    if (a.action() == BroadcastAction.ACTION.ABORT) {
-                        return null;
+            synchronized(r) {
+                if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                    if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
+                        Object message = msg.originalMessage;
+                        BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                        if (a.action() == BroadcastAction.ACTION.ABORT) {
+                            return null;
+                        }
+                        if (a.message() != msg.originalMessage) {
+                            finalMsg = a.message();
+                        }
                     }
-                    if (a.message() != msg.originalMessage) {
-                        finalMsg = a.message();
-                    }
+                } else {
+                    // The resource is no longer valid.
+                    removeAtmosphereResource(r);
+                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
                 }
 
                 if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
                     trackBroadcastMessage(r, finalMsg);
                 }
-            } else {
-                // The resource is no longer valid.
-                removeAtmosphereResource(r);
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
             }
-
         }
         return finalMsg;
     }
