@@ -642,7 +642,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
             synchronized(r) {
-                if (AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                if (isAtmosphereResourceValid(r)) {
                     if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
                         Object message = msg.originalMessage;
                         BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
@@ -689,9 +689,7 @@ public class DefaultBroadcaster implements Broadcaster {
             event.setMessage(token.msg);
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
-            if (!r.isInScope()
-                    || AtmosphereResourceImpl.class.cast(r).isResumed()
-                    || AtmosphereResourceImpl.class.cast(r).isCancelled()) {
+            if (!isAtmosphereResourceValid(r)) {
                 resources.remove(r);
                 lostCandidate = true;
                 return;
@@ -749,11 +747,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     synchronized (token.resource) {
                         // We want this thread to wait for the write operation to happens to kept the order
                         bc.getAsyncWriteService().submit(this);
-
-                        // If the resource is no longer in scope, skip the processing.
-                        if (AtmosphereResourceImpl.class.cast(token.resource).isInScope()) {
-                            executeAsyncWrite(token);
-                        }
+                        executeAsyncWrite(token);
                     }
                 } catch (InterruptedException ex) {
                     return;
@@ -1035,8 +1029,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-                if (!AtmosphereResourceImpl.class.cast(r).isResumed() ||
-                        AtmosphereResourceImpl.class.cast(r).isCancelled()) {
+                if (isAtmosphereResourceValid(r)) {
                     resources.add(r);
                 }
             }
@@ -1049,6 +1042,12 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
         return r;
+    }
+
+    private boolean isAtmosphereResourceValid(AtmosphereResource<?,?> r) {
+        return !AtmosphereResourceImpl.class.cast(r).isResumed()
+                && !AtmosphereResourceImpl.class.cast(r).isCancelled()
+                && AtmosphereResourceImpl.class.cast(r).isInScope();
     }
 
     /**
