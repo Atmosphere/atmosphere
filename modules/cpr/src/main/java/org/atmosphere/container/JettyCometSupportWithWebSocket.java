@@ -61,9 +61,9 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
     public JettyCometSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
-        String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
         WebSocketFactory wsf;
         try {
+            String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
             if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
                 wsf = JettyWebSocketUtil.getFactory(config);
             } else {
@@ -83,8 +83,8 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
     @Override
     public Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        Action action = JettyWebSocketUtil.doService(this,req,res,webSocketFactory);
-        return action == null? super.service(req,res) : action;
+        Action action = JettyWebSocketUtil.doService(this, req, res, webSocketFactory);
+        return action == null ? super.service(req, res) : action;
     }
 
     /**
