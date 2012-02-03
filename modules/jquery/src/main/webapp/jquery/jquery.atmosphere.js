@@ -34,9 +34,9 @@ jQuery.atmosphere = function() {
     var parseHeaders = function(headerString) {
         var headers = {};
         jQuery.each(headerString.split("\n"), function(idx, token) {
-            if (token.trim().length > 0) {
-                var a = token.split(":");
-                headers[jQuery.trim(a[0])] = jQuery.trim(a[1]);
+            var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
+            while(match = rheaders.exec(headerString)) {
+                headers[match[1]] = match[2];
             }
         });
         return headers;
@@ -498,7 +498,7 @@ jQuery.atmosphere = function() {
             jQuery.each(request.headers, function(name, value) {
               var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
               if (h) {
-                url += "&" + name + "=" + h;
+                url += "&" + encodeURIComponent(name) + "=" + encodeURIComponent(h);
               }
             });
             return url;
