@@ -32,13 +32,11 @@ jQuery.atmosphere = function() {
     });
 
     var parseHeaders = function(headerString) {
-        var headers = {};
-        jQuery.each(headerString.split("\n"), function(idx, token) {
-            var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
-            while (match = rheaders.exec(headerString)) {
-                headers[match[1]] = match[2];
-            }
-        });
+        var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
+        while (match = rheaders.exec(headerString)) {
+            headers[match[1]] = match[2];
+        }
+
         return headers;
     };
 
