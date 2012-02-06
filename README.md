@@ -29,7 +29,7 @@ If you are using Maven, just add the following dependency:
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>0.8.4</version>
+         <version>0.8.5</version>
       </dependency>
 
 Where atmosphere-module can be: jersey, runtime, guice, jquery, redis, jms, jgroups or gwt,. Our official release are available from Maven Central. For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds:
@@ -40,6 +40,6 @@ Download samples
 
 [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
-Atmosphere 0.8.4 is our official release [see what's changed since 0.8.3](http://is.gd/H3zDnW), and our work in progress version is 0.9, targeted for end of Mid February 2012
+Atmosphere 0.8.5 is our official release [see what's changed since 0.8.4](http://is.gd/yVgcaj), and our work in progress version is 0.9, targeted for end of Mid March 2012
 
 If you are interested, subscribe to our mailing list (http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
