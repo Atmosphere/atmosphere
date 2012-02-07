@@ -65,11 +65,11 @@ public final class JerseyBroadcasterUtil {
                     cr.setResponse(Response.ok(msg).build());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
-                }
 
-                // https://github.com/Atmosphere/atmosphere/issues/169
-                if (!cr.isCommitted()) {
-                    cr.getOutputStream().flush();
+                    // https://github.com/Atmosphere/atmosphere/issues/169
+                    if (!cr.isCommitted()) {
+                        cr.getOutputStream().flush();
+                    }
                 }
             } else {
                 if (e.getMessage() == null) {
@@ -93,7 +93,6 @@ public final class JerseyBroadcasterUtil {
             if (cr != null) {
                 cr.setEntity(null);
             }
-            e.setMessage(null);
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 

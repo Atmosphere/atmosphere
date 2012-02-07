@@ -27,6 +27,14 @@ jQuery.atmosphere = function() {
         jQuery.atmosphere.unsubscribe();
     });
 
+    var parseHeaders = function(headerString) {
+        var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
+        while (match = rheaders.exec(headerString)) {
+            headers[match[1]] = match[2];
+        }
+        return headers;
+    };
+
     return {
         version : 0.9,
         requests : [],
@@ -66,7 +74,8 @@ jQuery.atmosphere = function() {
                 rewriteURL : false,
                 attachHeadersAsQueryString : false,
                 executeCallbackBeforeReconnect : true,
-                readyState : 0
+                readyState : 0,
+                lastTimestamp : 0
             };
 
             /**
@@ -476,15 +485,22 @@ jQuery.atmosphere = function() {
                 url += "?X-Atmosphere-tracking-id=" + _uuid;
                 url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;
                 url += "&X-Atmosphere-Transport=" + rq.transport;
-                url += "&X-Cache-Date=" + new Date().getTime();
+                if (rq.lastTimestamp != undefined) {
+                    url += "&X-Cache-Date=" + rq.lastTimestamp;
+                } else {
+                    url += "&X-Cache-Date=" + 0;
+                }
 
                 if (rq.contentType != '') {
                     url += "&Content-Type=" + rq.contentType;
                 }
 
-                for (var x in rq.headers) {
-                    url += "&" + x + "=" + rq.headers[x];
-                }
+                jQuery.each(request.headers, function(name, value) {
+                    var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
+                    if (h) {
+                        url += "&" + encodeURIComponent(name) + "=" + encodeURIComponent(h);
+                    }
+                });
 
                 return url;
             }
@@ -594,6 +610,11 @@ jQuery.atmosphere = function() {
 
                         rq.readyState = ajaxRequest.readyState;
 
+                        var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                        if (tempDate != null || tempDate != undefined) {
+                            _request.lastTimestamp = tempDate.split(" ").pop();
+                        }
+
                         if (ajaxRequest.readyState == 4) {
                         	if (jQuery.browser.msie) {
                                 update = true;
@@ -642,7 +663,7 @@ jQuery.atmosphere = function() {
                                         if (ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
                                                 _response.status = ajaxRequest.status;
-                                                _response.headers = ajaxRequest.getAllResponseHeaders();
+                                                _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
                                             }
                                             catch(e) {
                                                 _response.status = 404;
@@ -671,7 +692,7 @@ jQuery.atmosphere = function() {
 
                             try {
                                 _response.status = ajaxRequest.status;
-                                _response.headers = ajaxRequest.getAllResponseHeaders();
+                                _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
                             } catch(e) {
                                 _response.status = 404;
                             }
@@ -734,16 +755,23 @@ jQuery.atmosphere = function() {
                 }
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
-                ajaxRequest.setRequestHeader("X-Cache-Date", new Date().getTime());
+                if (request.lastTimestamp != undefined) {
+                    ajaxRequest.setRequestHeader("X-Cache-Date", request.lastTimestamp);
+                } else {
+                    ajaxRequest.setRequestHeader("X-Cache-Date", 0);
+                }
 
-                if (_request.contentType != '') {
+                if (request.contentType != '') {
                     ajaxRequest.setRequestHeader("Content-Type", request.contentType);
                 }
                 ajaxRequest.setRequestHeader("X-Atmosphere-tracking-id", _uuid);
 
-                for (var x in request.headers) {
-                    ajaxRequest.setRequestHeader(x, request.headers[x]);
-                }
+                jQuery.each(request.headers, function(name, value) {
+                    var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
+                    if (h) {
+                        ajaxRequest.setRequestHeader(name, h);
+                    }
+                });
             }
 
             function _reconnect(ajaxRequest, request, force) {

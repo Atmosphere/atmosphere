@@ -92,6 +92,8 @@ public class AtmosphereResourceImpl implements
     private String beginCompatibleData;
     private boolean useWriter = true;
     private boolean isResumed = false;
+    private boolean isCancelled = false;
+
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -159,80 +161,77 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public void resume() {
-        // Strangely but possible two thread try to resume at the same time.
+    public synchronized void resume() {
+        // We need to synchronize the method because the resume may occurs at the same time a message is published
+        // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
-            synchronized (event) {
-                if (!isResumed && isInScope) {
-                    action.type = AtmosphereServlet.Action.TYPE.RESUME;
-                    isResumed = true;
+            if (!isResumed && isInScope) {
+                action.type = AtmosphereServlet.Action.TYPE.RESUME;
+                isResumed = true;
 
-                    try {
-                        logger.debug("Resuming {}", getRequest());
-                    } catch (Throwable ex) {
-                        // Jetty NPE toString()
-                        // Ignore
-                        // Stop here as the request object as becomes invalid.
-                        return;
-                    }
-
-                    // We need it as Jetty doesn't support timeout
-                    Broadcaster b = getBroadcaster(false);
-                    if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
-                        ((DefaultBroadcaster) b).broadcastOnResume(this);
-                    }
-
-                    notifyListeners();
-                    listeners.clear();
-
-                    try {
-                        if (!b.isDestroyed()) {
-                            broadcaster.removeAtmosphereResource(this);
-                        }
-                    } catch (IllegalStateException ex) {
-                        logger.warn("Unable to resume", this);
-                        logger.debug(ex.getMessage(), ex);
-                    }
-
-                    if (b.getScope() == Broadcaster.SCOPE.REQUEST) {
-                        logger.debug("Broadcaster's scope is set to request, destroying it {}", b.getID());
-                        b.destroy();
-                    }
-
-                    // Resuming here means we need to pull away from all other Broadcaster, if they exists.
-                    if (BroadcasterFactory.getDefault() != null) {
-                        BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
-                    }
-
-                    try {
-                        req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
-                        Meteor m = (Meteor) req.getAttribute(METEOR);
-                        if (m != null) {
-                            m.destroy();
-                        }
-                    } catch (Exception ex) {
-                        logger.debug("Cannot resume an already resumed/cancelled request");
-                    }
-
-                    if (req.getAttribute(PRE_SUSPEND) == null) {
-                        cometSupport.action(this);
-                    }
-                } else {
-                    logger.debug("Cannot resume an already resumed/cancelled request {}", getRequest());
+                try {
+                    logger.debug("Resuming {}", getRequest(false));
+                } catch (Throwable ex) {
+                    // Jetty NPE toString()
+                    // Ignore
+                    // Stop here as the request object as becomes invalid.
+                    return;
                 }
 
-                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                    AtmosphereResponse.class.cast(response).destroy();
+                // We need it as Jetty doesn't support timeout
+                Broadcaster b = getBroadcaster(false);
+                if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
+                    ((DefaultBroadcaster) b).broadcastOnResume(this);
                 }
 
-                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                    AtmosphereRequest.class.cast(req).destroy();
+                notifyListeners();
+                listeners.clear();
+
+                try {
+                    if (!b.isDestroyed()) {
+                        broadcaster.removeAtmosphereResource(this);
+                    }
+                } catch (IllegalStateException ex) {
+                    logger.warn("Unable to resume", this);
+                    logger.debug(ex.getMessage(), ex);
                 }
+
+                if (b.getScope() == Broadcaster.SCOPE.REQUEST) {
+                    logger.debug("Broadcaster's scope is set to request, destroying it {}", b.getID());
+                    b.destroy();
+                }
+
+                // Resuming here means we need to pull away from all other Broadcaster, if they exists.
+                if (BroadcasterFactory.getDefault() != null) {
+                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+                }
+
+                try {
+                    req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
+                    Meteor m = (Meteor) req.getAttribute(METEOR);
+                    if (m != null) {
+                        m.destroy();
+                    }
+                } catch (Exception ex) {
+                    logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+                }
+
+                if (req.getAttribute(PRE_SUSPEND) == null) {
+                    cometSupport.action(this);
+                }
+            } else {
+                logger.debug("Cannot resume an already resumed/cancelled request {}", this);
+            }
+
+            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                AtmosphereResponse.class.cast(response).destroy();
+            }
+
+            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                AtmosphereRequest.class.cast(req).destroy();
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
-        } finally {
-            event.setMessage(null);
         }
     }
 
@@ -495,6 +494,14 @@ public class AtmosphereResourceImpl implements
         serializer = s;
     }
 
+    protected boolean isResumed(){
+        return isResumed;
+    }
+
+    protected boolean isCancelled(){
+        return isCancelled;
+    }
+
     /**
      * Write the broadcasted object using the {@link OutputStream}. If a
      * {@link Serializer} is defined, the operation will be delagated to it. If
@@ -668,8 +675,9 @@ public class AtmosphereResourceImpl implements
         return listeners;
     }
 
-    public void cancel() throws IOException {
+    public synchronized void cancel() throws IOException {
         action.type = Action.TYPE.RESUME;
+        isCancelled = true;
         cometSupport.action(this);
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
