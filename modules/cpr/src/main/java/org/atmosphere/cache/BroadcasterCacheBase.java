@@ -74,7 +74,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse> {
+public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse, Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheBase.class);
 
@@ -173,7 +173,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
     /**
      * {@inheritDoc}
      */
-    public final synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
 
         CachedMessage cm = retrieveLastMessage(r);
         boolean isNew = false;
