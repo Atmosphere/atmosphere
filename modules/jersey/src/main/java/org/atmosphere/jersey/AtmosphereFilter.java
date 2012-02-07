@@ -209,7 +209,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         boolean outputJunk(boolean outputJunk) {
             boolean webSocketEnabled = false;
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
-                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         webSocketEnabled = true;
@@ -256,25 +256,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         response.setStatus(200);
                     }
 
-                    String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
-                    if (transport == null) {
-                        transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT);
-                        // https://github.com/Atmosphere/atmosphere/issues/166
-                        if (transport == null) {
-                            transport = servletReq.getParameter(X_ATMOSPHERE_TRANSPORT.toLowerCase());
-                        }
-                    }
-
-                    String broadcasterName = servletReq.getHeader(topic);
-                    if (broadcasterName == null) {
-                        broadcasterName = servletReq.getParameter(topic);
-                        // https://github.com/Atmosphere/atmosphere/issues/166
-                        if (broadcasterName == null) {
-                            broadcasterName = servletReq.getParameter(topic.toLowerCase());
-                        }
-                    }
-
-
+                    String transport = getHeaderOrQueryValue(X_ATMOSPHERE_TRANSPORT);
+                    String broadcasterName = getHeaderOrQueryValue(topic);
                     if (transport == null || broadcasterName == null) {
                         StringBuffer s = new StringBuffer();
                         Enumeration<String> e = servletReq.getHeaderNames();
@@ -523,6 +506,34 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return response;
         }
 
+        String getHeaderOrQueryValue(String name) {
+            String value = servletReq.getHeader(name);
+            if (value == null) {
+                value = servletReq.getParameter(name);
+                // https://github.com/Atmosphere/atmosphere/issues/166
+                if (value == null) {
+                    value = servletReq.getParameter(name.toLowerCase());
+                    // Last Chance
+                    if (value == null) {
+                        String qs = servletReq.getQueryString();
+                        if (qs != null && qs.indexOf(name) != -1) {
+                            String[] s = qs.split("&");
+                            String[] query;
+                            for (String a : s) {
+                                if (a.startsWith(name) || a.startsWith(name.toLowerCase())) {
+                                    query = a.split("=");
+                                    if (query.length == 2) {
+                                        return query[1];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return value;
+        }
+
         TrackableResource preTrack(ContainerRequest request, ContainerResponse response) {
             TrackableResource<? extends Trackable> trackableResource = TrackableResource.class.cast(response.getEntity());
 
@@ -556,7 +567,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             boolean webSocketSupported = servletReq.getAttribute(WebSocket.WEBSOCKET_SUSPEND) != null;
 
             if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
-                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().split(",");
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade != null && upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (!webSocketSupported) {

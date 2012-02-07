@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2011 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -151,9 +151,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
             cm = new CachedMessage(true);
         }
 
-        if (resource != null) {
-            cache(resource, cm);
-        }
+        cache(resource, cm);
     }
 
     /**
@@ -237,8 +235,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
         this.maxCachedinMs = maxCachedinMs;
     }
 
-
-    protected static class CachedMessage implements Serializable {
+    protected final static class CachedMessage implements Serializable {
 
         public final Object message;
         public final long currentTime;

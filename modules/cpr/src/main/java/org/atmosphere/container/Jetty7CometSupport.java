@@ -163,7 +163,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         synchronized (r) {
             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-            r.setIsInScope(false);
         }
         return new Action(Action.TYPE.RESUME);
     }
@@ -177,31 +176,25 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         ServletRequest request = r.getRequest(false);
         while (request != null) {
-            try {
-                Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
-                if (c != null) {
-                    try {
-                        if (c.isSuspended()) {
-                            c.complete();
-                        }
-                    } catch (IllegalStateException ex) {
-                        logger.trace("c.complete()", ex);
-                    } finally {
-                        r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+            Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
+            if (c != null) {
+                try {
+                    if (c.isSuspended()) {
+                        c.complete();
                     }
-                    request.removeAttribute(Continuation.class.getName());
-                    return;
-                } else {
-                    if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-                        request = AtmosphereRequest.class.cast(request).getRequest();
-                    } else {
-                        return;
-                    }
+                } catch (IllegalStateException ex) {
+                    logger.trace("c.complete()", ex);
+                } finally {
+                    r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                 }
-            } catch (Throwable t) {
-                // Ignore
-                logger.trace("action" , t);
+                request.removeAttribute(Continuation.class.getName());
                 return;
+            } else {
+                if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+                    request = AtmosphereRequest.class.cast(request).getRequest();
+                } else {
+                    return;
+                }
             }
         }
     }

@@ -69,6 +69,7 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
+    private GrizzlyApplication application;
 
     public GlassFishWebSocketSupport(AtmosphereConfig config) {
         super(config);
@@ -77,8 +78,15 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     @Override
     public void init(ServletConfig sc) throws ServletException {
         super.init(sc);
-        WebSocketEngine.getEngine().register(new GrizzlyApplication(config));
+        application = new GrizzlyApplication(config);
+        WebSocketEngine.getEngine().register(application);
     }
+
+    @Override
+    public void shutdown() {
+        WebSocketEngine.getEngine().unregister(application);
+        super.shutdown();
+     }
 
     /**
      * {@inheritDoc}
@@ -89,7 +97,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
         boolean webSocketEnabled = false;
         if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
-            String[] e = request.getHeaders("Connection").nextElement().split(",");
+            String[] e = request.getHeaders("Connection").nextElement().toString().split(",");
             for (String upgrade : e) {
                 if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;
@@ -154,40 +162,40 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         @Override
         public void onClose(com.sun.grizzly.websockets.WebSocket w, DataFrame df) {
             super.onClose(w, df);
-            logger.debug("onClose {} ");
+            logger.debug("onClose {} ", w);
             webSocketProcessor.close();
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, String text) {
-            logger.debug("onMessage {} ");
+            logger.debug("onMessage {} ", w);
             webSocketProcessor.invokeWebSocketProtocol(text);
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onMessage (bytes) {} ");
+            logger.debug("onMessage (bytes) {} ", w);
             webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
         }
 
         @Override
         public void onPing(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onPing (bytes) {} ");
+            logger.debug("onPing (bytes) {} ", w);
         }
 
         @Override
         public void onPong(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
-            logger.debug("onPong (bytes) {} ");
+            logger.debug("onPong (bytes) {} ", w);
         }
 
         @Override
         public void onFragment(com.sun.grizzly.websockets.WebSocket w, byte[] bytes, boolean last) {
-            logger.debug("onFragment (bytes) {} ");
+            logger.debug("onFragment (bytes) {} ", w);
         }
 
         @Override
         public void onFragment(com.sun.grizzly.websockets.WebSocket w, String text, boolean last) {
-            logger.debug("onFragment (string) {} ");
+            logger.debug("onFragment (string) {} ", w);
         }
 
     }
