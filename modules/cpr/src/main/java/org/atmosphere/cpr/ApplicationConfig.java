@@ -212,5 +212,9 @@ public interface ApplicationConfig {
      * Let Jetty send blob instead of String
      */
     String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
-
+    /**
+     * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
+     * a Container
+     */
+    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE =  ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
 }
