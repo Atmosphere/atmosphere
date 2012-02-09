@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<qualifiedTypeNameHistroy>
-<fullyQualifiedTypeName name="java.util.ArrayList"/>
-<fullyQualifiedTypeName name="org.atmosphere.config.AtmosphereConfig"/>
-<fullyQualifiedTypeName name="org.atmosphere.config.AtmosphereHandler"/>
-<fullyQualifiedTypeName name="org.atmosphere.config.AtmosphereHandlerProperty"/>
-<fullyQualifiedTypeName name="org.atmosphere.config.ApplicationConfig"/>
-<fullyQualifiedTypeName name="org.atmosphere.config.FrameworkConfig"/>
-</qualifiedTypeNameHistroy>
