@@ -57,13 +57,12 @@ import java.util.Map;
  * Wrapper around an {@link HttpServletResponse} which use an instance of {@link org.atmosphere.websocket.WebSocket}
  * as a writer.
  *
- * @param <A>
- */
-public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResponseWrapper {
+ *  */
+public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers = new HashMap<String, String>();
-    private A asyncIOWriter;
+    private AsyncIOWriter asyncIOWriter;
     private int status = 200;
     private String statusMessage = "";
     private String charSet = "UTF-8";
@@ -71,26 +70,75 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
     private String contentType = "txt/html";
     private boolean isCommited = false;
     private Locale locale;
-    private AsyncProtocol asyncProtocol;
+    private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
     private boolean headerHandled = false;
     private HttpServletRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
 
-    public AtmosphereResponse(A asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
         super(dsr);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, A asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
         super(r);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
     }
 
-    public void destroy(){
+    private AtmosphereResponse(Builder b) {
+        super(dsr);
+        this.asyncIOWriter = b.asyncIOWriter;
+        this.asyncProtocol = b.asyncProtocol;
+        this.atmosphereRequest = b.atmosphereRequest;
+        this.status = b.status;
+        this.statusMessage = b.statusMessage;
+    }
+
+    public final static class Builder {
+        private AsyncIOWriter asyncIOWriter;
+        private int status = 200;
+        private String statusMessage = "";
+        private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
+        private HttpServletRequest atmosphereRequest;
+
+        public Builder() {
+        }
+
+        public Builder asyncIOWriter(AsyncIOWriter asyncIOWriter) {
+            this.asyncIOWriter = asyncIOWriter;
+            return this;
+        }
+
+        public Builder status(int status) {
+            this.status = status;
+            return this;
+        }
+
+        public Builder statusMessage(String statusMessage) {
+            this.statusMessage = statusMessage;
+            return this;
+        }
+
+        public Builder asyncProtocol(AsyncProtocol asyncProtocol) {
+            this.asyncProtocol = asyncProtocol;
+            return this;
+        }
+
+        public Builder atmosphereRequest(HttpServletRequest atmosphereRequest) {
+            this.atmosphereRequest = atmosphereRequest;
+            return this;
+        }
+
+        public AtmosphereResponse build() {
+            return new AtmosphereResponse(this);
+        }
+    }
+
+    public void destroy() {
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -119,7 +167,7 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        setStatus(sc,msg);
+        setStatus(sc, msg);
         asyncIOWriter.writeError(sc, msg);
     }
 
@@ -425,11 +473,9 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
     }
 
     /**
-     * Return the underlying {@link org.atmosphere.websocket.WebSocket}
-     *
-     * @return A
+     * Return the underlying {@link AsyncIOWriter}
      */
-    public A getAsyncIOWriter() {
+    public AsyncIOWriter getAsyncIOWriter() {
         return asyncIOWriter;
     }
 
@@ -587,6 +633,24 @@ public class AtmosphereResponse<A extends AsyncIOWriter> extends HttpServletResp
 
         public Locale getLocale() {
             return null;
+        }
+    }
+
+    private final static class FakeAsyncProtocol  implements AsyncProtocol {
+
+        @Override
+        public boolean inspectResponse() {
+            return false;
+        }
+
+        @Override
+        public String handleResponse(AtmosphereResponse res, String message) {
+            return null;
+        }
+
+        @Override
+        public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
+            return new byte[0];
         }
     }
 }
