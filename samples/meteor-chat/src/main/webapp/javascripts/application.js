@@ -1,6 +1,6 @@
 var count = 0;
 var app = {
-    url: '/atmosphere-meteor-chat/Meteor',
+    url: document.location.toString() + 'Meteor',
     initialize: function() {
         $('login-name').focus();
         app.listen();

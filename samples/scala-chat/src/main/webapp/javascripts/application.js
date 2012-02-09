@@ -1,6 +1,6 @@
 var count = 0;
 var app = {
-    url: '/atmosphere-scala-chat/resources/chat',
+    url: document.location.toString() + 'resources/chat',
     initialize: function() {
         $('login-name').focus();
         app.listen();
