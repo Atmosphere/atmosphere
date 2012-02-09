@@ -14,13 +14,7 @@
     <modules>
         <module>commons</module>
         <module>chat</module>
-        <module>flickr-comet</module>
         <module>rest-chat</module>
-        <module>rest-cluster-chat</module>
-        <module>twitter</module>
-        <module>rest-twitter</module>
-        <module>counter-longpolling</module>
-        <module>rest-counter</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>gwt-demo</module>
@@ -33,17 +27,13 @@
         <module>jquery-websocketprotocol-pubsub</module>
         <module>twitter-live-feed</module>
         <module>chat-guice</module>
-        <module>websocket-chat</module>
         <module>wicket-clock</module>
-        <module>jquery-pubsub-redis</module>
-        <module>jquery-pubsub-xmpp</module>
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
         <module>async-channel</module>
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
-        <module>jquery-pubsub-hazelcast</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
@@ -59,7 +49,7 @@
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>8.0.1</version>
+                <version>${jetty7-version}</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
                     <webAppConfig>
