@@ -33,7 +33,6 @@
         <module>jquery-websocketprotocol-pubsub</module>
         <module>twitter-live-feed</module>
         <module>chat-guice</module>
-        <module>websocket-chat</module>
         <module>wicket-clock</module>
         <module>jquery-pubsub-redis</module>
         <module>jquery-pubsub-xmpp</module>
