@@ -23,11 +23,10 @@ class Chat {
         val action = form.getFirst("action")
         val name = form.getFirst("name")
 
-        val result: String = if ("login".equals(action)) "System Message" + "__" + name + " has joined."
+        if ("login".equals(action)) "System Message" + "__" + name + " has joined."
              else if ("post".equals(action)) name + "__" + form.getFirst("message")
              else throw new WebApplicationException(422)
 
-        result
     }
 
 

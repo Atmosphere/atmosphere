@@ -1,6 +1,6 @@
 var count = 0;
 var app = {
-    url: '/atmosphere-rest-chat/chat',
+    url: document.location.toString() + 'chat',
     initialize: function() {
         $('login-name').focus();
         app.listen();

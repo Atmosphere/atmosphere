@@ -22,6 +22,25 @@
             <param-value>org.atmosphere.client.JSONPTransportFilter</param-value>
         </init-param>
 
+        <!-- Uncomment if you want to try XMPP
+        <init-param>
+            <param-name>org.atmosphere.plugin.xmpp.XMPPBroadcaster.authorization</param-name>
+            <param-value>me@gmail.com:password</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>org.atmosphere.plugin.xmpp.XMPPBroadcaster.server</param-name>
+            <param-value>http://gmail.com</param-value>
+        </init-param>
+        -->
+
+        <!-- Uncomment to use Redis
+                <init-param>
+            <param-name>org.atmosphere.plugin.redis.RedisBroadcaster.sharedPool</param-name>
+            <param-value>true</param-value>
+        </init-param>
+        -->
+
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

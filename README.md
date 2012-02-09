@@ -1,6 +1,6 @@
 Atmosphere is a POJO based framework using Inversion of Control (IoC) to bring Push/Comet and Websocket to the masses! Finally a framework which can run on any Java based Web Server, including Tomcat, Jetty, GlassFish, Weblogic, Grizzly, JBossWeb and JBoss, Resin, etc. without having to learn how Comet or WebSocket support has been differently implemented by all those Containers. The Atmosphere Framework has both client (Javascript, JQuery, GWT) and server components.
 
-Framework like Jersey, GWT, Wicket, Vaadin, Guice, Spring, JSF, Scalatra, Grails etc are supported. You can use Scala, JRuby, Groovy and Java to write Atmosphere application. Mssive scalability with our Cluster plugin architecture (JGroups, JMS/ActiveMQ, Redis, XMPP, etc.)
+Framework like Jersey, GWT, Wicket, Vaadin, Guice, Spring, JSF, Scalatra, Grails etc are supported. You can use Scala, JRuby, Groovy and Java to write Atmosphere application. Massive scalability with our Cluster plugin architecture (JGroups, JMS/ActiveMQ, Redis, XMPP, etc.)
 
 Follow us on [Twitter](http://www.twitter.com/atmo_framework)  or get the latest news [here](http://jfarcand.wordpress.com)
 
@@ -14,8 +14,6 @@ Latest Publications
 
 [AtmosphereHandler, Meteor, REST Resource or Native WebSocket](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
-[Devoxx 2011 - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
-
 Download Atmosphere Whitepaper
 
 [White Paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
@@ -23,6 +21,10 @@ Download Atmosphere Whitepaper
 Browse JavaDoc
 
 [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
+
+If you want to play with Redis, Hazelcast, ActiveMQ(JMS) or XMPP(Gmail), uncomments the appropriate technology and rebuild, or drop the atmosphere-{name}.jar under your WEB-INF/lib to enabled it automatically
+
+[pom.xml](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/pom.xml#L2)
 
 If you are using Maven, just add the following dependency:
 
