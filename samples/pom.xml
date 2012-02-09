@@ -13,20 +13,25 @@
     <name>atmosphere-samples</name>
     <modules>
         <module>commons</module>
+        <!-- old sample using Prototype.js -->
         <module>chat</module>
         <module>rest-chat</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
+        <module>meteor-chat</module>
+        <module>chat-guice</module>
+
+        <!-- sample using GWT -->
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
-        <module>meteor-chat</module>
+
+        <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
         <module>jquery-pubsub</module>
         <module>jquery-meteor-pubsub</module>
         <module>jquery-atmospherehandler-pubsub</module>
         <module>jquery-websocketprotocol-pubsub</module>
         <module>twitter-live-feed</module>
-        <module>chat-guice</module>
         <module>wicket-clock</module>
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
@@ -34,6 +39,7 @@
         <module>async-channel</module>
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
+        <module>spring-websocket</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
