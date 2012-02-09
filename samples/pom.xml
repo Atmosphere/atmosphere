@@ -28,15 +28,12 @@
         <module>twitter-live-feed</module>
         <module>chat-guice</module>
         <module>wicket-clock</module>
-        <module>jquery-pubsub-redis</module>
-        <module>jquery-pubsub-xmpp</module>
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
         <module>async-channel</module>
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
-        <module>jquery-pubsub-hazelcast</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>

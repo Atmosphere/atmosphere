@@ -1,5 +1,0 @@
-<atmosphere-handlers>
-    <atmosphere-handler context-root="/words" class-name="org.atmosphere.samples.flickr.FlickrAtmosphereHandler">
-        <property name="name" value="FlickrHandler"/>
-    </atmosphere-handler>
-</atmosphere-handlers>

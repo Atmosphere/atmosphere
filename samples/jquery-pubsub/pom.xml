@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
@@ -28,6 +29,38 @@
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
+
+        <!-- Uncomment to use Hazelcast
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-hazelcast</artifactId>
+            <version>${pom.version}</version>
+        </dependency>
+        -->
+
+        <!-- Uncomment to use Redis
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-redis</artifactId>
+            <version>${pom.version}</version>
+        </dependency>
+        -->
+
+        <!-- Uncomment to use XMPP
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-xmpp</artifactId>
+            <version>${pom.version}</version>
+        </dependency>
+        -->
+
+        <!-- Uncomment to use JMS
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-jms</artifactId>
+            <version>${pom.version}</version>
+        </dependency>
+        -->
 
         <dependency>
             <groupId>ch.qos.logback</groupId>
