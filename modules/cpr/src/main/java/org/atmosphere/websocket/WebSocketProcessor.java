@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -57,11 +58,19 @@ public class WebSocketProcessor implements Serializable {
     private final WebSocket webSocket;
     private final WebSocketProtocol webSocketProtocol;
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
+    private final boolean recycleAtmosphereRequestResponse;
 
     public WebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
         this.atmosphereServlet = atmosphereServlet;
         this.webSocketProtocol = webSocketProtocol;
+
+        String s = atmosphereServlet.getAtmosphereConfig().getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            recycleAtmosphereRequestResponse = true;
+        } else {
+            recycleAtmosphereRequestResponse = false;
+        }
     }
 
     public final void dispatch(final HttpServletRequest request) throws IOException {
@@ -102,8 +111,10 @@ public class WebSocketProcessor implements Serializable {
                 try {
                     dispatch(r, w);
                 } finally {
-                    r.destroy();
-                    w.destroy();
+                    if (recycleAtmosphereRequestResponse) {
+                        r.destroy();
+                        w.destroy();
+                    }
                 }
             }
         }
@@ -119,8 +130,10 @@ public class WebSocketProcessor implements Serializable {
                 try {
                     dispatch(r, w);
                 } finally {
-                    r.destroy();
-                    w.destroy();
+                    if (recycleAtmosphereRequestResponse) {
+                        r.destroy();
+                        w.destroy();
+                    }
                 }
             }
         }
