@@ -566,6 +566,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
             initWebSocketProtocol();
+            doInitCustomProtocolHandler(scFacade);
+            
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
 
@@ -658,6 +660,21 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             webSocketProtocolClassName = s;
         }
+    }
+    
+    protected void doInitCustomProtocolHandler(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.PROPERTY_CUSTOM_COMET_SUPPORT);
+        
+        if(s!=null){
+        	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        	//cometSupport = new SocketIOCometSupport(config, (AsynchronousProcessor)cometSupport);
+        	try {
+				cometSupport = (CometSupport) cl.loadClass(s).getDeclaredConstructor(config.getClass(), AsynchronousProcessor.class).newInstance(config, cometSupport);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+        }
+        
     }
 
     /**
@@ -1234,6 +1251,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 logger.trace(ex.getMessage(), ex);
 
                 cometSupport = new BlockingIOCometSupport(config);
+                
+                //HACK TEMPORAIRE :) @TODO 
+                doInitCustomProtocolHandler(config.getServletConfig());
+                if(cometSupport!=null){
+                	cometSupport.init(config.getServletConfig());
+                }
+                
                 service(req, res);
             } else {
                 logger.error("AtmosphereServlet exception", ex);

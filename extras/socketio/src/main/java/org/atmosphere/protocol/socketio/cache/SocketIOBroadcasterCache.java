@@ -1,0 +1,125 @@
+/*
+ * Copyright 2012 Sebastien Dionne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.protocol.socketio.cache;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 
+ * @author Sebastien Dionne  : sebastien.dionne@gmail.com
+ *
+ */
+public class SocketIOBroadcasterCache implements BroadcasterCache<HttpServletRequest, HttpServletResponse, String> {
+	
+	private static final Logger logger = LoggerFactory.getLogger(SocketIOBroadcasterCache.class);
+	
+	protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
+	
+	protected ConcurrentMap<AtmosphereResource<HttpServletRequest, HttpServletResponse>, Queue<String>> cache = new ConcurrentHashMap<AtmosphereResource<HttpServletRequest, HttpServletResponse>, Queue<String>>();
+	
+    public SocketIOBroadcasterCache() {
+    }
+
+    @Override
+	public void start() {
+    	reaper.scheduleAtFixedRate(new Runnable() {
+
+            public void run() {
+            	logger.error("cleanup SocketIOBroadcasterCache");
+            }
+        }, 0, 60, TimeUnit.SECONDS);
+		
+	}
+
+	@Override
+	public void stop() {
+		reaper.shutdown();
+	}
+
+	@Override
+	public void addToCache(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, String object) {
+		
+		if(resource==null){
+			logger.warn("Impossible to cache because resource is null: " + object);
+			return;
+		}
+		
+		logger.info("Message from : " + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to cache : " + object);
+		
+		Queue<String> queue = null;
+		
+		if(!cache.containsKey(resource)){
+			queue = new ConcurrentLinkedQueue<String>();
+			cache.put(resource, queue);
+		} else {
+			queue = cache.get(resource);
+		}
+		
+		queue.add(object);
+		
+	}
+
+	@Override
+	public List<String> retrieveFromCache(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) {
+		
+		if(resource==null){
+			logger.info("retrieveFromCache resource=NULL");
+			return null;
+		}
+		
+		logger.info("retrieveFromCache sessionid=" + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		if(resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID)==null){
+			return null;
+		}
+		
+		for (Entry<AtmosphereResource<HttpServletRequest, HttpServletResponse>, Queue<String>> entry : cache.entrySet()) {
+			logger.info("SessionID Cached = " + entry.getKey().getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		}
+		
+		if(cache.containsKey(resource)){
+			List<String> list = new LinkedList<String>();
+			
+			Queue<String> queue = new ConcurrentLinkedQueue<String>();
+			
+			while(!queue.isEmpty()){
+				list.add(queue.poll());
+			}
+			
+			return list;
+			
+		}
+		
+		return null;
+	}
+}
