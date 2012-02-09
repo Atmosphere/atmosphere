@@ -1,6 +1,6 @@
 var count = 0;
 var app = {
-    url: '/atmosphere-twitter/twitter',
+    url: document.location.toString() + 'twitter',
     initialize: function() {
         $('login-name').focus();
         //app.listen();
