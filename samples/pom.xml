@@ -16,7 +16,6 @@
         <module>chat</module>
         <module>flickr-comet</module>
         <module>rest-chat</module>
-        <module>rest-cluster-chat</module>
         <module>twitter</module>
         <module>rest-twitter</module>
         <module>counter-longpolling</module>
@@ -58,7 +57,7 @@
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>8.0.1</version>
+                <version>7.6.0.v20120127</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
                     <webAppConfig>
