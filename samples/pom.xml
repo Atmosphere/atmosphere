@@ -17,7 +17,6 @@
         <module>flickr-comet</module>
         <module>rest-chat</module>
         <module>twitter</module>
-        <module>rest-counter</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>gwt-demo</module>
@@ -55,7 +54,7 @@
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>${jetty7.version}</version>
+                <version>${jetty7-version}</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
                     <webAppConfig>
