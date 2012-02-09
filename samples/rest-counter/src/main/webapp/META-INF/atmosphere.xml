@@ -1,5 +1,0 @@
-<atmosphere-handlers>
-    <atmosphere-handler context-root="/dispatch" class-name="org.atmosphere.handler.ReflectorServletProcessor">
-        <property name="servletClassName" value="com.sun.jersey.spi.container.servlet.ServletContainer"/>
-    </atmosphere-handler>
-</atmosphere-handlers>
