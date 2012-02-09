@@ -14,9 +14,7 @@
     <modules>
         <module>commons</module>
         <module>chat</module>
-        <module>flickr-comet</module>
         <module>rest-chat</module>
-        <module>twitter</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>gwt-demo</module>
