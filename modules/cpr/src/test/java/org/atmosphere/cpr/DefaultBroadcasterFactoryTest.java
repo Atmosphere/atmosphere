@@ -15,8 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

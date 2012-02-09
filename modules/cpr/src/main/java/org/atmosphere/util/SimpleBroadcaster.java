@@ -38,6 +38,7 @@
 package org.atmosphere.util;
 
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -58,7 +59,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleBroadcaster.class);
 
-    public SimpleBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+    public SimpleBroadcaster(String id, AtmosphereConfig config) {
         super(id, config);
     }
 
@@ -66,7 +67,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config){
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
         BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
         if (bc == null) {
             bc = new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config, false);
