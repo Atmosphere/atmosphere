@@ -21,6 +21,8 @@ import java.io.IOException;
 
 /**
  * Simple class used to expose internal objects to {@link WebSocket}
+ * 
+ * @author Jeanfrancois Arcand
  */
 public abstract class WebSocketAdapter implements WebSocket{
 

@@ -39,7 +39,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
@@ -129,7 +129,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      *
      * @return true if supported
      */
-    protected boolean supportSession() {
+    public boolean supportSession() {
         return config.isSupportSession();
     }
 
@@ -265,7 +265,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
+    public AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();

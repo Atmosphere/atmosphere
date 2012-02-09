@@ -39,6 +39,7 @@ package org.atmosphere.util;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -57,7 +58,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
- * Atmopshere.xml reader.
+ * Atmosphere.xml reader.
  * 
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
@@ -76,6 +77,24 @@ public class AtmosphereConfigReader {
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		try {
 			return parse(factory.newDocumentBuilder().parse(filename));
+		} catch (SAXException e) {
+			logger.error(e.getMessage(), e);
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			logger.error(e.getMessage(), e);
+			throw new RuntimeException(e);
+		} catch (ParserConfigurationException e) {
+			logger.error(e.getMessage(), e);
+			throw new RuntimeException(e);
+		}
+
+	}
+	
+	public AtmosphereConfig parse(InputStream stream) throws FileNotFoundException {
+
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		try {
+			return parse(factory.newDocumentBuilder().parse(stream));
 		} catch (SAXException e) {
 			logger.error(e.getMessage(), e);
 			throw new RuntimeException(e);
@@ -197,16 +216,5 @@ public class AtmosphereConfigReader {
 
 	public static AtmosphereConfigReader getInstance() {
 		return instance;
-	}
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) throws Exception {
-
-		AtmosphereConfigReader parser = AtmosphereConfigReader.getInstance();
-
-		parser.parse("./target/classes/atmosphere.xml");
-
 	}
 }

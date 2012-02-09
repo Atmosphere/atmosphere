@@ -44,7 +44,7 @@ import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -147,7 +147,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
-                webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocket(webSocket), config.getServlet().getWebSocketProtocol());
+                webSocketProcessor = new WebSocketProcessor(config.getAtmosphereServlet(), new GrizzlyWebSocket(webSocket), config.getAtmosphereServlet().getWebSocketProtocol());
                 webSocketProcessor.dispatch(webSocket.getRequest());
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);

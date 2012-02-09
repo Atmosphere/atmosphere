@@ -38,6 +38,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheBase;
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -84,16 +85,16 @@ public class BroadcasterConfig {
     private final Object[] lock = new Object[0];
 
     private BroadcasterCache broadcasterCache;
-    private AtmosphereServlet.AtmosphereConfig config;
+    private AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
 
-    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
         this(list, config, true);
     }
 
-    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config, boolean createExecutor) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
         if (createExecutor) {
             configExecutors();
@@ -105,7 +106,7 @@ public class BroadcasterConfig {
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -557,7 +558,7 @@ public class BroadcasterConfig {
         }
     }
 
-    void configureBroadcasterFilter(String[] list) {
+    void configureBroadcasterFilter(List<String> list) {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;
             try {
@@ -591,7 +592,7 @@ public class BroadcasterConfig {
      *
      * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
+    public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
@@ -600,7 +601,7 @@ public class BroadcasterConfig {
      *
      * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
+    public void setAtmosphereConfig(AtmosphereConfig config) {
         this.config = config;
     }
 }
