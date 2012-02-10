@@ -38,7 +38,7 @@
 package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.container.ContainerResponse;
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.*;
 import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
 

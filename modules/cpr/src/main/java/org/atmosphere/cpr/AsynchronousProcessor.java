@@ -39,7 +39,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;

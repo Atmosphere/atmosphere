@@ -38,8 +38,6 @@ package org.atmosphere.cpr;
 
 import java.util.Collection;
 
-import org.atmosphere.config.AtmosphereConfig;
-
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
  *

@@ -15,10 +15,8 @@
 */
 package org.atmosphere.websocket.protocol;
 
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -26,8 +24,6 @@ import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**

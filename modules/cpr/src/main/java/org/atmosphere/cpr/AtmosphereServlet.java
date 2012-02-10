@@ -86,7 +86,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,7 +99,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
@@ -211,8 +209,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
 
     private final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
-    private final HashMap<String, String> initParams = new HashMap<String, String>();
-    protected final AtmosphereConfig config = new AtmosphereConfig();
+    protected final HashMap<String, String> initParams = new HashMap<String, String>();
+    protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
     public static List<String> broadcasterFilters = new ArrayList<String>();
@@ -313,7 +311,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     public AtmosphereServlet() {
         this(false);
-        config.setAtmosphereServlet(this);
     }
 
     /**
@@ -325,6 +322,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         this.isFilter = isFilter;
         readSystemProperties();
         populateBroadcasterType();
+        config = new AtmosphereConfig(this);
     }
 
     /**
@@ -819,9 +817,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             return;
         }
 
-        AtmosphereConfig atmoConfig = AtmosphereConfigReader.getInstance().parse(stream);
-
-        for (org.atmosphere.config.AtmosphereHandler atmoHandler : atmoConfig.getAtmosphereHandler()) {
+        AtmosphereConfigReader.getInstance().parse(config, stream);
+        for (org.atmosphere.config.AtmosphereHandler atmoHandler : config.getAtmosphereHandler()) {
             try {
                 AtmosphereHandler handler;
 
@@ -846,7 +843,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                     IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
                     IntrospectionUtils.addProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
-
                 }
 
                 config.setSupportSession(!isJersey);
@@ -1392,38 +1388,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
     public Map<String, AtmosphereHandlerWrapper> getAtmosphereHandlers() {
         return atmosphereHandlers;
-    }
-
-    public String getInitParameter(String name) {
-        // First looks locally
-        String s = initParams.get(name);
-        if (s != null) {
-            return s;
-        }
-
-        try {
-            return super.getInitParameter(name);
-        } catch (NullPointerException ex) {
-            // Don't fail if Tomcat crash on startup with an NPE
-            return null;
-        }
-    }
-
-    public Enumeration<String> getInitParameterNames() {
-        // First looks locally
-        Map<String, String> map = new HashMap<String, String>(initParams);
-
-        Enumeration en = super.getInitParameterNames();
-        while (en.hasMoreElements()) {
-            String name = (String) en.nextElement();
-            if (!map.containsKey(name)) {
-                map.put(name, name);
-            }
-        }
-
-        Vector<String> v = new Vector<String>(map.keySet());
-
-        return v.elements();
     }
 
     protected Map<String, String> configureQueryStringAsRequest(HttpServletRequest request) {

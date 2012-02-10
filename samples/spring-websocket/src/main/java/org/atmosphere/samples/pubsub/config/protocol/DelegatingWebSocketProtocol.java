@@ -18,7 +18,7 @@
  */
 package org.atmosphere.samples.pubsub.config.protocol;
 
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
