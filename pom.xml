@@ -458,6 +458,6 @@
         <jedis.version>2.0.0</jedis.version>
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.6.1</slf4j-version>
-        <logback-version>0.9.24</logback-version>
+        <logback-version>0.9.30</logback-version>
     </properties>
 </project>

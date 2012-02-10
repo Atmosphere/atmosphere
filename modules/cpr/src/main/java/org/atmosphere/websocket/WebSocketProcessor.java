@@ -81,7 +81,7 @@ public class WebSocketProcessor implements Serializable {
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
 
-        AtmosphereResponse wsr = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, request);
+        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .pathInfo(pathInfo)
@@ -107,7 +107,7 @@ public class WebSocketProcessor implements Serializable {
 
         for (AtmosphereRequest r : list) {
             if (r != null) {
-                AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
+                AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
                 try {
                     dispatch(r, w);
                 } finally {
@@ -126,7 +126,7 @@ public class WebSocketProcessor implements Serializable {
 
         for (AtmosphereRequest r : list) {
             if (r != null) {
-                AtmosphereResponse<WebSocket> w = new AtmosphereResponse<WebSocket>(webSocket, webSocketProtocol, r);
+                AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
                 try {
                     dispatch(r, w);
                 } finally {
@@ -145,7 +145,7 @@ public class WebSocketProcessor implements Serializable {
      * @param request a {@link HttpServletRequest}
      * @param r       a {@link HttpServletResponse}
      */
-    protected final void dispatch(final HttpServletRequest request, final AtmosphereResponse<?> r) {
+    protected final void dispatch(final HttpServletRequest request, final AtmosphereResponse r) {
         if (request == null) return;
         try {
             atmosphereServlet.doCometSupport(request, r);

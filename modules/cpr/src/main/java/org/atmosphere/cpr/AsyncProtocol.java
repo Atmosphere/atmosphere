@@ -38,7 +38,7 @@ public interface AsyncProtocol {
      * @param message the String message;
      * @return a new response String
      */
-    String handleResponse(AtmosphereResponse<?> res, String message);
+    String handleResponse(AtmosphereResponse res, String message);
 
     /**
      * Give a chance to a {@link AsyncProtocol} to modify the final response using a fake {@link javax.servlet.http.HttpServletResponse} that was
@@ -53,5 +53,5 @@ public interface AsyncProtocol {
      * @param length the length of the message
      * @return a new byte[] message.
      */
-    byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length);
+    byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length);
 }
