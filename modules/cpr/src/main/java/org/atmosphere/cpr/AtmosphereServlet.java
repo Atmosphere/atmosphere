@@ -818,84 +818,84 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (stream == null) {
             return;
         }
-        
+
         AtmosphereConfig atmoConfig = AtmosphereConfigReader.getInstance().parse(stream);
-        
+
         for (org.atmosphere.config.AtmosphereHandler atmoHandler : atmoConfig.getAtmosphereHandler()) {
-			try {
-	        	AtmosphereHandler handler;
-	        	
-	        	if(!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())){
-	        		handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
-	                InjectorProvider.getInjector().inject(handler);
-	            } else {
-	                handler = new ReflectorServletProcessor();
-	        	}
-	        	
-	        	logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, atmoHandler.getContextRoot());
-	        	
-	        	boolean isJersey = false;
-	            for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
-	            	
-	            	if(handlerProperty.getName()!= null && handlerProperty.getName().indexOf("jersey") != -1){
-	            		isJersey = true;
-	                    initParams.put(DISABLE_ONSTATE_EVENT, "true");
-	                    useStreamForFlushingComments = true;
-	                    broadcasterClassName = lookupDefaultBroadcasterType();
-	            	}
-	            	
-	            	IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
-	            	IntrospectionUtils.addProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
-	                
-	            }
-	            
-	            config.setSupportSession(!isJersey);
-	            
-	            if (!atmoHandler.getSupportSession().equals("")) {
-	                sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
-	            }
-	
-	            String broadcasterClass = atmoHandler.getBroadcaster();
-	            Broadcaster b;
-	            /**
-	             * If there is more than one AtmosphereHandler defined, their Broadcaster
-	             * may clash each other with the BroadcasterFactory. In that case we will use the
-	             * last one defined.
-	             */
-	            if (broadcasterClass != null) {
-	                broadcasterClassName = broadcasterClass;
-	                ClassLoader cl = Thread.currentThread().getContextClassLoader();
-	                Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
-	                broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-	                BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-	            }
-	
-	            b = BroadcasterFactory.getDefault().get(atmoHandler.getContextRoot());
-	
-	            AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
-	            addMapping(atmoHandler.getContextRoot(), wrapper);
-	
-	            String bc = atmoHandler.getBroadcasterCache();
-	            if (bc != null) {
-	                broadcasterCacheClassName = bc;
-	            }
-	
-	            if (atmoHandler.getCometSupport() != null) {
-	                cometSupport = (CometSupport) c.loadClass(atmoHandler.getCometSupport())
-	                        .getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
-	                        .newInstance(new Object[]{config});
-	            }
-	
-	            if (atmoHandler.getBroadcastFilterClasses() != null) {
-	                broadcasterFilters = atmoHandler.getBroadcastFilterClasses();
-	            }
-	            
-			} catch(Throwable t) {
+            try {
+                AtmosphereHandler handler;
+
+                if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
+                    handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
+                    InjectorProvider.getInjector().inject(handler);
+                } else {
+                    handler = new ReflectorServletProcessor();
+                }
+
+                logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, atmoHandler.getContextRoot());
+
+                boolean isJersey = false;
+                for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
+
+                    if (handlerProperty.getName() != null && handlerProperty.getName().indexOf("jersey") != -1) {
+                        isJersey = true;
+                        initParams.put(DISABLE_ONSTATE_EVENT, "true");
+                        useStreamForFlushingComments = true;
+                        broadcasterClassName = lookupDefaultBroadcasterType();
+                    }
+
+                    IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
+                    IntrospectionUtils.addProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
+
+                }
+
+                config.setSupportSession(!isJersey);
+
+                if (!atmoHandler.getSupportSession().equals("")) {
+                    sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
+                }
+
+                String broadcasterClass = atmoHandler.getBroadcaster();
+                Broadcaster b;
+                /**
+                 * If there is more than one AtmosphereHandler defined, their Broadcaster
+                 * may clash each other with the BroadcasterFactory. In that case we will use the
+                 * last one defined.
+                 */
+                if (broadcasterClass != null) {
+                    broadcasterClassName = broadcasterClass;
+                    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                    Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
+                    broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+                    BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+                }
+
+                b = BroadcasterFactory.getDefault().get(atmoHandler.getContextRoot());
+
+                AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
+                addMapping(atmoHandler.getContextRoot(), wrapper);
+
+                String bc = atmoHandler.getBroadcasterCache();
+                if (bc != null) {
+                    broadcasterCacheClassName = bc;
+                }
+
+                if (atmoHandler.getCometSupport() != null) {
+                    cometSupport = (CometSupport) c.loadClass(atmoHandler.getCometSupport())
+                            .getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
+                            .newInstance(new Object[]{config});
+                }
+
+                if (atmoHandler.getBroadcastFilterClasses() != null) {
+                    broadcasterFilters = atmoHandler.getBroadcastFilterClasses();
+                }
+
+            } catch (Throwable t) {
                 logger.warn("unable to load AtmosphereHandler class: " + atmoHandler.getClassName(), t);
                 throw new ServletException(t);
-			}
-        	
-		}
+            }
+
+        }
     }
 
     /**
@@ -1389,38 +1389,38 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public void setWebSocketProtocolClassName(String webSocketProtocolClassName) {
         this.webSocketProtocolClassName = webSocketProtocolClassName;
     }
-    
-    public Map<String, AtmosphereHandlerWrapper> getAtmosphereHandlers(){
-    	return atmosphereHandlers;
+
+    public Map<String, AtmosphereHandlerWrapper> getAtmosphereHandlers() {
+        return atmosphereHandlers;
     }
-    
+
     public String getInitParameter(String name) {
         // First looks locally
         String s = initParams.get(name);
         if (s != null) {
             return s;
         }
-        
+
         try {
-        	return super.getInitParameter(name);
-        } catch(NullPointerException ex) {
+            return super.getInitParameter(name);
+        } catch (NullPointerException ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;
         }
     }
 
     public Enumeration<String> getInitParameterNames() {
-    	// First looks locally
+        // First looks locally
         Map<String, String> map = new HashMap<String, String>(initParams);
-        
+
         Enumeration en = super.getInitParameterNames();
         while (en.hasMoreElements()) {
-        	String name = (String) en.nextElement();
-        	if(!map.containsKey(name)){
-        		map.put(name, name);
-        	}
-		}
-        
+            String name = (String) en.nextElement();
+            if (!map.containsKey(name)) {
+                map.put(name, name);
+            }
+        }
+
         Vector<String> v = new Vector<String>(map.keySet());
 
         return v.elements();
