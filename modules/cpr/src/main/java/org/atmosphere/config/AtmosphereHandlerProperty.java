@@ -16,33 +16,32 @@
 package org.atmosphere.config;
 
 /**
- * 
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
 public class AtmosphereHandlerProperty {
 
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public AtmosphereHandlerProperty(String name, String value) {
-		this.name = name;
-		this.value = value;
-	}
+    public AtmosphereHandlerProperty(String name, String value) {
+        this.name = name;
+        this.value = value;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	public void setValue(String value) {
-		this.value = value;
-	}
+    public void setValue(String value) {
+        this.value = value;
+    }
 
 }

@@ -37,6 +37,7 @@
  */
 package org.atmosphere.plugin.jms;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
@@ -118,7 +119,7 @@ public class JMSFilter implements ClusterBroadcastFilter {
      */
     public void init() {
         try {
-            AtmosphereServlet.AtmosphereConfig config = bc.getBroadcasterConfig().getAtmosphereConfig();
+            AtmosphereConfig config = bc.getBroadcasterConfig().getAtmosphereConfig();
             if (config != null) {
 
                 // For backward compatibility.
