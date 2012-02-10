@@ -128,7 +128,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      *
      * @return true if supported
      */
-    public boolean supportSession() {
+    protected boolean supportSession() {
         return config.isSupportSession();
     }
 
@@ -264,7 +264,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    public AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
+    protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();
