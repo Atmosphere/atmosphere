@@ -18,10 +18,10 @@
  */
 package org.atmosphere.samples.pubsub.config.protocol;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.samples.pubsub.config.SpringApplicationContext;
 import org.atmosphere.samples.pubsub.dto.BaseCommand;
 import org.atmosphere.samples.pubsub.dto.Command;
@@ -42,7 +42,7 @@ public class DelegatingWebSocketProtocol implements WebSocketProtocol {
     public static final Logger LOG = LoggerFactory.getLogger(DelegatingWebSocketProtocol.class);
 
     @Override
-    public void configure(AtmosphereServlet.AtmosphereConfig atmosphereConfig) {
+    public void configure(AtmosphereConfig atmosphereConfig) {
         // nothing needed
     }
 

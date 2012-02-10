@@ -15,14 +15,15 @@
  */
 package org.atmosphere.samples.pubsub;
 
+import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public class WebSocketPubSub implements WebSocketProtocol {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);
 
     @Override
-    public void configure(AtmosphereServlet.AtmosphereConfig config) {
+    public void configure(AtmosphereConfig config) {
     }
 
     @Override
