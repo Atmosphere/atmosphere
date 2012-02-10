@@ -33,7 +33,7 @@ import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
  */
 public class AtmosphereConfig {
 
-    private List<org.atmosphere.config.AtmosphereHandler> atmosphereHandler = new ArrayList<org.atmosphere.config.AtmosphereHandler>();
+    private final List<org.atmosphere.config.AtmosphereHandler> atmosphereHandler = new ArrayList<org.atmosphere.config.AtmosphereHandler>();
 
     private boolean supportSession = true;
     private BroadcasterFactory broadcasterFactory;
@@ -50,11 +50,7 @@ public class AtmosphereConfig {
         return atmosphereHandler;
     }
 
-    public void setAtmosphereHandler(List<org.atmosphere.config.AtmosphereHandler> atmosphereHandler) {
-        this.atmosphereHandler = atmosphereHandler;
-    }
-
-    public AtmosphereServlet getAtmosphereServlet() {
+    public AtmosphereServlet getServlet() {
         return atmosphereServlet;
     }
 

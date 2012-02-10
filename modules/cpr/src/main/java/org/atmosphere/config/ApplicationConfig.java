@@ -16,33 +16,32 @@
 package org.atmosphere.config;
 
 /**
- * 
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
 public class ApplicationConfig {
 
-	private String paramName;
-	private String paramValue;
+    private String paramName;
+    private String paramValue;
 
-	public ApplicationConfig(String paramName, String paramValue) {
-		this.paramName = paramName;
-		this.paramValue = paramValue;
-	}
+    public ApplicationConfig(String paramName, String paramValue) {
+        this.paramName = paramName;
+        this.paramValue = paramValue;
+    }
 
-	public String getParamName() {
-		return paramName;
-	}
+    public String getParamName() {
+        return paramName;
+    }
 
-	public void setParamName(String paramName) {
-		this.paramName = paramName;
-	}
+    public void setParamName(String paramName) {
+        this.paramName = paramName;
+    }
 
-	public String getParamValue() {
-		return paramValue;
-	}
+    public String getParamValue() {
+        return paramValue;
+    }
 
-	public void setParamValue(String paramValue) {
-		this.paramValue = paramValue;
-	}
+    public void setParamValue(String paramValue) {
+        this.paramValue = paramValue;
+    }
 
 }

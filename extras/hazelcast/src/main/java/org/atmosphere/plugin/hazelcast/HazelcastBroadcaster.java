@@ -20,6 +20,7 @@ import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.MessageListener;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
@@ -37,11 +38,11 @@ public class HazelcastBroadcaster extends AbstractBroadcasterProxy {
     private static final Logger logger = LoggerFactory.getLogger(org.atmosphere.plugin.hazelcast.HazelcastBroadcaster.class);
     private ITopic topic;
 
-    public HazelcastBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+    public HazelcastBroadcaster(String id, AtmosphereConfig config) {
         this(id, URI.create("http://localhost:6379"), config);
     }
 
-    public HazelcastBroadcaster(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+    public HazelcastBroadcaster(String id, URI uri, AtmosphereConfig config) {
         super(id, uri, config);
     }
 

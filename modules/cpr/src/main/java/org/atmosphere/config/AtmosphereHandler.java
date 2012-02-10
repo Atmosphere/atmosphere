@@ -19,101 +19,100 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
 public class AtmosphereHandler {
 
-	private String supportSession;
-	private String contextRoot;
-	private String className;
-	private String broadcaster;
-	private String broadcasterCache;
-	private String cometSupport;
+    private String supportSession;
+    private String contextRoot;
+    private String className;
+    private String broadcaster;
+    private String broadcasterCache;
+    private String cometSupport;
 
-	private List<String> broadcastFilterClasses = new ArrayList<String>();
-	private List<AtmosphereHandlerProperty> properties = new ArrayList<AtmosphereHandlerProperty>();
-	private List<ApplicationConfig> applicationConfig = new ArrayList<ApplicationConfig>();
-	private List<FrameworkConfig> frameworkConfig = new ArrayList<FrameworkConfig>();
+    private List<String> broadcastFilterClasses = new ArrayList<String>();
+    private List<AtmosphereHandlerProperty> properties = new ArrayList<AtmosphereHandlerProperty>();
+    private List<ApplicationConfig> applicationConfig = new ArrayList<ApplicationConfig>();
+    private List<FrameworkConfig> frameworkConfig = new ArrayList<FrameworkConfig>();
 
-	public String getSupportSession() {
-		return supportSession;
-	}
+    public String getSupportSession() {
+        return supportSession;
+    }
 
-	public void setSupportSession(String supportSession) {
-		this.supportSession = supportSession;
-	}
+    public void setSupportSession(String supportSession) {
+        this.supportSession = supportSession;
+    }
 
-	public String getContextRoot() {
-		return contextRoot;
-	}
+    public String getContextRoot() {
+        return contextRoot;
+    }
 
-	public void setContextRoot(String contextRoot) {
-		this.contextRoot = contextRoot;
-	}
+    public void setContextRoot(String contextRoot) {
+        this.contextRoot = contextRoot;
+    }
 
-	public String getClassName() {
-		return className;
-	}
+    public String getClassName() {
+        return className;
+    }
 
-	public void setClassName(String className) {
-		this.className = className;
-	}
+    public void setClassName(String className) {
+        this.className = className;
+    }
 
-	public String getBroadcaster() {
-		return broadcaster;
-	}
+    public String getBroadcaster() {
+        return broadcaster;
+    }
 
-	public void setBroadcaster(String broadcaster) {
-		this.broadcaster = broadcaster;
-	}
+    public void setBroadcaster(String broadcaster) {
+        this.broadcaster = broadcaster;
+    }
 
-	public List<AtmosphereHandlerProperty> getProperties() {
-		return properties;
-	}
+    public List<AtmosphereHandlerProperty> getProperties() {
+        return properties;
+    }
 
-	public void setProperties(List<AtmosphereHandlerProperty> properties) {
-		this.properties = properties;
-	}
+    public void setProperties(List<AtmosphereHandlerProperty> properties) {
+        this.properties = properties;
+    }
 
-	public List<ApplicationConfig> getApplicationConfig() {
-		return applicationConfig;
-	}
+    public List<ApplicationConfig> getApplicationConfig() {
+        return applicationConfig;
+    }
 
-	public void setApplicationConfig(List<ApplicationConfig> applicationConfig) {
-		this.applicationConfig = applicationConfig;
-	}
+    public void setApplicationConfig(List<ApplicationConfig> applicationConfig) {
+        this.applicationConfig = applicationConfig;
+    }
 
-	public List<FrameworkConfig> getFrameworkConfig() {
-		return frameworkConfig;
-	}
+    public List<FrameworkConfig> getFrameworkConfig() {
+        return frameworkConfig;
+    }
 
-	public void setFrameworkConfig(List<FrameworkConfig> frameworkConfig) {
-		this.frameworkConfig = frameworkConfig;
-	}
+    public void setFrameworkConfig(List<FrameworkConfig> frameworkConfig) {
+        this.frameworkConfig = frameworkConfig;
+    }
 
-	public String getBroadcasterCache() {
-		return broadcasterCache;
-	}
+    public String getBroadcasterCache() {
+        return broadcasterCache;
+    }
 
-	public void setBroadcasterCache(String broadcasterCache) {
-		this.broadcasterCache = broadcasterCache;
-	}
+    public void setBroadcasterCache(String broadcasterCache) {
+        this.broadcasterCache = broadcasterCache;
+    }
 
-	public List<String> getBroadcastFilterClasses() {
-		return broadcastFilterClasses;
-	}
+    public List<String> getBroadcastFilterClasses() {
+        return broadcastFilterClasses;
+    }
 
-	public void setBroadcastFilterClasses(List<String> broadcastFilterClasses) {
-		this.broadcastFilterClasses = broadcastFilterClasses;
-	}
+    public void setBroadcastFilterClasses(List<String> broadcastFilterClasses) {
+        this.broadcastFilterClasses = broadcastFilterClasses;
+    }
 
-	public String getCometSupport() {
-		return cometSupport;
-	}
+    public String getCometSupport() {
+        return cometSupport;
+    }
 
-	public void setCometSupport(String cometSupport) {
-		this.cometSupport = cometSupport;
-	}
+    public void setCometSupport(String cometSupport) {
+        this.cometSupport = cometSupport;
+    }
 
 }
