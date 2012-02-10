@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class AtmosphereHandler {
 
-    private String supportSession;
+    private boolean supportSession = false;
     private String contextRoot;
     private String className;
     private String broadcaster;
@@ -35,11 +35,11 @@ public class AtmosphereHandler {
     private List<ApplicationConfig> applicationConfig = new ArrayList<ApplicationConfig>();
     private List<FrameworkConfig> frameworkConfig = new ArrayList<FrameworkConfig>();
 
-    public String getSupportSession() {
+    public boolean getSupportSession() {
         return supportSession;
     }
 
-    public void setSupportSession(String supportSession) {
+    public void setSupportSession(boolean supportSession) {
         this.supportSession = supportSession;
     }
 

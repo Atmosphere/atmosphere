@@ -128,7 +128,7 @@ public class AtmosphereConfigReader {
                 Node attribute = root.getAttributes().item(j);
 
                 if (attribute.getNodeName().equals("support-session")) {
-                    atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setSupportSession(Boolean.valueOf(attribute.getFirstChild().getNodeValue()));
                 } else if (attribute.getNodeName().equals("context-root")) {
                     atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
                 } else if (attribute.getNodeName().equals("class-name")) {
