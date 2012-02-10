@@ -847,7 +847,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
 
                 config.setSupportSession(!isJersey);
 
-                if (!atmoHandler.getSupportSession()) {
+                if (!atmoHandler.getSupportSession().equals("")) {
                     sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
                 }
 

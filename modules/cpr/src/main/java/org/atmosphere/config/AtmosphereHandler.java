@@ -23,7 +23,8 @@ import java.util.List;
  */
 public class AtmosphereHandler {
 
-    private boolean supportSession = false;
+    // "" means unset
+    private String supportSession = "";
     private String contextRoot;
     private String className;
     private String broadcaster;
@@ -35,11 +36,11 @@ public class AtmosphereHandler {
     private List<ApplicationConfig> applicationConfig = new ArrayList<ApplicationConfig>();
     private List<FrameworkConfig> frameworkConfig = new ArrayList<FrameworkConfig>();
 
-    public boolean getSupportSession() {
+    public String getSupportSession() {
         return supportSession;
     }
 
-    public void setSupportSession(boolean supportSession) {
+    public void setSupportSession(String supportSession) {
         this.supportSession = supportSession;
     }
 
