@@ -37,7 +37,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
 import org.atmosphere.di.InjectorProvider;

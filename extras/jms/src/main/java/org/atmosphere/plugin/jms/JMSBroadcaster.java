@@ -37,6 +37,7 @@
  */
 package org.atmosphere.plugin.jms;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
@@ -82,7 +83,7 @@ public class JMSBroadcaster extends AbstractBroadcasterProxy {
     private String factoryName = "atmosphereFactory";
     private String namespace = "jms/";
 
-    public JMSBroadcaster(String id, AtmosphereServlet.AtmosphereConfig config) {
+    public JMSBroadcaster(String id, AtmosphereConfig config) {
         super(id, null, config);
         setUp();
     }

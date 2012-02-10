@@ -38,7 +38,6 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;

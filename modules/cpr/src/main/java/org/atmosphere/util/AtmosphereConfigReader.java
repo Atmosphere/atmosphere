@@ -45,7 +45,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.atmosphere.config.ApplicationConfig;
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.config.AtmosphereHandler;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfig;
@@ -58,163 +58,161 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 /**
- * Atmosphere.xml reader.
- * 
+ * Descriptor for an Atmosphere configuraton file.
+ *
+ * @author Jerome Dochez (for the version shipped in GlassFish v3).
+ * @author Jeanfrancois Arcand
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
 public class AtmosphereConfigReader {
 
-	private static final AtmosphereConfigReader instance = new AtmosphereConfigReader();
+    private static final AtmosphereConfigReader instance = new AtmosphereConfigReader();
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereConfigReader.class);
 
-	private static final Logger logger = LoggerFactory.getLogger(AtmosphereConfigReader.class);
+    private AtmosphereConfigReader() {
+    }
 
-	private AtmosphereConfigReader() {
+    public AtmosphereConfig parse(AtmosphereConfig config, String filename) throws FileNotFoundException {
 
-	}
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        try {
+            return parse(config, factory.newDocumentBuilder().parse(filename));
+        } catch (SAXException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (ParserConfigurationException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
 
-	public AtmosphereConfig parse(String filename) throws FileNotFoundException {
+    }
 
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		try {
-			return parse(factory.newDocumentBuilder().parse(filename));
-		} catch (SAXException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		} catch (ParserConfigurationException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		}
+    public AtmosphereConfig parse(AtmosphereConfig config, InputStream stream) throws FileNotFoundException {
 
-	}
-	
-	public AtmosphereConfig parse(InputStream stream) throws FileNotFoundException {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        try {
+            return parse(config, factory.newDocumentBuilder().parse(stream));
+        } catch (SAXException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (ParserConfigurationException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
 
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		try {
-			return parse(factory.newDocumentBuilder().parse(stream));
-		} catch (SAXException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		} catch (ParserConfigurationException e) {
-			logger.error(e.getMessage(), e);
-			throw new RuntimeException(e);
-		}
+    }
 
-	}
+    /**
+     * Parse the atmosphere-handlers element.
+     *
+     * @param document
+     */
+    private AtmosphereConfig parse(AtmosphereConfig config, Document document) {
 
-	/**
-	 * Parse the atmosphere-handlers element.
-	 * 
-	 * @param document
-	 */
-	private AtmosphereConfig parse(Document document) {
+        Element element = document.getDocumentElement();
+        NodeList atmosphereHandlers = element.getElementsByTagName("atmosphere-handler");
+        for (int i = 0; i < atmosphereHandlers.getLength(); i++) {
+            AtmosphereHandler atmoHandler = new AtmosphereHandler();
 
-		AtmosphereConfig config = new AtmosphereConfig();
+            Node root = atmosphereHandlers.item(i);
 
-		Element element = document.getDocumentElement();
-		NodeList atmosphereHandlers = element.getElementsByTagName("atmosphere-handler");
-		for (int i = 0; i < atmosphereHandlers.getLength(); i++) {
-			AtmosphereHandler atmoHandler = new AtmosphereHandler();
+            // parse Attributes
+            for (int j = 0; j < root.getAttributes().getLength(); j++) {
 
-			Node root = atmosphereHandlers.item(i);
+                Node attribute = root.getAttributes().item(j);
 
-			// parse Attributes
-			for (int j = 0; j < root.getAttributes().getLength(); j++) {
+                if (attribute.getNodeName().equals("support-session")) {
+                    atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("context-root")) {
+                    atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("class-name")) {
+                    atmoHandler.setClassName(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcaster")) {
+                    atmoHandler.setBroadcaster(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcasterCache")) {
+                    atmoHandler.setBroadcasterCache(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
+                    String[] values = attribute.getFirstChild().getNodeValue().split(",");
+                    for (String value : values) {
+                        atmoHandler.getBroadcastFilterClasses().add(value);
+                    }
+                } else if (attribute.getNodeName().equals("comet-support")) {
+                    atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
+                }
 
-				Node attribute = root.getAttributes().item(j);
+            }
 
-				if (attribute.getNodeName().equals("support-session")) {
-					atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
-				} else if (attribute.getNodeName().equals("context-root")) {
-					atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
-				} else if (attribute.getNodeName().equals("class-name")) {
-					atmoHandler.setClassName(attribute.getFirstChild().getNodeValue());
-				} else if (attribute.getNodeName().equals("broadcaster")) {
-					atmoHandler.setBroadcaster(attribute.getFirstChild().getNodeValue());
-				} else if (attribute.getNodeName().equals("broadcasterCache")) {
-					atmoHandler.setBroadcasterCache(attribute.getFirstChild().getNodeValue());
-				} else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
-					String[] values = attribute.getFirstChild().getNodeValue().split(",");
-					for (String value : values) {
-						atmoHandler.getBroadcastFilterClasses().add(value);
-					}
-				} else if (attribute.getNodeName().equals("comet-support")) {
-					atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
-				}
+            NodeList list = root.getChildNodes();
 
-			}
+            for (int j = 0; j < list.getLength(); j++) {
+                Node n = list.item(j);
+                if (n.getNodeName().equals("property")) {
+                    String param = n.getAttributes().getNamedItem("name").getNodeValue();
+                    String value = n.getAttributes().getNamedItem("value").getNodeValue();
 
-			NodeList list = root.getChildNodes();
+                    atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
+                } else if (n.getNodeName().equals("applicationConfig")) {
 
-			for (int j = 0; j < list.getLength(); j++) {
-				Node n = list.item(j);
-				if (n.getNodeName().equals("property")) {
-					String param = n.getAttributes().getNamedItem("name").getNodeValue();
-					String value = n.getAttributes().getNamedItem("value").getNodeValue();
+                    String param = null;
+                    String value = null;
+                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
 
-					atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
-				} else if (n.getNodeName().equals("applicationConfig")) {
+                        Node n2 = n.getChildNodes().item(k);
 
-					String param = null;
-					String value = null;
-					for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+                        if (n2.getNodeName().equals("param-name")) {
+                            param = n2.getFirstChild().getNodeValue();
+                        } else if (n2.getNodeName().equals("param-value")) {
+                            if (n2.getFirstChild() != null) {
+                                value = n2.getFirstChild().getNodeValue();
+                            }
+                        }
 
-						Node n2 = n.getChildNodes().item(k);
+                    }
 
-						if (n2.getNodeName().equals("param-name")) {
-							param = n2.getFirstChild().getNodeValue();
-						} else if (n2.getNodeName().equals("param-value")) {
-							if (n2.getFirstChild() != null) {
-								value = n2.getFirstChild().getNodeValue();
-							}
-						}
+                    if (param != null) {
+                        atmoHandler.getApplicationConfig().add(new ApplicationConfig(param, value));
+                    }
 
-					}
+                } else if (n.getNodeName().equals("frameworkConfig")) {
+                    String param = null;
+                    String value = null;
+                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
 
-					if (param != null) {
-						atmoHandler.getApplicationConfig().add(new ApplicationConfig(param, value));
-					}
+                        Node n2 = n.getChildNodes().item(k);
 
-				} else if (n.getNodeName().equals("frameworkConfig")) {
-					String param = null;
-					String value = null;
-					for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+                        if (n2.getNodeName().equals("param-name")) {
+                            param = n2.getFirstChild().getNodeValue();
+                        } else if (n2.getNodeName().equals("param-value")) {
+                            if (n2.getFirstChild() != null) {
+                                value = n2.getFirstChild().getNodeValue();
+                            }
+                        }
 
-						Node n2 = n.getChildNodes().item(k);
+                    }
 
-						if (n2.getNodeName().equals("param-name")) {
-							param = n2.getFirstChild().getNodeValue();
-						} else if (n2.getNodeName().equals("param-value")) {
-							if (n2.getFirstChild() != null) {
-								value = n2.getFirstChild().getNodeValue();
-							}
-						}
+                    if (param != null) {
+                        atmoHandler.getFrameworkConfig().add(
+                                new FrameworkConfig(param, value));
+                    }
 
-					}
+                }
 
-					if (param != null) {
-						atmoHandler.getFrameworkConfig().add(
-								new FrameworkConfig(param, value));
-					}
+            }
 
-				}
+            config.getAtmosphereHandler().add(atmoHandler);
+        }
 
-			}
+        return config;
 
-			config.getAtmosphereHandler().add(atmoHandler);
-		}
+    }
 
-		return config;
-
-	}
-
-	public static AtmosphereConfigReader getInstance() {
-		return instance;
-	}
+    public static AtmosphereConfigReader getInstance() {
+        return instance;
+    }
 }

@@ -39,9 +39,7 @@
 package org.atmosphere.cpr;
 
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

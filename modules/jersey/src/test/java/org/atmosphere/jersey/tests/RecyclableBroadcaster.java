@@ -36,7 +36,7 @@
  */
 package org.atmosphere.jersey.tests;
 
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.jersey.JerseyBroadcaster;
 

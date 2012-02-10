@@ -38,7 +38,6 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
