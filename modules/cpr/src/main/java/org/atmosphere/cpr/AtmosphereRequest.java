@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -36,7 +37,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
-    private final ByteInputStream bis;
+    private final ServletInputStream bis;
     private final BufferedReader br;
     private final String pathInfo;
     private final Map<String, String> headers;
@@ -60,19 +61,24 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         requestURL = b.requestURL;
         localAttributes = b.localAttributes;
 
-        if (b.dataBytes != null) {
-            bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
-            try {
-                br = new BufferedReader(new StringReader(new String(b.dataBytes, b.offset, b.length, b.encoding)));
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
+        if (b.inputStream == null) {
+            if (b.dataBytes != null) {
+                bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
+                try {
+                    br = new BufferedReader(new StringReader(new String(b.dataBytes, b.offset, b.length, b.encoding)));
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (b.data != null) {
+                bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
+                br = new BufferedReader(new StringReader(b.data));
+            } else {
+                bis = null;
+                br = null;
             }
-        } else if (b.data != null) {
-            bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
-            br = new BufferedReader(new StringReader(b.data));
         } else {
-            bis = null;
-            br = null;
+            bis = new IS(b.inputStream);
+            br  =null;
         }
         methodType = b.methodType == null ? (request != null ? request.getMethod() : "GET") : b.methodType;
         contentType = b.contentType == null ? (request != null ? request.getContentType() : "text/plain") : b.contentType;
@@ -361,6 +367,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String requestURI;
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
+        private InputStream inputStream;
 
         public Builder() {
         }
@@ -427,6 +434,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
+        public Builder inputStream(InputStream inputStream) {
+            this.inputStream = inputStream;
+            return this;
+        }
+
         public AtmosphereRequest build() {
             return new AtmosphereRequest(this);
         }
@@ -434,6 +446,52 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public Builder queryStrings(Map<String, String[]> queryStrings) {
             this.queryStrings = queryStrings;
             return this;
+        }
+    }
+
+    private final static class IS extends ServletInputStream {
+
+        private final InputStream innerStream;
+
+        public IS(InputStream innerStream) {
+            super();
+            this.innerStream = innerStream;
+        }
+
+        public int read() throws java.io.IOException {
+            return innerStream.read();
+        }
+
+        public int read(byte[] bytes) throws java.io.IOException {
+            return innerStream.read(bytes);
+        }
+
+        public int read(byte[] bytes, int i, int i1) throws java.io.IOException {
+            return innerStream.read(bytes, i, i1);
+        }
+
+
+        public long skip(long l) throws java.io.IOException {
+            return innerStream.skip(l);
+        }
+
+        public int available() throws java.io.IOException {
+            return innerStream.available();
+        }
+
+        public void close() throws java.io.IOException {
+            innerStream.close();
+        }
+
+        public synchronized void mark(int i) {
+            innerStream.mark(i);
+        }
+        public synchronized void reset() throws java.io.IOException {
+            innerStream.reset();
+        }
+
+        public boolean markSupported() {
+            return innerStream.markSupported();
         }
     }
 
