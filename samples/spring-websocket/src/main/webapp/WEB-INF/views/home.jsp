@@ -2,8 +2,9 @@
 <head>
     <%--<meta http-equiv="X-UA-Compatible" content="chrome=1"/>--%>
     <meta http-equiv="cache-control" content="no-cache"/>
-    <script type="text/javascript" src="/jquery/jquery-1.6.4.js"></script>
-    <script type="text/javascript" src="/jquery/jquery.atmosphere.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/jquery/jquery-1.6.4.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/jquery/jquery.atmosphere.js"></script>
+
     <script type="text/javascript">
         var wsApi = {
             connectedEndpoint:null,
@@ -24,7 +25,7 @@
                 }
 
                 /* transport can be : long-polling, streaming or websocket */
-                this.connectedEndpoint = $.atmosphere.subscribe('/websockets',
+                this.connectedEndpoint = $.atmosphere.subscribe('${pageContext.request.contextPath}/websockets',
                         !this.callbackAdded ? callback : null,
                         $.atmosphere.request = {transport:'websocket', logLevel:'none'});
                 callbackAdded = true;
