@@ -217,4 +217,9 @@ public interface ApplicationConfig {
      * a Container
      */
     String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE =  ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
+    /**
+     * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
+      */
+    String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.class.getPackage().getName() + ".atmosphereHandlerPath";
+
 }
