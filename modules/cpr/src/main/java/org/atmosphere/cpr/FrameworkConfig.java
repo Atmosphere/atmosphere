@@ -50,10 +50,6 @@ public interface FrameworkConfig {
      */
     String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     /**
-     * The web.xml location.
-     */
-    String WEB_INF_CLASSES = "/WEB-INF/classes/";
-    /**
      * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrator and not recommend for normal application.
      */
     String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();

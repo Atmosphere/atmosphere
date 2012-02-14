@@ -48,38 +48,41 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Wrapper around an {@link HttpServletResponse} which use an instance of {@link org.atmosphere.websocket.WebSocket}
  * as a writer.
- *
- *  */
+ */
 public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers = new HashMap<String, String>();
     private AsyncIOWriter asyncIOWriter;
     private int status = 200;
-    private String statusMessage = "";
+    private String statusMessage = "OK";
     private String charSet = "UTF-8";
     private long contentLength = -1;
-    private String contentType = "txt/html";
+    private String contentType = "text/html";
     private boolean isCommited = false;
     private Locale locale;
     private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
     private boolean headerHandled = false;
     private HttpServletRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
+    private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
         super(dsr);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
+        this.writeStatusAndHeader.set(false);
     }
 
     public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
@@ -87,6 +90,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
+        this.writeStatusAndHeader.set(false);
     }
 
     private AtmosphereResponse(Builder b) {
@@ -96,14 +100,16 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.atmosphereRequest = b.atmosphereRequest;
         this.status = b.status;
         this.statusMessage = b.statusMessage;
+        this.writeStatusAndHeader.set(b.writeStatusAndHeader.get());
     }
 
     public final static class Builder {
         private AsyncIOWriter asyncIOWriter;
         private int status = 200;
-        private String statusMessage = "";
+        private String statusMessage = "OK";
         private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
         private HttpServletRequest atmosphereRequest;
+        private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
 
         public Builder() {
         }
@@ -135,6 +141,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
         public AtmosphereResponse build() {
             return new AtmosphereResponse(this);
+        }
+
+        public Builder writeHeader(boolean writeStatusAndHeader) {
+            this.writeStatusAndHeader.set(writeStatusAndHeader);
+            return this;
         }
     }
 
@@ -325,6 +336,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return new ServletOutputStream() {
 
             public void write(int i) throws java.io.IOException {
+                writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
                     asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new byte[]{(byte) i}, 0, 1));
                 } else {
@@ -332,8 +344,35 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             }
 
+            private void writeStatusAndHeaders() throws java.io.IOException {
+                if (writeStatusAndHeader.getAndSet(false)) {
+                    StringBuffer b = new StringBuffer("HTTP/1.1")
+                            .append(" ")
+                            .append(status)
+                            .append(" ")
+                            .append(statusMessage)
+                            .append("\n")
+                            .append(new Date().toString())
+                            .append("\n");
+
+                    b.append("Content-Type").append(":").append(headers.get("Content-Type") == null ? contentType : headers.get("Content-Type")).append("\n");
+                    if (contentLength != -1) {
+                        b.append("Content-Length").append(":").append(contentLength).append("\n");
+                    }
+
+                    for (String s : headers().keySet()) {
+                        if (!s.equalsIgnoreCase("Content-Type")) {
+                            b.append(s).append(":").append(headers.get(s)).append("\n");
+                        }
+                    }
+                    b.deleteCharAt(b.length() -1);
+                    b.append("\r\n\r\n");
+                    asyncIOWriter.write(b.toString());
+                }
+            }
 
             public void write(byte[] bytes) throws java.io.IOException {
+                writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
                     asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, 0, bytes.length));
                 } else {
@@ -342,6 +381,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             }
 
             public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
+                writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
                     byte[] b = asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, start, offset);
                     asyncIOWriter.write(b, 0, b.length);
@@ -636,7 +676,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
     }
 
-    private final static class FakeAsyncProtocol  implements AsyncProtocol {
+    private final static class FakeAsyncProtocol implements AsyncProtocol {
 
         @Override
         public boolean inspectResponse() {

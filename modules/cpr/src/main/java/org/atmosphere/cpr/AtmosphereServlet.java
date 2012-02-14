@@ -42,6 +42,7 @@ package org.atmosphere.cpr;
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_PATH;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
@@ -65,7 +66,6 @@ import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.WEB_INF_CLASSES;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
@@ -238,6 +238,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     private String broadcasterLifeCyclePolicy = "NEVER";
     private String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
     private WebSocketProtocol webSocketProtocol;
+    private String handlersPath = "/WEB-INF/classes/";
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -648,11 +649,15 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         if (s != null) {
             broadcasterFactoryClassName = s;
         }
+        s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
+        if (s != null) {
+            handlersPath = s;
+        }
     }
 
     protected void loadConfiguration(ServletConfig sc) throws ServletException {
         try {
-            URL url = sc.getServletContext().getResource("/WEB-INF/classes/");
+            URL url = sc.getServletContext().getResource(handlersPath);
             URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                     Thread.currentThread().getContextClassLoader());
             loadAtmosphereDotXml(sc.getServletContext().
@@ -949,13 +954,13 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      */
     protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
-        logger.info("Auto detecting atmosphere handlers in WEB-INF/classes");
+        logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
-        String realPath = servletContext.getRealPath(WEB_INF_CLASSES);
+        String realPath = servletContext.getRealPath(handlersPath);
 
         // Weblogic bug
         if (realPath == null) {
-            URL u = servletContext.getResource(WEB_INF_CLASSES);
+            URL u = servletContext.getResource(handlersPath);
             if (u == null) return;
             realPath = u.getPath();
         }
