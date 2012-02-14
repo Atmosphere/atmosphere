@@ -132,11 +132,11 @@ public class AtmosphereAdapter extends ServletAdapter {
                 return;
             }
 
-            String realPath = servletContext.getRealPath(FrameworkConfig.WEB_INF_CLASSES);
+            String realPath = servletContext.getRealPath("WEB-INF/classes");
 
             // Weblogic bug
             if (realPath == null) {
-                URL u = servletContext.getResource(FrameworkConfig.WEB_INF_CLASSES);
+                URL u = servletContext.getResource("WEB-INF/classes");
                 if (u == null) return;
                 realPath = u.getPath();
             }
@@ -154,7 +154,7 @@ public class AtmosphereAdapter extends ServletAdapter {
                     index = realPath.length();
                 }
                 String trailer = realPath.substring(0, index);
-                f = new File(trailer + servletContext.getContextPath() + FrameworkConfig.WEB_INF_CLASSES);
+                f = new File(trailer + servletContext.getContextPath() + "WEB-INF/classes");
             }
 
             loadAtmosphereHandlersFromPath(classLoader, realPath);
