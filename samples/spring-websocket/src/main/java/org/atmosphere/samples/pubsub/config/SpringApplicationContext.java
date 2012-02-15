@@ -28,7 +28,6 @@ public class SpringApplicationContext implements BeanFactoryAware {
 
     private static BeanFactory springBeanFactory;
 
-    @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         springBeanFactory = beanFactory;
     }

@@ -41,12 +41,10 @@ public class DelegatingWebSocketProtocol implements WebSocketProtocol {
 
     public static final Logger LOG = LoggerFactory.getLogger(DelegatingWebSocketProtocol.class);
 
-    @Override
     public void configure(AtmosphereConfig atmosphereConfig) {
         // nothing needed
     }
 
-    @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, String message) {
         if (webSocket.resource() == null) {
             return null;
@@ -72,37 +70,30 @@ public class DelegatingWebSocketProtocol implements WebSocketProtocol {
         return command;
     }
 
-    @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] bytes, int offset, int length) {
         return onMessage(webSocket, new String(bytes, offset, length));
     }
 
-    @Override
     public void onOpen(WebSocket webSocket) {
         LOG.debug("opened web socket connection {}", webSocket);
     }
 
-    @Override
     public void onClose(WebSocket webSocket) {
         LOG.debug("closing web socket connection {}", webSocket);
     }
 
-    @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException e) {
         LOG.error("error on websocket connection {}", e);
     }
 
-    @Override
     public boolean inspectResponse() {
         return false;
     }
 
-    @Override
     public String handleResponse(AtmosphereResponse atmosphereResponse, String message) {
         return message;
     }
 
-    @Override
     public byte[] handleResponse(AtmosphereResponse atmosphereResponse, byte[] message, int offset,
                                  int length) {
         return message;

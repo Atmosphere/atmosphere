@@ -1,0 +1,9 @@
+INDEX VERSION 1.126
+D:\workspaces\opensource\workspace_atmosphere\atmosphere\atmosphere\.metadata\.plugins\org.eclipse.jst.jsp.core\jspsearch\427857874.index
+\atmosphere-multirequest\src\main\java
+D:\workspaces\opensource\workspace_atmosphere\atmosphere\atmosphere\.metadata\.plugins\org.eclipse.jst.jsp.core\jspsearch\2708584777.index
+\atmosphere-spring-websocket\src\main\java
+D:\workspaces\opensource\workspace_atmosphere\atmosphere\atmosphere\.metadata\.plugins\org.eclipse.jst.jsp.core\jspsearch\245221008.index
+\atmosphere-gwt-demo\src\main\java
+D:\workspaces\opensource\workspace_atmosphere\atmosphere\atmosphere\.metadata\.plugins\org.eclipse.jst.jsp.core\jspsearch\482839980.index
+\atmosphere-gwt-demo\src\main\java
