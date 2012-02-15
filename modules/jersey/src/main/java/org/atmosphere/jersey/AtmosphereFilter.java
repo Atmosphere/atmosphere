@@ -42,6 +42,7 @@ import com.sun.jersey.spi.container.ContainerRequest;
 import com.sun.jersey.spi.container.ContainerRequestFilter;
 import com.sun.jersey.spi.container.ContainerResponse;
 import com.sun.jersey.spi.container.ContainerResponseFilter;
+import com.sun.jersey.spi.container.ContainerResponseWriter;
 import com.sun.jersey.spi.container.ResourceFilter;
 import com.sun.jersey.spi.container.ResourceFilterFactory;
 import org.atmosphere.annotation.Asynchronous;
@@ -53,6 +54,7 @@ import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Subscribe;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -94,6 +96,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
@@ -241,11 +244,30 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 return response;
             }
 
+            // Check first if something was defined in web.xml
+            AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+            String p = config.getInitParameter(ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
+            ContainerResponseWriter w = null;
+            if (p != null) {
+                try {
+                    w = (ContainerResponseWriter) Thread.currentThread().getContextClassLoader().loadClass(p).newInstance();
+                    logger.trace("Installing ContainerResponseWriter {}", p);
+                } catch (Throwable e) {
+                    logger.error("Error loading ContainerResponseWriter {}", p, e);
+                }
+            }
+
+            // Now check if it was defined as an attribute
+            w = (ContainerResponseWriter) servletReq.getAttribute(FrameworkConfig.JERSEY_CONTAINER_RESPONSE_WRITER_INSTANCE);
+            if (w != null) {
+                response.setContainerResponseWriter(w);
+            }
+
             AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
                     (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-            if (Boolean.parseBoolean((String) servletReq.getAttribute(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
+            if (Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
                 useResumeAnnotation = true;
             }
 
@@ -262,7 +284,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         StringBuffer s = new StringBuffer();
                         Enumeration<String> e = servletReq.getHeaderNames();
                         String t;
-                        while(e.hasMoreElements()) {
+                        while (e.hasMoreElements()) {
                             t = e.nextElement();
                             s.append(t).append("=").append(servletReq.getHeader(t)).append("\n");
                         }
@@ -270,8 +292,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         logger.error("\nQueryString:\n{}\n\nHeaders:\n{}", servletReq.getQueryString(), s.toString());
 
                         throw new WebApplicationException(new IllegalStateException("Must specify transport using header value "
-                                +  transport
-                                +  " and uuid " + broadcasterName));
+                                + transport
+                                + " and uuid " + broadcasterName));
                     }
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
@@ -360,7 +382,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     }
 
-                    boolean supportTrackable = servletReq.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null;
+                    boolean supportTrackable = config.getInitParameter(ApplicationConfig.SUPPORT_TRACKABLE) != null;
                     // Register our TrackableResource
                     boolean isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : supportTrackable;
 
@@ -412,7 +434,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     // Tracking is enabled by default
-                    supportTrackable = servletReq.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null;
+                    supportTrackable = config.getInitParameter(ApplicationConfig.SUPPORT_TRACKABLE) != null;
                     // Register our TrackableResource
                     isTracked = response.getEntity() != null ? TrackableResource.class.isAssignableFrom(response.getEntity().getClass()) : supportTrackable;
 
@@ -1008,8 +1030,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
         }
 
-        // Nothing, normal Jersey application.
-        return list.size() > 0 ? list : null;
+        if (list.size() == 0) {
+            f = new Filter(Action.NONE);
+            list.addFirst(f);
+        }
+
+        return list;
     }
 
     private long translateTimeUnit(long period, TimeUnit tu) {

@@ -56,10 +56,9 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
-import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER;
-import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKABLE;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
@@ -1125,8 +1124,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
-        req.setAttribute(SUPPORT_TRACKABLE, config.getInitParameter(SUPPORT_TRACKABLE));
-        req.setAttribute(SUPPORT_LOCATION_HEADER, config.getInitParameter(SUPPORT_LOCATION_HEADER));
+        req.setAttribute(ATMOSPHERE_CONFIG, config);
 
         AtmosphereRequest r = null;
         Action a = null;
