@@ -33,7 +33,6 @@ public abstract class BaseCommand implements Command {
     protected AtmosphereResource resource;
     protected String channel;
 
-    @Override
     public void setResource(AtmosphereResource resource) {
         this.resource = resource;
     }

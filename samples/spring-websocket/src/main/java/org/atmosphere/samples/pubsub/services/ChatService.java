@@ -68,7 +68,6 @@ public class ChatService {
             broadcaster.addBroadcasterLifeCyclePolicyListener(this);
         }
 
-        @Override
         public void run() {
             while (shouldRun) {
                 counter++;
@@ -86,18 +85,15 @@ public class ChatService {
             }
         }
 
-        @Override
         public void onEmpty() {
             shouldRun = false;
             LOG.debug("Shutting down multicast thread for channel {}, no subscribers connected.", channel);
         }
 
-        @Override
         public void onIdle() {
             //nothing needed
         }
 
-        @Override
         public void onDestroy() {
             shouldRun = false;
         }

@@ -30,12 +30,10 @@ import javax.servlet.http.HttpServletRequest;
 
 public class AtmosphereArgumentResolver implements HandlerMethodArgumentResolver {
 
-    @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return AtmosphereResource.class.isAssignableFrom(parameter.getParameterType());
     }
 
-    @Override
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
         return AtmosphereUtils.getAtmosphereResource(webRequest.getNativeRequest(HttpServletRequest.class));
     }
