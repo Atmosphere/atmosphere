@@ -221,5 +221,9 @@ public interface ApplicationConfig {
      * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
       */
     String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.class.getPackage().getName() + ".atmosphereHandlerPath";
+    /**
+     * Jersey's ContainerResponseWriter.
+     */
+    String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
 
 }

@@ -89,4 +89,12 @@ public interface FrameworkConfig {
      * Cance suspending a connection
      */
     String CANCEL_SUSPEND_OPERATION = "doNotSuspend";
+    /**
+     * AtmosphereConfig instance
+     */
+    String ATMOSPHERE_CONFIG = AtmosphereConfig.class.getName();
+    /**
+     * Instance of Jersey's ContainerResponseWriter that can be configured by a Framework running on top of Atmosphere
+     */
+    String JERSEY_CONTAINER_RESPONSE_WRITER_INSTANCE = "org.atmosphere.jersey.containerResponseWriterInstance";
 }
