@@ -62,7 +62,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
-    private final Map<String, String> headers = new HashMap<String, String>();
+    private final Map<String, String> headers;
     private AsyncIOWriter asyncIOWriter;
     private int status = 200;
     private String statusMessage = "OK";
@@ -83,6 +83,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
+        this.headers = new HashMap<String, String>();
     }
 
     public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
@@ -91,6 +92,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
+        this.headers = new HashMap<String, String>();
     }
 
     private AtmosphereResponse(Builder b) {
@@ -101,6 +103,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.status = b.status;
         this.statusMessage = b.statusMessage;
         this.writeStatusAndHeader.set(b.writeStatusAndHeader.get());
+        this.headers = b.headers;
     }
 
     public final static class Builder {
@@ -110,6 +113,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
         private HttpServletRequest atmosphereRequest;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
+        private final Map<String, String> headers = new HashMap<String, String>();
 
         public Builder() {
         }
@@ -141,6 +145,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
         public AtmosphereResponse build() {
             return new AtmosphereResponse(this);
+        }
+
+        public Builder header(String name, String value) {
+            headers.put(name, value);
+            return this;
         }
 
         public Builder writeHeader(boolean writeStatusAndHeader) {
@@ -335,6 +344,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     public ServletOutputStream getOutputStream() throws IOException {
         return new ServletOutputStream() {
 
+            @Override
             public void write(int i) throws java.io.IOException {
                 writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
@@ -365,12 +375,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                             b.append(s).append(":").append(headers.get(s)).append("\n");
                         }
                     }
-                    b.deleteCharAt(b.length() -1);
+                    b.deleteCharAt(b.length() - 1);
                     b.append("\r\n\r\n");
                     asyncIOWriter.write(b.toString());
                 }
             }
 
+            @Override
             public void write(byte[] bytes) throws java.io.IOException {
                 writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
@@ -380,6 +391,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             }
 
+            @Override
             public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
                 writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
@@ -388,6 +400,16 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 } else {
                     asyncIOWriter.write(bytes, start, offset);
                 }
+            }
+
+            @Override
+            public void flush() throws IOException {
+                asyncIOWriter.flush();
+            }
+
+            @Override
+            public void close() throws java.io.IOException {
+                asyncIOWriter.close();
             }
         };
     }
@@ -533,7 +555,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             asyncIOWriter.close();
         }
     }
-
 
     private final static class DummyHttpServletResponse implements HttpServletResponse {
         public void addCookie(Cookie cookie) {

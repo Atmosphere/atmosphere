@@ -112,5 +112,10 @@ public class JettyWebSocket extends WebSocketAdapter {
     public void close() throws IOException {
         outbound.disconnect();
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void flush() throws IOException {
+    }
 }

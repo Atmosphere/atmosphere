@@ -95,6 +95,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
             connection.sendMessage(new String(data, offset, length, "UTF-8"));
         }
     }
+
     /**
      * {@inheritDoc}
      */
@@ -102,5 +103,11 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     public void close() throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
+    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void flush() throws IOException {
     }
 }
