@@ -261,7 +261,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             String[] newList = queryStrings.get(s);
             String[] s1 = new String[list.length + newList.length];
             System.arraycopy(list, 0, s1, 0, list.length);
-            System.arraycopy(s1, list.length + 1, newList, 0, newList.length);
+            System.arraycopy(s1, list.length, newList, 0, newList.length);
+            list = s1;
         }
         return list;
     }
