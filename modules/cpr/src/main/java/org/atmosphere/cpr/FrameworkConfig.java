@@ -97,4 +97,8 @@ public interface FrameworkConfig {
      * Instance of Jersey's ContainerResponseWriter that can be configured by a Framework running on top of Atmosphere
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_INSTANCE = "org.atmosphere.jersey.containerResponseWriterInstance";
+    /**
+     * Current transport used
+     */
+    String TRANSPORT_IN_USE = AtmosphereConfig.class.getName() + ".transportUsed";
 }

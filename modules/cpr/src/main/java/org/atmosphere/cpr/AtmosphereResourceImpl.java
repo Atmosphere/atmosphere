@@ -294,10 +294,17 @@ public class AtmosphereResourceImpl implements
                         if (writeHeaders && !cometSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
+                            req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
                             flushComment = false;
                         }
                     }
                 }
+            }
+
+            if (timeout == -1 || flushComment) {
+                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
+            } else {
+                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
             }
 
             if (writeHeaders && injectCacheHeaders) {
