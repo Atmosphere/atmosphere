@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.container.version.JettyWebSocket;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -370,111 +371,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         public StringBuffer getRequestURL() {
             return requestURL;
         }
-    }
-
-    private final static class FakeHttpSession implements HttpSession {
-        private final long creationTime;
-        private final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
-        private final String sessionId;
-        private final ServletContext servletContext;
-        private int maxInactiveInterval;
-
-        public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime) {
-            this.sessionId = sessionId;
-            this.servletContext = servletContext;
-            this.creationTime = creationTime;
-        }
-
-        public void destroy(){
-            attributes.clear();
-        }
-
-        @Override
-        public long getCreationTime() {
-            return creationTime;
-        }
-
-        @Override
-        public String getId() {
-            return sessionId;
-        }
-
-        // TODO: Not supported for now. Must update on every WebSocket Message
-        @Override
-        public long getLastAccessedTime() {
-            return 0;
-        }
-
-        @Override
-        public ServletContext getServletContext() {
-            return servletContext;
-        }
-
-        @Override
-        public void setMaxInactiveInterval(int interval) {
-            this.maxInactiveInterval = interval;
-        }
-
-        @Override
-        public int getMaxInactiveInterval() {
-            return maxInactiveInterval;
-        }
-
-        @Override
-        public HttpSessionContext getSessionContext() {
-            return null;
-        }
-
-        @Override
-        public Object getAttribute(String name) {
-            return attributes.get(name);
-        }
-
-        @Override
-        public Object getValue(String name) {
-            return attributes.get(name);
-        }
-
-        @Override
-        public Enumeration<String> getAttributeNames() {
-            return attributes.keys();
-        }
-
-        @Override
-        public String[] getValueNames() {
-            return (String[]) Collections.list(attributes.keys()).toArray();
-        }
-
-        @Override
-        public void setAttribute(String name, Object value) {
-            attributes.put(name, value);
-        }
-
-        @Override
-        public void putValue(String name, Object value) {
-            attributes.put(name, value);
-        }
-
-        @Override
-        public void removeAttribute(String name) {
-            attributes.remove(name);
-        }
-
-        @Override
-        public void removeValue(String name) {
-            attributes.remove(name);
-        }
-
-        // TODO: Not supported for now.
-        @Override
-        public void invalidate() {
-        }
-
-        @Override
-        public boolean isNew() {
-            return false;
-        }
-
     }
 
 }

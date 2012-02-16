@@ -226,7 +226,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     protected boolean useBlockingImplementation = false;
     protected boolean useStreamForFlushingComments = false;
     protected CometSupport cometSupport;
-    protected static String broadcasterClassName = DefaultBroadcaster.class.getName();
+    protected String broadcasterClassName = DefaultBroadcaster.class.getName();
     protected boolean isCometSupportSpecified = false;
     protected boolean isBroadcasterSpecified = false;
     protected boolean isSessionSupportSpecified = false;
@@ -1297,7 +1297,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @return the broadcasterClassName
      */
-    public static String getDefaultBroadcasterClassName() {
+    public String getDefaultBroadcasterClassName() {
         return broadcasterClassName;
     }
 
@@ -1306,7 +1306,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      *
      * @param bccn the broadcasterClassName to set
      */
-    public static void setDefaultBroadcasterClassName(String bccn) {
+    public void setDefaultBroadcasterClassName(String bccn) {
         broadcasterClassName = bccn;
     }
 
