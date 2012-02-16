@@ -188,7 +188,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         if (config.handlers().isEmpty()) {
             logger.error("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-            throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
         }
 
         if (supportSession()) {
@@ -281,7 +281,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
 
         if (atmosphereHandlerWrapper == null) {
-            throw new ServletException("No AtmosphereHandler maps request for " + path);
+            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
