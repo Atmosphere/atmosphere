@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.FakeHttpSession;
+
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
@@ -63,6 +65,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String requestURI;
     private final String requestURL;
     private final Map<String, Object> localAttributes;
+    private final HttpSession session = new FakeHttpSession("",null,System.currentTimeMillis());
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -317,6 +320,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (localAttributes.remove(name) == null && request != null) {
             request.removeAttribute(name);
         }
+    }
+
+    @Override
+    public HttpSession getSession() {
+        return session;
+    }
+
+    @Override
+    public HttpSession getSession(boolean create) {
+        return session;
     }
 
     /**
