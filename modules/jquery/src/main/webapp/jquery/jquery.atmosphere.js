@@ -495,7 +495,7 @@ jQuery.atmosphere = function() {
                     url += "&Content-Type=" + rq.contentType;
                 }
 
-                jQuery.each(request.headers, function(name, value) {
+                jQuery.each(rq.headers, function(name, value) {
                     var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
                     if (h) {
                         url += "&" + encodeURIComponent(name) + "=" + encodeURIComponent(h);
@@ -766,7 +766,7 @@ jQuery.atmosphere = function() {
                 }
                 ajaxRequest.setRequestHeader("X-Atmosphere-tracking-id", _uuid);
 
-                jQuery.each(request.headers, function(name, value) {
+                jQuery.each(rq.headers, function(name, value) {
                     var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
                     if (h) {
                         ajaxRequest.setRequestHeader(name, h);
