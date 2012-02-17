@@ -301,7 +301,7 @@ public class AtmosphereResourceImpl implements
                 }
             }
 
-            if (timeout == -1 || flushComment) {
+            if (flushComment) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
             } else {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);

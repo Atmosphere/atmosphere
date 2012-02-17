@@ -35,6 +35,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
@@ -95,7 +96,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         } else {
             bis = new IS(b.inputStream);
-            br = null;
+            br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
         methodType = b.methodType == null ? (request != null ? request.getMethod() : "GET") : b.methodType;
         contentType = b.contentType == null ? (request != null ? request.getContentType() : "text/plain") : b.contentType;
