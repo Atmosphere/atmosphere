@@ -500,7 +500,7 @@ public class AtmosphereResourceImpl implements
         serializer = s;
     }
 
-    protected boolean isResumed(){
+    public boolean isResumed(){
         return isResumed;
     }
 
