@@ -70,6 +70,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String remoteAddr;
     private final String remoteHost;
     private final int remotePort;
+    private final String localAddr;
+    private final String localName;
+    private final int localPort;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -85,6 +88,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         remoteAddr = b.remoteAddr;
         remoteHost = b.remoteHost;
         remotePort = b.remotePort;
+
+        localAddr = b.localAddr;
+        localName = b.localName;
+        localPort = b.localPort;
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -356,6 +363,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return remotePort;
     }
 
+    @Override
+    public String getLocalName() {
+        return localName;
+    }
+
+    @Override
+    public int getLocalPort() {
+        return localPort;
+    }
+
+    @Override
+    public String getLocalAddr() {
+        return localAddr;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -419,9 +441,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
         private InputStream inputStream;
-        public String remoteAddr = "";
-        public String remoteHost = "";
-        public int remotePort = 0;
+        private String remoteAddr = "";
+        private String remoteHost = "";
+        private int remotePort = 0;
+        private String localAddr = "";
+        private String localName = "";
+        private int localPort = 0;
 
         public Builder() {
         }
@@ -443,6 +468,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder remotePort(int remotePort) {
             this.remotePort = remotePort;
+            return this;
+        }
+
+        public Builder localAddr(String localAddr) {
+            this.localAddr = localAddr;
+            return this;
+        }
+
+        public Builder localName(String localName) {
+            this.localName = localName;
+            return this;
+        }
+
+        public Builder localPort(int localPort) {
+            this.localPort = localPort;
             return this;
         }
 
@@ -759,11 +799,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         @Override
-        public String getLocalAddr() {
-            return null;
-        }
-
-        @Override
         public Locale getLocale() {
             return null;
         }
@@ -781,6 +816,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         @Override
         public int getLocalPort() {
             return 0;
+        }
+
+        @Override
+        public String getLocalAddr() {
+            return null;
         }
 
         @Override
