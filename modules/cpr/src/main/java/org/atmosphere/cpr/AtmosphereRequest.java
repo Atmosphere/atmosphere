@@ -66,7 +66,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String requestURI;
     private final String requestURL;
     private final Map<String, Object> localAttributes;
-    private final HttpSession session = new FakeHttpSession("",null,System.currentTimeMillis());
+    private final HttpSession session = new FakeHttpSession("", null, System.currentTimeMillis());
+    private final String remoteAddr;
+    private final String remoteHost;
+    private final int remotePort;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -78,6 +81,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         requestURI = b.requestURI;
         requestURL = b.requestURL;
         localAttributes = b.localAttributes;
+
+        remoteAddr = b.remoteAddr;
+        remoteHost = b.remoteHost;
+        remotePort = b.remotePort;
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -334,6 +341,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return session;
     }
 
+    @Override
+    public String getRemoteAddr() {
+        return remoteAddr;
+    }
+
+    @Override
+    public String getRemoteHost() {
+        return remoteHost;
+    }
+
+    @Override
+    public int getRemotePort() {
+        return remotePort;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -397,12 +419,30 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
         private InputStream inputStream;
+        public String remoteAddr = "";
+        public String remoteHost = "";
+        public int remotePort = 0;
 
         public Builder() {
         }
 
         public Builder headers(Map<String, String> headers) {
             this.headers = headers;
+            return this;
+        }
+
+        public Builder remoteAddr(String remoteAddr) {
+            this.remoteAddr = remoteAddr;
+            return this;
+        }
+
+        public Builder remoteHost(String remoteHost) {
+            this.remoteHost = remoteHost;
+            return this;
+        }
+
+        public Builder remotePort(int remotePort) {
+            this.remotePort = remotePort;
             return this;
         }
 
