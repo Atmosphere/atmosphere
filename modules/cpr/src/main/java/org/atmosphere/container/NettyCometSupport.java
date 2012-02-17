@@ -17,7 +17,9 @@ package org.atmosphere.container;
 
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.jboss.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,9 @@ public class NettyCometSupport extends AsynchronousProcessor {
 
     public final static String SUSPEND = NettyCometSupport.class.getName() + ".suspend";
     public final static String RESUME = NettyCometSupport.class.getName() + ".resume";
+    public final static String HOOK = NettyCometSupport.class.getName() + ".cometSupportHook";
+    public final static String CHANNEL = NettyCometSupport.class.getName() + ".channel";
+
 
     private static final Logger logger = LoggerFactory.getLogger(NettyCometSupport.class);
 
@@ -51,6 +56,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
         if (action.type == AtmosphereServlet.Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             req.setAttribute(SUSPEND, new Boolean(true));
+            req.setAttribute(HOOK, new CometSupportHook(req,res));
         } else if (action.type == AtmosphereServlet.Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
 
@@ -62,5 +68,52 @@ public class NettyCometSupport extends AsynchronousProcessor {
         }
 
         return action;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.isResumed()) {
+            ((CometSupportHook) r.getRequest().getAttribute(HOOK)).resume();
+        }
+    }
+
+    public final class CometSupportHook {
+
+        private final HttpServletRequest req;
+        private final HttpServletResponse res;
+
+        public CometSupportHook(HttpServletRequest req, HttpServletResponse res) {
+            this.req = req;
+            this.res = res;
+        }
+
+        public void closed(){
+            try {
+                cancelled(req,res);
+            } catch (IOException e) {
+                logger.debug("", e);
+            } catch (ServletException e) {
+                logger.debug("", e);
+            }
+        }
+
+        public void timedOut() {
+            try {
+                timedout(req,res);
+            } catch (IOException e) {
+                logger.debug("", e);
+            } catch (ServletException e) {
+                logger.debug("", e);
+            }
+        }
+
+        public void resume() {
+            ((Channel) req.getAttribute(CHANNEL) ).close();
+        }
+
     }
 }
