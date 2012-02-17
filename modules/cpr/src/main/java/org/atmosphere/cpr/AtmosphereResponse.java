@@ -354,33 +354,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             }
 
-            private void writeStatusAndHeaders() throws java.io.IOException {
-                if (writeStatusAndHeader.getAndSet(false)) {
-                    StringBuffer b = new StringBuffer("HTTP/1.1")
-                            .append(" ")
-                            .append(status)
-                            .append(" ")
-                            .append(statusMessage)
-                            .append("\n")
-                            .append(new Date().toString())
-                            .append("\n");
-
-                    b.append("Content-Type").append(":").append(headers.get("Content-Type") == null ? contentType : headers.get("Content-Type")).append("\n");
-                    if (contentLength != -1) {
-                        b.append("Content-Length").append(":").append(contentLength).append("\n");
-                    }
-
-                    for (String s : headers().keySet()) {
-                        if (!s.equalsIgnoreCase("Content-Type")) {
-                            b.append(s).append(":").append(headers.get(s)).append("\n");
-                        }
-                    }
-                    b.deleteCharAt(b.length() - 1);
-                    b.append("\r\n\r\n");
-                    asyncIOWriter.write(b.toString());
-                }
-            }
-
             @Override
             public void write(byte[] bytes) throws java.io.IOException {
                 writeStatusAndHeaders();
@@ -414,6 +387,35 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         };
     }
 
+    private void writeStatusAndHeaders() throws java.io.IOException {
+        if (writeStatusAndHeader.getAndSet(false)) {
+            asyncIOWriter.write(constructStatusAndHeaders());
+        }
+    }
+
+    private String constructStatusAndHeaders() {
+        StringBuffer b = new StringBuffer("HTTP/1.1")
+                .append(" ")
+                .append(status)
+                .append(" ")
+                .append(statusMessage)
+                .append("\n");
+
+        b.append("Content-Type").append(":").append(headers.get("Content-Type") == null ? contentType : headers.get("Content-Type")).append("\n");
+        if (contentLength != -1) {
+            b.append("Content-Length").append(":").append(contentLength).append("\n");
+        }
+
+        for (String s : headers().keySet()) {
+            if (!s.equalsIgnoreCase("Content-Type")) {
+                b.append(s).append(":").append(headers.get(s)).append("\n");
+            }
+        }
+        b.deleteCharAt(b.length() - 1);
+        b.append("\r\n\r\n");
+        return b.toString();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -422,6 +424,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return new PrintWriter(getOutputStream()) {
             public void write(char[] chars, int offset, int lenght) {
                 try {
+                    writeStatusAndHeaders();
                     if (asyncProtocol.inspectResponse()) {
                         asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars, offset, lenght)));
                     } else {
@@ -434,6 +437,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
             public void write(char[] chars) {
                 try {
+                    writeStatusAndHeaders();
                     if (asyncProtocol.inspectResponse()) {
                         asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars)));
                     } else {
@@ -446,6 +450,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
             public void write(String s, int offset, int lenght) {
                 try {
+                    writeStatusAndHeaders();
                     if (asyncProtocol.inspectResponse()) {
                         asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s.substring(offset, lenght))));
                     } else {
@@ -458,6 +463,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
             public void write(java.lang.String s) {
                 try {
+                    writeStatusAndHeaders();
                     if (asyncProtocol.inspectResponse()) {
                         asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s)));
                     } else {
