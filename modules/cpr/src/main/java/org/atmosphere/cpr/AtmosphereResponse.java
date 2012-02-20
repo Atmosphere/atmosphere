@@ -369,7 +369,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 writeStatusAndHeaders();
                 if (asyncProtocol.inspectResponse()) {
                     byte[] b = asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, start, offset);
-                    asyncIOWriter.write(b, start, offset);
+                    asyncIOWriter.write(b, 0, b.length);
                 } else {
                     asyncIOWriter.write(bytes, start, offset);
                 }
