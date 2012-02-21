@@ -15,18 +15,16 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcasterFuture;
-import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Set;
@@ -43,7 +41,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private Method jerseyBroadcast;
 
-    public AbstractBroadcasterProxy(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+    public AbstractBroadcasterProxy(String id, URI uri, AtmosphereConfig config) {
         super(id, uri, config);
     }
 

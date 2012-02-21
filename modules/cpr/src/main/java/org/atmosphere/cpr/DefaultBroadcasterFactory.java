@@ -40,7 +40,6 @@ package org.atmosphere.cpr;
 
 
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +75,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereServlet.AtmosphereConfig c) {
+    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         config = c;
         if (factory == null) {
@@ -145,7 +144,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private Broadcaster createBroadcaster(Class<? extends Broadcaster> c, Object id) throws BroadcasterCreationException {
         try {
-            Broadcaster b = c.getConstructor(String.class, AtmosphereServlet.AtmosphereConfig.class).newInstance(id.toString(), config);
+            Broadcaster b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
@@ -300,7 +299,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereServlet.AtmosphereConfig c)
+    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereConfig c)
             throws InstantiationException, IllegalAccessException {
 
         factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.client;
 
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
 import javax.servlet.http.HttpServletRequest;
@@ -25,7 +26,10 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 
     @Override
-    public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
+    public BroadcastAction filter(AtmosphereResource<?, ?> r, Object message, Object originalMessage) {
+
+        HttpServletRequest request = HttpServletRequest.class.cast(r.getRequest());
+        HttpServletResponse response = HttpServletResponse.class.cast(r.getResponse());
 
         if ("true".equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
                 && message != null && String.class.isAssignableFrom(message.getClass())) {

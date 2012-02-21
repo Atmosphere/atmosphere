@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
+ * Copyright 2012 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -212,15 +212,21 @@ public interface ApplicationConfig {
      * Let Jetty send blob instead of String
      */
     String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
-<<<<<<< HEAD
     /**
      * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
      * a Container
      */
     String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE =  ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
-=======
 	
     String PROPERTY_CUSTOM_COMET_SUPPORT = "org.atmosphere.cpr.customCometSupport";
 
->>>>>>> 4bc8bfbc04ca6244c826f58095e638596f891bd7
+    /**
+     * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
+      */
+    String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.class.getPackage().getName() + ".atmosphereHandlerPath";
+    /**
+     * Jersey's ContainerResponseWriter.
+     */
+    String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
+
 }

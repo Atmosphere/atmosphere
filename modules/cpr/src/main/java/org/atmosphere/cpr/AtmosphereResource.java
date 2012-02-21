@@ -38,9 +38,8 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;

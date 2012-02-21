@@ -23,7 +23,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -134,13 +134,13 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializabl
      * {@inheritDoc}
      */
     @Override
-    public String handleResponse(AtmosphereResponse<?> res, String message) {
+    public String handleResponse(AtmosphereResponse res, String message) {
         // Should never be called
         return message;
     }
 
     @Override
-    public byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length) {
+    public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
         // Should never be called
         return message;
     }

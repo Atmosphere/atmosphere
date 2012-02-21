@@ -39,7 +39,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +106,7 @@ public class AtmosphereResourceImpl implements
     /**
      * Create an {@link AtmosphereResource}.
      *
-     * @param config            The {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
      * @param req               The {@link javax.servlet.http.HttpServletRequest}
      * @param response          The {@link javax.servlet.http.HttpServletResponse}
@@ -295,10 +294,17 @@ public class AtmosphereResourceImpl implements
                         if (writeHeaders && !cometSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
+                            req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
                             flushComment = false;
                         }
                     }
                 }
+            }
+
+            if (flushComment) {
+                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
+            } else {
+                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
             }
 
             if (writeHeaders && injectCacheHeaders) {
@@ -494,7 +500,7 @@ public class AtmosphereResourceImpl implements
         serializer = s;
     }
 
-    protected boolean isResumed(){
+    public boolean isResumed(){
         return isResumed;
     }
 

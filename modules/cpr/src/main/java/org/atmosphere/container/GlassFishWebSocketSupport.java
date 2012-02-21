@@ -43,13 +43,9 @@ import com.sun.grizzly.websockets.DefaultWebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.container.version.GrizzlyWebSocket;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

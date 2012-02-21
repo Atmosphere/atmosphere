@@ -106,7 +106,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Future<?> notifierFuture;
     protected Future<?> asyncWriteFuture;
-    protected BroadcasterCache broadcasterCache;
+    public BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
@@ -116,12 +116,12 @@ public class DefaultBroadcaster implements Broadcaster {
             .policy(NEVER).build();
     private Future<?> currentLifecycleTask;
     protected URI uri;
-    protected AtmosphereServlet.AtmosphereConfig config;
+    protected AtmosphereConfig config;
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
     private final Object[] concurrentSuspendBroadcast = new Object[0];
 
-    public DefaultBroadcaster(String name, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+    public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
         this.uri = uri;
         this.config = config;
@@ -138,17 +138,17 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    public DefaultBroadcaster(String name, AtmosphereServlet.AtmosphereConfig config) {
+    public DefaultBroadcaster(String name, AtmosphereConfig config) {
         this(name, URI.create("http://localhost"), config);
     }
 
     /**
      * Create {@link BroadcasterConfig}
      *
-     * @param config the {@link AtmosphereServlet.AtmosphereConfig}
+     * @param config the {@link AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
      */
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereServlet.AtmosphereConfig config) {
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
         return new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
     }
 
@@ -643,8 +643,7 @@ public class DefaultBroadcaster implements Broadcaster {
             synchronized (r) {
                 if (isAtmosphereResourceValid(r)) {
                     if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
-                        Object message = msg.originalMessage;
-                        BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                        BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
                         if (a.action() == BroadcastAction.ACTION.ABORT) {
                             return null;
                         }
@@ -780,7 +779,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
         List<?> missedMsg = broadcasterCache.retrieveFromCache(r);
-        if (!missedMsg.isEmpty()) {
+        if (missedMsg!=null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
         }

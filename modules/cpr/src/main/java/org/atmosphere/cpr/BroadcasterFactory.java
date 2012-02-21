@@ -46,7 +46,7 @@ import java.util.Collection;
 public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
-    protected static AtmosphereServlet.AtmosphereConfig config;
+    protected static AtmosphereConfig config;
 
     /**
      * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
@@ -160,7 +160,7 @@ public abstract class BroadcasterFactory {
         return factory;
     }
 
-    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereServlet.AtmosphereConfig c) {
+    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {
         factory = f;
         config = c;
     }

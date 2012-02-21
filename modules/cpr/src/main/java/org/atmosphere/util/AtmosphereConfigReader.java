@@ -37,54 +37,46 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.CometSupport;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.atmosphere.config.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.config.AtmosphereHandler;
+import org.atmosphere.config.AtmosphereHandlerProperty;
+import org.atmosphere.config.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Descriptor for an Atmosphere configuraton file.
  *
  * @author Jerome Dochez (for the version shipped in GlassFish v3).
  * @author Jeanfrancois Arcand
+ * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
 public class AtmosphereConfigReader {
 
+    private static final AtmosphereConfigReader instance = new AtmosphereConfigReader();
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereConfigReader.class);
 
-    private final Map<String, String> tuples = new HashMap<String, String>();
-    private final Map<String, ArrayList<Property>> atmosphereHandlerProperties = new HashMap<String, ArrayList<Property>>();
-    private final Map<String, String> broadcasters = new HashMap<String, String>();
-    private final Map<String, String> broadcasterCache = new HashMap<String, String>();
+    private AtmosphereConfigReader() {
+    }
 
-    private String cometSupportClass = null;
-    private String supportSession = "";
-    private String[] broadcastFilterClasses;
+    public AtmosphereConfig parse(AtmosphereConfig config, String filename) throws FileNotFoundException {
 
-    /**
-     * Create a {@link DocumentBuilderFactory} element from META-INF/atmosphere.xml
-     *
-     * @param stream
-     */
-    public AtmosphereConfigReader(InputStream stream) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
-            parse(factory.newDocumentBuilder().parse(stream));
+            return parse(config, factory.newDocumentBuilder().parse(filename));
         } catch (SAXException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
@@ -95,144 +87,132 @@ public class AtmosphereConfigReader {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
+
+    }
+
+    public AtmosphereConfig parse(AtmosphereConfig config, InputStream stream) throws FileNotFoundException {
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        try {
+            return parse(config, factory.newDocumentBuilder().parse(stream));
+        } catch (SAXException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        } catch (ParserConfigurationException e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
+
     }
 
     /**
-     * Parse the META-INF/atmosphere.xml element.
+     * Parse the atmosphere-handlers element.
      *
      * @param document
      */
-    private void parse(Document document) {
+    private AtmosphereConfig parse(AtmosphereConfig config, Document document) {
+
         Element element = document.getDocumentElement();
         NodeList atmosphereHandlers = element.getElementsByTagName("atmosphere-handler");
         for (int i = 0; i < atmosphereHandlers.getLength(); i++) {
-            Node atmosphereHandler = atmosphereHandlers.item(i);
-            NamedNodeMap attrs = atmosphereHandler.getAttributes();
-            NodeList properties = atmosphereHandler.getChildNodes();
-            ArrayList<Property> list = new ArrayList<Property>();
+            AtmosphereHandler atmoHandler = new AtmosphereHandler();
 
-            // Read the properties to be set on a AtmosphereHandler
-            for (int j = 0; j < properties.getLength(); j++) {
-                Node property = properties.item(j);
-                NamedNodeMap values = property.getAttributes();
-                if (values != null) {
-                    list.add(new Property(values.getNamedItem("name").getNodeValue(),
-                            values.getNamedItem("value").getNodeValue()));
+            Node root = atmosphereHandlers.item(i);
+
+            // parse Attributes
+            for (int j = 0; j < root.getAttributes().getLength(); j++) {
+
+                Node attribute = root.getAttributes().item(j);
+
+                if (attribute.getNodeName().equals("support-session")) {
+                    atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("context-root")) {
+                    atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("class-name")) {
+                    atmoHandler.setClassName(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcaster")) {
+                    atmoHandler.setBroadcaster(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcasterCache")) {
+                    atmoHandler.setBroadcasterCache(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
+                    String[] values = attribute.getFirstChild().getNodeValue().split(",");
+                    for (String value : values) {
+                        atmoHandler.getBroadcastFilterClasses().add(value);
+                    }
+                } else if (attribute.getNodeName().equals("comet-support")) {
+                    atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
                 }
+
             }
 
-            if (attrs != null) {
-                atmosphereHandlerProperties.put(attrs.getNamedItem("context-root").getNodeValue(), list);
+            NodeList list = root.getChildNodes();
 
-                addAtmosphereHandler(attrs.getNamedItem("context-root").getNodeValue(),
-                        attrs.getNamedItem("class-name").getNodeValue());
+            for (int j = 0; j < list.getLength(); j++) {
+                Node n = list.item(j);
+                if (n.getNodeName().equals("property")) {
+                    String param = n.getAttributes().getNamedItem("name").getNodeValue();
+                    String value = n.getAttributes().getNamedItem("value").getNodeValue();
 
-                if (attrs.getNamedItem("broadcaster") != null) {
-                    String broadcasterClass = attrs.getNamedItem("broadcaster").getNodeValue();
-                    if (broadcasterClass != null) {
-                        broadcasters.put(attrs.getNamedItem("context-root").getNodeValue(), broadcasterClass);
+                    atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
+                } else if (n.getNodeName().equals("applicationConfig")) {
+
+                    String param = null;
+                    String value = null;
+                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+
+                        Node n2 = n.getChildNodes().item(k);
+
+                        if (n2.getNodeName().equals("param-name")) {
+                            param = n2.getFirstChild().getNodeValue();
+                        } else if (n2.getNodeName().equals("param-value")) {
+                            if (n2.getFirstChild() != null) {
+                                value = n2.getFirstChild().getNodeValue();
+                            }
+                        }
+
                     }
-                }
 
-                if (attrs.getNamedItem("broadcastFilterClasses") != null) {
-                    broadcastFilterClasses = attrs.getNamedItem("broadcastFilter").getNodeValue().split(",");
-                }
-
-                if (attrs.getNamedItem("broadcasterCache") != null) {
-                    String bc = attrs.getNamedItem("broadcasterCache").getNodeValue();
-                    if (bc != null) {
-                        broadcasterCache.put(attrs.getNamedItem("context-root").getNodeValue(), bc);
+                    if (param != null) {
+                        atmoHandler.getApplicationConfig().add(new ApplicationConfig(param, value));
                     }
-                }
-                if (attrs.getNamedItem("comet-support") != null) {
-                    cometSupportClass = attrs.getNamedItem("comet-support").getNodeValue();
+
+                } else if (n.getNodeName().equals("frameworkConfig")) {
+                    String param = null;
+                    String value = null;
+                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+
+                        Node n2 = n.getChildNodes().item(k);
+
+                        if (n2.getNodeName().equals("param-name")) {
+                            param = n2.getFirstChild().getNodeValue();
+                        } else if (n2.getNodeName().equals("param-value")) {
+                            if (n2.getFirstChild() != null) {
+                                value = n2.getFirstChild().getNodeValue();
+                            }
+                        }
+
+                    }
+
+                    if (param != null) {
+                        atmoHandler.getFrameworkConfig().add(
+                                new FrameworkConfig(param, value));
+                    }
+
                 }
 
-                if (attrs.getNamedItem("support-session") != null) {
-                    supportSession = attrs.getNamedItem("support-session").getNodeValue();
-                }
             }
+
+            config.getAtmosphereHandler().add(atmoHandler);
         }
+
+        return config;
+
     }
 
-    /**
-     * True if the support-session added in atmosphere.xml
-     *
-     * @return
-     */
-    public String supportSession() {
-        return supportSession;
-    }
-
-    /**
-     * Add a {@link AtmosphereHandler} to the list of discovered element.
-     *
-     * @param contextPath The context-path which will map the {@link AtmosphereHandler}
-     * @param className   The associated {@lin AtmosphereHandler} class name.
-     */
-    void addAtmosphereHandler(String contextPath, String className) {
-        if (tuples.containsKey(contextPath)) {
-            throw new RuntimeException("duplicate context root in configuration :" + contextPath);
-        }
-        tuples.put(contextPath, className);
-    }
-
-    /**
-     * Return a {@link Map} which contains the context-oath as a key with its
-     * associated {@link AtmosphereHandler}, loaded from META-INF/atmosphere.xml
-     *
-     * @return
-     */
-    public Map<String, String> getAtmosphereHandlers() {
-        return tuples;
-    }
-
-    /**
-     * Return a {@link Broadcaster}, or null.
-     */
-    public String getBroadcasterClass(String contextRoot) {
-        return broadcasters.get(contextRoot);
-    }
-
-    /**
-     * Return a {@link Broadcaster}, or null.
-     */
-    public String getBroadcasterCache(String contextRoot) {
-        return broadcasterCache.get(contextRoot);
-    }
-
-    /**
-     * Simple Struct representing a <property> element/value.
-     */
-    public class Property {
-
-        public String name = "";
-        public String value = "";
-
-        public Property(String name, String value) {
-            this.name = name;
-            this.value = value;
-        }
-    }
-
-    /**
-     * Return the properties to be set on {@link AtmosphereHandler}
-     *
-     * @return An {@link ArrayList} containing the properties to be set on
-     *         a {@link AtmosphereHandler}
-     */
-    public ArrayList<Property> getProperty(String contextRoot) {
-        return atmosphereHandlerProperties.get(contextRoot);
-    }
-
-    /**
-     * Return the {@link CometSupport} implementation
-     */
-    public String getCometSupportClass() {
-        return cometSupportClass;
-    }
-
-    public String[] getBroadcastFilterClasses() {
-        return broadcastFilterClasses;
+    public static AtmosphereConfigReader getInstance() {
+        return instance;
     }
 }

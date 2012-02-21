@@ -27,8 +27,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.atmosphere.config.AtmosphereConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
@@ -49,6 +49,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOCometSupport.class);
 	
+	private AtmosphereConfig config = null;
 	private AsynchronousProcessor containerWrapper = null;
 	private SocketIOSessionManager sessionManager1 = null;
 	
@@ -80,8 +81,9 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		super(config);
 		containerWrapper = container;
 		containerWrapper.setIProcessor(this);
+		this.config = config;
 		
-		config.getAtmosphereServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
+		config.getServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
 		
 		String transportsWebXML = config.getInitParameter(SOCKETIO_TRANSPORT);
 		
@@ -285,7 +287,8 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 
 	@Override
 	public boolean supportSession() {
-		return containerWrapper.supportSession();
+		//return containerWrapper.supportSession();
+		return config.isSupportSession();
 	}
 
 	@Override

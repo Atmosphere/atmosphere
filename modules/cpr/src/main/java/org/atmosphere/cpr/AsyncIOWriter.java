@@ -21,14 +21,12 @@ import java.io.IOException;
  * An Asynchronous I/O Writer is used by a {@link AtmosphereResponse} when writing data.
  */
 public interface AsyncIOWriter {
-
     /**
      * Redirect a WebSocket request to another location
      * @param location
      * @throws IOException
      */
     void redirect(String location) throws IOException;
-
     /**
      * Write an error code
      * @param errorCode the error code
@@ -36,7 +34,6 @@ public interface AsyncIOWriter {
      * @throws IOException
      */
     void writeError(int errorCode, String message) throws IOException;
-
     /**
      * Write a WebSocket message
      *
@@ -44,7 +41,6 @@ public interface AsyncIOWriter {
      * @throws java.io.IOException
      */
     void write(String data) throws IOException;
-
     /**
      * Write a WebSocket message
      *
@@ -52,7 +48,6 @@ public interface AsyncIOWriter {
      * @throws IOException
      */
     void write(byte[] data) throws IOException;
-
     /**
      * Write a WebSocket message
      *
@@ -62,10 +57,12 @@ public interface AsyncIOWriter {
      * @throws IOException
      */
     void write(byte[] data, int offset, int length) throws IOException;
-
     /**
      * Close the underlying connection.
      */
     void close() throws IOException;
-
+    /**
+     * Flush the buffered content
+     */
+    void flush() throws IOException;
 }

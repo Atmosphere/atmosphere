@@ -52,7 +52,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -84,16 +83,16 @@ public class BroadcasterConfig {
     private final Object[] lock = new Object[0];
 
     private BroadcasterCache broadcasterCache;
-    private AtmosphereServlet.AtmosphereConfig config;
+    private AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
 
-    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
         this(list, config, true);
     }
 
-    public BroadcasterConfig(String[] list, AtmosphereServlet.AtmosphereConfig config, boolean createExecutor) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
         if (createExecutor) {
             configExecutors();
@@ -105,7 +104,7 @@ public class BroadcasterConfig {
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereServlet.AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -315,7 +314,8 @@ public class BroadcasterConfig {
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
-        if (filters.contains(e) || checkDuplicateFilter(e)) return false;
+        logDuplicateFilter(e);
+        if (filters.contains(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
             ((BroadcastFilterLifecycle) e).init();
@@ -328,13 +328,12 @@ public class BroadcasterConfig {
         return filters.offer(e);
     }
 
-    private boolean checkDuplicateFilter(BroadcastFilter e) {
+    private void logDuplicateFilter(BroadcastFilter e) {
         for (BroadcastFilter f : filters) {
             if (f.getClass().isAssignableFrom(e.getClass())) {
-                return true;
+                logger.trace("Duplicate Filter instance {}", f.getClass());
             }
         }
-        return false;
     }
 
     public void destroy() {
@@ -456,15 +455,15 @@ public class BroadcasterConfig {
     /**
      * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link javax.servlet.http.HttpServletRequest}
      *
-     * @param request {@link javax.servlet.http.HttpServletRequest}
-     * @param object  the broadcasted object.
+     * @param r {@link AtmosphereResource}
+     * @param object the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object object) {
-        BroadcastAction transformed = new BroadcastAction(object);
+    protected BroadcastAction filter(AtmosphereResource<?,?> r, Object message, Object originalMessage) {
+        BroadcastAction transformed = new BroadcastAction(originalMessage);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
-                transformed = mf.filter(request, response, transformed.message());
+                transformed = mf.filter(r, message, transformed.message());
                 if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                     return transformed;
                 }
@@ -557,7 +556,7 @@ public class BroadcasterConfig {
         }
     }
 
-    void configureBroadcasterFilter(String[] list) {
+    void configureBroadcasterFilter(List<String> list) {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;
             try {
@@ -591,7 +590,7 @@ public class BroadcasterConfig {
      *
      * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    public AtmosphereServlet.AtmosphereConfig getAtmosphereConfig() {
+    public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
@@ -600,7 +599,7 @@ public class BroadcasterConfig {
      *
      * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
      */
-    public void setAtmosphereConfig(AtmosphereServlet.AtmosphereConfig config) {
+    public void setAtmosphereConfig(AtmosphereConfig config) {
         this.config = config;
     }
 }

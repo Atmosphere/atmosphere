@@ -13,38 +13,34 @@
     <name>atmosphere-samples</name>
     <modules>
         <module>commons</module>
+        <!-- old sample using Prototype.js -->
         <module>chat</module>
-        <module>flickr-comet</module>
         <module>rest-chat</module>
-        <module>rest-cluster-chat</module>
-        <module>twitter</module>
-        <module>rest-twitter</module>
-        <module>counter-longpolling</module>
-        <module>rest-counter</module>
         <module>scala-chat</module>
         <module>tictactoe</module>
+        <module>meteor-chat</module>
+        <module>chat-guice</module>
+
+        <!-- sample using GWT -->
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
-        <module>meteor-chat</module>
+
+        <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
         <module>jquery-pubsub</module>
         <module>jquery-meteor-pubsub</module>
         <module>jquery-atmospherehandler-pubsub</module>
         <module>jquery-websocketprotocol-pubsub</module>
         <module>twitter-live-feed</module>
-        <module>chat-guice</module>
-        <module>websocket-chat</module>
         <module>wicket-clock</module>
-        <module>jquery-pubsub-redis</module>
-        <module>jquery-pubsub-xmpp</module>
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
         <module>async-channel</module>
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
-        <module>jquery-pubsub-hazelcast</module>
-	<module>socketio-chat</module>
+				<module>socketio-chat</module>
+        <module>spring-websocket</module>
     </modules>
     <build>
         <finalName>${artifactId}</finalName>
@@ -53,14 +49,14 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.5</source>
-                    <target>1.5</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>8.0.1</version>
+                <version>${jetty7-version}</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
                     <webAppConfig>
@@ -68,7 +64,7 @@
                     </webAppConfig>
                     <connectors>
                         <connector implementation="org.eclipse.jetty.server.nio.SelectChannelConnector">
-                            <port>9090</port>
+                            <port>8080</port>
                             <maxIdleTime>60000</maxIdleTime>
                         </connector>
                     </connectors>

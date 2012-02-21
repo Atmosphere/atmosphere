@@ -3,10 +3,8 @@ package org.atmosphere.websocket;
 import javax.servlet.http.HttpServletRequest;
 
 import org.atmosphere.container.JettyWebSocketHandler;
-import org.atmosphere.container.JettyWebSocketUtil;
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.config.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +47,7 @@ public class AtmosphereWebSocketFactory {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getAtmosphereServlet(), config.getAtmosphereServlet().getWebSocketProtocol());
+                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocol());
             }
         });
 

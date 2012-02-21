@@ -9,7 +9,7 @@
             var connectedEndpoint;
             var callbackAdded = false;
             var detectedTransport = null;
-            var baseUrl = '/atmosphere-atmospherehandler-pubsub/pubsub/'
+            var baseUrl = document.location.toString()  + 'pubsub/'
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -159,7 +159,7 @@
     </style>
 </head>
 <body>
-<h1>Meteor PubSub Sample using Atmosphere's JQuery Plug In</h1>
+<h1>AtmosphereHandler PubSub Sample using Atmosphere's JQuery Plug In</h1>
 
 <h2>Select PubSub topic to subscribe</h2>
 

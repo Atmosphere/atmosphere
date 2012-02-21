@@ -15,18 +15,36 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.FakeHttpSession;
+
+import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.Part;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
@@ -36,7 +54,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
-    private final ByteInputStream bis;
+    private final ServletInputStream bis;
     private final BufferedReader br;
     private final String pathInfo;
     private final Map<String, String> headers;
@@ -48,6 +66,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String requestURI;
     private final String requestURL;
     private final Map<String, Object> localAttributes;
+    private final HttpSession session = new FakeHttpSession("", null, System.currentTimeMillis());
+    private final String remoteAddr;
+    private final String remoteHost;
+    private final int remotePort;
+    private final String localAddr;
+    private final String localName;
+    private final int localPort;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
@@ -60,19 +85,32 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         requestURL = b.requestURL;
         localAttributes = b.localAttributes;
 
-        if (b.dataBytes != null) {
-            bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
-            try {
-                br = new BufferedReader(new StringReader(new String(b.dataBytes, b.offset, b.length, b.encoding)));
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
+        remoteAddr = b.remoteAddr;
+        remoteHost = b.remoteHost;
+        remotePort = b.remotePort;
+
+        localAddr = b.localAddr;
+        localName = b.localName;
+        localPort = b.localPort;
+
+        if (b.inputStream == null) {
+            if (b.dataBytes != null) {
+                bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
+                try {
+                    br = new BufferedReader(new StringReader(new String(b.dataBytes, b.offset, b.length, b.encoding)));
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (b.data != null) {
+                bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
+                br = new BufferedReader(new StringReader(b.data));
+            } else {
+                bis = null;
+                br = null;
             }
-        } else if (b.data != null) {
-            bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
-            br = new BufferedReader(new StringReader(b.data));
         } else {
-            bis = null;
-            br = null;
+            bis = new IS(b.inputStream);
+            br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
         methodType = b.methodType == null ? (request != null ? request.getMethod() : "GET") : b.methodType;
         contentType = b.contentType == null ? (request != null ? request.getContentType() : "text/plain") : b.contentType;
@@ -238,7 +276,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             String[] newList = queryStrings.get(s);
             String[] s1 = new String[list.length + newList.length];
             System.arraycopy(list, 0, s1, 0, list.length);
-            System.arraycopy(s1, list.length + 1, newList, 0, newList.length);
+            System.arraycopy(s1, list.length, newList, 0, newList.length);
+            list = s1;
         }
         return list;
     }
@@ -299,6 +338,46 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    @Override
+    public HttpSession getSession() {
+        return session;
+    }
+
+    @Override
+    public HttpSession getSession(boolean create) {
+        return session;
+    }
+
+    @Override
+    public String getRemoteAddr() {
+        return remoteAddr;
+    }
+
+    @Override
+    public String getRemoteHost() {
+        return remoteHost;
+    }
+
+    @Override
+    public int getRemotePort() {
+        return remotePort;
+    }
+
+    @Override
+    public String getLocalName() {
+        return localName;
+    }
+
+    @Override
+    public int getLocalPort() {
+        return localPort;
+    }
+
+    @Override
+    public String getLocalAddr() {
+        return localAddr;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -346,8 +425,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     public final static class Builder {
 
-        private HttpServletRequest request;
-        private String pathInfo;
+        private HttpServletRequest request = new DummyHttpServletRequest();
+        private String pathInfo = "";
         private byte[] dataBytes;
         private int offset;
         private int length;
@@ -361,12 +440,49 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String requestURI;
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
+        private InputStream inputStream;
+        private String remoteAddr = "";
+        private String remoteHost = "";
+        private int remotePort = 0;
+        private String localAddr = "";
+        private String localName = "";
+        private int localPort = 0;
 
         public Builder() {
         }
 
         public Builder headers(Map<String, String> headers) {
             this.headers = headers;
+            return this;
+        }
+
+        public Builder remoteAddr(String remoteAddr) {
+            this.remoteAddr = remoteAddr;
+            return this;
+        }
+
+        public Builder remoteHost(String remoteHost) {
+            this.remoteHost = remoteHost;
+            return this;
+        }
+
+        public Builder remotePort(int remotePort) {
+            this.remotePort = remotePort;
+            return this;
+        }
+
+        public Builder localAddr(String localAddr) {
+            this.localAddr = localAddr;
+            return this;
+        }
+
+        public Builder localName(String localName) {
+            this.localName = localName;
+            return this;
+        }
+
+        public Builder localPort(int localPort) {
+            this.localPort = localPort;
             return this;
         }
 
@@ -427,6 +543,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
+        public Builder inputStream(InputStream inputStream) {
+            this.inputStream = inputStream;
+            return this;
+        }
+
         public AtmosphereRequest build() {
             return new AtmosphereRequest(this);
         }
@@ -437,4 +558,383 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+
+    private final static class IS extends ServletInputStream {
+
+        private final InputStream innerStream;
+
+        public IS(InputStream innerStream) {
+            super();
+            this.innerStream = innerStream;
+        }
+
+        public int read() throws java.io.IOException {
+            return innerStream.read();
+        }
+
+        public int read(byte[] bytes) throws java.io.IOException {
+            return innerStream.read(bytes);
+        }
+
+        public int read(byte[] bytes, int i, int i1) throws java.io.IOException {
+            return innerStream.read(bytes, i, i1);
+        }
+
+
+        public long skip(long l) throws java.io.IOException {
+            return innerStream.skip(l);
+        }
+
+        public int available() throws java.io.IOException {
+            return innerStream.available();
+        }
+
+        public void close() throws java.io.IOException {
+            innerStream.close();
+        }
+
+        public synchronized void mark(int i) {
+            innerStream.mark(i);
+        }
+
+        public synchronized void reset() throws java.io.IOException {
+            innerStream.reset();
+        }
+
+        public boolean markSupported() {
+            return innerStream.markSupported();
+        }
+    }
+
+    private final static class DummyHttpServletRequest implements HttpServletRequest {
+
+        @Override
+        public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
+            return false;
+        }
+
+        @Override
+        public String getAuthType() {
+            return null;
+        }
+
+        @Override
+        public String getContextPath() {
+            return "";
+        }
+
+        @Override
+        public Cookie[] getCookies() {
+            return new Cookie[0];
+        }
+
+        @Override
+        public long getDateHeader(String name) {
+            return 0;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public Enumeration<String> getHeaderNames() {
+            return Collections.enumeration(Collections.<String>emptyList());
+        }
+
+        @Override
+        public Enumeration<String> getHeaders(String name) {
+            return Collections.enumeration(Collections.<String>emptyList());
+        }
+
+        @Override
+        public int getIntHeader(String name) {
+            return 0;
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public Part getPart(String name) throws IOException, ServletException {
+            return null;
+        }
+
+        @Override
+        public Collection<Part> getParts() throws IOException, ServletException {
+            return Collections.<Part>emptyList();
+        }
+
+        @Override
+        public String getPathInfo() {
+            return "";
+        }
+
+        @Override
+        public String getPathTranslated() {
+            return "";
+        }
+
+        @Override
+        public String getQueryString() {
+            return "";
+        }
+
+        @Override
+        public String getRemoteUser() {
+            return null;
+        }
+
+        @Override
+        public String getRequestedSessionId() {
+            return null;
+        }
+
+        @Override
+        public String getRequestURI() {
+            return "";
+        }
+
+        @Override
+        public StringBuffer getRequestURL() {
+            return new StringBuffer();
+        }
+
+        @Override
+        public String getServletPath() {
+            return "";
+        }
+
+        @Override
+        public HttpSession getSession() {
+            return null;
+        }
+
+        @Override
+        public HttpSession getSession(boolean create) {
+            return null;
+        }
+
+        @Override
+        public Principal getUserPrincipal() {
+            return null;
+        }
+
+        @Override
+        public boolean isRequestedSessionIdFromCookie() {
+            return false;
+        }
+
+        @Override
+        public boolean isRequestedSessionIdFromUrl() {
+            return false;
+        }
+
+        @Override
+        public boolean isRequestedSessionIdFromURL() {
+            return false;
+        }
+
+        @Override
+        public boolean isRequestedSessionIdValid() {
+            return false;
+        }
+
+        @Override
+        public boolean isUserInRole(String role) {
+            return false;
+        }
+
+        @Override
+        public void login(String username, String password) throws ServletException {
+
+        }
+
+        @Override
+        public void logout() throws ServletException {
+
+        }
+
+        @Override
+        public AsyncContext getAsyncContext() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames() {
+            return Collections.enumeration(Collections.<String>emptyList());
+        }
+
+        @Override
+        public String getCharacterEncoding() {
+            return null;
+        }
+
+        @Override
+        public int getContentLength() {
+            return 0;
+        }
+
+        @Override
+        public String getContentType() {
+            return null;
+        }
+
+        @Override
+        public DispatcherType getDispatcherType() {
+            return null;
+        }
+
+        @Override
+        public ServletInputStream getInputStream() throws IOException {
+            return null;
+        }
+
+        @Override
+        public Locale getLocale() {
+            return null;
+        }
+
+        @Override
+        public Enumeration<Locale> getLocales() {
+            return Collections.enumeration(Collections.<Locale>emptyList());
+        }
+
+        @Override
+        public String getLocalName() {
+            return null;
+        }
+
+        @Override
+        public int getLocalPort() {
+            return 0;
+        }
+
+        @Override
+        public String getLocalAddr() {
+            return null;
+        }
+
+        @Override
+        public String getParameter(String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, String[]> getParameterMap() {
+            return Collections.<String, String[]>emptyMap();
+        }
+
+        @Override
+        public Enumeration<String> getParameterNames() {
+            return Collections.enumeration(Collections.<String>emptyList());
+        }
+
+        @Override
+        public String[] getParameterValues(String name) {
+            return new String[0];
+        }
+
+        @Override
+        public String getProtocol() {
+            return null;
+        }
+
+        @Override
+        public BufferedReader getReader() throws IOException {
+            return null;
+        }
+
+        @Override
+        public String getRealPath(String path) {
+            return null;
+        }
+
+        @Override
+        public String getRemoteAddr() {
+            return null;
+        }
+
+        @Override
+        public String getRemoteHost() {
+            return null;
+        }
+
+        @Override
+        public int getRemotePort() {
+            return 0;
+        }
+
+        @Override
+        public RequestDispatcher getRequestDispatcher(String path) {
+            return null;
+        }
+
+        @Override
+        public String getScheme() {
+            return null;
+        }
+
+        @Override
+        public String getServerName() {
+            return null;
+        }
+
+        @Override
+        public int getServerPort() {
+            return 0;
+        }
+
+        @Override
+        public ServletContext getServletContext() {
+            return null;
+        }
+
+        @Override
+        public boolean isAsyncStarted() {
+            return false;
+        }
+
+        @Override
+        public boolean isAsyncSupported() {
+            return false;
+        }
+
+        @Override
+        public boolean isSecure() {
+            return false;
+        }
+
+        @Override
+        public void removeAttribute(String name) {
+
+        }
+
+        @Override
+        public void setAttribute(String name, Object o) {
+
+        }
+
+        @Override
+        public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
+        }
+
+        @Override
+        public AsyncContext startAsync() {
+            return null;
+        }
+
+        @Override
+        public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
+            return null;
+        }
+    }
 }

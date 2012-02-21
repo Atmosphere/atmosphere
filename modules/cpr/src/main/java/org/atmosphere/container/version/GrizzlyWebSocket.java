@@ -30,30 +30,55 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
         this.webSocket = webSocket;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void writeError(int errorCode, String message) throws IOException {
         logger.debug("{} {}", errorCode, message);
         if (resource() != null) {
         }
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void redirect(String location) throws IOException {
         logger.error("redirect not supported");
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(String data) throws IOException {
         webSocket.send(data);
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(byte[] data) throws IOException {
         webSocket.send(new String(data));
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void write(byte[] data, int offset, int length) throws IOException {
         webSocket.send(new String(data, offset, length));
     }
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void close() throws IOException {
         webSocket.close();
+    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void flush() throws IOException {
     }
 
 }

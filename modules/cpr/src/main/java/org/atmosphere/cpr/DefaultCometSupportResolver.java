@@ -46,12 +46,12 @@ import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.JettyCometSupportWithWebSocket;
+import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Servlet30CometSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +79,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     public final static String WEBLOGIC = "weblogic.servlet.http.FutureResponseModel";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
+    public final static String NETTY = "org.jboss.netty.channel.Channel";
 
     private final AtmosphereConfig config;
 
@@ -111,6 +112,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     public List<Class<? extends CometSupport>> detectContainersPresent() {
         return new LinkedList<Class<? extends CometSupport>>() {
             {
+                if (testClassExists(NETTY))
+                    add(NettyCometSupport.class);
+
                 if (testClassExists(GLASSFISH_V2))
                     add(GlassFishv2CometSupport.class);
 
@@ -229,7 +233,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         } else {
             l = detectWebSocketPresent();
             if (l.isEmpty()) {
-                return resolve(useNativeIfPossible,defaultToBlocking);
+                return resolve(useNativeIfPossible, defaultToBlocking);
             }
             cs = resolveWebSocket(l);
         }

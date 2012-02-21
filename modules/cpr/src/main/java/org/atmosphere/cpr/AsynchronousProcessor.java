@@ -39,7 +39,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
 import org.eclipse.jetty.websocket.WebSocketFactory;
@@ -204,39 +203,38 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                  session.setMaxInactiveInterval(-1);
              }
          }
+         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
-        req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
+         AtmosphereHandlerWrapper handlerWrapper = map(req);
+         // Check Broadcaster state. If destroyed, replace it.
+         Broadcaster b = handlerWrapper.broadcaster;
+         if (b.isDestroyed()) {
+             synchronized (handlerWrapper) {
+                 config.getBroadcasterFactory().remove(b, b.getID());
+                 handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
+             }
+         }
+         AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+ 		handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
 
-        AtmosphereHandlerWrapper handlerWrapper = map(req);
-        // Check Broadcaster state. If destroyed, replace it.
-        Broadcaster b = handlerWrapper.broadcaster;
-        if (b.isDestroyed()) {
-            synchronized (handlerWrapper) {
-                config.getBroadcasterFactory().remove(b, b.getID());
-                handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
-            }
-        }
-        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
-		handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
+         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+         try {
+             handlerWrapper.atmosphereHandler.onRequest(resource);
+         } catch (IOException t) {
+             resource.onThrowable(t);
+             throw t;
+         }
 
-        try {
-            handlerWrapper.atmosphereHandler.onRequest(resource);
-        } catch (IOException t) {
-            resource.onThrowable(t);
-            throw t;
-        }
+         if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
+             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+             aliveRequests.put(req, resource);
+         }
+         return resource.action();
+     }
 
-        if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
-            req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-            aliveRequests.put(req, resource);
-        }
-        return resource.action();
-    }
-
-	/**
+    /**
      * Invoke the {@link AtmosphereHandler#onRequest} method.
      *
      * @param req the {@link HttpServletRequest}
@@ -245,8 +243,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    Action action(HttpServletRequest req, HttpServletResponse res)
-            throws IOException, ServletException {
+    Action action(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
     	
     	return actionProcessor.processAction(this, req, res);
     }
@@ -306,7 +303,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
 
         if (atmosphereHandlerWrapper == null) {
-            throw new ServletException("No AtmosphereHandler maps request for " + path);
+            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());

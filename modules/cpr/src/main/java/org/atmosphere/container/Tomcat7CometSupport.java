@@ -22,11 +22,11 @@ import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.tomcat.util.http.mapper.MappingData;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 

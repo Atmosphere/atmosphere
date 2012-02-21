@@ -15,22 +15,18 @@
 */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,7 +55,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public void configure(AtmosphereServlet.AtmosphereConfig config) {
+    public void configure(AtmosphereConfig config) {
         String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
             contentType = "text/html";
@@ -155,13 +151,13 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      * {@inheritDoc}
      */
     @Override
-    public String handleResponse(AtmosphereResponse<?> res, String message) {
+    public String handleResponse(AtmosphereResponse res, String message) {
         // Should never be called
         return message;
     }
 
     @Override
-    public byte[] handleResponse(AtmosphereResponse<?> res, byte[] message, int offset, int length) {
+    public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
         // Should never be called
         return message;
     }

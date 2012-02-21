@@ -15,12 +15,10 @@
 */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AsyncProtocol;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereServlet;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
@@ -34,9 +32,9 @@ public interface WebSocketProtocol extends AsyncProtocol{
     /**
      * Allow an implementation to query the AtmosphereConfig of init-param, etc.
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
      */
-    void configure(AtmosphereServlet.AtmosphereConfig config);
+    void configure(AtmosphereConfig config);
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or

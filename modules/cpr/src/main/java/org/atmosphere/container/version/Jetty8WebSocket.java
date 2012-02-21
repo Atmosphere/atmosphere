@@ -15,8 +15,8 @@
 */
 package org.atmosphere.container.version;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
@@ -33,9 +33,9 @@ public class Jetty8WebSocket extends WebSocketAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
-    private final AtmosphereServlet.AtmosphereConfig config;
+    private final AtmosphereConfig config;
 
-    public Jetty8WebSocket(Connection connection, AtmosphereServlet.AtmosphereConfig config) {
+    public Jetty8WebSocket(Connection connection, AtmosphereConfig config) {
         this.connection = connection;
         this.config = config;
     }
@@ -95,6 +95,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
             connection.sendMessage(new String(data, offset, length, "UTF-8"));
         }
     }
+
     /**
      * {@inheritDoc}
      */
@@ -102,5 +103,11 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     public void close() throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
+    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void flush() throws IOException {
     }
 }

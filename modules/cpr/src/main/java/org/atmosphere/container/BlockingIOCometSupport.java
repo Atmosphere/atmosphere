@@ -38,12 +38,12 @@
 package org.atmosphere.container;
 
 import org.apache.catalina.CometEvent;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
@@ -54,7 +54,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
