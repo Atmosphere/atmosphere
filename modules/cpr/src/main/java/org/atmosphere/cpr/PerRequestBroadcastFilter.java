@@ -29,10 +29,11 @@ public interface PerRequestBroadcastFilter extends BroadcastFilter {
      * Transform or Filter a message per request, with V as an indicator. Be careful when setting headers on the
      * {@link javax.servlet.http.HttpServletResponse} as the headers may have been already sent back to the browser.
      *
-     * @param request  The {@link javax.servlet.http.HttpServletRequest} send before the response was suspended/upgraded.
-     * @param response The suspended {@link javax.servlet.http.HttpServletResponse}.
+     *
+     * @param atmosphereResource
      * @param message  Object a message
+     * @param originalMessage
      * @return a transformed message.
      */
-    BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message);
+    BroadcastAction filter(AtmosphereResource<?, ?> atmosphereResource, Object originalMessage, Object message);
 }

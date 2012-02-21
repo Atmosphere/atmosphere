@@ -15,6 +15,7 @@
  */
 package org.atmosphere.client;
 
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
@@ -29,7 +30,10 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class JSONPTransportFilter implements PerRequestBroadcastFilter {
     @Override
-    public BroadcastAction filter(HttpServletRequest request, HttpServletResponse response, Object message) {
+    public BroadcastAction filter(AtmosphereResource<?, ?> r, Object message, Object originalMessage) {
+
+        HttpServletRequest request = HttpServletRequest.class.cast(r.getRequest());
+        HttpServletResponse response = HttpServletResponse.class.cast(r.getResponse());
 
         String s = request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
         if (s != null) {

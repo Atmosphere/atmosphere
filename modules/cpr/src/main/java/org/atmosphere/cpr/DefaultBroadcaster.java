@@ -145,7 +145,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * Create {@link BroadcasterConfig}
      *
-     * @param config the {@link AtmosphereServlet.AtmosphereConfig}
+     * @param config the {@link AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
      */
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
@@ -643,8 +643,7 @@ public class DefaultBroadcaster implements Broadcaster {
             synchronized (r) {
                 if (isAtmosphereResourceValid(r)) {
                     if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
-                        Object message = msg.originalMessage;
-                        BroadcastAction a = bc.filter((HttpServletRequest) r.getRequest(), (HttpServletResponse) r.getResponse(), message);
+                        BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
                         if (a.action() == BroadcastAction.ACTION.ABORT) {
                             return null;
                         }
