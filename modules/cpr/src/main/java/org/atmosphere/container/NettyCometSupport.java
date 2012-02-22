@@ -15,11 +15,11 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.jboss.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,8 +112,11 @@ public class NettyCometSupport extends AsynchronousProcessor {
         }
 
         public void resume() {
-            ((Channel) req.getAttribute(CHANNEL) ).close();
+            try {
+                ((AsyncIOWriter) req.getAttribute(CHANNEL) ).close();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
         }
-
     }
 }
