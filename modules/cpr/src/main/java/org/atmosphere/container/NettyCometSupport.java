@@ -37,6 +37,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
     public final static String RESUME = NettyCometSupport.class.getName() + ".resume";
     public final static String HOOK = NettyCometSupport.class.getName() + ".cometSupportHook";
     public final static String CHANNEL = NettyCometSupport.class.getName() + ".channel";
+
     private static final Logger logger = LoggerFactory.getLogger(NettyCometSupport.class);
 
     public NettyCometSupport(AtmosphereConfig config) {
@@ -54,7 +55,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
         action = suspended(req, res);
         if (action.type == AtmosphereServlet.Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
-            req.setAttribute(SUSPEND, new Boolean(true));
+            req.setAttribute(SUSPEND, action);
             req.setAttribute(HOOK, new CometSupportHook(req,res));
         } else if (action.type == AtmosphereServlet.Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
@@ -62,7 +63,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
             AtmosphereServlet.Action nextAction = resumed(req, res);
             if (nextAction.type == AtmosphereServlet.Action.TYPE.SUSPEND) {
                 logger.debug("Suspending after resuming response: {}", res);
-                req.setAttribute(SUSPEND, new Boolean(true));
+                req.setAttribute(SUSPEND, action);
             }
         }
 
