@@ -37,8 +37,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
     public final static String RESUME = NettyCometSupport.class.getName() + ".resume";
     public final static String HOOK = NettyCometSupport.class.getName() + ".cometSupportHook";
     public final static String CHANNEL = NettyCometSupport.class.getName() + ".channel";
-
-
     private static final Logger logger = LoggerFactory.getLogger(NettyCometSupport.class);
 
     public NettyCometSupport(AtmosphereConfig config) {
