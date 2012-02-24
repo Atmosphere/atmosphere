@@ -16,21 +16,16 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.cpr.Meteor;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
@@ -44,10 +39,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
 
     @Override
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+    public void onRequest(AtmosphereResource r) throws IOException {
 
-        HttpServletRequest req = r.getRequest();
-        HttpServletResponse res = r.getResponse();
+        AtmosphereRequest req = r.getRequest();
+        AtmosphereResponse res = r.getResponse();
         String method = req.getMethod();
 
         // Suspend the response.

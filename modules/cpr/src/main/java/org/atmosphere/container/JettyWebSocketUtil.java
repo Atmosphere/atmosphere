@@ -16,9 +16,11 @@
 package org.atmosphere.container;
 
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
@@ -27,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -37,8 +38,8 @@ public class JettyWebSocketUtil {
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
     public final static AtmosphereServlet.Action doService(AsynchronousProcessor cometSupport,
-                                                           HttpServletRequest req,
-                                                           HttpServletResponse res,
+                                                           AtmosphereRequest req,
+                                                           AtmosphereResponse res,
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
         boolean webSocketEnabled = false;
         if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {

@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import java.io.IOException;
@@ -51,7 +65,7 @@ import java.io.OutputStream;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResourceEvent<E, F> {
+public interface AtmosphereResourceEvent {
 
     /**
      * Return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
@@ -105,7 +119,7 @@ public interface AtmosphereResourceEvent<E, F> {
      *
      * @return {@link AtmosphereResource}
      */
-    public AtmosphereResource<E, F> getResource();
+    public AtmosphereResource getResource();
 
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking

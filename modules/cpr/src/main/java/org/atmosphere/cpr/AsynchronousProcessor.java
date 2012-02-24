@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
@@ -47,8 +61,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
@@ -77,8 +89,8 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     protected final AtmosphereConfig config;
 
-    protected final ConcurrentHashMap<HttpServletRequest, AtmosphereResource<HttpServletRequest, HttpServletResponse>>
-            aliveRequests = new ConcurrentHashMap<HttpServletRequest, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
+    protected final ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>
+            aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
 
     private boolean trackActiveRequest = false;
 
@@ -100,7 +112,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
             closedDetector.scheduleAtFixedRate(new Runnable() {
                 public void run() {
-                    for (HttpServletRequest req : aliveRequests.keySet()) {
+                    for (AtmosphereRequest req : aliveRequests.keySet()) {
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
                         if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
                             try {
@@ -143,15 +155,15 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * All proprietary Comet based {@link Servlet} must invoke the suspended
      * method when the first request comes in. The returned value, of type
      * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to suspended or not the current {@link HttpServletResponse}.
+     * to suspended or not the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action suspended(HttpServletRequest request, HttpServletResponse response)
+    public Action suspended(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
         return action(request, response);
     }
@@ -159,13 +171,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     /**
      * Invoke the {@link AtmosphereHandler#onRequest} method.
      *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    Action action(HttpServletRequest req, HttpServletResponse res)
+    Action action(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         boolean webSocketEnabled = false;
@@ -260,11 +272,11 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
-     * @param req the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereResponse}
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    protected AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
+    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();
@@ -290,36 +302,36 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the resume
-     * method when the Atmosphere's application decide to resume the {@link HttpServletResponse}.
+     * method when the Atmosphere's application decide to resume the {@link AtmosphereResponse}.
      * The returned value, of type
      * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to resume (again), suspended or do nothing with the current {@link HttpServletResponse}.
+     * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action resumed(HttpServletRequest request, HttpServletResponse response)
+    public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
         return action(request, response);
     }
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the timedout
-     * method when the underlying WebServer time out the {@link HttpServletResponse}.
+     * method when the underlying WebServer time out the {@link AtmosphereResponse}.
      * The returned value, of type
      * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to resume (again), suspended or do nothing with the current {@link HttpServletResponse}.
+     * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action timedout(HttpServletRequest request, HttpServletResponse response)
+    public Action timedout(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r = null;
@@ -392,13 +404,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         if (!r.isInScope()) return;
 
-        HttpServletRequest req = r.getRequest(false);
+        AtmosphereRequest req = r.getRequest(false);
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
 
         try {
             if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
-                        (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+                AtmosphereHandler atmosphereHandler =
+                        (AtmosphereHandler)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
                 synchronized (r) {
@@ -420,7 +432,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
     }
 
-    public static void destroyResource(AtmosphereResource<?, ?> r) {
+    public static void destroyResource(AtmosphereResource r) {
         if (r == null) return;
 
         try {
@@ -443,13 +455,13 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * method when the underlying WebServer detect that the client closed
      * the connection.
      *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         synchronized (req) {
@@ -506,7 +518,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     protected void shutdown() {
         closedDetector.shutdownNow();
-        for (AtmosphereResource<HttpServletRequest, HttpServletResponse> resource : aliveRequests.values()) {
+        for (AtmosphereResource resource : aliveRequests.values()) {
             try {
                 resource.resume();
             } catch (Throwable t) {

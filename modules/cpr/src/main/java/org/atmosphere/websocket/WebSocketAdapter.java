@@ -26,14 +26,14 @@ import java.io.IOException;
  */
 public abstract class WebSocketAdapter implements WebSocket{
 
-    private AtmosphereResource<?, ?> r;
+    private AtmosphereResource r;
 
     /**
      * Configure the {@link AtmosphereResource}
      *
      * @param r the {@link AtmosphereResource}
      */
-    public WebSocketAdapter setAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public WebSocketAdapter setAtmosphereResource(AtmosphereResource r) {
         this.r = r;
         return this;
     }
@@ -43,7 +43,7 @@ public abstract class WebSocketAdapter implements WebSocket{
     }
 
     @Override
-    public AtmosphereResource<?, ?> resource() {
+    public AtmosphereResource resource() {
         return r;
     }
 }

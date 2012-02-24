@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,15 +50,12 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
@@ -60,13 +72,12 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
- * {@link AtmosphereResource} implementation for supporting {@link HttpServletRequest}
- * and {@link HttpServletResponse}.
+ * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
+ * and {@link AtmosphereRequest}.
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResourceImpl implements
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> {
+public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceImpl.class);
 
@@ -75,9 +86,9 @@ public class AtmosphereResourceImpl implements
     public static final String METEOR = Meteor.class.getName();
 
     // The {@link HttpServletRequest}
-    private final HttpServletRequest req;
+    private final AtmosphereRequest req;
     // The {@link HttpServletResponse}
-    private final HttpServletResponse response;
+    private final AtmosphereResponse response;
     // The upcoming Action.
     protected final AtmosphereServlet.Action action = new AtmosphereServlet.Action();
     // The Broadcaster
@@ -108,13 +119,13 @@ public class AtmosphereResourceImpl implements
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
-     * @param req               The {@link javax.servlet.http.HttpServletRequest}
-     * @param response          The {@link javax.servlet.http.HttpServletResponse}
+     * @param req               The {@link AtmosphereRequest}
+     * @param response          The {@link AtmosphereResource}
      * @param cometSupport      The {@link org.atmosphere.cpr.CometSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
-                                  HttpServletRequest req, HttpServletResponse response,
+                                  AtmosphereRequest req, AtmosphereResponse response,
                                   CometSupport cometSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
@@ -220,14 +231,6 @@ public class AtmosphereResourceImpl implements
                 }
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
-            }
-
-            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                AtmosphereResponse.class.cast(response).destroy();
-            }
-
-            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                AtmosphereRequest.class.cast(req).destroy();
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
@@ -384,7 +387,7 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletRequest getRequest(boolean enforceScope) {
+    public AtmosphereRequest getRequest(boolean enforceScope) {
         if (enforceScope && !isInScope) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
@@ -394,7 +397,7 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletResponse getResponse(boolean enforceScope) {
+    public AtmosphereResponse getResponse(boolean enforceScope) {
         if (enforceScope && !isInScope) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
@@ -404,14 +407,14 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletRequest getRequest() {
+    public AtmosphereRequest getRequest() {
         return getRequest(true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public HttpServletResponse getResponse() {
+    public AtmosphereResponse getResponse() {
         return getResponse(true);
     }
 
@@ -483,9 +486,9 @@ public class AtmosphereResourceImpl implements
     }
 
     /**
-     * Is the {@link HttpServletRequest} still valid.
+     * Is the {@link AtmosphereRequest} still valid.
      *
-     * @return true if the {@link HttpServletRequest} still valid
+     * @return true if the {@link AtmosphereRequest} still valid
      */
     public boolean isInScope() {
         return isInScope;
@@ -645,33 +648,33 @@ public class AtmosphereResourceImpl implements
     }
 
     void onThrowable(AtmosphereResourceEvent e) {
-        AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
-                (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+        AtmosphereHandler atmosphereHandler =
+                (AtmosphereHandler)
                         req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
         }
     }
 
-    void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onSuspend(e);
         }
     }
 
-    void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onResume(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onResume(e);
         }
     }
 
-    void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onDisconnect(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onDisconnect(e);
         }
     }
 
-    void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onBroadcast(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onBroadcast(e);
         }

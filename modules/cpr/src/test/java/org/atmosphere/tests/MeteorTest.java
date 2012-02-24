@@ -1,3 +1,4 @@
+
 /*
 * Copyright 2012 Jeanfrancois Arcand
 *
@@ -104,24 +105,24 @@ public class MeteorTest {
             m.addListener(new AtmosphereResourceEventListener() {
 
                 @Override
-                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onSuspend(final AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onResume(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onDisconnect(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onBroadcast(AtmosphereResourceEvent event) {
                     event.getResource().getRequest().setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
-                public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onThrowable(AtmosphereResourceEvent event) {
 
                 }
             });

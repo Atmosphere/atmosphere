@@ -19,7 +19,6 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.handler.ReflectorServletProcessor;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -28,7 +27,7 @@ import java.io.IOException;
 public class AtmospherePollHandler extends ReflectorServletProcessor {
 
     @Override
-    public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
 
         if (event.isCancelled() || event.getMessage() == null) {
             return;

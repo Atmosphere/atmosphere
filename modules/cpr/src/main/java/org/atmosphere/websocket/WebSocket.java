@@ -58,5 +58,5 @@ public interface WebSocket extends AsyncIOWriter {
      *
      * @return the current {@link AtmosphereResource}
      */
-    AtmosphereResource<?, ?> resource();
+    AtmosphereResource resource();
 }

@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -45,10 +60,8 @@ import java.util.List;
  * <p/>
  * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)}
  *
- * @param <V>
- * @param <W>
  */
-public interface BroadcasterCache<V, W> {
+public interface BroadcasterCache {
 
     public final static String BROADCASTER_CACHE_TRACKER = BroadcasterCache.class.getName();
 
@@ -70,7 +83,7 @@ public interface BroadcasterCache<V, W> {
      * @param r {@link AtmosphereResource}
      * @param e a broadcasted message.
      */
-    void addToCache(AtmosphereResource<V, W> r, Object e);
+    void addToCache(AtmosphereResource r, Object e);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}
@@ -78,6 +91,6 @@ public interface BroadcasterCache<V, W> {
      * @param r {@link AtmosphereResource}
      * @return a {@link List} of messages (String).
      */
-    List<Object> retrieveFromCache(AtmosphereResource<V, W> r);
+    List<Object> retrieveFromCache(AtmosphereResource r);
 
 }

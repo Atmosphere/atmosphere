@@ -42,7 +42,6 @@ import com.sun.grizzly.tcp.http11.GrizzlyAdapter;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.ServletContext;
 import java.io.File;

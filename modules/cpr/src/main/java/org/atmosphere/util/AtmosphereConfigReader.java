@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -37,18 +52,11 @@
  */
 package org.atmosphere.util;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.atmosphere.config.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.config.AtmosphereHandler;
+import org.atmosphere.config.ApplicationConfiguration;
+import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
-import org.atmosphere.config.FrameworkConfig;
+import org.atmosphere.config.FrameworkConfiguration;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -56,6 +64,12 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Descriptor for an Atmosphere configuraton file.
@@ -118,7 +132,7 @@ public class AtmosphereConfigReader {
         Element element = document.getDocumentElement();
         NodeList atmosphereHandlers = element.getElementsByTagName("atmosphere-handler");
         for (int i = 0; i < atmosphereHandlers.getLength(); i++) {
-            AtmosphereHandler atmoHandler = new AtmosphereHandler();
+            AtmosphereHandlerConfig atmoHandler = new AtmosphereHandlerConfig();
 
             Node root = atmosphereHandlers.item(i);
 
@@ -176,7 +190,7 @@ public class AtmosphereConfigReader {
                     }
 
                     if (param != null) {
-                        atmoHandler.getApplicationConfig().add(new ApplicationConfig(param, value));
+                        atmoHandler.getApplicationConfig().add(new ApplicationConfiguration(param, value));
                     }
 
                 } else if (n.getNodeName().equals("frameworkConfig")) {
@@ -198,7 +212,7 @@ public class AtmosphereConfigReader {
 
                     if (param != null) {
                         atmoHandler.getFrameworkConfig().add(
-                                new FrameworkConfig(param, value));
+                                new FrameworkConfiguration(param, value));
                     }
 
                 }

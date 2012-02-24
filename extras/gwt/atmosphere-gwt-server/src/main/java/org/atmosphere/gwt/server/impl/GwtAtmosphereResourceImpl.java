@@ -18,9 +18,11 @@ package org.atmosphere.gwt.server.impl;
 import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.Serializer;
 import org.atmosphere.gwt.server.AtmosphereGwtHandler;
@@ -29,8 +31,6 @@ import org.atmosphere.gwt.server.GwtResponseWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -47,7 +47,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     public static final String HEARTBEAT_MESSAGE = "4dc5bdb9-edc8-4edf-8833-ab478326d8c9";
 
-    public GwtAtmosphereResourceImpl(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource,
+    public GwtAtmosphereResourceImpl(AtmosphereResource resource,
                                      AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
         this.atmosphereHandler = servlet;
         this.atmResource = resource;
@@ -101,7 +101,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
-    public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
+    public AtmosphereResource getAtmosphereResource() {
         return atmResource;
     }
 
@@ -109,7 +109,6 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
      * Check to see if this atmosphere resource is still in use by the system.
      * It will query the associated broadcaster if it is still referenced.
      *
-     * @param resource
      * @return
      */
     @Override
@@ -123,8 +122,8 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         if (atmResource.getBroadcaster() == null) {
             return false;
         }
-        Collection<AtmosphereResource<?, ?>> res = atmResource.getBroadcaster().getAtmosphereResources();
-        for (AtmosphereResource<?, ?> ar : res) {
+        Collection<AtmosphereResource> res = atmResource.getBroadcaster().getAtmosphereResources();
+        for (AtmosphereResource ar : res) {
             if (ar == atmResource) {
                 return true;
             }
@@ -142,12 +141,12 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
-    public HttpServletRequest getRequest() {
+    public AtmosphereRequest getRequest() {
         return atmResource.getRequest();
     }
 
     @Override
-    public HttpServletResponse getResponse() {
+    public AtmosphereResponse getResponse() {
         return atmResource.getResponse();
     }
 
@@ -252,7 +251,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private final static long WARMUP_TIME = 10000;
     private long startTime = System.currentTimeMillis();
     private final GwtResponseWriterImpl writer;
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> atmResource;
+    private AtmosphereResource atmResource;
     private final int heartBeatInterval;
     private AtmosphereGwtHandler atmosphereHandler;
     private boolean suspended = false;
@@ -296,28 +295,28 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private final AtmosphereResourceEventListener eventListener = new AtmosphereResourceEventListener() {
 
         @Override
-        public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> are) {
+        public void onSuspend(AtmosphereResourceEvent are) {
             suspended = true;
         }
 
         @Override
-        public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onResume(AtmosphereResourceEvent event) {
             suspended = false;
             writer.setTerminated(false);
         }
 
         @Override
-        public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onDisconnect(AtmosphereResourceEvent event) {
             suspended = false;
             writer.setTerminated(false);
         }
 
         @Override
-        public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onBroadcast(AtmosphereResourceEvent event) {
         }
 
         @Override
-        public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onThrowable(AtmosphereResourceEvent event) {
         }
     };
 }

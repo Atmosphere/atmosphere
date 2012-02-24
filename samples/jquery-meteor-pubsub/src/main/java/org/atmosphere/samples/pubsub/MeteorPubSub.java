@@ -22,13 +22,10 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Meteor;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by

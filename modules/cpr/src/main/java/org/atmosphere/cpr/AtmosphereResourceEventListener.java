@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -37,9 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 /**
  * Receive notification when a resume, client disconnect or broadcast events
  * occurs.
@@ -54,7 +66,7 @@ public interface AtmosphereResourceEventListener {
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+    void onSuspend(AtmosphereResourceEvent event);
 
     /**
      * Invoked when the {@link AtmosphereResource#resume} is invoked or when the
@@ -62,29 +74,29 @@ public interface AtmosphereResourceEventListener {
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+    void onResume(AtmosphereResourceEvent event);
 
     /**
      * Invoked when the remote connection gets closed.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+    void onDisconnect(AtmosphereResourceEvent event);
 
     /**
      * Invoked when a {@link Broadcaster#broadcast} occurs.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+    void onBroadcast(AtmosphereResourceEvent event);
 
 
     /**
      * Invoked when an operations failed to execute for an unknown reason like : IOException because the client
      * remotly closed the connection, a broken connection, etc.
      *
-     * @param event a {@link AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse>}
+     * @param event a {@link AtmosphereResourceEvent}
      */
-    void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event);
+    void onThrowable(AtmosphereResourceEvent event);
 
 }

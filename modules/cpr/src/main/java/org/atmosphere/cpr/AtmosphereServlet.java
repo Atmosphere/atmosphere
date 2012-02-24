@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -35,9 +50,62 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
+
+import org.apache.catalina.CometEvent;
+import org.apache.catalina.CometProcessor;
+import org.atmosphere.config.AtmosphereHandlerConfig;
+import org.atmosphere.config.AtmosphereHandlerProperty;
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JettyWebSocketHandler;
+import org.atmosphere.container.Tomcat7CometSupport;
+import org.atmosphere.container.TomcatCometSupport;
+import org.atmosphere.container.WebLogicCometSupport;
+import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.di.ServletContextHolder;
+import org.atmosphere.di.ServletContextProvider;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.util.AtmosphereConfigReader;
+import org.atmosphere.util.IntrospectionUtils;
+import org.atmosphere.util.Version;
+import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProtocol;
+import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
+import org.jboss.servlet.http.HttpEvent;
+import org.jboss.servlet.http.HttpEventServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import weblogic.servlet.http.AbstractAsyncServlet;
+import weblogic.servlet.http.RequestResponseKey;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
@@ -68,61 +136,6 @@ import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.catalina.CometEvent;
-import org.apache.catalina.CometProcessor;
-import org.atmosphere.config.AtmosphereHandlerProperty;
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JettyWebSocketHandler;
-import org.atmosphere.container.Tomcat7CometSupport;
-import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.container.WebLogicCometSupport;
-import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.di.ServletContextHolder;
-import org.atmosphere.di.ServletContextProvider;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.util.AtmosphereConfigReader;
-import org.atmosphere.util.IntrospectionUtils;
-import org.atmosphere.util.Version;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
-import org.jboss.servlet.http.HttpEvent;
-import org.jboss.servlet.http.HttpEventServlet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import weblogic.servlet.http.AbstractAsyncServlet;
-import weblogic.servlet.http.RequestResponseKey;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -389,7 +402,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @param h           implementation of an {@link AtmosphereHandler}
      * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.
      */
-    public void addAtmosphereHandler(String mapping, AtmosphereHandler<HttpServletRequest, HttpServletResponse> h, Broadcaster broadcaster) {
+    public void addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster) {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
@@ -520,7 +533,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                 if (mapping == null) {
                     mapping = "/*";
                 }
-                addAtmosphereHandler(mapping, (AtmosphereHandler<?, ?>) cl.loadClass(s).newInstance());
+                addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
             }
@@ -766,7 +779,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
                 @Override
-                public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> httpServletRequestHttpServletResponseAtmosphereResource) throws IOException {
+                public void onRequest(AtmosphereResource httpServletRequestHttpServletResponseAtmosphereResource) throws IOException {
                 }
 
                 @Override
@@ -822,7 +835,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         }
 
         AtmosphereConfigReader.getInstance().parse(config, stream);
-        for (org.atmosphere.config.AtmosphereHandler atmoHandler : config.getAtmosphereHandler()) {
+        for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandler()) {
             try {
                 AtmosphereHandler handler;
 
@@ -1127,6 +1140,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
         AtmosphereRequest r = null;
+        AtmosphereResponse ar = AtmosphereResponse.wrap(res);
         Action a = null;
         try {
             if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
@@ -1145,9 +1159,9 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
                         .body(body)
                         .request(req).build();
 
-                a = cometSupport.service(r, res);
+                a = cometSupport.service(r, ar);
             } else {
-                return cometSupport.service(req, res);
+                return cometSupport.service(AtmosphereRequest.wrap(req), ar);
             }
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
@@ -1289,7 +1303,8 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @throws javax.servlet.ServletException
      */
     protected void doTimeout(RequestResponseKey rrk) throws IOException, ServletException {
-        ((AsynchronousProcessor) cometSupport).timedout(rrk.getRequest(), rrk.getResponse());
+        ((AsynchronousProcessor) cometSupport).timedout(new AtmosphereRequest.Builder().request(rrk.getRequest()).build(),
+                                                        new AtmosphereResponse.Builder().response(rrk.getResponse()).build());
     }
 
     /**

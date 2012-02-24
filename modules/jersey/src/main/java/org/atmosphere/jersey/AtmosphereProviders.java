@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -48,15 +63,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 
 /**
  * Placeholder for injection of Atmosphere object based on
@@ -90,8 +103,8 @@ public class AtmosphereProviders {
             public Object fromString(String topic) {
                 Broadcaster broadcaster;
                 try {
-                    AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
-                            (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
+                    AtmosphereResource r =
+                            (AtmosphereResource)
                                     req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     BroadcasterFactory bp = (BroadcasterFactory)
                             req.getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
@@ -143,7 +156,7 @@ public class AtmosphereProviders {
                         trackableResource = (TrackableResource<AtmosphereResourceImpl>) TrackableSession.getDefault().lookup(trackingId);
 
                         if (req.getAttribute(ApplicationConfig.SUPPORT_TRACKABLE) != null) {
-                            AtmosphereResource<?, ?> r = (AtmosphereResource<?, ?>) req.getAttribute(ATMOSPHERE_RESOURCE);
+                            AtmosphereResource r = (AtmosphereResource) req.getAttribute(ATMOSPHERE_RESOURCE);
                             if (trackableResource == null) {
                                 trackableResource = new TrackableResource<AtmosphereResourceImpl>(AtmosphereResourceImpl.class, trackingId, "");
                                 trackableResource.setResource(r);
