@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
 * Copyright 2012 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -35,8 +50,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
@@ -56,7 +69,7 @@ public class BroadcasterLifecycleTest {
     protected String urlTarget;
     protected Server server;
     protected Context root;
-    private final static AtomicReference<AtmosphereResource<?,?>> ref = new AtomicReference<AtmosphereResource<?,?>>();
+    private final static AtomicReference<AtmosphereResource> ref = new AtomicReference<AtmosphereResource>();
     private final static CountDownLatch suspended = new CountDownLatch(2);
     private final static CountDownLatch broadcasterCreated = new CountDownLatch(1);
 
@@ -161,12 +174,12 @@ public class BroadcasterLifecycleTest {
         c.close();
     }
 
-    private static final class LifeCycleTestHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    private static final class LifeCycleTestHandler implements AtmosphereHandler {
 
         private Broadcaster broadcaster;
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             broadcaster = BroadcasterFactory.getDefault().get("Test-Destroy");
             r.setBroadcaster(broadcaster);
             ref.set(r);
@@ -174,7 +187,7 @@ public class BroadcasterLifecycleTest {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
             if (r.isSuspended()) {
                 r.getResource().getResponse().getWriter().print(r.getMessage());
                 r.getResource().getResponse().getWriter().flush();
@@ -188,10 +201,10 @@ public class BroadcasterLifecycleTest {
         }
     }
 
-    private static final class Destroy implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    private static final class Destroy implements AtmosphereHandler {
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             try {
                 broadcasterCreated.await(5, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
@@ -202,7 +215,7 @@ public class BroadcasterLifecycleTest {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
         }
 
         @Override
@@ -210,10 +223,10 @@ public class BroadcasterLifecycleTest {
         }
     }
 
-    private static final class Invoker implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    private static final class Invoker implements AtmosphereHandler {
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             try {
                 ref.get().getBroadcaster().broadcast("Recovering a dead broadcasted").get();
             } catch (InterruptedException e) {
@@ -225,7 +238,7 @@ public class BroadcasterLifecycleTest {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
         }
 
         @Override

@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -38,8 +53,10 @@
 package org.atmosphere.samples.chat;
 
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.plugin.jgroups.JGroupsFilter;
@@ -61,7 +78,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Jeanfrancois Arcand
  * @author TAKAI Naoto (original author for the Comet based Chat).
  */
-public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+public class ChatAtmosphereHandler implements AtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
 
@@ -86,11 +103,10 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
      * @param event An {@link AtmosphereResource}
      * @throws java.io.IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest,
-            HttpServletResponse> event) throws IOException {
+    public void onRequest(AtmosphereResource event) throws IOException {
 
-        HttpServletRequest req = event.getRequest();
-        HttpServletResponse res = event.getResponse();
+        AtmosphereRequest req = event.getRequest();
+        AtmosphereResponse res = event.getResponse();
 
         res.setContentType("text/html;charset=ISO-8859-1");
         if (req.getMethod().equalsIgnoreCase("GET")) {
@@ -156,8 +172,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler<HttpServletReque
      * @param event An {@link AtmosphereResourceEvent}
      * @throws java.io.IOException
      */
-    public void onStateChange(AtmosphereResourceEvent<HttpServletRequest,
-            HttpServletResponse> event) throws IOException {
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
 
         HttpServletRequest req = event.getResource().getRequest();
         HttpServletResponse res = event.getResource().getResponse();

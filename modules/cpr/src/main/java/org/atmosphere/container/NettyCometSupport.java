@@ -18,14 +18,14 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -48,7 +48,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereServlet.Action service(HttpServletRequest req, HttpServletResponse res)
+    public AtmosphereServlet.Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         AtmosphereServlet.Action action = null;
@@ -83,10 +83,10 @@ public class NettyCometSupport extends AsynchronousProcessor {
 
     public final class CometSupportHook {
 
-        private final HttpServletRequest req;
-        private final HttpServletResponse res;
+        private final AtmosphereRequest req;
+        private final AtmosphereResponse res;
 
-        public CometSupportHook(HttpServletRequest req, HttpServletResponse res) {
+        public CometSupportHook(AtmosphereRequest req, AtmosphereResponse res) {
             this.req = req;
             this.res = res;
         }

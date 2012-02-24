@@ -15,11 +15,11 @@
  */
 package org.atmosphere.gwt.server;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.util.List;
@@ -57,11 +57,11 @@ public interface GwtAtmosphereResource {
 
     public void post(List<Serializable> messages);
 
-    public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource();
+    public AtmosphereResource getAtmosphereResource();
 
-    public HttpServletRequest getRequest();
+    public AtmosphereRequest getRequest();
 
-    public HttpServletResponse getResponse();
+    public AtmosphereResponse getResponse();
 
     public boolean isAlive();
 

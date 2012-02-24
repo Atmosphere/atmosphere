@@ -66,7 +66,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String requestURI;
     private final String requestURL;
     private final Map<String, Object> localAttributes;
-    private final HttpSession session = new FakeHttpSession("", null, System.currentTimeMillis());
+    private final HttpSession session;
     private final String remoteAddr;
     private final String remoteHost;
     private final int remotePort;
@@ -92,6 +92,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         localAddr = b.localAddr;
         localName = b.localName;
         localPort = b.localPort;
+        session = b.request == null ? new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -318,6 +319,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public void setAttribute(String s, Object o) {
         localAttributes.put(s, o);
+        if (request != null){
+            request.setAttribute(s, o);
+        }
     }
 
     /**
@@ -936,5 +940,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
             return null;
         }
+    }
+
+    public final static AtmosphereRequest wrap(HttpServletRequest request) {
+        return new Builder().request(request).build();
     }
 }

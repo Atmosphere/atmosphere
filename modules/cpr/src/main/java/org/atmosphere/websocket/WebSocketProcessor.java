@@ -32,8 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Enumeration;
@@ -41,7 +39,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -73,7 +70,7 @@ public class WebSocketProcessor implements Serializable {
         }
     }
 
-    public final void dispatch(final HttpServletRequest request) throws IOException {
+    public final void dispatch(final AtmosphereRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
@@ -142,10 +139,10 @@ public class WebSocketProcessor implements Serializable {
     /**
      * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
      *
-     * @param request a {@link HttpServletRequest}
-     * @param r       a {@link HttpServletResponse}
+     * @param request a {@link AtmosphereRequest}
+     * @param r       a {@link AtmosphereResponse}
      */
-    protected final void dispatch(final HttpServletRequest request, final AtmosphereResponse r) {
+    protected final void dispatch(final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;
         try {
             atmosphereServlet.doCometSupport(request, r);
@@ -223,8 +220,8 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void notifyListener(WebSocketEventListener.WebSocketEvent event) {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> resource =
-                (AtmosphereResource<HttpServletRequest, HttpServletResponse>) webSocket.resource();
+        AtmosphereResource resource =
+                (AtmosphereResource) webSocket.resource();
         if (resource == null) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);
@@ -264,7 +261,7 @@ public class WebSocketProcessor implements Serializable {
         }
     }
 
-    public static final Map<String, String> configureHeader(HttpServletRequest request) {
+    public static final Map<String, String> configureHeader(AtmosphereRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();

@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -55,7 +70,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -147,7 +161,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * @param r The {@link AtmosphereResource}
      * @throws java.io.IOException
      */
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r)
+    public void onRequest(AtmosphereResource r)
             throws IOException {
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, this);

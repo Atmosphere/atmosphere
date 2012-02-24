@@ -1,3 +1,18 @@
+/*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.tests;
 
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -7,8 +22,6 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.testng.annotations.Test;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -38,7 +51,7 @@ public class AtmosphereServletTest {
         assertTrue(handler2.isDestroyed());
     }
 
-    private static class Handler implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    private static class Handler implements AtmosphereHandler {
 
         private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
@@ -48,11 +61,11 @@ public class AtmosphereServletTest {
         }
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
+        public void onRequest(AtmosphereResource resource) throws IOException {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent event) throws IOException {
         }
 
         public boolean isDestroyed() {

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 
 import javax.servlet.ServletConfig;
@@ -33,7 +34,7 @@ import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
  */
 public class AtmosphereConfig {
 
-    private final List<org.atmosphere.config.AtmosphereHandler> atmosphereHandler = new ArrayList<org.atmosphere.config.AtmosphereHandler>();
+    private final List<AtmosphereHandlerConfig> atmosphereHandler = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession = true;
     private BroadcasterFactory broadcasterFactory;
@@ -46,7 +47,7 @@ public class AtmosphereConfig {
         this.atmosphereServlet = atmosphereServlet;
     }
 
-    public List<org.atmosphere.config.AtmosphereHandler> getAtmosphereHandler() {
+    public List<AtmosphereHandlerConfig> getAtmosphereHandler() {
         return atmosphereHandler;
     }
 

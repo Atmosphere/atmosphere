@@ -18,12 +18,12 @@ package org.atmosphere.config;
 /**
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
-public class ApplicationConfig {
+public class ApplicationConfiguration {
 
     private String paramName;
     private String paramValue;
 
-    public ApplicationConfig(String paramName, String paramValue) {
+    public ApplicationConfiguration(String paramName, String paramValue) {
         this.paramName = paramName;
         this.paramValue = paramValue;
     }

@@ -18,9 +18,6 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 /**
  * An implementation of {@link AtmosphereResourceEventListener} with just log event as trace.
  *
@@ -31,27 +28,27 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListener.class);
 
     @Override
-    public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onSuspend(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
     @Override
-    public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onResume(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
     @Override
-    public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onDisconnect(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
     @Override
-    public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onBroadcast(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
     @Override
-    public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onThrowable(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 }

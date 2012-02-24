@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * Copyright 2012 Kagilum - Vincent Barrier - vbarrier@kagilum.com
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -54,13 +69,13 @@ public class ExcludeSessionBroadcaster
      * @return
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
 
-        Set<AtmosphereResource<?, ?>> sub = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> sub = new HashSet<AtmosphereResource>();
         sub.addAll(resources);
         sub.remove(r);
         start();
@@ -84,7 +99,7 @@ public class ExcludeSessionBroadcaster
      * @return
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -115,9 +130,9 @@ public class ExcludeSessionBroadcaster
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
-        Set<AtmosphereResource<?, ?>> subset = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
         subset.addAll(resources);
-        for (AtmosphereResource<?, ?> r : resources) {
+        for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
                     sessions.contains(((HttpServletRequest) r.getRequest()).getSession())) {
                 subset.remove(r);
@@ -148,10 +163,10 @@ public class ExcludeSessionBroadcaster
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
 
-        Set<AtmosphereResource<?, ?>> subset = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
         subset.addAll(resources);
 
-        for (AtmosphereResource<?, ?> r : resources) {
+        for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
                     s.equals(((HttpServletRequest) r.getRequest()).getSession())) {
                 subset.remove(r);

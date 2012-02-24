@@ -18,7 +18,8 @@ package org.atmosphere.cpr;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.mockito.Mockito.*;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Unit tests for the {@link DefaultBroadcasterFactory}.

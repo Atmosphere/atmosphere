@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
