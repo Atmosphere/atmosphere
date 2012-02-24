@@ -88,6 +88,10 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     public ReflectorServletProcessor() {
     }
 
+    public ReflectorServletProcessor(Servlet servlet) {
+        this.servlet = servlet;
+    }
+
     void loadWebApplication(ServletConfig sc) throws MalformedURLException,
             InstantiationException, IllegalAccessException, ClassNotFoundException {
 
