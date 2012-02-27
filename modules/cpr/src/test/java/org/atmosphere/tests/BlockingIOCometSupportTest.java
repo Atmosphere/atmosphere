@@ -51,14 +51,8 @@
  */
 package org.atmosphere.tests;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.DefaultBroadcaster;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.bio.SocketConnector;
@@ -66,18 +60,6 @@ import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 
 public class BlockingIOCometSupportTest extends BaseTest {
@@ -118,73 +100,5 @@ public class BlockingIOCometSupportTest extends BaseTest {
         server = null;
     }
 
-    @Test(timeOut = 60000, enabled = true)
-    public void testDelayNextBroadcast() {
-        logger.info("{}: running test: testDelayNextBroadcast", getClass().getSimpleName());
-
-        final CountDownLatch latch = new CountDownLatch(2);
-
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
-
-            AtomicBoolean b = new AtomicBoolean(false);
-            AtomicInteger count = new AtomicInteger(0);
-            private long currentTime;
-
-            public void onRequest(AtmosphereResource event) throws IOException {
-                if (!b.getAndSet(true)) {
-                    event.suspend(-1, false);
-
-                } else {
-                    currentTime = System.currentTimeMillis();
-
-                    if (count.get() < 4) {
-                        event.getBroadcaster().delayBroadcast("message-" + count.getAndIncrement() + " ");
-                    } else {
-                        event.getBroadcaster().broadcast("message-final");
-                    }
-                }
-            }
-
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                if (event.isResuming()) {
-                    return;
-                }
-                try {
-                    event.getResource().getResponse().getWriter().write((String) event.getMessage());
-                    event.getResource().getResponse().flushBuffer();
-                    event.getResource().resume();
-                } catch (Exception ex) {
-                    logger.error("failure resuming resource", ex);
-                } finally {
-                    latch.countDown();
-                }
-            }
-        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
-
-        AsyncHttpClient c = new AsyncHttpClient();
-        try {
-            Future<Response> f = c.prepareGet(urlTarget).execute();
-
-            latch.await(5, TimeUnit.SECONDS);
-
-            c.prepareGet(urlTarget).execute().get();
-            c.prepareGet(urlTarget).execute().get();
-            c.prepareGet(urlTarget).execute().get();
-            c.prepareGet(urlTarget).execute().get();
-
-            c.prepareGet(urlTarget).execute().get();
-
-            Response r = f.get(10, TimeUnit.SECONDS);
-
-            assertNotNull(r);
-            assertEquals(r.getResponseBody(), "message-0 message-1 message-2 message-3 message-final");
-            assertEquals(r.getStatusCode(), 200);
-        } catch (Exception e) {
-            logger.error("test failed", e);
-            fail(e.getMessage());
-        }
-        c.close();
-
-    }
 
 }
