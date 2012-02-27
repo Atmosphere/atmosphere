@@ -66,7 +66,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
-        pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
+        pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         headers = b.headers == null ? new HashMap<String, String>() : b.headers;
         queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
         session = b.request == null ? new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
@@ -418,7 +418,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String data;
         private Map<String, String> headers;
         private Map<String, String[]> queryStrings;
-        private String servletPath;
+        private String servletPath = "";
         private String requestURI;
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
