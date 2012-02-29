@@ -92,10 +92,12 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      */
     public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, 
             List<Serializable> messages, GwtAtmosphereResource cometResource) {
-        if (messages.size() == 1) {
-            cometResource.post(messages.get(0));
-        } else {
-            cometResource.post(messages);
+        if (cometResource != null && cometResource.isAlive()) {
+            if (messages.size() == 1) {
+                cometResource.post(messages.get(0));
+            } else {
+                cometResource.post(messages);
+            }
         }
     }
 
@@ -298,9 +300,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (messages == null) {
             return;
         }
-        if (cometResource != null && cometResource.isAlive()) {
-            doPost(postRequest, postResponse, messages, cometResource);
-        }
+        doPost(postRequest, postResponse, messages, cometResource);
     }
 
     public void broadcast(Serializable message, GwtAtmosphereResource resource) {
