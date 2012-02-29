@@ -95,7 +95,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (messages.size() == 1) {
             cometResource.post(messages.get(0));
         } else {
-            cometResource.post((List) messages);
+            cometResource.post(messages);
         }
     }
 
@@ -213,7 +213,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         BufferedReader data = request.getReader();
         List<Serializable> postMessages = new ArrayList<Serializable>();
         GwtAtmosphereResource resource = lookupResource(connectionID);
-        if (resource == null) {
+        if (resource == null || !resource.isAlive()) {
             return;
         }
         try {
@@ -298,7 +298,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (messages == null) {
             return;
         }
-        if (cometResource != null) {
+        if (cometResource != null && cometResource.isAlive()) {
             doPost(postRequest, postResponse, messages, cometResource);
         }
     }
@@ -307,14 +307,16 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (message == null) {
             return;
         }
-        resource.getBroadcaster().broadcast(message);
+        if (resource.isAlive())
+            resource.getBroadcaster().broadcast(message);
     }
 
     public void broadcast(List<Serializable> messages, GwtAtmosphereResource resource) {
         if (messages == null) {
             return;
         }
-        resource.getBroadcaster().broadcast(messages);
+        if (resource.isAlive())
+            resource.getBroadcaster().broadcast(messages);
     }
 
     public void disconnect(GwtAtmosphereResource resource) {
