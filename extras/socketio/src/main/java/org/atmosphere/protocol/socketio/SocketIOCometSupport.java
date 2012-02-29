@@ -268,12 +268,12 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		
 		// VERSION 1
 		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
-		org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();
+		//org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();
 		org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(bufferSize);
 		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(bufferSize);
 		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(bufferSize);
 		transports.put(websocketTransport1.getName()+ "-1", websocketTransport1);
-		transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
+		//transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
 		transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);
 		transports.put(xhrPollingTransport1.getName()+ "-1", xhrPollingTransport1);
 		transports.put(jsonpPollingTransport1.getName()+ "-1", jsonpPollingTransport1);
