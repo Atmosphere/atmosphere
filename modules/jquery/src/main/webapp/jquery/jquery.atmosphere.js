@@ -610,11 +610,6 @@ jQuery.atmosphere = function() {
 
                         rq.readyState = ajaxRequest.readyState;
 
-                        var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
-                        if (tempDate != null || tempDate != undefined) {
-                            _request.lastTimestamp = tempDate.split(" ").pop();
-                        }
-
                         if (ajaxRequest.readyState == 4) {
                         	if (jQuery.browser.msie) {
                                 update = true;
@@ -633,6 +628,12 @@ jQuery.atmosphere = function() {
                         }
 
                         if (update) {
+
+                            var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                            if (tempDate != null || tempDate != undefined) {
+                                _request.lastTimestamp = tempDate.split(" ").pop();
+                            }
+
                             var responseText = ajaxRequest.responseText;
                             this.previousLastIndex = rq.lastIndex;
                             if (rq.transport == 'streaming') {
