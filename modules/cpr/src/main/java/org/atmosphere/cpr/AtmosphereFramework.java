@@ -13,22 +13,6 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-/*
- * Copyright 2012 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
@@ -184,7 +168,7 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  */
 public class AtmosphereFramework implements ServletContextProvider {
 
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
     protected final List<String> broadcasterFilters = new ArrayList<String>();
     protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
