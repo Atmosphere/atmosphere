@@ -64,7 +64,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     private static final Logger logger = LoggerFactory.getLogger(TomcatCometSupport.class);
 
     public static final String COMET_EVENT = "CometEvent";
-    private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
+    private final static String SUSPENDED = TomcatCometSupport.class.getName() + ".suspended";
 
     private static final IllegalStateException unableToDetectComet
             = new IllegalStateException(unableToDetectComet());
@@ -108,6 +108,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
+                    req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
