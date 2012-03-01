@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.9.0.alpha.v20120301</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -54,12 +54,12 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-gwt-common</artifactId>
-                <version>0.9-SNAPSHOT</version>
+                <version>0.9.0.alpha.v20120301</version>
             </dependency>
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-gwt-client</artifactId>
-                <version>0.9-SNAPSHOT</version>
+                <version>0.9.0.alpha.v20120301</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -83,7 +83,7 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-runtime</artifactId>
-                <version>0.9-SNAPSHOT</version>
+                <version>0.9.0.alpha.v20120301</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
