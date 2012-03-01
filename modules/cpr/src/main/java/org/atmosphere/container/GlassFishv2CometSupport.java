@@ -59,18 +59,17 @@ import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
@@ -153,10 +152,10 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     /**
      * Resume the underlying response,
      *
-     * @param req an {@link HttpServletRequest}
+     * @param req an {@link AtmosphereRequest}
      * @param ctx a {@link CometContext}
      */
-    private void resume(HttpServletRequest req, CometContext ctx) {
+    private void resume(AtmosphereRequest req, CometContext ctx) {
 
         if (req.getAttribute(ATMOSPHERE) == null) {
             return;

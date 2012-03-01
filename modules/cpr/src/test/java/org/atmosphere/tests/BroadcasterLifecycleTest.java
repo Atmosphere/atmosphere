@@ -119,19 +119,19 @@ public class BroadcasterLifecycleTest {
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
 
-        atmoServlet.addAtmosphereHandler("/suspend", new LifeCycleTestHandler());
-        atmoServlet.addAtmosphereHandler("/destroy", new Destroy());
-        atmoServlet.addAtmosphereHandler("/invoke", new Invoker());
+        atmoServlet.framework().addAtmosphereHandler("/suspend", new LifeCycleTestHandler());
+        atmoServlet.framework().addAtmosphereHandler("/destroy", new Destroy());
+        atmoServlet.framework().addAtmosphereHandler("/invoke", new Invoker());
 
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         server.stop();
         server = null;
     }

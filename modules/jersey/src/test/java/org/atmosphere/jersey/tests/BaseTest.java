@@ -77,7 +77,7 @@ public abstract class BaseTest {
         port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = getUrlTarget(port);
         atmoServlet = new AtmosphereServlet();
-        atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
+        atmoServlet.framework().addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
 
         configureCometSupport();
         startServer();

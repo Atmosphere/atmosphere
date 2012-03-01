@@ -68,7 +68,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.File;
 
-
 public class TomcatCometSupportTest extends BaseTest {
 
     protected Embedded embedded;
@@ -76,7 +75,7 @@ public class TomcatCometSupportTest extends BaseTest {
     public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            cometSupport = new TomcatCometSupport(getAtmosphereConfig());
+            framework().setCometSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
             super.init(sc);
         }
 

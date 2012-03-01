@@ -146,19 +146,19 @@ public class BroadcasterScopeTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new MeteorServlet();
-        atmoServlet.addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
+        atmoServlet.framework().addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         server.stop();
         server = null;
     }

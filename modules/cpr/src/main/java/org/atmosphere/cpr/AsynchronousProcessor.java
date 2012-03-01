@@ -52,8 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +70,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.AtmosphereFramework.*;
 
 /**
  * Base class which implement the semantics of suspending and resuming of a
@@ -154,7 +153,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
     /**
      * All proprietary Comet based {@link Servlet} must invoke the suspended
      * method when the first request comes in. The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
      * to suspended or not the current {@link AtmosphereResponse}.
      *
      * @param request  the {@link AtmosphereRequest}
@@ -304,7 +303,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * All proprietary Comet based {@link Servlet} must invoke the resume
      * method when the Atmosphere's application decide to resume the {@link AtmosphereResponse}.
      * The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
      * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
      * @param request  the {@link AtmosphereRequest}
@@ -322,7 +321,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
      * All proprietary Comet based {@link Servlet} must invoke the timedout
      * method when the underlying WebServer time out the {@link AtmosphereResponse}.
      * The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
      * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
      * @param request  the {@link AtmosphereRequest}

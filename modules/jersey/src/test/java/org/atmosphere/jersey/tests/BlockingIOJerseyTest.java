@@ -30,7 +30,7 @@ public class BlockingIOJerseyTest extends BasePubSubTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new BlockingIOCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @Override

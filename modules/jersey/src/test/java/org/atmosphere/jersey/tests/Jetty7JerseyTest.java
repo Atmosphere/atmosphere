@@ -35,7 +35,7 @@ public class Jetty7JerseyTest extends BasePubSubTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new Jetty7CometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new Jetty7CometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @Override

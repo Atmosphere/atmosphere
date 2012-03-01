@@ -42,7 +42,7 @@ public class Jetty6JerseyTest extends BlockingIOJerseyTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
 }

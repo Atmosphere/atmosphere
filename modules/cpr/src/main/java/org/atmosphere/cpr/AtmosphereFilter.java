@@ -53,7 +53,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,8 +126,9 @@ public class AtmosphereFilter implements Filter {
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        Action a = as.doCometSupport((HttpServletRequest) request, (HttpServletResponse) response);
-        if (a == null || a.type != Action.TYPE.SUSPEND) {
+        AtmosphereFramework.Action a = as.framework().doCometSupport(AtmosphereRequest.wrap((HttpServletRequest) request),
+                AtmosphereResponse.wrap((HttpServletResponse) response));
+        if (a == null || a.type != AtmosphereFramework.Action.TYPE.SUSPEND) {
             chain.doFilter(request, response);
         }
     }
