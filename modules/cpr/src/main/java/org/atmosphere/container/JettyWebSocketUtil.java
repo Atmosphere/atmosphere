@@ -19,6 +19,7 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -37,7 +38,7 @@ public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
-    public final static AtmosphereServlet.Action doService(AsynchronousProcessor cometSupport,
+    public final static AtmosphereFramework.Action doService(AsynchronousProcessor cometSupport,
                                                            AtmosphereRequest req,
                                                            AtmosphereResponse res,
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
@@ -61,13 +62,13 @@ public class JettyWebSocketUtil {
             if (webSocketFactory != null && !b) {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
-                return new AtmosphereServlet.Action();
+                return new AtmosphereFramework.Action();
             }
 
-            AtmosphereServlet.Action action = cometSupport.suspended(req, res);
-            if (action.type == AtmosphereServlet.Action.TYPE.SUSPEND) {
+            AtmosphereFramework.Action action = cometSupport.suspended(req, res);
+            if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
-            } else if (action.type == AtmosphereServlet.Action.TYPE.RESUME) {
+            } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", res);
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
@@ -86,7 +87,7 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocol());
+                return new JettyWebSocketHandler(AtmosphereRequest.wrap(request), config.framework(), config.framework().getWebSocketProtocol());
             }
         });
 

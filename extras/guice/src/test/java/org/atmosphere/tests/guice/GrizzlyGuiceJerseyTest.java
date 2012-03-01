@@ -124,7 +124,7 @@ public class GrizzlyGuiceJerseyTest {
         port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
         atmoServlet = new AtmosphereGuiceServlet();
-        atmoServlet.addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
+        atmoServlet.framework().addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
 
         configureCometSupport();
         startServer();
@@ -158,7 +158,7 @@ public class GrizzlyGuiceJerseyTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     public void startServer() throws Exception {

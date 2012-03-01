@@ -29,7 +29,7 @@ public abstract class BaseGrizzyTest extends BaseTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @Override

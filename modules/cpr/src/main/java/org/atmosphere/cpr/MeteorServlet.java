@@ -74,28 +74,36 @@ import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
  */
 public class MeteorServlet extends AtmosphereServlet {
 
-    /**
-     * Initialize a configured instance of {@link ReflectorServletProcessor} and
-     * follow the normal AtmosphereServlet processing.
-     *
-     * @param sc the {@link ServletContext}
-     */
-    @Override
-    protected void loadConfiguration(ServletConfig sc) throws ServletException {
-        String servletClass = sc.getInitParameter(SERVLET_CLASS);
-        String mapping = sc.getInitParameter(MAPPING);
-        String filterClass = sc.getInitParameter(FILTER_CLASS);
-        String filterName = sc.getInitParameter(FILTER_NAME);
+    public MeteorServlet(){
+        this(false);
+    }
 
-        ReflectorServletProcessor r = new ReflectorServletProcessor();
-        r.setServletClassName(servletClass);
-        r.setFilterClassName(filterClass);
-        r.setFilterName(filterName);
+    public MeteorServlet(boolean isFilter) {
+        framework = new AtmosphereFramework(isFilter) {
+            /**
+             * Initialize a configured instance of {@link ReflectorServletProcessor} and
+             * follow the normal AtmosphereServlet processing.
+             *
+             * @param sc the {@link ServletContext}
+             */
+            @Override
+            public void loadConfiguration(ServletConfig sc) throws ServletException {
+                String servletClass = sc.getInitParameter(SERVLET_CLASS);
+                String mapping = sc.getInitParameter(MAPPING);
+                String filterClass = sc.getInitParameter(FILTER_CLASS);
+                String filterName = sc.getInitParameter(FILTER_NAME);
 
-        if (mapping == null) {
-            mapping = "/*";
-        }
-        addAtmosphereHandler(mapping, r);
+                ReflectorServletProcessor r = new ReflectorServletProcessor();
+                r.setServletClassName(servletClass);
+                r.setFilterClassName(filterClass);
+                r.setFilterName(filterName);
+
+                if (mapping == null) {
+                    mapping = "/*";
+                }
+                addAtmosphereHandler(mapping, r);
+            }
+        };
     }
 
     @Override

@@ -60,7 +60,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
@@ -138,7 +138,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     /**
      * Suspend the connection by blocking the current {@link Thread}
      *
-     * @param action The {@link org.atmosphere.cpr.AtmosphereServlet.Action}
+     * @param action The {@link Action}
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
      * @throws java.io.IOException

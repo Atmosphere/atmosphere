@@ -39,10 +39,10 @@ public class TomcatJerseyTest extends BasePubSubTest {
     public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            addInitParameter(ApplicationConfig.MAX_INACTIVE, "20000");
-            addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
-            addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
-            cometSupport = new TomcatCometSupport(getAtmosphereConfig());
+            framework().addInitParameter(ApplicationConfig.MAX_INACTIVE, "20000");
+            framework().addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
+            framework().addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
+            framework().setCometSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
             super.init(sc);
         }
 

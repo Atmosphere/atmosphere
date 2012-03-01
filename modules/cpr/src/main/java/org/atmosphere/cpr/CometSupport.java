@@ -53,7 +53,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -62,7 +61,7 @@ import java.io.IOException;
 
 /**
  * Atmosphere's supported WebServer must implement this interface in order
- * to be auto detected by the {@link AtmosphereServlet}. If the {@link AtmosphereServlet}
+ * to be auto detected by the {@link AtmosphereFramework}. If the {@link AtmosphereFramework}
  * fail to detect the {@link CometSupport}, it will use a blocking thread
  * approach to emulate Comet using the {@link BlockingIOCometSupport}.
  * <p/>
@@ -94,21 +93,21 @@ public interface CometSupport<E extends AtmosphereResource> {
 
     /**
      * Serve the {@link AtmosphereRequest} and the {@link AtmosphereResponse} and return
-     * the appropriate {@link Action}.
+     * the appropriate {@link org.atmosphere.cpr.AtmosphereFramework.Action}.
      *
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
-     * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}
+     * @return the {@link org.atmosphere.cpr.AtmosphereFramework.Action} that was manipulated by the {@link AtmosphereHandler}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(AtmosphereRequest req, AtmosphereResponse res)
+    public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException;
 
     /**
-     * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
+     * Process an {@link org.atmosphere.cpr.AtmosphereFramework.Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
      *
-     * @param actionEvent An instance of {@link AtmosphereServlet.Action}
+     * @param actionEvent An instance of {@link org.atmosphere.cpr.AtmosphereFramework.Action}
      */
     public void action(E actionEvent);
 

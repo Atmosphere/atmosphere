@@ -423,7 +423,7 @@ public abstract class BasePubSubTest extends BaseTest {
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
 
-        atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
+        atmoServlet.framework().setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
         final CountDownLatch latch = new CountDownLatch(1);
         long t1 = System.currentTimeMillis();
         AsyncHttpClient c = new AsyncHttpClient();

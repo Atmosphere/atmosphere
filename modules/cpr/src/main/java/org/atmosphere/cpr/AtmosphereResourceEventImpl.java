@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
+public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     // Was the remote connection closed.
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
@@ -98,14 +98,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     public boolean isResuming() {
-        return resource.action().type == AtmosphereServlet.Action.TYPE.RESUME;
+        return resource.action().type == AtmosphereFramework.Action.TYPE.RESUME;
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isSuspended() {
-        return resource.action().type == AtmosphereServlet.Action.TYPE.SUSPEND;
+        return resource.action().type == AtmosphereFramework.Action.TYPE.SUSPEND;
     }
 
     /**

@@ -33,7 +33,7 @@ public class DefaultBroadcasterFactoryTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        config = mock(AtmosphereConfig.class);
+        config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
     }
 

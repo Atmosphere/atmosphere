@@ -52,7 +52,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import static org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,16 +84,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
     public static final String METEOR = Meteor.class.getName();
-
-    // The {@link HttpServletRequest}
     private final AtmosphereRequest req;
-    // The {@link HttpServletResponse}
     private final AtmosphereResponse response;
-    // The upcoming Action.
-    protected final AtmosphereServlet.Action action = new AtmosphereServlet.Action();
-    // The Broadcaster
+    protected final Action action = new Action();
     protected Broadcaster broadcaster;
-    // ServletContext
     private final AtmosphereConfig config;
     protected final CometSupport cometSupport;
     private Serializer serializer;
@@ -176,7 +170,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
             if (!isResumed && isInScope) {
-                action.type = AtmosphereServlet.Action.TYPE.RESUME;
+                action.type = Action.TYPE.RESUME;
                 isResumed = true;
 
                 try {
@@ -328,7 +322,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 write();
             }
             req.setAttribute(PRE_SUSPEND, "true");
-            action.type = AtmosphereServlet.Action.TYPE.SUSPEND;
+            action.type = Action.TYPE.SUSPEND;
             action.timeout = timeout;
 
             // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster

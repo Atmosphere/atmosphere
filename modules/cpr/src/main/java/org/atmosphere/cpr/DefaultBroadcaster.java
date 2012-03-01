@@ -58,7 +58,6 @@ import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -163,7 +162,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @return an instance of {@link BroadcasterConfig}
      */
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
-        return new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+        return new BroadcasterConfig(config.framework().broadcasterFilters, config);
     }
 
     /**
@@ -656,7 +655,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
             synchronized (r) {
                 if (isAtmosphereResourceValid(r)) {
-                    if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
+                    if (bc.hasPerRequestFilters()) {
                         BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
                         if (a.action() == BroadcastAction.ACTION.ABORT) {
                             return null;
@@ -708,8 +707,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             try {
-                HttpServletRequest.class.cast(r.getRequest())
-                        .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             } catch (Throwable t) {
                 logger.error("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and will be added to the configured BroadcasterCache for later retrieval", event);
@@ -783,7 +781,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
-            HttpServletRequest.class.cast(r.getRequest()).setAttribute(CACHED, "true");
+            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 broadcast(r, e);
@@ -848,7 +846,7 @@ public class DefaultBroadcaster implements Broadcaster {
         } else {
             r.resume();
         }
-        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest(false)).getAttribute(ASYNC_TOKEN));
+        cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
     }
 
     /**
@@ -858,8 +856,8 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public void cacheLostMessage(AtmosphereResource r) {
         // Quite ugly cast that need to be fixed all over the place
-        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(
-                AtmosphereResourceImpl.class.cast(r).getRequest(false)).getAttribute(ASYNC_TOKEN));
+        cacheLostMessage(r, (AsyncWriteToken)
+                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN));
     }
 
 

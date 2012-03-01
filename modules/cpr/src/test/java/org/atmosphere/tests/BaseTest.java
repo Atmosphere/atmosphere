@@ -142,7 +142,7 @@ public abstract class BaseTest {
         logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
 
         final CountDownLatch latch = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             private long currentTime;
 
@@ -193,7 +193,7 @@ public abstract class BaseTest {
         logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
         final CountDownLatch latch = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             private long currentTime;
 
@@ -246,7 +246,7 @@ public abstract class BaseTest {
         logger.info("{}: running test: testProgrammaticDisconnection", getClass().getSimpleName());
 
         final CountDownLatch latch = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             private long currentTime;
 
@@ -293,7 +293,7 @@ public abstract class BaseTest {
 
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             AtmosphereResource suspendedEvent;
@@ -362,7 +362,7 @@ public abstract class BaseTest {
 
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
 
@@ -436,7 +436,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             private long currentTime;
@@ -515,7 +515,7 @@ public abstract class BaseTest {
 
         final CountDownLatch latch = new CountDownLatch(2);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             AtomicInteger count = new AtomicInteger(0);
@@ -585,7 +585,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             private long currentTime;
@@ -666,7 +666,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             private long currentTime;
@@ -747,7 +747,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
 
@@ -828,7 +828,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
 
@@ -900,11 +900,11 @@ public abstract class BaseTest {
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
 
-        atmoServlet.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
+        atmoServlet.framework().setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
         final CountDownLatch latch = new CountDownLatch(1);
 
         long t1 = System.currentTimeMillis();
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             public void onRequest(AtmosphereResource event) throws IOException {
                 try {
@@ -981,7 +981,7 @@ public abstract class BaseTest {
         logger.info("{}: running test: testSuspendTimeout", getClass().getSimpleName());
 
         final CountDownLatch latch = new CountDownLatch(1);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             private long currentTime;
 
@@ -1035,7 +1035,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             private long currentTime;
@@ -1108,7 +1108,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(2);
         final CountDownLatch suspended = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             AtomicBoolean b = new AtomicBoolean(false);
             private long currentTime;
@@ -1173,7 +1173,7 @@ public abstract class BaseTest {
         logger.info("{}: running test: testBroadcastFactoryTimeout", getClass().getSimpleName());
 
         final CountDownLatch latch = new CountDownLatch(2);
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             private long currentTime;
 
@@ -1241,7 +1241,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch suspendedLatch = new CountDownLatch(1);
 
-        atmoServlet.addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
 
             public void onRequest(AtmosphereResource event) throws IOException {

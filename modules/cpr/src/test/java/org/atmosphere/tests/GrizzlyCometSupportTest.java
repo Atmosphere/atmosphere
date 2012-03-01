@@ -76,7 +76,7 @@ public class GrizzlyCometSupportTest extends BaseTest {
         ws.addAsyncFilter(new CometAsyncFilter());
 
         atmoServlet = new AtmosphereServlet();
-        //atmoServlet.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+        //atmoServlet.framework().addInitParameter(CometSupport.MAX_INACTIVE, "20000");
         sa.setServletInstance(atmoServlet);
         configureCometSupport();
 
@@ -85,12 +85,12 @@ public class GrizzlyCometSupportTest extends BaseTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         ws.stop();
     }
 

@@ -162,7 +162,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config));
             }
 
             b.setBroadcasterLifeCyclePolicy(policy);
@@ -308,7 +308,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz A class implementing {@link Broadcaster}
-     * @param c     An instance of {@link AtmosphereServlet.AtmosphereConfig}
+     * @param c     An instance of {@link AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException

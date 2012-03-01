@@ -42,8 +42,8 @@ public class AtmosphereServletTest {
         assertFalse(handler.isDestroyed());
         assertFalse(handler2.isDestroyed());
 
-        servlet.addAtmosphereHandler("/test", handler, broadcaster);
-        servlet.addAtmosphereHandler("/test2", handler2, broadcaster);
+        servlet.framework().addAtmosphereHandler("/test", handler, broadcaster);
+        servlet.framework().addAtmosphereHandler("/test2", handler2, broadcaster);
 
         servlet.destroy();
 

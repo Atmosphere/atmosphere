@@ -29,7 +29,7 @@ public class GrizzlyJerseyTest extends BasePubSubTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new GrizzlyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @Override

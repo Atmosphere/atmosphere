@@ -125,9 +125,8 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
      * @param sc {@link javax.servlet.ServletConfig}
      * @throws ServletException
      */
-    @Override
     protected void loadConfiguration(ServletConfig sc) throws ServletException {
-        super.loadConfiguration(sc);
+        super.framework().loadConfiguration(sc);
 
         if (!guiceInstalled) {
             detectSupportedFramework(sc);
@@ -140,21 +139,20 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
      * @param sc {@link javax.servlet.ServletConfig}
      * @return true if Jersey classes are detected
      */
-    @Override
     protected boolean detectSupportedFramework(ServletConfig sc) {
-        Injector injector = (Injector) config.getServletContext().getAttribute(Injector.class.getName());
+        Injector injector = (Injector) framework().getAtmosphereConfig().getServletContext().getAttribute(Injector.class.getName());
         GuiceContainer guiceServlet = injector.getInstance(GuiceContainer.class);
 
-        setUseStreamForFlushingComments(false);
+        framework().setUseStreamForFlushingComments(false);
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
-        setDefaultBroadcasterClassName(FrameworkConfig.JERSEY_BROADCASTER);
-        setUseStreamForFlushingComments(true);
+        framework().setDefaultBroadcasterClassName(FrameworkConfig.JERSEY_BROADCASTER);
+        framework().setUseStreamForFlushingComments(true);
 
         rsp.setServlet(guiceServlet);
         if (sc.getServletContext().getAttribute(SKIP_GUICE_FILTER) == null) {
             rsp.setFilterClassName(GUICE_FILTER);
         }
-        getAtmosphereConfig().setSupportSession(false);
+        framework().getAtmosphereConfig().setSupportSession(false);
 
         String mapping = sc.getInitParameter(ApplicationConfig.PROPERTY_SERVLET_MAPPING);
         if (mapping == null) {
@@ -169,7 +167,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
 
             if (props != null) {
                 for (String p : props.keySet()) {
-                    addInitParameter(p, props.get(p));
+                    framework().addInitParameter(p, props.get(p));
                 }
             }
         } catch (Exception ex) {
@@ -177,7 +175,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
             logger.debug("failed to add Jersey init parameters to Atmosphere servlet", ex);
         }
 
-        addAtmosphereHandler(mapping, rsp);
+        framework().addAtmosphereHandler(mapping, rsp);
         guiceInstalled = true;
         return true;
     }

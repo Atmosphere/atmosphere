@@ -34,7 +34,7 @@ public class BroadcastFilterTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = mock(AtmosphereConfig.class);
+        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();

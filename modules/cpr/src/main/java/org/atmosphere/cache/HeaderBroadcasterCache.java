@@ -51,10 +51,9 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-
-import javax.servlet.http.HttpServletRequest;
 
 import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 
@@ -86,7 +85,7 @@ public class HeaderBroadcasterCache extends BroadcasterCacheBase {
 
         if (!r.isInScope()) return null;
 
-        HttpServletRequest request = r.getRequest();
+        AtmosphereRequest request = r.getRequest();
         return retrieveUsingHeader(request.getHeader(X_CACHE_DATE));
     }
 
