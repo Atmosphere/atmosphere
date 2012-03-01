@@ -845,6 +845,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
             webSocketProtocol = new SimpleHttpProtocol();
         }
+        InjectorProvider.getInjector().inject(webSocketProtocol);
         webSocketProtocol.configure(config);
     }
 
