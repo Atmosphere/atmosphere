@@ -1,7 +1,7 @@
+## Welcome to the Atmosphere Framework
 Atmosphere is an Asynchrnonous Websocket/Comet Framework. The Atmosphere Framework has both client and server ready to use components.
-The majority (if not all!) of popular frameworks are either supporting Atmosphere or supported natively by the framework. The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported, an massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
-
-Follow us on [Twitter](http://www.twitter.com/atmo_framework)  or get the latest news [here](http://jfarcand.wordpress.com)
+The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**).
+Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
 The Atmosphere Framework ships with a JQuery Plug In that can be used with any Comet or WebSocket Framework:
 
@@ -9,17 +9,11 @@ The Atmosphere Framework ships with a JQuery Plug In that can be used with any C
 
 [Devoxx 2011 - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
 
-Latest Publications
+Latest Publications [AtmosphereHandler, Meteor, REST Resource or Native WebSocket](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
-[AtmosphereHandler, Meteor, REST Resource or Native WebSocket](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
+Download [White Paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
 
-Download Atmosphere Whitepaper
-
-[White Paper](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
-
-Browse JavaDoc
-
-[Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
+Browse [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
 
 If you want to play with Redis, Hazelcast, ActiveMQ(JMS) or XMPP(Gmail), uncomments the appropriate technology and rebuild, or drop the atmosphere-{name}.jar under your WEB-INF/lib to enabled it automatically
 
@@ -37,10 +31,18 @@ Where atmosphere-module can be: jersey, runtime, guice, jquery, redis, hazelcast
 
 [Browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
 
-Download samples
+Samples [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
-[Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
+Atmosphere 0.8.6 is our official release, and our work in progress version is 0.9, targeted for end of Mid April 2012
 
-Atmosphere 0.8.6 is our official release [see what's changed since 0.8.4](http://is.gd/yVgcaj), and our work in progress version is 0.9, targeted for end of Mid March 2012
+If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
-If you are interested, subscribe to our mailing list (http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
+(**) The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported, an massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
+
+#### Changes logs
+[0.8.6](http://is.gd/Pi4ZPo)
+[0.8.5](http://is.gd/yVgcaj)
+[0.8.4](http://is.gd/Pi4ZPo)
+[0.8.3](http://is.gd/znZBKZ)
+[0.8.2](http://is.gd/9BesxI)
+[0.8.0](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt#L1)
