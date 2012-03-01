@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9.0.alpha.v20120301</version>
+        <version>0.9.1.alpha.v20120301-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-jquery</artifactId>
     <packaging>war</packaging>
-    <version>0.9.0.alpha.v20120301</version>
+    <version>0.9.1.alpha.v20120301-SNAPSHOT</version>
     <name>atmosphere-jquery</name>
 </project>
