@@ -91,30 +91,12 @@ public class LoadRegister {
 
     public static HandlerRegistration addBeforeUnloadHandler(final BeforeUnloadHandler handler) {
         maybeInit();
-        log("register BeforeUnloadHandler");
-        BeforeUnloadHandler wrapper = new BeforeUnloadHandler() {
-
-            @Override
-            public void onBeforeUnload(BeforeUnloadEvent event) {
-                log("execute BeforeUnloadHandler");
-                handler.onBeforeUnload(event);
-            }
-        };
-        
-        return eventBus.addHandler(BeforeUnloadEvent.getType(), wrapper);
+        return eventBus.addHandler(BeforeUnloadEvent.getType(), handler);
     }
 
     public static HandlerRegistration addUnloadHandler(final UnloadHandler handler) {
         maybeInit();
-        log("register UnloadHandler");
-        UnloadHandler wrapper = new UnloadHandler() {
-            @Override
-            public void onUnload(UnloadEvent event) {
-                log("execute UnloadHandler");
-                handler.onUnload(event);
-            }
-        };
-        return eventBus.addHandler(UnloadEvent.getType(), wrapper);
+        return eventBus.addHandler(UnloadEvent.getType(), handler);
     }
 
     private static void maybeInit() {
@@ -125,23 +107,14 @@ public class LoadRegister {
     }
 
     static String onBeforeUnload() {
-        log("LoadRegister onBeforeUnload");
         eventBus.fireEvent(beforeUnloadEvent);
         return null;
     }
 
     static void onUnload() {
-        log("LoadRegister onUnload");
         eventBus.fireEvent(unloadEvent);
     }
     
-    private static native void log(String s) /*-{
-      if ($wnd.console) {
-        $wnd.console.log(s);
-      }
-    }-*/;
-    
-
     private static void initWindowHandlers() {
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             @Override
