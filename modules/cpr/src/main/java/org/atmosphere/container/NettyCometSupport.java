@@ -60,6 +60,8 @@ public class NettyCometSupport extends AsynchronousProcessor {
             req.setAttribute(SUSPEND, action);
             req.setAttribute(HOOK, new CometSupportHook(req,res));
         } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
+            req.setAttribute(SUSPEND, action);
+
             // If resume occurs during a suspend operation, stop processing.
             Boolean resumeOnBroadcast = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
