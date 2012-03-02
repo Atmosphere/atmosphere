@@ -251,7 +251,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Simple class/struck that hold the current state.
      */
-    public static class Action {
+    public final static class Action {
 
         public enum TYPE {
             SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED, CREATED
