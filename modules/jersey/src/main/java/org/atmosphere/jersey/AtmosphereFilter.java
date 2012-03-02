@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
 *
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
 *
@@ -74,7 +89,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
@@ -143,8 +157,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
     private boolean useResumeAnnotation = false;
 
-    private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>> resumeCandidates =
-            new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
+    private final ConcurrentHashMap<String, AtmosphereResource> resumeCandidates =
+            new ConcurrentHashMap<String, AtmosphereResource>();
 
     /**
      * TODO: Fix that messy class.
@@ -263,8 +277,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 response.setContainerResponseWriter(w);
             }
 
-            AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
-                    (AtmosphereResource<HttpServletRequest, HttpServletResponse>) servletReq
+            AtmosphereResource r =
+                    (AtmosphereResource) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
             if (Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
@@ -320,7 +334,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                         r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                             @Override
-                            public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                            public void onSuspend(AtmosphereResourceEvent event) {
                                 try {
                                     if (entity != null) {
                                         if (waitForResource) {
@@ -619,7 +633,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void configureResumeOnBroadcast(Broadcaster b) {
-            Iterator<AtmosphereResource<?, ?>> i = b.getAtmosphereResources().iterator();
+            Iterator<AtmosphereResource> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
                 HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
                 r.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true);
@@ -726,7 +740,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                      ContainerRequest request,
                      ContainerResponse response,
                      Broadcaster bc,
-                     AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
+                     AtmosphereResource r,
                      Suspend.SCOPE localScope,
                      boolean flushEntity) {
 
@@ -756,7 +770,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             if (sessionSupported && localScope != Suspend.SCOPE.REQUEST && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
-                AtmosphereResource<HttpServletRequest, HttpServletResponse> cached =
+                AtmosphereResource cached =
                         (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
                 bc = cached.getBroadcaster();
                 // Just in case something went wrong.

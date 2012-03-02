@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 
@@ -148,7 +162,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config));
+                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config));
             }
 
             b.setBroadcasterLifeCyclePolicy(policy);
@@ -231,7 +245,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public void removeAllAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public void removeAllAtmosphereResource(AtmosphereResource r) {
         // Remove inside all Broadcaster as well.
         try {
             if (store.size() > 0) {
@@ -294,7 +308,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
      *
      * @param clazz A class implementing {@link Broadcaster}
-     * @param c     An instance of {@link AtmosphereServlet.AtmosphereConfig}
+     * @param c     An instance of {@link AtmosphereConfig}
      * @return the default {@link BroadcasterFactory}.
      * @throws InstantiationException
      * @throws IllegalAccessException

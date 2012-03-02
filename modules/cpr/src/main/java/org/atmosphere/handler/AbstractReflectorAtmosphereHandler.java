@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -44,8 +59,6 @@ import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
@@ -54,28 +67,27 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
  * {@link Broadcaster#broadcast}, e.g sent the broadcasted event back to the remote client. All broadcast will be by default returned
- * as it is to the suspended {@link HttpServletResponse#getOutputStream}
- * or {@link HttpServletResponse#getWriter()}
+ * as it is to the suspended {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream}
+ * or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}
  *
  * @author Jean-francois Arcand
  */
-public abstract class AbstractReflectorAtmosphereHandler
-        implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
 
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
-     * the {@link HttpServletResponse#getOutputStream()} or {@link HttpServletResponse#getWriter()}.
+     * the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()} or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
      * If a {@link org.atmosphere.cpr.Serializer} is defined, it will be invoked and the writ operation
      * will be delegated to to it.
      * <p/>
-     * By default, this method will try to use {@link HttpServletResponse#getWriter()}.
+     * By default, this method will try to use {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
      *
      * @param event the {@link AtmosphereResourceEvent#getMessage()}
      * @throws java.io.IOException
      */
-    public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event)
+    public void onStateChange(AtmosphereResourceEvent event)
             throws IOException {
 
         Object message = event.getMessage();

@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -90,11 +89,11 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_PROTOCOL = WebSocketProtocol.class.getName();
     /**
-     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an HTTPServletRequest
+     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest
      */
     String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.messageContentType";
     /**
-     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an HTTPServletRequest
+     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest
      */
     String WEBSOCKET_METHOD = "org.atmosphere.websocket.messageMethod";
     /**

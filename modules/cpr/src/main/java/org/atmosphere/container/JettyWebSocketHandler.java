@@ -17,25 +17,23 @@ package org.atmosphere.container;
 
 import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.container.version.JettyWebSocket;
-import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpSessionContext;
 import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
@@ -57,12 +55,12 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     private WebSocketProcessor webSocketProcessor;
     private final JettyRequestFix request;
-    private final AtmosphereServlet atmosphereServlet;
+    private final AtmosphereFramework framework;
     private WebSocketProtocol webSocketProtocol;
 
-    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereServlet atmosphereServlet, WebSocketProtocol webSocketProtocol) {
+    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
         this.request = new JettyRequestFix(request);
-        this.atmosphereServlet = atmosphereServlet;
+        this.framework = framework;
         this.webSocketProtocol = webSocketProtocol;
     }
 
@@ -71,8 +69,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
         logger.debug("WebSocket.onConnect (outbound)");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new JettyWebSocket(outbound), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
+            webSocketProcessor = new WebSocketProcessor(framework, new JettyWebSocket(outbound), webSocketProtocol);
+            webSocketProcessor.dispatch(AtmosphereRequest.wrap(request));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -160,7 +158,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
         logger.trace("WebSocket.onHandshake");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection, atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor = new WebSocketProcessor(framework, new Jetty8WebSocket(connection, framework.getAtmosphereConfig()), webSocketProtocol);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -179,8 +177,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = new WebSocketProcessor(atmosphereServlet, new Jetty8WebSocket(connection, atmosphereServlet.getAtmosphereConfig()), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
+            webSocketProcessor = new WebSocketProcessor(framework, new Jetty8WebSocket(connection, framework.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor.dispatch(AtmosphereRequest.wrap(request));
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);

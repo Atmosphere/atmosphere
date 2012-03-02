@@ -53,8 +53,6 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 /**
@@ -70,14 +68,14 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
     /**
      * {@inheritDoc}
      */
-    public void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm) {
+    public void cache(final AtmosphereResource r, CachedMessage cm) {
         r.getRequest().getSession(true).setAttribute(BROADCASTER_CACHE_TRACKER, cm);
     }
 
     /**
      * {@inheritDoc}
      */
-    public CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public CachedMessage retrieveLastMessage(final AtmosphereResource r) {
 
         HttpSession session = r.getRequest().getSession(false);
         if (session == null) {

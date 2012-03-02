@@ -19,8 +19,8 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterFuture;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +97,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
+    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (r.getRequest() instanceof HttpServletRequest) {
             if (((HttpServletRequest) r.getRequest()).getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
                 try {
@@ -152,7 +152,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used {}", getID());
             return null;
@@ -176,7 +176,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used {}", getID());
             return null;

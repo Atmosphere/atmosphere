@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -43,8 +58,6 @@ import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -64,24 +77,14 @@ public class BroadcasterConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterConfig.class);
 
-    protected final ConcurrentLinkedQueue<BroadcastFilter> filters =
-            new ConcurrentLinkedQueue<BroadcastFilter>();
-
-    protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters =
-            new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
-
+    protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<BroadcastFilter>();
+    protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
     private ExecutorService executorService;
-
     private ExecutorService asyncWriteService;
-
     private ExecutorService defaultExecutorService;
-
     private ExecutorService defaultAsyncWriteService;
-
     private ScheduledExecutorService scheduler;
-
     private final Object[] lock = new Object[0];
-
     private BroadcasterCache broadcasterCache;
     private AtmosphereConfig config;
     private boolean isExecutorShared = false;
@@ -113,9 +116,9 @@ public class BroadcasterConfig {
 
     private void configureBroadcasterCache() {
         try {
-            if (AtmosphereServlet.broadcasterCacheClassName != null) {
+            if (AtmosphereFramework.broadcasterCacheClassName != null) {
                 BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                        .loadClass(AtmosphereServlet.broadcasterCacheClassName).newInstance();
+                        .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
             }
@@ -453,13 +456,14 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link javax.servlet.http.HttpServletRequest}
+     * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link AtmosphereRequest}
      *
      * @param r {@link AtmosphereResource}
-     * @param object the broadcasted object.
+     * @param message the broadcasted object.
+     * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource<?,?> r, Object message, Object originalMessage) {
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
         BroadcastAction transformed = new BroadcastAction(originalMessage);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
@@ -585,19 +589,19 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig} value. This value might be null
+     * Return the {@link AtmosphereConfig} value. This value might be null
      * if the associated {@link Broadcaster} has been created manually.
      *
-     * @return {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @return {@link AtmosphereConfig}
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
     /**
-     * Set the {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * Set the {@link AtmosphereConfig}
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereServlet.AtmosphereConfig}
+     * @param config {@link AtmosphereConfig}
      */
     public void setAtmosphereConfig(AtmosphereConfig config) {
         this.config = config;

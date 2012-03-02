@@ -56,42 +56,20 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private final ServletInputStream bis;
     private final BufferedReader br;
-    private final String pathInfo;
     private final Map<String, String> headers;
     private final Map<String, String[]> queryStrings;
+    private final String pathInfo;
+    private final HttpSession session;
     private final String methodType;
     private final String contentType;
-    private HttpServletRequest request;
-    private final String servletPath;
-    private final String requestURI;
-    private final String requestURL;
-    private final Map<String, Object> localAttributes;
-    private final HttpSession session = new FakeHttpSession("", null, System.currentTimeMillis());
-    private final String remoteAddr;
-    private final String remoteHost;
-    private final int remotePort;
-    private final String localAddr;
-    private final String localName;
-    private final int localPort;
+    private final Builder b;
 
     private AtmosphereRequest(Builder b) {
         super(b.request);
-        pathInfo = b.pathInfo == null ? b.request.getPathInfo() : b.pathInfo;
-        request = b.request;
+        pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         headers = b.headers == null ? new HashMap<String, String>() : b.headers;
         queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
-        servletPath = b.servletPath;
-        requestURI = b.requestURI;
-        requestURL = b.requestURL;
-        localAttributes = b.localAttributes;
-
-        remoteAddr = b.remoteAddr;
-        remoteHost = b.remoteHost;
-        remotePort = b.remotePort;
-
-        localAddr = b.localAddr;
-        localName = b.localName;
-        localPort = b.localPort;
+        session = b.request == null ? new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -112,8 +90,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             bis = new IS(b.inputStream);
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
-        methodType = b.methodType == null ? (request != null ? request.getMethod() : "GET") : b.methodType;
-        contentType = b.contentType == null ? (request != null ? request.getContentType() : "text/plain") : b.contentType;
+        methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
+        contentType = b.contentType == null ? (b.request != null ? b.request.getContentType() : "text/plain") : b.contentType;
+        this.b = b;
     }
 
     /**
@@ -145,7 +124,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getServletPath() {
-        return servletPath != null ? servletPath : super.getServletPath();
+        return b.servletPath != null ? b.servletPath : super.getServletPath();
     }
 
     /**
@@ -153,7 +132,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRequestURI() {
-        return requestURI != null ? requestURI : (request != null ? super.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : (b.request != null ? super.getRequestURI() : null);
     }
 
     /**
@@ -161,7 +140,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public StringBuffer getRequestURL() {
-        return requestURL != null ? new StringBuffer(requestURL) : (request != null ? request.getRequestURL() : null);
+        return b.requestURL != null ? new StringBuffer(b.requestURL) : (b.request != null ? b.request.getRequestURL() : null);
     }
 
     /**
@@ -178,10 +157,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             list.add(headers.get(name));
         }
 
-        if (request != null) {
+        if (b.request != null) {
             if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
-                if (request.getAttribute(name) != null) {
-                    list.add(request.getAttribute(name));
+                if (b.request.getAttribute(name) != null) {
+                    list.add(b.request.getAttribute(name));
                 }
             }
         }
@@ -196,8 +175,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         ArrayList list = Collections.list(super.getHeaderNames());
         list.add("content-type");
 
-        if (request != null) {
-            Enumeration e = request.getAttributeNames();
+        if (b.request != null) {
+            Enumeration e = b.request.getAttributeNames();
             while (e.hasMoreElements()) {
                 String name = e.nextElement().toString();
                 if (name.startsWith(X_ATMOSPHERE)) {
@@ -224,8 +203,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     return headers.get(s);
                 }
 
-                if (s.startsWith(X_ATMOSPHERE) && request != null) {
-                    return (String) request.getAttribute(s);
+                if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
+                    return (String) b.request.getAttribute(s);
                 }
             }
             return name;
@@ -251,7 +230,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Map<String, String[]> getParameterMap() {
-        Map<String, String[]> m = (request != null ? request.getParameterMap() : Collections.<String, String[]>emptyMap());
+        Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
         for (Map.Entry<String, String[]> e : m.entrySet()) {
             String[] s = queryStrings.get(e.getKey());
             if (s != null) {
@@ -287,7 +266,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? (request != null ? request.getInputStream() : null) : bis;
+        return bis == null ? (b.request != null ? b.request.getInputStream() : null) : bis;
     }
 
     /**
@@ -295,7 +274,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? (request != null ? request.getReader() : null) : br;
+        return br == null ? (b.request != null ? b.request.getReader() : null) : br;
     }
 
     private final static class ByteInputStream extends ServletInputStream {
@@ -317,7 +296,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public void setAttribute(String s, Object o) {
-        localAttributes.put(s, o);
+        b.localAttributes.put(s, o);
+        if (b.request != null){
+            b.request.setAttribute(s, o);
+        }
     }
 
     /**
@@ -325,7 +307,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Object getAttribute(String s) {
-        return localAttributes.get(s) != null ? localAttributes.get(s) : (request != null ? request.getAttribute(s) : null);
+        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (b.request != null ? b.request.getAttribute(s) : null);
     }
 
     /**
@@ -333,8 +315,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public void removeAttribute(String name) {
-        if (localAttributes.remove(name) == null && request != null) {
-            request.removeAttribute(name);
+        b.localAttributes.remove(name);
+        if (b.request != null) {
+            b.request.removeAttribute(name);
         }
     }
 
@@ -350,32 +333,32 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getRemoteAddr() {
-        return remoteAddr;
+        return b.remoteAddr;
     }
 
     @Override
     public String getRemoteHost() {
-        return remoteHost;
+        return b.remoteHost;
     }
 
     @Override
     public int getRemotePort() {
-        return remotePort;
+        return b.remotePort;
     }
 
     @Override
     public String getLocalName() {
-        return localName;
+        return b.localName;
     }
 
     @Override
     public int getLocalPort() {
-        return localPort;
+        return b.localPort;
     }
 
     @Override
     public String getLocalAddr() {
-        return localAddr;
+        return b.localAddr;
     }
 
     /**
@@ -384,21 +367,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public Enumeration<String> getAttributeNames() {
         Map<String, Object> m = new HashMap<String, Object>();
-        m.putAll(localAttributes);
+        m.putAll(b.localAttributes);
 
-        Enumeration<String> e = (request != null ? request.getAttributeNames() : null);
+        Enumeration<String> e = (b.request != null ? b.request.getAttributeNames() : null);
         if (e != null) {
             String s;
             while (e.hasMoreElements()) {
                 s = e.nextElement();
-                m.put(s, request.getAttribute(s));
+                m.put(s, b.request.getAttribute(s));
             }
         }
         return Collections.enumeration(m.keySet());
     }
 
     public void destroy() {
-        localAttributes.clear();
+        b.localAttributes.clear();
         if (bis != null) {
             try {
                 bis.close();
@@ -417,14 +400,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         queryStrings.clear();
 
         // Help GC
-        if (request != null) {
-            request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            request = null;
+        if (b.request != null) {
+            b.request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            b.request = null;
         }
     }
 
     public final static class Builder {
-
         private HttpServletRequest request = new DummyHttpServletRequest();
         private String pathInfo = "";
         private byte[] dataBytes;
@@ -436,7 +418,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String data;
         private Map<String, String> headers;
         private Map<String, String[]> queryStrings;
-        private String servletPath;
+        private String servletPath = "";
         private String requestURI;
         private String requestURL;
         private Map<String, Object> localAttributes = new HashMap<String, Object>();
@@ -610,331 +592,336 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getAuthType() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getContextPath() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Cookie[] getCookies() {
-            return new Cookie[0];
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public long getDateHeader(String name) {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getHeader(String name) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Enumeration<String> getHeaderNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Enumeration<String> getHeaders(String name) {
-            return Collections.enumeration(Collections.<String>emptyList());
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getIntHeader(String name) {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getMethod() {
-            return "GET";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Part getPart(String name) throws IOException, ServletException {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Collection<Part> getParts() throws IOException, ServletException {
-            return Collections.<Part>emptyList();
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getPathInfo() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getPathTranslated() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getQueryString() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRemoteUser() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRequestedSessionId() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRequestURI() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public StringBuffer getRequestURL() {
-            return new StringBuffer();
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getServletPath() {
-            return "";
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public HttpSession getSession() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public HttpSession getSession(boolean create) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Principal getUserPrincipal() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isRequestedSessionIdFromCookie() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isRequestedSessionIdFromUrl() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isRequestedSessionIdFromURL() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isRequestedSessionIdValid() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isUserInRole(String role) {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void login(String username, String password) throws ServletException {
-
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void logout() throws ServletException {
-
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public AsyncContext getAsyncContext() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Object getAttribute(String name) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Enumeration<String> getAttributeNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getCharacterEncoding() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getContentLength() {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getContentType() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public DispatcherType getDispatcherType() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public ServletInputStream getInputStream() throws IOException {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Locale getLocale() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Enumeration<Locale> getLocales() {
-            return Collections.enumeration(Collections.<Locale>emptyList());
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getLocalName() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getLocalPort() {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getLocalAddr() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getParameter(String name) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Map<String, String[]> getParameterMap() {
-            return Collections.<String, String[]>emptyMap();
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public Enumeration<String> getParameterNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String[] getParameterValues(String name) {
-            return new String[0];
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getProtocol() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public BufferedReader getReader() throws IOException {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRealPath(String path) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRemoteAddr() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getRemoteHost() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getRemotePort() {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public RequestDispatcher getRequestDispatcher(String path) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getScheme() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public String getServerName() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public int getServerPort() {
-            return 0;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public ServletContext getServletContext() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isAsyncStarted() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isAsyncSupported() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public boolean isSecure() {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void removeAttribute(String name) {
-
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void setAttribute(String name, Object o) {
-
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public AsyncContext startAsync() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
-            return null;
+            throw new UnsupportedOperationException();
         }
+    }
+
+    public final static AtmosphereRequest wrap(HttpServletRequest request) {
+        return new Builder().request(request).build();
     }
 }

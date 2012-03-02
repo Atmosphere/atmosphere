@@ -1,3 +1,18 @@
+/*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.tests;
 
 import com.ning.http.client.AsyncCompletionHandler;
@@ -94,24 +109,24 @@ public class BroadcasterScopeTest {
             m.addListener(new AtmosphereResourceEventListener() {
 
                 @Override
-                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onSuspend(final AtmosphereResourceEvent event) {
                     event.getResource().getRequest().setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
-                public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onResume(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onDisconnect(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onBroadcast(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onThrowable(AtmosphereResourceEvent event) {
 
                 }
             });
@@ -131,19 +146,19 @@ public class BroadcasterScopeTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new MeteorServlet();
-        atmoServlet.addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
+        atmoServlet.framework().addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         server.stop();
         server = null;
     }

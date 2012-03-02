@@ -1,3 +1,4 @@
+
 /*
 * Copyright 2012 Jeanfrancois Arcand
 *
@@ -104,24 +105,24 @@ public class MeteorTest {
             m.addListener(new AtmosphereResourceEventListener() {
 
                 @Override
-                public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onSuspend(final AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onResume(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onDisconnect(AtmosphereResourceEvent event) {
                 }
 
                 @Override
-                public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onBroadcast(AtmosphereResourceEvent event) {
                     event.getResource().getRequest().setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
-                public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onThrowable(AtmosphereResourceEvent event) {
 
                 }
             });
@@ -141,19 +142,19 @@ public class MeteorTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new MeteorServlet();
-        atmoServlet.addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
+        atmoServlet.framework().addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         server.stop();
         server = null;
     }

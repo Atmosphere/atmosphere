@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
-public class AtmosphereHandler {
+public class AtmosphereHandlerConfig {
 
     // "" means unset
     private String supportSession = "";
@@ -33,8 +33,8 @@ public class AtmosphereHandler {
 
     private List<String> broadcastFilterClasses = new ArrayList<String>();
     private List<AtmosphereHandlerProperty> properties = new ArrayList<AtmosphereHandlerProperty>();
-    private List<ApplicationConfig> applicationConfig = new ArrayList<ApplicationConfig>();
-    private List<FrameworkConfig> frameworkConfig = new ArrayList<FrameworkConfig>();
+    private List<ApplicationConfiguration> applicationConfig = new ArrayList<ApplicationConfiguration>();
+    private List<FrameworkConfiguration> frameworkConfig = new ArrayList<FrameworkConfiguration>();
 
     public String getSupportSession() {
         return supportSession;
@@ -76,19 +76,19 @@ public class AtmosphereHandler {
         this.properties = properties;
     }
 
-    public List<ApplicationConfig> getApplicationConfig() {
+    public List<ApplicationConfiguration> getApplicationConfig() {
         return applicationConfig;
     }
 
-    public void setApplicationConfig(List<ApplicationConfig> applicationConfig) {
+    public void setApplicationConfig(List<ApplicationConfiguration> applicationConfig) {
         this.applicationConfig = applicationConfig;
     }
 
-    public List<FrameworkConfig> getFrameworkConfig() {
+    public List<FrameworkConfiguration> getFrameworkConfig() {
         return frameworkConfig;
     }
 
-    public void setFrameworkConfig(List<FrameworkConfig> frameworkConfig) {
+    public void setFrameworkConfig(List<FrameworkConfiguration> frameworkConfig) {
         this.frameworkConfig = frameworkConfig;
     }
 

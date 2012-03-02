@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -38,8 +53,6 @@
 
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
@@ -53,18 +66,18 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLifecycle {
+public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle {
 
     /**
-     * Complete the {@link HttpServletResponse} and finish/commit it. If the
-     * {@link HttpServletResponse} is in the process of being resumed, invoking
+     * Complete the {@link AtmosphereResponse} and finish/commit it. If the
+     * {@link AtmosphereResponse} is in the process of being resumed, invoking
      * that method has no effect.
      */
     public void resume();
 
     /**
-     * Suspend the {@link HttpServletResponse} indefinitely.
-     * Suspending a {@link HttpServletResponse} will
+     * Suspend the {@link AtmosphereResponse} indefinitely.
+     * Suspending a {@link AtmosphereResponse} will
      * tell the underlying container to avoid recycling objects associated with
      * the current instance, and also to avoid commiting response.
      * <p/>
@@ -74,7 +87,7 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
     public void suspend();
 
     /**
-     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
      * tell the underlying container to avoid recycling objects associated with
      * the current instance, and also to avoid commiting response. Invoking
      * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
@@ -82,21 +95,21 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
      * <p/>
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
      * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
      * @param timeout The maximum amount of time, in milliseconds,
-     *                a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
      *                nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                , the {@link HttpServletResponse} will be automatically
-     *                resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                , the {@link AtmosphereResponse} will be automatically
+     *                resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                times out will throw an {@link IllegalStateException}.
      */
     public void suspend(long timeout);
 
     /**
-     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
      * tell the underlying container to avoid recycling objects associated with
      * the current instance, and also to avoid commiting response. Invoking
      * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
@@ -104,15 +117,15 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
      * <p/>
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
      * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
      * @param timeout  The maximum amount of time,
-     *                 a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                 a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
      *                 nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                 , the {@link HttpServletResponse} will be automatically
-     *                 resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                 , the {@link AtmosphereResponse} will be automatically
+     *                 resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                 times out will throw an {@link IllegalStateException}.
      * @param timeunit The time unit of the timeout value
      */
@@ -120,7 +133,7 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
     public void suspend(long timeout, TimeUnit timeunit);
 
     /**
-     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
      * tell the underlying container to avoid recycling objects associated with
      * the current instance, and also to avoid commiting response. Invoking
      * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
@@ -128,15 +141,15 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
      * <p/>
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
      * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
      * @param timeout      The maximum amount of time, in milliseconds,
-     *                     a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                     a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
      *                     nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                     , the {@link HttpServletResponse} will be automatically
-     *                     resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                     , the {@link AtmosphereResponse} will be automatically
+     *                     resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                     times out will throw an {@link IllegalStateException}.
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
      *                     browser working. Set it to false if you want to remove it.
@@ -144,7 +157,7 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
     public void suspend(long timeout, boolean flushComment);
 
     /**
-     * Suspend the {@link HttpServletResponse}. Suspending a {@link HttpServletResponse} will
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
      * tell the underlying container to avoid recycling objects associated with
      * the current instance, and also to avoid commiting response. Invoking
      * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
@@ -152,15 +165,15 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
      * <p/>
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link HttpServletResponse#getWriter} will be used. You can change that
+     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
      * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link HttpServletResponse#getOutputStream()}
+     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
      * @param timeout      The maximum amount of time, in milliseconds,
-     *                     a {@link HttpServletResponse} can be suspended. When the timeout expires (because
+     *                     a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
      *                     nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                     , the {@link HttpServletResponse} will be automatically
-     *                     resumed and commited. Usage of any methods of a {@link HttpServletResponse} that
+     *                     , the {@link AtmosphereResponse} will be automatically
+     *                     resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                     times out will throw an {@link IllegalStateException}.
      * @param timeunit     The time unit of the timeout value
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
@@ -170,18 +183,18 @@ public interface AtmosphereResource<E, F> extends Trackable, AtmosphereEventLife
     public void suspend(long timeout, TimeUnit timeunit, boolean flushComment);
 
     /**
-     * Return the underlying <E> Request.
+     * Return the underlying {@link AtmosphereRequest} Request.
      *
-     * @return E the underlying Request.
+     * @return {@link AtmosphereRequest} the underlying Request.
      */
-    public E getRequest();
+    public AtmosphereRequest getRequest();
 
     /**
-     * Return the underlying <F> Response.
+     * Return the {@link AtmosphereResponse}
      *
-     * @return F the underlying Response.
+     * @return {@link AtmosphereResponse} the underlying Response.
      */
-    public F getResponse();
+    public AtmosphereResponse getResponse();
 
     /**
      * Return the {@link AtmosphereConfig}

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.jersey.util;
 
 import com.sun.jersey.spi.container.ContainerResponse;
@@ -29,7 +44,7 @@ public final class JerseyBroadcasterUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
 
-    public final static void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
+    public final static void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
         HttpServletRequest request = (HttpServletRequest) r.getRequest();
         ContainerResponse cr = null;
         try {
@@ -99,7 +114,7 @@ public final class JerseyBroadcasterUtil {
                 String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
                 if (uuid != null) {
                     if (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
-                        ((ConcurrentHashMap<String, AtmosphereResource<?, ?>>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                        ((ConcurrentHashMap<String, AtmosphereResource>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                     }
                 }
                 r.resume();
@@ -108,7 +123,7 @@ public final class JerseyBroadcasterUtil {
         }
     }
 
-    final static void onException(Throwable t, AtmosphereResource<?, ?> r) {
+    final static void onException(Throwable t, AtmosphereResource r) {
         logger.trace("onException()", t);
         r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
         AsynchronousProcessor.destroyResource(r);

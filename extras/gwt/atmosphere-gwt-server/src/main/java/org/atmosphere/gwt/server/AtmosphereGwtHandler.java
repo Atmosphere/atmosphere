@@ -173,7 +173,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
+    public void onRequest(AtmosphereResource resource) throws IOException {
 
         HttpServletRequest request = resource.getRequest();
 

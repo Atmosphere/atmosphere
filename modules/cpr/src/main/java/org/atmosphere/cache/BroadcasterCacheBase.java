@@ -57,8 +57,6 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -74,7 +72,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServletRequest, HttpServletResponse> {
+public abstract class BroadcasterCacheBase implements BroadcasterCache {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheBase.class);
 
@@ -129,7 +127,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      * {@inheritDoc}
      */
     public final synchronized void addToCache(
-            final AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, final Object object) {
+            final AtmosphereResource resource, final Object object) {
         logger.trace("Adding message for resource: {}, object: {}", resource, object);
 
         CachedMessage cm = new CachedMessage(object, System.currentTimeMillis(), null);
@@ -160,7 +158,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      * @param r  {@link org.atmosphere.cpr.AtmosphereResource}.
      * @param cm {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}
      */
-    public abstract void cache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r, CachedMessage cm);
+    public abstract void cache(final AtmosphereResource r, CachedMessage cm);
 
     /**
      * Return the last message broadcasted to the {@link org.atmosphere.cpr.AtmosphereResource}.
@@ -168,12 +166,12 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache<HttpServl
      * @param r {@link org.atmosphere.cpr.AtmosphereResource}.
      * @return a {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}, or null if not matched.
      */
-    public abstract CachedMessage retrieveLastMessage(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r);
+    public abstract CachedMessage retrieveLastMessage(final AtmosphereResource r);
 
     /**
      * {@inheritDoc}
      */
-    public final synchronized List<Object> retrieveFromCache(final AtmosphereResource<HttpServletRequest, HttpServletResponse> r) {
+    public final synchronized List<Object> retrieveFromCache(final AtmosphereResource r) {
 
         CachedMessage cm = retrieveLastMessage(r);
         boolean isNew = false;
