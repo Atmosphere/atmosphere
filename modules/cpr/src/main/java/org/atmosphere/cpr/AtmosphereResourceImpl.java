@@ -314,7 +314,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             if (writeHeaders && enableAccessControl) {
-                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
                 response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
