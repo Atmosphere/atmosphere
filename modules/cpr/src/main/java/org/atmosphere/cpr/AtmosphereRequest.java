@@ -70,7 +70,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         headers = b.headers == null ? new HashMap<String, String>() : b.headers;
         queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
         session = b.request == null ?
-                new FakeHttpSession("", null, System.currentTimeMillis()) :  b.request.getSession();
+                new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -193,23 +193,26 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getHeader(String s) {
-        if (s.equalsIgnoreCase("Connection")) {
-            return "keep-alive";
-        } else if ("content-type".equalsIgnoreCase(s)) {
-            return contentType;
-        } else {
-            String name = super.getHeader(s);
-            if (name == null) {
-                if (headers.get(s) != null) {
-                    return headers.get(s);
-                }
-
-                if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
-                    return (String) b.request.getAttribute(s);
-                }
+        String name = super.getHeader(s);
+        if (name == null) {
+            if (headers.get(s) != null) {
+                return headers.get(s);
             }
-            return name;
+
+            if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
+                return (String) b.request.getAttribute(s);
+            }
         }
+
+        if (name == null) {
+            if ("content-type".equalsIgnoreCase(s)) {
+                return contentType;
+            } else if ("connection".equalsIgnoreCase(s)) {
+                return "keep-alive";
+            }
+        }
+        return name;
+
     }
 
     /**
@@ -298,7 +301,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public void setAttribute(String s, Object o) {
         b.localAttributes.put(s, o);
-        if (b.request != null){
+        if (b.request != null) {
             b.request.setAttribute(s, o);
         }
     }
