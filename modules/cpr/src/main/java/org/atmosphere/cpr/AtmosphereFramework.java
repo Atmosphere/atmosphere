@@ -1017,7 +1017,11 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 a = cometSupport.service(r, res);
             } else {
-                return cometSupport.service(AtmosphereRequest.wrap(req), res);
+                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                    return cometSupport.service(req, res);
+                } else {
+                    return cometSupport.service(AtmosphereRequest.wrap(req), res);
+                }
             }
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
