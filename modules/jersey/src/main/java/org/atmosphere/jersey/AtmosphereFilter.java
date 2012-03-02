@@ -626,7 +626,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             if (enableAccessControl) {
-                b = b.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                b = b.header(ACCESS_CONTROL_ALLOW_ORIGIN,  servletReq.getHeader("Origin") == null ? "*" : servletReq.getHeader("Origin"));
                 b = b.header(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
             return b;
