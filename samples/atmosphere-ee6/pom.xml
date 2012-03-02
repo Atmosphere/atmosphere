@@ -3,11 +3,11 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9.1.alpha.v20120301-SNAPSHOT</version>
+        <version>0.9.0</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <version>0.9.1.alpha.v20120301-SNAPSHOT</version>
+    <version>0.9.0</version>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-ee6</artifactId>
     <name>atmosphere-ee6</name>
