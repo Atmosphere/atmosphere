@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import java.util.Collection;
@@ -158,7 +172,7 @@ public interface Broadcaster extends Trackable {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    <T> Future<T> broadcast(T o, AtmosphereResource<?, ?> resource);
+    <T> Future<T> broadcast(T o, AtmosphereResource resource);
 
     /**
      * Broadcast the {@link Object} when an {@link AtmosphereResource} is resumed by a timeout or when using
@@ -178,7 +192,7 @@ public interface Broadcaster extends Trackable {
      * @param subset a Set of {@link AtmosphereResource<?,?>}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    <T> Future<T> broadcast(T o, Set<AtmosphereResource<?, ?>> subset);
+    <T> Future<T> broadcast(T o, Set<AtmosphereResource> subset);
 
     /**
      * Add a {@link AtmosphereResource<?,?>} to the list of item to be notified when
@@ -187,7 +201,7 @@ public interface Broadcaster extends Trackable {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if added, or null if it was already there.
      */
-    AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> resource);
+    AtmosphereResource addAtmosphereResource(AtmosphereResource resource);
 
     /**
      * Remove a {@link AtmosphereResource<?,?>} from the list of item to be notified when
@@ -196,7 +210,7 @@ public interface Broadcaster extends Trackable {
      * @param resource an {@link AtmosphereResource<?,?>}
      * @return {@link AtmosphereResource<?,?>} if removed, or null if it was not.
      */
-    AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource<?, ?> resource);
+    AtmosphereResource removeAtmosphereResource(AtmosphereResource resource);
 
     /**
      * Set the {@link BroadcasterConfig} instance.
@@ -223,7 +237,7 @@ public interface Broadcaster extends Trackable {
      * @return {@link List} of {@link AtmosphereResource<?,?>} associated with this {@link Broadcaster}.
      * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource<?,?>)
      */
-    Collection<AtmosphereResource<?, ?>> getAtmosphereResources();
+    Collection<AtmosphereResource> getAtmosphereResources();
 
     /**
      * Set the scope.

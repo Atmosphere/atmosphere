@@ -13,21 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 /**
- * A markable interface that can be used in conjonction with {@link BroadcastFilter} to filter
+ * A markable interface that can be used in conjunction with {@link BroadcastFilter} to filter
  * message per request.
  */
 public interface PerRequestBroadcastFilter extends BroadcastFilter {
 
     /**
      * Transform or Filter a message per request, with V as an indicator. Be careful when setting headers on the
-     * {@link javax.servlet.http.HttpServletResponse} as the headers may have been already sent back to the browser.
+     * {@link AtmosphereResponse} as the headers may have been already sent back to the browser.
      *
      *
      * @param atmosphereResource
@@ -35,5 +31,5 @@ public interface PerRequestBroadcastFilter extends BroadcastFilter {
      * @param originalMessage
      * @return a transformed message.
      */
-    BroadcastAction filter(AtmosphereResource<?, ?> atmosphereResource, Object originalMessage, Object message);
+    BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message);
 }

@@ -42,7 +42,6 @@ import com.sun.grizzly.tcp.http11.GrizzlyAdapter;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.FrameworkConfig;
 
 import javax.servlet.ServletContext;
 import java.io.File;
@@ -80,7 +79,7 @@ public class AtmosphereAdapter extends ServletAdapter {
      * @param useStreaming If {@link java.io.OutputStream} sould be used.
      */
     public void setUseStreamForFlushingComments(boolean useStreaming) {
-        as.setUseStreamForFlushingComments(useStreaming);
+        as.framework().setUseStreamForFlushingComments(useStreaming);
     }
 
     /**
@@ -90,7 +89,7 @@ public class AtmosphereAdapter extends ServletAdapter {
      * @param ah   Handler for path.
      */
     public void addAtmosphereHandler(String path, AtmosphereHandler ah) {
-        as.addAtmosphereHandler(path, ah);
+        as.framework().addAtmosphereHandler(path, ah);
     }
 
     /**
@@ -116,21 +115,15 @@ public class AtmosphereAdapter extends ServletAdapter {
         /**
          * Auto detect the underlying Servlet Container we are running on.
          */
-        @Override
         protected void autoDetectContainer() {
-            setUseStreamForFlushingComments(true);
-            cometSupport = new GrizzlyCometSupport(getAtmosphereConfig());
+            framework().setUseStreamForFlushingComments(true);
+            framework().setCometSupport(new GrizzlyCometSupport(framework().getAtmosphereConfig()));
         }
 
-        @Override
         protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classLoader)
                 throws MalformedURLException, URISyntaxException {
-            try {
-                Class.forName("org.atmosphere.spade.AtmosphereSpadeLauncher");
-            } catch (Exception ex) {
-                super.autoDetectAtmosphereHandlers(servletContext, classLoader);
-                return;
-            }
+
+            super.framework().autoDetectAtmosphereHandlers(servletContext, classLoader);
 
             String realPath = servletContext.getRealPath("WEB-INF/classes");
 
@@ -157,7 +150,7 @@ public class AtmosphereAdapter extends ServletAdapter {
                 f = new File(trailer + servletContext.getContextPath() + "WEB-INF/classes");
             }
 
-            loadAtmosphereHandlersFromPath(classLoader, realPath);
+            framework().loadAtmosphereHandlersFromPath(classLoader, realPath);
         }
 
     }

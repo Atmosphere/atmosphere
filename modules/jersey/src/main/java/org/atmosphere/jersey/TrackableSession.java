@@ -18,16 +18,12 @@ package org.atmosphere.jersey;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -115,7 +111,7 @@ public class TrackableSession {
 
     private static final class AliveChecker extends AtmosphereResourceEventListenerAdapter {
         @Override
-        public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onResume(AtmosphereResourceEvent event) {
             String id = event.getResource().getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
             if (id != null) {
                 factory.factoryCache.remove(id);
@@ -123,7 +119,7 @@ public class TrackableSession {
         }
 
         @Override
-        public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+        public void onDisconnect(AtmosphereResourceEvent event) {
             String id = event.getResource().getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
             if (id != null) {
                 factory.factoryCache.remove(id);

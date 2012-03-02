@@ -26,5 +26,5 @@ public interface Command {
 
     String getChannel();
 
-    void setResource(AtmosphereResource<?, ?> resource);
+    void setResource(AtmosphereResource resource);
 }

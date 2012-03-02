@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -35,11 +50,9 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,8 +126,9 @@ public class AtmosphereFilter implements Filter {
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        Action a = as.doCometSupport((HttpServletRequest) request, (HttpServletResponse) response);
-        if (a == null || a.type != Action.TYPE.SUSPEND) {
+        AtmosphereFramework.Action a = as.framework().doCometSupport(AtmosphereRequest.wrap((HttpServletRequest) request),
+                AtmosphereResponse.wrap((HttpServletResponse) response));
+        if (a == null || a.type != AtmosphereFramework.Action.TYPE.SUSPEND) {
             chain.doFilter(request, response);
         }
     }

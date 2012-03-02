@@ -15,15 +15,15 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -61,7 +61,7 @@ public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
      * {@inheritDoc}
      */
     @Override
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
         Action action = JettyWebSocketUtil.doService(this,req,res,webSocketFactory);
         return action == null? super.service(req,res) : action;

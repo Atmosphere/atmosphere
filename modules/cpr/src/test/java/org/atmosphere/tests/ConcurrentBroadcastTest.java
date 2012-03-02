@@ -36,8 +36,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
@@ -103,19 +101,19 @@ public class ConcurrentBroadcastTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
-        atmoServlet.addAtmosphereHandler("/suspend", new SuspendAndResume());
+        atmoServlet.framework().addAtmosphereHandler("/suspend", new SuspendAndResume());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
     }
 
     public void configureCometSupport() {
-        atmoServlet.setCometSupport(new JettyCometSupport(atmoServlet.getAtmosphereConfig()));
+        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
     public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.destroy();
+        atmoServlet.framework().destroy();
         server.stop();
         server = null;
     }
@@ -165,13 +163,13 @@ public class ConcurrentBroadcastTest {
         c.close();
     }
 
-    private static final class SuspendAndResume implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    private static final class SuspendAndResume implements AtmosphereHandler {
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
-                public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                public void onSuspend(AtmosphereResourceEvent event) {
                     broadcasterReady.countDown();
                 }
             });
@@ -179,7 +177,7 @@ public class ConcurrentBroadcastTest {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> r) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
             if (r.isSuspended() && !r.isResuming()) {
                 logger.info("Resumed");
                 r.getResource().getResponse().getWriter().print(r.getMessage());

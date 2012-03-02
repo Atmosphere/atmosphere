@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.config.AtmosphereHandlerConfig;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -33,52 +33,52 @@ import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
  */
 public class AtmosphereConfig {
 
-    private final List<org.atmosphere.config.AtmosphereHandler> atmosphereHandler = new ArrayList<org.atmosphere.config.AtmosphereHandler>();
+    private final List<AtmosphereHandlerConfig> atmosphereHandler = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession = true;
     private BroadcasterFactory broadcasterFactory;
     private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
-    private final AtmosphereServlet atmosphereServlet;
+    private final AtmosphereFramework framework;
     // for custom properties
     private final Map<String, Object> properties = new HashMap<String, Object>();
 
-    public AtmosphereConfig(AtmosphereServlet atmosphereServlet) {
-        this.atmosphereServlet = atmosphereServlet;
+    public AtmosphereConfig(AtmosphereFramework framework) {
+        this.framework = framework;
     }
 
-    public List<org.atmosphere.config.AtmosphereHandler> getAtmosphereHandler() {
+    public List<AtmosphereHandlerConfig> getAtmosphereHandler() {
         return atmosphereHandler;
     }
 
-    public AtmosphereServlet getServlet() {
-        return atmosphereServlet;
+    public AtmosphereFramework framework() {
+        return framework;
     }
 
     public ServletConfig getServletConfig() {
-        return atmosphereServlet.getServletConfig();
+        return framework.getServletConfig();
     }
 
     public ServletContext getServletContext() {
-        return atmosphereServlet.getServletContext();
+        return framework.getServletContext();
     }
 
     public String getWebServerName() {
-        return atmosphereServlet.getCometSupport().getContainerName();
+        return framework.getCometSupport().getContainerName();
     }
 
-    public Map<String, AtmosphereHandlerWrapper> handlers() {
-        return atmosphereServlet.getAtmosphereHandlers();
+    public Map<String, AtmosphereFramework.AtmosphereHandlerWrapper> handlers() {
+        return framework.getAtmosphereHandlers();
     }
 
     public String getInitParameter(String name) {
         // First looks locally
-        String s = atmosphereServlet.initParams.get(name);
+        String s = framework.initParams.get(name);
         if (s != null) {
             return s;
         }
 
         try {
-            return atmosphereServlet.getInitParameter(name);
+            return framework.getServletContext().getInitParameter(name);
         } catch (Throwable ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;
@@ -87,9 +87,9 @@ public class AtmosphereConfig {
 
     public Enumeration<String> getInitParameterNames() {
         // First looks locally
-        Map<String, String> map = new HashMap<String, String>(atmosphereServlet.initParams);
+        final Map<String, String> map = new HashMap<String, String>(framework.initParams);
 
-        Enumeration en = atmosphereServlet.getInitParameterNames();
+        Enumeration en = framework.getServletContext().getInitParameterNames();
         while (en.hasMoreElements()) {
             String name = (String) en.nextElement();
             if (!map.containsKey(name)) {

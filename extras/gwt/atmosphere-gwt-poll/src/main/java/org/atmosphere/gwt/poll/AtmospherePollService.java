@@ -51,7 +51,7 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
     public final static String GWT_REQUEST = "GWT_REQUEST";
 
     public class SuspendInfo {
-        private AtmosphereResource<HttpServletRequest, HttpServletResponse> atm;
+        private AtmosphereResource atm;
 
         SuspendInfo(AtmosphereResource atm) {
             this.atm = atm;
@@ -79,7 +79,7 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
     }
 
     protected SuspendInfo suspend() {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> atm = getAtmosphereResource();
+        AtmosphereResource atm = getAtmosphereResource();
         if (atm == null) {
             throw new UnexpectedException("Failed to find Atmosphere resource have you setup Atmosphere?", null);
         }
@@ -89,14 +89,14 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
     }
 
     protected SuspendInfo suspend(long timeout) {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> atm = getAtmosphereResource();
+        AtmosphereResource atm = getAtmosphereResource();
         atm.getRequest().setAttribute(GWT_SUSPENDED, true);
         atm.suspend(timeout, false);
         return new SuspendInfo(atm);
     }
 
     protected boolean isSuspended() {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> atm = getAtmosphereResource();
+        AtmosphereResource atm = getAtmosphereResource();
         if (atm == null) {
             throw new UnexpectedException("Failed to find Atmosphere resource have you setup Atmosphere?", null);
         }
@@ -104,7 +104,7 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
         return Boolean.TRUE.equals(var);
     }
 
-    static void writeResponse(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource, Object message) throws IOException {
+    static void writeResponse(AtmosphereResource resource, Object message) throws IOException {
         try {
             RPCRequest rpcRequest = (RPCRequest) resource.getRequest().getAttribute(AtmospherePollService.GWT_REQUEST);
             String response = encodeResponse(rpcRequest, message);
@@ -149,9 +149,9 @@ public class AtmospherePollService extends AbstractRemoteServiceServlet
     }
 
 
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> atm =
-                (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
+    private AtmosphereResource getAtmosphereResource() {
+        AtmosphereResource atm =
+                (AtmosphereResource)
                         getThreadLocalRequest().getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         if (atm == null) {
             throw new UnexpectedException("Failed to find Atmosphere resource have you setup Atmosphere?", null);

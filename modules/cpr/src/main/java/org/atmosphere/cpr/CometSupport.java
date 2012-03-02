@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,22 +50,18 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 
 /**
  * Atmosphere's supported WebServer must implement this interface in order
- * to be auto detected by the {@link AtmosphereServlet}. If the {@link AtmosphereServlet}
+ * to be auto detected by the {@link AtmosphereFramework}. If the {@link AtmosphereFramework}
  * fail to detect the {@link CometSupport}, it will use a blocking thread
  * approach to emulate Comet using the {@link BlockingIOCometSupport}.
  * <p/>
@@ -81,22 +92,22 @@ public interface CometSupport<E extends AtmosphereResource> {
     public void init(ServletConfig sc) throws ServletException;
 
     /**
-     * Serve the {@link HttpServletRequest} and the {@link HttpServletResponse} and return
-     * the appropriate {@link Action}.
+     * Serve the {@link AtmosphereRequest} and the {@link AtmosphereResponse} and return
+     * the appropriate {@link org.atmosphere.cpr.AtmosphereFramework.Action}.
      *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
-     * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
+     * @return the {@link org.atmosphere.cpr.AtmosphereFramework.Action} that was manipulated by the {@link AtmosphereHandler}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException;
 
     /**
-     * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
+     * Process an {@link org.atmosphere.cpr.AtmosphereFramework.Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
      *
-     * @param actionEvent An instance of {@link AtmosphereServlet.Action}
+     * @param actionEvent An instance of {@link org.atmosphere.cpr.AtmosphereFramework.Action}
      */
     public void action(E actionEvent);
 

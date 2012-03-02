@@ -1,9 +1,23 @@
+/*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.samples.pubsub.websocket
 
 import javax.ws.rs._
 import org.slf4j.{LoggerFactory, Logger}
 import org.atmosphere.websocket.WebSocketEventListener
-import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.atmosphere.cpr.AtmosphereResourceEvent
 
 @Path("/pubsub/{topic}")
@@ -12,23 +26,23 @@ class Console extends WebSocketEventListener {
 
   private final val logger: Logger = LoggerFactory.getLogger(classOf[Console])
 
-  def onSuspend(event: AtmosphereResourceEvent[HttpServletRequest, HttpServletResponse]): Unit = {
+  def onSuspend(event: AtmosphereResourceEvent): Unit = {
     logger.info("onSuspend(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }
 
-  def onResume(event: AtmosphereResourceEvent[HttpServletRequest, HttpServletResponse]): Unit = {
+  def onResume(event: AtmosphereResourceEvent): Unit = {
     logger.info("onResume(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }
 
-  def onDisconnect(event: AtmosphereResourceEvent[HttpServletRequest, HttpServletResponse]): Unit = {
+  def onDisconnect(event: AtmosphereResourceEvent): Unit = {
     logger.info("onDisconnect(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }
 
-  def onBroadcast(event: AtmosphereResourceEvent[HttpServletRequest, HttpServletResponse]): Unit = {
+  def onBroadcast(event: AtmosphereResourceEvent): Unit = {
     logger.info("onBroadcast(): {}", event.getMessage)
   }
 
-  def onThrowable(event: AtmosphereResourceEvent[HttpServletRequest, HttpServletResponse]): Unit = {
+  def onThrowable(event: AtmosphereResourceEvent): Unit = {
     logger.warn("onThrowable(): {}", event)
   }
 

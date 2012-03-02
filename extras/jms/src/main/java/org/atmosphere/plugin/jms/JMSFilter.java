@@ -38,7 +38,6 @@
 package org.atmosphere.plugin.jms;
 
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.slf4j.Logger;
