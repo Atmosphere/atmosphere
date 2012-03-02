@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2011 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -34,12 +34,13 @@ import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JsArrayString;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.event.logical.shared.CloseEvent;
+import com.google.gwt.event.logical.shared.CloseHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.Timer;
+import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.rpc.AsyncCallback;
-import org.atmosphere.gwt.client.extra.LoadRegister;
-import org.atmosphere.gwt.client.extra.LoadRegister.BeforeUnloadEvent;
-import org.atmosphere.gwt.client.extra.LoadRegister.UnloadEvent;
 import org.atmosphere.gwt.client.impl.CometTransport;
 import org.atmosphere.gwt.client.impl.WebSocketCometTransport;
 
@@ -212,8 +213,8 @@ public class AtmosphereClient {
                     }
 
                     UnloadHandler handler = new UnloadHandler();
-                    final HandlerRegistration reg1 = LoadRegister.addBeforeUnloadHandler(handler);
-                    final HandlerRegistration reg2 = LoadRegister.addUnloadHandler(handler);
+                    final HandlerRegistration reg1 = Window.addCloseHandler(handler);
+                    final HandlerRegistration reg2 = Window.addWindowClosingHandler(handler);
                     unloadHandlerReg = new HandlerRegistration() {
                         @Override
                         public void removeHandler() {
@@ -228,14 +229,15 @@ public class AtmosphereClient {
         });
     }
 
-    private class UnloadHandler implements LoadRegister.BeforeUnloadHandler, LoadRegister.UnloadHandler {
+    private class UnloadHandler implements CloseHandler<Window>, Window.ClosingHandler {
+
         @Override
-        public void onBeforeUnload(BeforeUnloadEvent event) {
+        public void onClose(CloseEvent<Window> event) {
             doUnload();
         }
 
         @Override
-        public void onUnload(UnloadEvent event) {
+        public void onWindowClosing(ClosingEvent event) {
             doUnload();
         }
 
