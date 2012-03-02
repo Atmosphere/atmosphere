@@ -65,11 +65,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Builder b;
 
     private AtmosphereRequest(Builder b) {
-        super(b.request);
+        super(b.request == null ? new NoOpsRequest() : b.request);
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         headers = b.headers == null ? new HashMap<String, String>() : b.headers;
         queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
-        session = b.request == null ? new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
+        session = b.request == null ?
+                new FakeHttpSession("", null, System.currentTimeMillis()) :  b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -407,7 +408,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public final static class Builder {
-        private HttpServletRequest request = new DummyHttpServletRequest();
+        private HttpServletRequest request;
         private String pathInfo = "";
         private byte[] dataBytes;
         private int offset;
@@ -588,336 +589,335 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    private final static class DummyHttpServletRequest implements HttpServletRequest {
+    private final static class NoOpsRequest implements HttpServletRequest {
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public String getAuthType() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getContextPath() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public Cookie[] getCookies() {
-            throw new UnsupportedOperationException();
+            return new Cookie[0];
         }
 
         @Override
         public long getDateHeader(String name) {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public String getHeader(String name) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Enumeration<String> getHeaderNames() {
-            throw new UnsupportedOperationException();
+            return Collections.enumeration(Collections.<String>emptyList());
         }
 
         @Override
         public Enumeration<String> getHeaders(String name) {
-            throw new UnsupportedOperationException();
+            return Collections.enumeration(Collections.<String>emptyList());
         }
 
         @Override
         public int getIntHeader(String name) {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public String getMethod() {
-            throw new UnsupportedOperationException();
+            return "GET";
         }
 
         @Override
         public Part getPart(String name) throws IOException, ServletException {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Collection<Part> getParts() throws IOException, ServletException {
-            throw new UnsupportedOperationException();
+            return Collections.<Part>emptyList();
         }
 
         @Override
         public String getPathInfo() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public String getPathTranslated() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public String getQueryString() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public String getRemoteUser() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getRequestedSessionId() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getRequestURI() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public StringBuffer getRequestURL() {
-            throw new UnsupportedOperationException();
+            return new StringBuffer();
         }
 
         @Override
         public String getServletPath() {
-            throw new UnsupportedOperationException();
+            return "";
         }
 
         @Override
         public HttpSession getSession() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public HttpSession getSession(boolean create) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Principal getUserPrincipal() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public boolean isRequestedSessionIdFromCookie() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isRequestedSessionIdFromUrl() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isRequestedSessionIdFromURL() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isRequestedSessionIdValid() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isUserInRole(String role) {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public void login(String username, String password) throws ServletException {
-            throw new UnsupportedOperationException();
+
         }
 
         @Override
         public void logout() throws ServletException {
-            throw new UnsupportedOperationException();
+
         }
 
         @Override
         public AsyncContext getAsyncContext() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Object getAttribute(String name) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Enumeration<String> getAttributeNames() {
-            throw new UnsupportedOperationException();
+            return Collections.enumeration(Collections.<String>emptyList());
         }
 
         @Override
         public String getCharacterEncoding() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public int getContentLength() {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public String getContentType() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public DispatcherType getDispatcherType() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public ServletInputStream getInputStream() throws IOException {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Locale getLocale() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Enumeration<Locale> getLocales() {
-            throw new UnsupportedOperationException();
+            return Collections.enumeration(Collections.<Locale>emptyList());
         }
 
         @Override
         public String getLocalName() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public int getLocalPort() {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public String getLocalAddr() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getParameter(String name) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public Map<String, String[]> getParameterMap() {
-            throw new UnsupportedOperationException();
+            return Collections.<String, String[]>emptyMap();
         }
 
         @Override
         public Enumeration<String> getParameterNames() {
-            throw new UnsupportedOperationException();
+            return Collections.enumeration(Collections.<String>emptyList());
         }
 
         @Override
         public String[] getParameterValues(String name) {
-            throw new UnsupportedOperationException();
+            return new String[0];
         }
 
         @Override
         public String getProtocol() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public BufferedReader getReader() throws IOException {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getRealPath(String path) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getRemoteAddr() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getRemoteHost() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public int getRemotePort() {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public RequestDispatcher getRequestDispatcher(String path) {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getScheme() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public String getServerName() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public int getServerPort() {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
         public ServletContext getServletContext() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public boolean isAsyncStarted() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isAsyncSupported() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public boolean isSecure() {
-            throw new UnsupportedOperationException();
+            return false;
         }
 
         @Override
         public void removeAttribute(String name) {
-            throw new UnsupportedOperationException();
+
         }
 
         @Override
         public void setAttribute(String name, Object o) {
-            throw new UnsupportedOperationException();
+
         }
 
         @Override
         public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
-            throw new UnsupportedOperationException();
         }
 
         @Override
         public AsyncContext startAsync() {
-            throw new UnsupportedOperationException();
+            return null;
         }
 
         @Override
         public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
-            throw new UnsupportedOperationException();
+            return null;
         }
     }
 
