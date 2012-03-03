@@ -50,7 +50,7 @@ import java.util.Map;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
 /**
- * A Builder for constructing {@link HttpServletRequest}
+ * An Atmosphere request representation.
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
