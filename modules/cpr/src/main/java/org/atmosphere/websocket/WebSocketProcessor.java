@@ -31,7 +31,6 @@ import org.atmosphere.cpr.Meteor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Enumeration;
@@ -146,10 +145,19 @@ public class WebSocketProcessor implements Serializable {
         if (request == null) return;
         try {
             framework.doCometSupport(request, r);
-        } catch (IOException e) {
-            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
-        } catch (ServletException e) {
-            logger.warn("Failed invoking atmosphere servlet doCometSupport()", e);
+        } catch (Throwable e) {
+            logger.warn("Failed invoking AtmosphereFramework.doCometSupport()", e);
+
+            if (e.getCause() != null) {
+                e = e.getCause();
+            }
+
+            webSocketProtocol.onError(webSocket, new WebSocketException(e,
+                    new AtmosphereResponse.Builder()
+                            .request(request)
+                            .status(500)
+                            .statusMessage(e.getMessage()).build()));
+            return;
         }
 
         AtmosphereResource resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
