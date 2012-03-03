@@ -147,16 +147,11 @@ public class WebSocketProcessor implements Serializable {
             framework.doCometSupport(request, r);
         } catch (Throwable e) {
             logger.warn("Failed invoking AtmosphereFramework.doCometSupport()", e);
-
-            if (e.getCause() != null) {
-                e = e.getCause();
-            }
-
             webSocketProtocol.onError(webSocket, new WebSocketException(e,
                     new AtmosphereResponse.Builder()
                             .request(request)
                             .status(500)
-                            .statusMessage(e.getMessage()).build()));
+                            .statusMessage("Server Error").build()));
             return;
         }
 
