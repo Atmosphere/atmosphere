@@ -13,48 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-/*
- *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
- * and Distribution License("CDDL") (collectively, the "License").  You
- * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
- * language governing permissions and limitations under the License.
- *
- * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
- * Sun designates this particular file as subject to the "Classpath" exception
- * as provided by Sun in the GPL Version 2 section of the License file that
- * accompanied this code.  If applicable, add the following below the License
- * Header, with the fields enclosed by brackets [] replaced by your own
- * identifying information: "Portions Copyrighted [year]
- * [name of copyright owner]"
- *
- * Contributor(s):
- *
- * If you wish your version of this file to be governed by only the CDDL or
- * only the GPL Version 2, indicate your decision by adding "[Contributor]
- * elects to include this software in this distribution under the [CDDL or GPL
- * Version 2] license."  If you don't indicate a single choice of license, a
- * recipient has the option to distribute your version of this file under
- * either the CDDL, the GPL Version 2 or to extend the choice of license to
- * its licensees as provided above.  However, if you add GPL Version 2 code
- * and therefore, elected the GPL Version 2 license, then the option applies
- * only if the new code is made subject to such option by the copyright
- * holder.
- */
 package org.atmosphere.cpr;
 
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
@@ -86,12 +49,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private Locale locale;
     private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
     private boolean headerHandled = false;
-    private HttpServletRequest atmosphereRequest;
+    private AtmosphereRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
 
-    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
         super(dsr);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -101,7 +64,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.delegateToNativeResponse = asyncIOWriter == null;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, HttpServletRequest atmosphereRequest) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
         super(r);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -128,7 +91,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private int status = 200;
         private String statusMessage = "OK";
         private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
-        private HttpServletRequest atmosphereRequest;
+        private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
@@ -156,7 +119,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             return this;
         }
 
-        public Builder atmosphereRequest(HttpServletRequest atmosphereRequest) {
+        public Builder request(AtmosphereRequest atmosphereRequest) {
             this.atmosphereRequest = atmosphereRequest;
             return this;
         }
@@ -351,13 +314,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     /**
      * {@inheritDoc}
      */
-    @Override
     public int getStatus() {
-        if (!delegateToNativeResponse) {
-            return status;
-        } else {
-            return _r().getStatus();
-        }
+        return status;
     }
 
     public String getStatusMessage() {
@@ -377,39 +335,24 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     /**
      * {@inheritDoc}
      */
-    @Override
     public String getHeader(String name) {
-        if (!delegateToNativeResponse) {
-            return headers.get(name);
-        } else {
-            return _r().getHeader(name);
-        }
+        return headers.get(name);
     }
 
     /**
      * {@inheritDoc}
      */
-    @Override
     public Collection<String> getHeaders(String name) {
-        if (!delegateToNativeResponse) {
-            ArrayList<String> s = new ArrayList<String>();
-            s.add(headers.get(name));
-            return Collections.unmodifiableList(s);
-        } else {
-            return getHeaders(name);
-        }
+        ArrayList<String> s = new ArrayList<String>();
+        s.add(headers.get(name));
+        return Collections.unmodifiableList(s);
     }
 
     /**
      * {@inheritDoc}
      */
-    @Override
     public Collection<String> getHeaderNames() {
-        if (!delegateToNativeResponse) {
-            return Collections.unmodifiableSet(headers.keySet());
-        } else {
-            return _r().getHeaderNames();
-        }
+        return Collections.unmodifiableSet(headers.keySet());
     }
 
     /**
@@ -649,7 +592,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public Locale getLocale() {
         if (!delegateToNativeResponse) {
-        return locale;
+            return locale;
         } else {
             return _r().getLocale();
         }
@@ -664,11 +607,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     /**
-     * Return the associated {@link HttpServletRequest}
+     * Return the associated {@link AtmosphereRequest}
      *
-     * @return the associated {@link HttpServletRequest}
+     * @return the associated {@link AtmosphereRequest}
      */
-    public HttpServletRequest getRequest() {
+    public AtmosphereRequest getRequest() {
         return atmosphereRequest;
     }
 
@@ -745,7 +688,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
         public void setStatus(int sc, String sm) {
             throw new UnsupportedOperationException();
-       }
+        }
 
         public int getStatus() {
             throw new UnsupportedOperationException();
