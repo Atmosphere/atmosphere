@@ -1003,13 +1003,13 @@ public class AtmosphereFramework implements ServletContextProvider {
                     className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
-                    if (WebSocketHandler.class.isAssignableFrom(clazz)) {
-                        webSocketProtocol = (WebSocketHandler) clazz.newInstance();
+                    if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
+                        webSocketProtocol = (WebSocketProtocol) clazz.newInstance();
                         InjectorProvider.getInjector().inject(webSocketProtocol);
-                        logger.info("Installed WebSocketHandler {}", webSocketProtocol);
+                        logger.info("Installed WebSocketProtocol {}", webSocketProtocol);
                     }
                 } catch (Throwable t) {
-                    logger.trace("failed to load class as an WebSocketHandler: " + className, t);
+                    logger.trace("failed to load class as an WebSocketProtocol: " + className, t);
                 }
             }
         }
