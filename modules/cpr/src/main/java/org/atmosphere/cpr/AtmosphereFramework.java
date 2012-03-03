@@ -28,6 +28,7 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
@@ -170,7 +171,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
     protected final List<String> broadcasterFilters = new ArrayList<String>();
-    protected final ArrayList<String> possibleAtmosphereHandlersCandidate = new ArrayList<String>();
+    protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
@@ -639,6 +640,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                     detectSupportedFramework(sc);
                 }
             }
+
+            autoDetectWebSocketHandler(sc.getServletContext(), urlC);
         } catch (Throwable t) {
             throw new ServletException(t);
         }
@@ -732,7 +735,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
 
-        if (atmosphereHandlers.size() == 0 && !webSocketProtocolClassName.equalsIgnoreCase(SimpleHttpProtocol.class.getName())) {
+        if (atmosphereHandlers.size() == 0 && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
                 @Override
@@ -747,6 +750,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     protected void initWebSocketProtocol() {
+        if (webSocketProtocol != null) return;
         try {
             webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProtocolClassName).newInstance();
@@ -942,7 +946,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (file.isDirectory()) {
             getFiles(file);
 
-            for (String className : possibleAtmosphereHandlersCandidate) {
+            for (String className : possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
                     className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
@@ -963,11 +967,64 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Auto detect instance of {@link org.atmosphere.websocket.WebSocketHandler} in case META-INF/atmosphere.xml
+     * is missing.
+     *
+     * @param servletContext {@link ServletContext}
+     * @param classloader    {@link URLClassLoader} to load the class.
+     * @throws java.net.MalformedURLException
+     * @throws java.net.URISyntaxException
+     */
+    public void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
+            throws MalformedURLException, URISyntaxException {
+        logger.info("Auto detecting atmosphere handlers {}", handlersPath);
+
+        String realPath = servletContext.getRealPath(handlersPath);
+
+        // Weblogic bug
+        if (realPath == null) {
+            URL u = servletContext.getResource(handlersPath);
+            if (u == null) return;
+            realPath = u.getPath();
+        }
+
+        loadWebSocketFromPath(classloader, realPath);
+    }
+
+    public void loadWebSocketFromPath(URLClassLoader classloader, String realPath) {
+        File file = new File(realPath);
+
+        if (file.isDirectory()) {
+            getFiles(file);
+
+            for (String className : possibleComponentsCandidate) {
+                try {
+                    className = className.replace('\\', '/');
+                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
+                    Class<?> clazz = classloader.loadClass(className);
+
+                    if (WebSocketHandler.class.isAssignableFrom(clazz)) {
+                        webSocketProtocol = (WebSocketHandler) clazz.newInstance();
+                        InjectorProvider.getInjector().inject(webSocketProtocol);
+                        logger.info("Installed WebSocketHandler {}", webSocketProtocol);
+                    }
+                } catch (Throwable t) {
+                    logger.trace("failed to load class as an WebSocketHandler: " + className, t);
+                }
+            }
+        }
+    }
+
+
+    /**
      * Get the list of possible candidate to load as {@link AtmosphereHandler}
      *
      * @param f the real path {@link File}
      */
     private void getFiles(File f) {
+
+        if (possibleComponentsCandidate.size() > 0) return; // We already scanned.
+
         File[] files = f.listFiles();
         for (File test : files) {
             if (test.isDirectory()) {
@@ -975,7 +1032,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             } else {
                 String clazz = test.getAbsolutePath();
                 if (clazz.endsWith(".class")) {
-                    possibleAtmosphereHandlersCandidate.add(clazz);
+                    possibleComponentsCandidate.add(clazz);
                 }
             }
         }

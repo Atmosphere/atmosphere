@@ -62,7 +62,7 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
     void onConnect(WebSocketEvent event);
 
 
-    public class WebSocketEvent {
+    public static final class WebSocketEvent {
         public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT}
         private final String message;
         private final TYPE type;
