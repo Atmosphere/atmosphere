@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-websocketprotocol-pubsub</artifactId>
+    <artifactId>atmosphere-websockethandler-pubsub</artifactId>
     <packaging>war</packaging>
     <version>0.9-SNAPSHOT</version>
-    <name>atmosphere-websocketprotocol-pubsub</name>
+    <name>atmosphere-websockethandler-pubsub</name>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

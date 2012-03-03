@@ -30,7 +30,7 @@
         <module>jquery-pubsub</module>
         <module>jquery-meteor-pubsub</module>
         <module>jquery-atmospherehandler-pubsub</module>
-        <module>jquery-websocketprotocol-pubsub</module>
+        <module>jquery-websockethandler-pubsub</module>
         <module>twitter-live-feed</module>
         <module>wicket-clock</module>
         <module>atmosphere-ee6</module>
