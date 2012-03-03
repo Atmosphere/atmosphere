@@ -2,6 +2,7 @@
 <head>
     <script type="text/javascript" src="jquery/jquery-1.6.4.js"></script>
     <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
+    <script type="text/javascript" src="jquery/jquery.list.js"></script>
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
     <script type="text/javascript">
         $(document).ready(function() {
@@ -47,8 +48,8 @@
 
                                 var i = 0;
                                 for (i = result.results.length - 1; i > -1; i--) {
-                                    $('ul').prepend($('<li></li>').text("[" + response.transport + "] " + result.results[i].from_user + " "
-                                            + result.results[i].text));
+                                    $('#result').prepend($('<li>').append($('<a>').append(result.results[i].text))).highlight(getElementById('topic').value);
+                                    $('#result').prepend($('<li>').append($('<h3>').append(result.results[i].from_user).append('</h3>')));
                                 }
                             } catch (err) {
                                 incompleteMessage = data;
@@ -75,7 +76,7 @@
 
             getElementById('connect').onclick = function(event) {
                 if (getElementById('topic').value == '') {
-                    alert("Please enter a PubSub topic to subscribe");
+                    alert("Please enter a hashtag");
                     return;
                 }
                 connect();
@@ -92,26 +93,30 @@
         });
     </script>
     <style type='text/css'>
+        body {
+            text-align: center;
+        }
+
         div {
             border: 0px solid black;
         }
 
+        .highlight {
+            background-color: yellow
+        }
+
         input#topic {
-            width: 14em;
+            width: 20em;
+            height: 3em;
+            font-size: 100%;
             background-color: #e0f0f0;
         }
 
-        div.hidden {
-            display: none;
+        ul {
+            list-style-type: none;
+            text-align: left;
         }
 
-        span.from {
-            font-weight: bold;
-        }
-
-        span.alert {
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
@@ -138,6 +143,6 @@
 
 </div>
 <h2>Real Time Twitter Search</h2>
-<ul></ul>
+<ul id="result"></ul>
 </body>
 </html>
