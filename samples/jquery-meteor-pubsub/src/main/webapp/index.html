@@ -56,12 +56,12 @@
 
                 var location = baseUrl + getElementByIdValue('topic');
                 connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { attachHeadersAsQueryString : true,
-                                                transport: getElementByIdValue('transport') });
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
                 callbackAdded = true;
             }
 
             function unsubscribe(){
+                callbackAdded = false;
                 $.atmosphere.unsubscribe();
             }
 
