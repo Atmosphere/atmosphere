@@ -46,10 +46,6 @@ public class MeteorPubSub extends HttpServlet {
         // Log all events on the console, including WebSocket events.
         m.addListener(new WebSocketEventListenerAdapter());
 
-        // In case we would have tracked instance of Meteor
-        //String trackingId = trackingId(req);
-        //meteors.put(trackingId, m);
-
         res.setContentType("text/html;charset=ISO-8859-1");
 
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
@@ -79,25 +75,6 @@ public class MeteorPubSub extends HttpServlet {
         }
     }
 
-    /**
-<<<<<<< HEAD
-=======
-     * Return the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
-     * @param req the {@link HttpServletRequest}
-     * @return  the {@link Meteor} instance associated with the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
-     */
-    String trackingId(HttpServletRequest req) {
-        String trackingId = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null ?
-                req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) : req.getParameter(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        return trackingId;
-    }
-
-    /**
->>>>>>> atmosphere-0.8.x
-     * Retrieve the {@link Broadcaster} based on the request's path info.
-     * @param pathInfo
-     * @return the {@link Broadcaster} based on the request's path info.
-     */
     Broadcaster lookupBroadcaster(String pathInfo) {
         String[] decodedPath = pathInfo.split("/");
         Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
