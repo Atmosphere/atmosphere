@@ -29,14 +29,11 @@ import java.io.IOException;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
- * Atmosphere JQuery Plugin and Atmosphere Meteor extension.
+ * Atmosphere JQuery Plugin (WebSocket, Comet) and Atmosphere Meteor extension.
  *
  * @author Jeanfrancois Arcand
  */
 public class MeteorPubSub extends HttpServlet {
-
-    // Uncomment if you want to track instance of Meteor from request to request using the HeaderConfig.X_ATMOSPHERE_TRACKING_ID header.
-    //private ConcurrentHashMap<String, Meteor> meteors = new ConcurrentHashMap<String, Meteor>();
 
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -62,15 +59,11 @@ public class MeteorPubSub extends HttpServlet {
     }
 
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        // We could have also retrived the Meteor using the tracking ID
-        //Meteor m = meteors.get(trackingId(req));
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
         String message = req.getReader().readLine();
 
         if (message != null && message.indexOf("message") != -1) {
-            // We could also have looked up the Broadcaster using the Meteor
-            // m.getBroadcaster().broadcast(message.substring("message=".length()));
             b.broadcast(message.substring("message=".length()));
         }
     }
