@@ -39,6 +39,16 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 (**) The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported, an massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
 
+#### Browse sample's code
+
+[PubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java#L76)
+[JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L30)
+[Twitter Search](https://github.com/Atmosphere/atmosphere/blob/master/samples/twitter-live-feed/src/main/java/org/atmosphere/samples/twitter/TwitterFeed.java#L41)
+[JavaScript Multi Request](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-multirequest/src/main/webapp/js/main.js#L5)
+[EJB](https://github.com/Atmosphere/atmosphere/blob/master/samples/atmosphere-ee6/src/main/java/org/jersey/devoxx/samples/ee6/atmosphere/TimerResource.java#L76)
+[AtmosphereHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-atmospherehandler-pubsub/src/main/java/org/atmosphere/samples/pubsub/AtmosphereHandlerPubSub.java#L30)
+[Meteor](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-meteor-pubsub/src/main/java/org/atmosphere/samples/pubsub/MeteorPubSub.java#L30)
+
 #### Changes logs
 [0.8.6](http://is.gd/Pi4ZPo)
 
