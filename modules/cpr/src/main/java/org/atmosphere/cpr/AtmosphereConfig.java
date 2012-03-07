@@ -71,14 +71,8 @@ public class AtmosphereConfig {
     }
 
     public String getInitParameter(String name) {
-        // First looks locally
-        String s = framework.initParams.get(name);
-        if (s != null) {
-            return s;
-        }
-
         try {
-            return framework.getServletContext().getInitParameter(name);
+            return framework.getServletConfig().getInitParameter(name);
         } catch (Throwable ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;
@@ -86,20 +80,7 @@ public class AtmosphereConfig {
     }
 
     public Enumeration<String> getInitParameterNames() {
-        // First looks locally
-        final Map<String, String> map = new HashMap<String, String>(framework.initParams);
-
-        Enumeration en = framework.getServletContext().getInitParameterNames();
-        while (en.hasMoreElements()) {
-            String name = (String) en.nextElement();
-            if (!map.containsKey(name)) {
-                map.put(name, name);
-            }
-        }
-
-        Vector<String> v = new Vector<String>(map.keySet());
-
-        return v.elements();
+        return framework().getServletConfig().getInitParameterNames();
     }
 
     public boolean isSupportSession() {

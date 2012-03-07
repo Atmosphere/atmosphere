@@ -28,7 +28,6 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
@@ -48,6 +47,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -194,7 +194,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
     protected WebSocketProtocol webSocketProtocol;
     protected String handlersPath = "/WEB-INF/classes/";
-    private ServletConfig servletConfig;
+    protected ServletConfig servletConfig;
 
     @Override
     public ServletContext getServletContext() {
@@ -428,9 +428,6 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public void init(final ServletConfig sc) throws ServletException {
         try {
-            // TODO
-            // super.init(sc);
-
             ServletContextHolder.register(this);
 
             ServletConfig scFacade = new ServletConfig() {
@@ -452,10 +449,17 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 public Enumeration<String> getInitParameterNames() {
-                    return sc.getInitParameterNames();
+                    Enumeration en = sc.getInitParameterNames();
+                    while (en.hasMoreElements()) {
+                        String name = (String) en.nextElement();
+                        if (!initParams.containsKey(name)) {
+                            initParams.put(name, name);
+                        }
+                    }
+                    return Collections.enumeration(initParams.keySet());
                 }
             };
-            this.servletConfig = sc;
+            this.servletConfig = scFacade;
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
             configureBroadcaster(sc.getServletContext());
