@@ -892,7 +892,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
@@ -926,7 +926,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource<?, ?> r");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
@@ -946,7 +946,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcastOnResume(T msg)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
@@ -979,7 +979,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource<?, ?>> subset)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
