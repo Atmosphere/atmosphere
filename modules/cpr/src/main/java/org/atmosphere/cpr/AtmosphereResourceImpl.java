@@ -165,7 +165,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
-    public synchronized void resume() {
+    public synchronized AtmosphereResource resume() {
         // We need to synchronize the method because the resume may occurs at the same time a message is published
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
@@ -179,7 +179,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     // Jetty NPE toString()
                     // Ignore
                     // Stop here as the request object as becomes invalid.
-                    return;
+                    return this;
                 }
 
                 // We need it as Jetty doesn't support timeout
@@ -229,44 +229,45 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend() {
-        suspend(-1);
+    public AtmosphereResource suspend() {
+        return suspend(-1);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout) {
-        suspend(timeout, true);
+    public AtmosphereResource suspend(long timeout) {
+        return suspend(timeout, true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout, TimeUnit timeunit) {
-        suspend(timeout, timeunit, true);
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit) {
+        return suspend(timeout, timeunit, true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
         long timeoutms = -1;
         if (timeunit != null) {
             timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
         }
 
-        suspend(timeoutms, true);
+        return suspend(timeoutms, true);
     }
 
-    public void suspend(long timeout, boolean flushComment) {
+    public AtmosphereResource suspend(long timeout, boolean flushComment) {
 
-        if (event.isSuspended()) return;
+        if (event.isSuspended()) return this;
 
         if (config.isSupportSession()
                 && req.getSession(false) != null
@@ -279,7 +280,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (req.getAttribute(DefaultBroadcaster.CACHED) != null) {
             // Do nothing because we have found cached message which was written already, and the handler resumed.
             req.removeAttribute(DefaultBroadcaster.CACHED);
-            return;
+            return this;
         }
 
         if (!event.isResumedOnTimeout()) {
@@ -349,6 +350,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             req.removeAttribute(PRE_SUSPEND);
             notifyListeners();
         }
+        return this;
     }
 
     void write() {
@@ -449,8 +451,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
-    public void setBroadcaster(Broadcaster broadcaster) {
+    public AtmosphereResource setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
+        return this;
     }
 
     /**
@@ -493,8 +496,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param s
      */
-    public void setSerializer(Serializer s) {
+    public AtmosphereResource setSerializer(Serializer s) {
         serializer = s;
+        return this;
     }
 
     public boolean isResumed(){
@@ -515,7 +519,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param o  an Object
      * @throws IOException
      */
-    public void write(OutputStream os, Object o) throws IOException {
+    public AtmosphereResource write(OutputStream os, Object o) throws IOException {
         if (o == null) throw new IllegalStateException("Object cannot be null");
 
         if (serializer != null) {
@@ -523,6 +527,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } else {
             response.getOutputStream().write(o.toString().getBytes());
         }
+        return this;
     }
 
     /**
