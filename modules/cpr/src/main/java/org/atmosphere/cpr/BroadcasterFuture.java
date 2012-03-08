@@ -137,11 +137,12 @@ public class BroadcasterFuture<E> implements Future {
     /**
      * Invoked when a {@link Broadcaster} completed it broadcast operation.
      */
-    public void done() {
+    public BroadcasterFuture<E> done() {
         isDone = true;
         if (latch != null) {
             latch.countDown();
         }
+        return this;
     }
 
     /**

@@ -897,7 +897,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         messages.offer(new Entry(newMsg, null, f, msg));
@@ -931,7 +931,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         messages.offer(new Entry(newMsg, r, f, msg));
@@ -951,7 +951,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         broadcastOnResume.offer(new Entry(newMsg, null, f, msg));
@@ -984,7 +984,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         messages.offer(new Entry(newMsg, subset, f, msg));
