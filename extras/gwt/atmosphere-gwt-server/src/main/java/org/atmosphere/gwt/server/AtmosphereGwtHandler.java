@@ -91,7 +91,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * @param r
      */
     public void doPost(List<Serializable> messages, GwtAtmosphereResource r) {
-        if (r != null && r.isAlive()) {
+        if (r != null) {
             if (messages.size() == 1) {
                 r.post(messages.get(0));
             } else {
@@ -212,7 +212,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     protected void doServerMessage(BufferedReader data, int connectionID) {
         List<Serializable> postMessages = new ArrayList<Serializable>();
         GwtAtmosphereResource resource = lookupResource(connectionID);
-        if (resource == null || !resource.isAlive()) {
+        if (resource == null) {
             return;
         }
         try {
@@ -284,7 +284,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             return null;
         }
     }
-//    
+//
 //    protected String serialize(Serializable message) throws SerializationException {
 //        ServerSerializationStreamWriter streamWriter = new ServerSerializationStreamWriter(RPCUtil.createSimpleSerializationPolicy());
 //        streamWriter.prepareToWrite();
@@ -303,16 +303,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (message == null) {
             return;
         }
-        if (resource.isAlive())
-            resource.getBroadcaster().broadcast(message);
+        resource.getBroadcaster().broadcast(message);
     }
 
     public void broadcast(List<Serializable> messages, GwtAtmosphereResource resource) {
         if (messages == null) {
             return;
         }
-        if (resource.isAlive())
-            resource.getBroadcaster().broadcast(messages);
+        resource.getBroadcaster().broadcast(messages);
     }
 
     public void disconnect(GwtAtmosphereResource resource) {
