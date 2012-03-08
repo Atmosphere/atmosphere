@@ -121,6 +121,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
         }
 
         public void resume() {
+            if ( req.getAttribute(CHANNEL) == null ) return;
             try {
                 ((AsyncIOWriter) req.getAttribute(CHANNEL) ).close();
             } catch (IOException e) {
