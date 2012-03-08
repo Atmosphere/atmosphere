@@ -73,7 +73,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * {@link AtmosphereResponse} is in the process of being resumed, invoking
      * that method has no effect.
      */
-    public void resume();
+    public AtmosphereResource resume();
 
     /**
      * Suspend the {@link AtmosphereResponse} indefinitely.
@@ -84,7 +84,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response.
      */
-    public void suspend();
+    public AtmosphereResource suspend();
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -106,7 +106,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *                resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                times out will throw an {@link IllegalStateException}.
      */
-    public void suspend(long timeout);
+    public AtmosphereResource suspend(long timeout);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -130,7 +130,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param timeunit The time unit of the timeout value
      */
 
-    public void suspend(long timeout, TimeUnit timeunit);
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -154,7 +154,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
      *                     browser working. Set it to false if you want to remove it.
      */
-    public void suspend(long timeout, boolean flushComment);
+    public AtmosphereResource suspend(long timeout, boolean flushComment);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -180,7 +180,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *                     browser working. Set it to false if you want to remove it.
      */
 
-    public void suspend(long timeout, TimeUnit timeunit, boolean flushComment);
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment);
 
     /**
      * Return the underlying {@link AtmosphereRequest} Request.
@@ -216,7 +216,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *
      * @param broadcaster
      */
-    public void setBroadcaster(Broadcaster broadcaster);
+    public AtmosphereResource setBroadcaster(Broadcaster broadcaster);
 
     /**
      * Set the {@link Serializer} to use when {@link AtmosphereResource#write}
@@ -224,7 +224,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *
      * @param s the {@link Serializer}
      */
-    public void setSerializer(Serializer s);
+    public AtmosphereResource setSerializer(Serializer s);
 
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
@@ -235,7 +235,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param o  {@link Object}
      * @throws java.io.IOException
      */
-    public void write(OutputStream os, Object o) throws IOException;
+    public AtmosphereResource write(OutputStream os, Object o) throws IOException;
 
     /**
      * Get the {@link Serializer} or null if not defined.
