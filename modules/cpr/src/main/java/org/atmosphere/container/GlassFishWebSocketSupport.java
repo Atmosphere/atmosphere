@@ -174,7 +174,8 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         public void onClose(com.sun.grizzly.websockets.WebSocket w, DataFrame df) {
             super.onClose(w, df);
             logger.debug("onClose {} ", w);
-            webSocketProcessor.close();
+            // TODO: Need to talk to Ryan about that one.
+            webSocketProcessor.close(1000);
         }
 
         @Override

@@ -23,12 +23,14 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+
+import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * Netty's Framework {@link org.atmosphere.cpr.CometSupport}
@@ -37,7 +39,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
 
     public final static String SUSPEND = NettyCometSupport.class.getName() + ".suspend";
     public final static String RESUME = NettyCometSupport.class.getName() + ".resume";
-    public final static String HOOK = NettyCometSupport.class.getName() + ".cometSupportHook";
     public final static String CHANNEL = NettyCometSupport.class.getName() + ".channel";
 
     private static final Logger logger = LoggerFactory.getLogger(NettyCometSupport.class);
@@ -58,7 +59,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
         if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             req.setAttribute(SUSPEND, action);
-            req.setAttribute(HOOK, new CometSupportHook(req,res));
+            req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook( (AtmosphereResourceImpl)req.getAttribute(ATMOSPHERE_RESOURCE)));
         } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
             req.setAttribute(SUSPEND, action);
 
@@ -85,45 +86,10 @@ public class NettyCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.isResumed() && r.getRequest().getAttribute(HOOK) != null ) {
-            ((CometSupportHook) r.getRequest().getAttribute(HOOK)).resume();
-        }
-    }
-
-    public final class CometSupportHook {
-
-        private final AtmosphereRequest req;
-        private final AtmosphereResponse res;
-
-        public CometSupportHook(AtmosphereRequest req, AtmosphereResponse res) {
-            this.req = req;
-            this.res = res;
-        }
-
-        public void closed(){
+        if (r.isResumed() && r.getRequest().getAttribute(ASYNCHRONOUS_HOOK) != null) {
+            if (r.getRequest().getAttribute(CHANNEL) == null) return;
             try {
-                cancelled(req,res);
-            } catch (IOException e) {
-                logger.debug("", e);
-            } catch (ServletException e) {
-                logger.debug("", e);
-            }
-        }
-
-        public void timedOut() {
-            try {
-                timedout(req,res);
-            } catch (IOException e) {
-                logger.debug("", e);
-            } catch (ServletException e) {
-                logger.debug("", e);
-            }
-        }
-
-        public void resume() {
-            if ( req.getAttribute(CHANNEL) == null ) return;
-            try {
-                ((AsyncIOWriter) req.getAttribute(CHANNEL) ).close();
+                ((AsyncIOWriter)r.getRequest().getAttribute(CHANNEL)).close();
             } catch (IOException e) {
                 logger.trace("", e);
             }

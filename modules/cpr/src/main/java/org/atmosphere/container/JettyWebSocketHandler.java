@@ -111,7 +111,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onDisconnect() {
         request.destroy();
         logger.trace("WebSocket.onDisconnect");
-        webSocketProcessor.close();
+        webSocketProcessor.close(1000);
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
     }
 
@@ -187,12 +187,11 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onClose(int closeCode, String message) {
-        logger.trace("WebSocket.OnClose.");
         request.destroy();
         if (webSocketProcessor == null) return;
 
         webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
-        webSocketProcessor.close();
+        webSocketProcessor.close(closeCode);
 
     }
 
