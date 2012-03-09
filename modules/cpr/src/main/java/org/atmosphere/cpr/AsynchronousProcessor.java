@@ -542,7 +542,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         public void closed() {
             try {
-                ((AsynchronousProcessor)r.cometSupport).cancelled(r.getRequest(), r.getResponse());
+                ((AsynchronousProcessor)r.cometSupport).cancelled(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
@@ -552,7 +552,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         public void timedOut() {
             try {
-                ((AsynchronousProcessor)r.cometSupport).timedout(r.getRequest(), r.getResponse());
+                ((AsynchronousProcessor)r.cometSupport).timedout(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
