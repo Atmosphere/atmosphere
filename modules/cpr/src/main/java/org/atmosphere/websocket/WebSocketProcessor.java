@@ -39,6 +39,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
+
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation. This class can be extended in order to support any protocol
@@ -94,6 +97,13 @@ public class WebSocketProcessor implements Serializable {
         if (webSocket.resource() != null && !webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
             webSocketProtocol.onError(webSocket,
                     new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
+        } else {
+            request.setAttribute(ASYNCHRONOUS_HOOK,
+                    new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource()));
+            AtmosphereFramework.Action action =  ((AtmosphereResourceImpl) webSocket.resource()).action();
+            if (action.timeout != -1) {
+
+            }
         }
     }
 
@@ -170,38 +180,21 @@ public class WebSocketProcessor implements Serializable {
         return webSocket;
     }
 
-    public void close() {
-        AtmosphereResourceImpl resource =
-                (AtmosphereResourceImpl) webSocket.resource();
+    public void close(int closeCode) {
+        logger.debug("WebSocket closed with {}", closeCode);
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         try {
             webSocketProtocol.onClose(webSocket);
 
             if (resource != null && resource.isInScope()) {
-                AtmosphereHandler handler = (AtmosphereHandler) resource.getRequest(false).getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-                AtmosphereResourceEventImpl e = new AtmosphereResourceEventImpl(resource, true, false);
-                synchronized (resource) {
-                    if (handler != null) {
-                        handler.onStateChange(e);
-                    }
-
-                    Meteor m = (Meteor) resource.getRequest().getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (m != null) {
-                        m.destroy();
-                    }
-                }
-
-                try {
-                    resource.notifyListeners(e);
-                    resource.cancel();
-                } finally {
-                    AsynchronousProcessor.destroyResource(resource);
+                AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook )
+                        resource.getRequest().getAttribute(ASYNCHRONOUS_HOOK);
+                if (closeCode == 1000) {
+                    h.timedOut();
+                } else {
+                    h.closed();
                 }
             }
-        } catch (IOException e) {
-            if (resource != null && AtmosphereResourceImpl.class.isAssignableFrom(resource.getClass())) {
-                AtmosphereResourceImpl.class.cast(resource).onThrowable(e);
-            }
-            logger.warn("Failed invoking atmosphere handler onStateChange()", e);
         } finally {
             if (resource.getRequest() != null && AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
                 AtmosphereRequest.class.cast(resource.getRequest()).destroy();

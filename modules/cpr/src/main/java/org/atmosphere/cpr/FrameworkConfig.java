@@ -101,4 +101,9 @@ public interface FrameworkConfig {
      * Current transport used
      */
     String TRANSPORT_IN_USE = AtmosphereConfig.class.getName() + ".transportUsed";
+    /**
+     *  Callback hook for Framework implementing Atmosphere support.
+     */
+    public final static String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
+
 }

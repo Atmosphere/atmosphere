@@ -9,10 +9,13 @@
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
+        <!-- WebSocket time out
         <init-param>
-            <param-name>org.atmosphere.useWebSocket</param-name>
-            <param-value>true</param-value>
+            <param-name>org.atmosphere.websocket.maxIdleTime</param-name>
+            <param-value>10000</param-value>
         </init-param>
+        -->
+
         <init-param>
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
