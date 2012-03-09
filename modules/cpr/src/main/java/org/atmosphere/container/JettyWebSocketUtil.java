@@ -96,15 +96,29 @@ public class JettyWebSocketUtil {
             bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
         }
         logger.info("WebSocket Buffer side {}", bufferSize);
-
         webSocketFactory.setBufferSize(bufferSize);
+
         int timeOut = 5 * 60000;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME) != null) {
             timeOut = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
         }
         logger.info("WebSocket idle timeout {}", timeOut);
-
         webSocketFactory.setMaxIdleTime(timeOut);
+
+        int maxTextBufferSize = 8192;
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE) != null) {
+            maxTextBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE));
+        }
+        logger.info("WebSocket maxTextBufferSize {}", maxTextBufferSize);
+        webSocketFactory.setMaxTextMessageSize(maxTextBufferSize);
+
+        int maxBinaryBufferSize = 8192;
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE) != null) {
+            maxBinaryBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE));
+        }
+        logger.info("WebSocket maxBinaryBufferSize {}", maxBinaryBufferSize);
+        webSocketFactory.setMaxBinaryMessageSize(maxBinaryBufferSize);
+
         return webSocketFactory;
     }
 }
