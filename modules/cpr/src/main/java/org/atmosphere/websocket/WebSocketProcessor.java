@@ -94,15 +94,13 @@ public class WebSocketProcessor implements Serializable {
 
         webSocketProtocol.onOpen(webSocket);
 
-        if (webSocket.resource() != null && !webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
-            webSocketProtocol.onError(webSocket,
-                    new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
-        } else {
-            request.setAttribute(ASYNCHRONOUS_HOOK,
-                    new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource()));
-            AtmosphereFramework.Action action =  ((AtmosphereResourceImpl) webSocket.resource()).action();
-            if (action.timeout != -1) {
-
+        if (webSocket.resource() != null) {
+            if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
+                webSocketProtocol.onError(webSocket,
+                        new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
+            } else {
+                request.setAttribute(ASYNCHRONOUS_HOOK,
+                        new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource()));
             }
         }
     }
