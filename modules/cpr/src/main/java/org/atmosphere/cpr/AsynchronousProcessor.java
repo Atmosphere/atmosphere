@@ -528,7 +528,11 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         return false;
     }
 
-
+    /**
+     * An Callback class that can be used by Framework integrator to handle the close/timedout/resume life cycle
+     * of an {@link AtmosphereResource}. This class support only support {@link CometSupport} implementation that
+     * extends {@link AsynchronousProcessor}
+     */
     public final static class AsynchronousProcessorHook {
 
         private final AtmosphereResourceImpl r;
