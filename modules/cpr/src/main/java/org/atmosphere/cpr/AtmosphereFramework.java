@@ -981,7 +981,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
-        logger.info("Auto detecting atmosphere handlers {}", handlersPath);
+        logger.info("Auto detecting WebSocketHandler {}", handlersPath);
 
         String realPath = servletContext.getRealPath(handlersPath);
 
