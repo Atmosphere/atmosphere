@@ -187,10 +187,14 @@ public class WebSocketProcessor implements Serializable {
             if (resource != null && resource.isInScope()) {
                 AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook )
                         resource.getRequest().getAttribute(ASYNCHRONOUS_HOOK);
-                if (closeCode == 1000) {
-                    h.timedOut();
+                if (h != null) {
+                    if (closeCode == 1000) {
+                        h.timedOut();
+                    } else {
+                        h.closed();
+                    }
                 } else {
-                    h.closed();
+                    logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                 }
             }
         } finally {
