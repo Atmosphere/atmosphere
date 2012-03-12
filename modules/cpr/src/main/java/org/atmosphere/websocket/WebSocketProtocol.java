@@ -22,8 +22,8 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import java.util.List;
 
 /**
- * A WebSocket based protocol implementation. Implement this call to process WebSocket message and dispatch it to
- * Atmosphere or any consumer of WebSocket message
+ * A WebSocket based protocol implementation. Implement this class to process WebSockets messages and dispatch it to
+ * Atmosphere or any consumer of WebSocket message.
  *
  * @author Jeanfrancois Arcand
  */
@@ -37,8 +37,8 @@ public interface WebSocketProtocol extends AsyncProtocol{
     void configure(AtmosphereConfig config);
 
     /**
-     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
-     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} will delegate the request processing
+     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#cometSupport} or
+     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereFramework#cometSupport} will delegate the request processing
      * to the {@link org.atmosphere.cpr.AtmosphereHandler} implementation. Returning null means this implementation will
      * handle itself the processing/dispatching of the WebSocket's request;
      * <br>
@@ -52,8 +52,8 @@ public interface WebSocketProtocol extends AsyncProtocol{
     List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
     /**
-     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} or
-     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereServlet#cometSupport} will delegate the request processing
+     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#cometSupport} or
+     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereFramework#cometSupport} will delegate the request processing
      * to the {@link org.atmosphere.cpr.AtmosphereHandler} implementation. Returning null means this implementation will
      * handle itself the processing/dispatching of the WebSocket's request;
      * <br>
