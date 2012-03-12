@@ -36,7 +36,6 @@ public class AtmosphereConfig {
     private final List<AtmosphereHandlerConfig> atmosphereHandler = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession = true;
-    private BroadcasterFactory broadcasterFactory;
     private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
     private final AtmosphereFramework framework;
     // for custom properties
@@ -97,11 +96,7 @@ public class AtmosphereConfig {
      * @return an instance of a {@link DefaultBroadcasterFactory}
      */
     public BroadcasterFactory getBroadcasterFactory() {
-        return broadcasterFactory;
-    }
-
-    public void setBroadcasterFactory(BroadcasterFactory broadcasterFactory) {
-        this.broadcasterFactory = broadcasterFactory;
+        return framework.getBroadcasterFactory();
     }
 
     public String getDispatcherName() {
