@@ -33,10 +33,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
@@ -58,6 +66,8 @@ public class WebSocketProcessor implements Serializable {
     private final WebSocketProtocol webSocketProtocol;
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean recycleAtmosphereRequestResponse;
+    private final boolean executeAsync;
+    private final ExecutorService asyncExecutor;
 
     public WebSocketProcessor(AtmosphereFramework framework, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
@@ -69,6 +79,86 @@ public class WebSocketProcessor implements Serializable {
             recycleAtmosphereRequestResponse = true;
         } else {
             recycleAtmosphereRequestResponse = false;
+        }
+
+        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION);
+        if (s != null && Boolean.valueOf(s)) {
+            executeAsync = true;
+            asyncExecutor = Executors.newCachedThreadPool();
+        } else {
+            executeAsync = false;
+            asyncExecutor = new ExecutorService() {
+                @Override
+                public void shutdown() {
+                }
+
+                @Override
+                public List<Runnable> shutdownNow() {
+                    return null;  
+                }
+
+                @Override
+                public boolean isShutdown() {
+                    return false;  
+                }
+
+                @Override
+                public boolean isTerminated() {
+                    return false;  
+                }
+
+                @Override
+                public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException {
+                    return false;  
+                }
+
+                @Override
+                public <T> Future<T> submit(Callable<T> tCallable) {
+                    try {
+                        tCallable.call();
+                    } catch (Exception e) {
+                        logger.trace("",e);
+                    }
+                    return null;  
+                }
+
+                @Override
+                public <T> Future<T> submit(Runnable runnable, T t) {
+                    runnable.run();
+                    return null;  
+                }
+
+                @Override
+                public Future<?> submit(Runnable runnable) {
+                    runnable.run();
+                    return null;  
+                }
+
+                @Override
+                public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> callables) throws InterruptedException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit) throws InterruptedException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public <T> T invokeAny(Collection<? extends Callable<T>> callables) throws InterruptedException, ExecutionException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public <T> T invokeAny(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit) throws InterruptedException, ExecutionException, TimeoutException {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public void execute(Runnable runnable) {
+                    runnable.run();
+                }
+            };           
         }
     }
 
@@ -109,17 +199,22 @@ public class WebSocketProcessor implements Serializable {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         if (list == null) return;
 
-        for (AtmosphereRequest r : list) {
+        for (final AtmosphereRequest r : list) {
             if (r != null) {
-                AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
-                try {
-                    dispatch(r, w);
-                } finally {
-                    if (recycleAtmosphereRequestResponse) {
-                        r.destroy();
-                        w.destroy();
+                asyncExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
+                        try {
+                            dispatch(r, w);
+                        } finally {
+                            if (recycleAtmosphereRequestResponse) {
+                                r.destroy();
+                                w.destroy();
+                            }
+                        }
                     }
-                }
+                });
             }
         }
     }
@@ -128,17 +223,22 @@ public class WebSocketProcessor implements Serializable {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
         if (list == null) return;
 
-        for (AtmosphereRequest r : list) {
+        for (final AtmosphereRequest r : list) {
             if (r != null) {
-                AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
-                try {
-                    dispatch(r, w);
-                } finally {
-                    if (recycleAtmosphereRequestResponse) {
-                        r.destroy();
-                        w.destroy();
+                asyncExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
+                        try {
+                            dispatch(r, w);
+                        } finally {
+                            if (recycleAtmosphereRequestResponse) {
+                                r.destroy();
+                                w.destroy();
+                            }
+                        }
                     }
-                }
+                });
             }
         }
     }

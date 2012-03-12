@@ -232,5 +232,9 @@ public interface ApplicationConfig {
      * Jersey's ContainerResponseWriter.
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
+    /**
+     *  Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
+     */
+    String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
 
 }
