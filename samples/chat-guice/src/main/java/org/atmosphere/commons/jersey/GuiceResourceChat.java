@@ -66,7 +66,7 @@ import javax.ws.rs.core.MultivaluedMap;
 
 @Path("/")
 @Produces("text/html;charset=ISO-8859-1")
-public class ResourceChat {
+public class GuiceResourceChat {
 
     @Suspend
     @GET

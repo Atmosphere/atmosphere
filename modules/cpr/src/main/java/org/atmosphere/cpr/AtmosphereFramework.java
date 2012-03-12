@@ -32,6 +32,7 @@ import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.font.CreatedFontTracker;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -89,25 +90,13 @@ import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 
 /**
- * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
+ * The {@link AtmosphereFramework} acts as a dispatcher for {@link AtmosphereHandler}
  * defined in META-INF/atmosphere.xml, or if atmosphere.xml is missing, all classes
  * that implements {@link AtmosphereHandler} will be discovered and mapped using
  * the class's name.
  * <p/>
- * This {@link Servlet} can be defined inside an application's web.xml using the following:
- * <blockquote><pre>
- *  &lt;servlet&gt;
- *      &lt;description&gt;AtmosphereServlet&lt;/description&gt;
- *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
- *      &lt;servlet-class&gt;org.atmosphere.cpr.AtmosphereServlet&lt;/servlet-class&gt;
- *      &lt;load-on-startup&gt;0 &lt;/load-on-startup&gt;
- *  &lt;/servlet&gt;
- *  &lt;servlet-mapping&gt;
- *      &lt;servlet-name&gt;AtmosphereServlet&lt;/servlet-name&gt;
- *      &lt;url-pattern&gt;/Atmosphere &lt;/url-pattern&gt;
- *  &lt;/servlet-mapping&gt;
  * </pre></blockquote>
- * You can force this Servlet to use native API of the Web Server instead of
+ * You can force the framework to use native API of the Web Server instead of
  * the Servlet 3.0 Async API you are deploying on by adding
  * <blockquote><pre>
  *  &lt;init-param&gt;
@@ -115,7 +104,7 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  *      &lt;param-value&gt;true&lt;/param-value&gt;
  *  &lt;/init-param&gt;
  * </pre></blockquote>
- * You can force this Servlet to use one Thread per connection instead of
+ * You can force this framework to use one Thread per connection instead of
  * native API of the Web Server you are deploying on by adding
  * <blockquote><pre>
  *  &lt;init-param&gt;
@@ -284,6 +273,14 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}
+     */
+    public AtmosphereFramework(ServletConfig sc) throws ServletException {
+        this(false);
+        init(sc);
+    }
+
+    /**
      * Create an AtmosphereFramework.
      *
      * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
@@ -313,7 +310,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param mapping The servlet mapping (servlet path)
      * @param h       implementation of an {@link AtmosphereHandler}
      */
-    public void addAtmosphereHandler(String mapping, AtmosphereHandler h) {
+    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h) {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
@@ -321,15 +318,17 @@ public class AtmosphereFramework implements ServletContextProvider {
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
         addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+        return this;
     }
 
-    private void addMapping(String path, AtmosphereHandlerWrapper w) {
+    private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
             path = path.replace("*", "[/a-zA-Z0-9-&=;\\?]+");
         }
 
         atmosphereHandlers.put(path, w);
+        return this;
     }
 
     /**
@@ -340,7 +339,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param h             implementation of an {@link AtmosphereHandler}
      * @param broadcasterId The {@link Broadcaster#getID} value.
      */
-    public void addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId) {
+    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId) {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
@@ -349,6 +348,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         w.broadcaster.setID(broadcasterId);
         addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+        return this;
     }
 
     /**
@@ -359,7 +359,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param h           implementation of an {@link AtmosphereHandler}
      * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.
      */
-    public void addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster) {
+    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster) {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
@@ -367,6 +367,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, broadcaster);
         addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+        return this;
     }
 
     /**
@@ -375,22 +376,25 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param mapping the mapping used when invoking {@link #addAtmosphereHandler(String, AtmosphereHandler)};
      * @return true if removed
      */
-    public boolean removeAtmosphereHandler(String mapping) {
-        return atmosphereHandlers.remove(mapping) == null ? false : true;
+    public AtmosphereFramework removeAtmosphereHandler(String mapping) {
+        atmosphereHandlers.remove(mapping);
+        return this;
     }
 
     /**
      * Remove all {@link AtmosphereHandler}
      */
-    public void removeAllAtmosphereHandler() {
+    public AtmosphereFramework removeAllAtmosphereHandler() {
         atmosphereHandlers.clear();
+        return this;
     }
 
     /**
      * Remove all init parameters.
      */
-    public void removeAllInitParams() {
+    public AtmosphereFramework removeAllInitParams() {
         initParams.clear();
+        return this;
     }
 
     /**
@@ -399,8 +403,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param name  The name
      * @param value The value
      */
-    public void addInitParameter(String name, String value) {
+    public AtmosphereFramework addInitParameter(String name, String value) {
         initParams.put(name, value);
+        return this;
     }
 
     protected void readSystemProperties() {
@@ -524,7 +529,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
         }
 
-        config.setBroadcasterFactory(broadcasterFactory);
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         InjectorProvider.getInjector().inject(broadcasterFactory);
 
@@ -765,7 +769,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         webSocketProtocol.configure(config);
     }
 
-    public void destroy() {
+    public AtmosphereFramework destroy() {
         if (cometSupport != null && AsynchronousProcessor.class.isAssignableFrom(cometSupport.getClass())) {
             ((AsynchronousProcessor) cometSupport).shutdown();
         }
@@ -782,7 +786,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             factory.destroy();
             BroadcasterFactory.factory = null;
         }
-
+        return this;
     }
 
     /**
@@ -882,8 +886,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param cometSupport
      */
-    public void setCometSupport(CometSupport cometSupport) {
+    public AtmosphereFramework setCometSupport(CometSupport cometSupport) {
         this.cometSupport = cometSupport;
+        return this;
     }
 
     /**
@@ -928,7 +933,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    public void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
+    protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
         logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
@@ -944,7 +949,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         loadAtmosphereHandlersFromPath(classloader, realPath);
     }
 
-    public void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
+    protected void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
         if (file.isDirectory()) {
@@ -979,7 +984,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    public void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
+    protected void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
         logger.info("Auto detecting WebSocketHandler {}", handlersPath);
 
@@ -995,7 +1000,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         loadWebSocketFromPath(classloader, realPath);
     }
 
-    public void loadWebSocketFromPath(URLClassLoader classloader, String realPath) {
+    protected void loadWebSocketFromPath(URLClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
         if (file.isDirectory()) {
@@ -1078,11 +1083,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 a = cometSupport.service(r, res);
             } else {
-                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                    return cometSupport.service(req, res);
-                } else {
-                    return cometSupport.service(AtmosphereRequest.wrap(req), res);
-                }
+                return cometSupport.service(req, res);
             }
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
@@ -1121,8 +1122,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param bccn the broadcasterClassName to set
      */
-    public void setDefaultBroadcasterClassName(String bccn) {
+    public AtmosphereFramework setDefaultBroadcasterClassName(String bccn) {
         broadcasterClassName = bccn;
+        return this;
     }
 
     /**
@@ -1141,8 +1143,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param useStreamForFlushingComments the useStreamForFlushingComments to set
      */
-    public void setUseStreamForFlushingComments(boolean useStreamForFlushingComments) {
+    public AtmosphereFramework setUseStreamForFlushingComments(boolean useStreamForFlushingComments) {
         this.useStreamForFlushingComments = useStreamForFlushingComments;
+        return this;
     }
 
     /**
@@ -1192,16 +1195,18 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param broadcasterTypeString
      */
-    public void addBroadcasterType(String broadcasterTypeString) {
+    public AtmosphereFramework addBroadcasterType(String broadcasterTypeString) {
         broadcasterTypes.add(broadcasterTypeString);
+        return this;
     }
 
     public String getWebSocketProtocolClassName() {
         return webSocketProtocolClassName;
     }
 
-    public void setWebSocketProtocolClassName(String webSocketProtocolClassName) {
+    public AtmosphereFramework setWebSocketProtocolClassName(String webSocketProtocolClassName) {
         this.webSocketProtocolClassName = webSocketProtocolClassName;
+        return this;
     }
 
     public Map<String, AtmosphereHandlerWrapper> getAtmosphereHandlers() {
