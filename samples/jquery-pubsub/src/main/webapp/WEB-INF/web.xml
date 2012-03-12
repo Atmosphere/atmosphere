@@ -15,7 +15,11 @@
             <param-value>10000</param-value>
         </init-param>
         -->
-
+        <!-- For mvn jetty:run -->
+        <init-param>
+            <param-name>com.sun.jersey.config.property.packages</param-name>
+            <param-value>org.atmosphere.samples.pubsub</param-value>
+        </init-param>
         <init-param>
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
