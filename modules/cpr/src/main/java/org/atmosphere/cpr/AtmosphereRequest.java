@@ -337,32 +337,40 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getRemoteAddr() {
-        return b.remoteAddr;
+        return b.request != null ? b.request.getRemoteAddr() : b.remoteAddr;
     }
 
     @Override
     public String getRemoteHost() {
-        return b.remoteHost;
+        return b.request != null ? b.request.getRemoteHost() : b.remoteHost;
     }
 
     @Override
     public int getRemotePort() {
-        return b.remotePort;
+        return b.request != null ? b.request.getRemotePort() : b.remotePort;
     }
 
     @Override
     public String getLocalName() {
-        return b.localName;
+        return b.request != null ? b.request.getLocalName() : b.localName;
     }
 
     @Override
     public int getLocalPort() {
-        return b.localPort;
+        return b.request != null ? b.request.getLocalPort() : b.localPort;
     }
 
     @Override
     public String getLocalAddr() {
-        return b.localAddr;
+        return b.request != null ? b.request.getLocalAddr() : b.localAddr;
+    }
+
+    /**
+     * Dispatch the request asynchronously to container. The default is false.
+     * @return true to dispatch asynchronously the request to container.
+     */
+    public boolean dispatchRequestAsynchronously(){
+        return b.dispatchRequestAsynchronously;
     }
 
     /**
@@ -433,12 +441,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String localAddr = "";
         private String localName = "";
         private int localPort = 0;
+        private boolean dispatchRequestAsynchronously;
 
         public Builder() {
         }
 
         public Builder headers(Map<String, String> headers) {
             this.headers = headers;
+            return this;
+        }
+
+        public Builder dispatchRequestAsynchronously(boolean dispatchRequestAsynchronously) {
+            this.dispatchRequestAsynchronously = dispatchRequestAsynchronously;
             return this;
         }
 
