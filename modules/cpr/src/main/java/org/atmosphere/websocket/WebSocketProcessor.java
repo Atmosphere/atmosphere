@@ -181,12 +181,14 @@ public class WebSocketProcessor implements Serializable {
     public void close(int closeCode) {
         logger.debug("WebSocket closed with {}", closeCode);
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        AtmosphereRequest r = resource.getRequest(false);
+        AtmosphereResponse s = resource.getResponse(false);
         try {
             webSocketProtocol.onClose(webSocket);
 
             if (resource != null && resource.isInScope()) {
-                AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook )
-                        resource.getRequest().getAttribute(ASYNCHRONOUS_HOOK);
+                AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
+                        r.getAttribute(ASYNCHRONOUS_HOOK);
                 if (h != null) {
                     if (closeCode == 1000) {
                         h.timedOut();
@@ -198,12 +200,12 @@ public class WebSocketProcessor implements Serializable {
                 }
             }
         } finally {
-            if (resource.getRequest() != null && AtmosphereRequest.class.isAssignableFrom(resource.getRequest().getClass())) {
-                AtmosphereRequest.class.cast(resource.getRequest()).destroy();
+            if (r != null && AtmosphereRequest.class.isAssignableFrom(r.getClass())) {
+                r.destroy();
             }
 
-            if (resource.getResponse() != null && AtmosphereResponse.class.isAssignableFrom(resource.getResponse().getClass())) {
-                AtmosphereResponse.class.cast(resource.getResponse()).destroy();
+            if (s != null && AtmosphereResponse.class.isAssignableFrom(s.getClass())) {
+                s.destroy();
             }
 
             if (webSocket != null) {
