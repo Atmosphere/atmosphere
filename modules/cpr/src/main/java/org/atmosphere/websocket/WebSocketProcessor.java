@@ -60,6 +60,7 @@ public class WebSocketProcessor implements Serializable {
     private final boolean recycleAtmosphereRequestResponse;
     private final boolean executeAsync;
     private final ExecutorService asyncExecutor;
+    private final ExecutorService voidExecutor;
 
     public WebSocketProcessor(AtmosphereFramework framework, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
@@ -80,6 +81,7 @@ public class WebSocketProcessor implements Serializable {
             executeAsync = false;
         }
         asyncExecutor = Executors.newCachedThreadPool();
+        voidExecutor = VoidExecutorService.VOID;
     }
 
     public final void dispatch(final AtmosphereRequest request) throws IOException {
@@ -117,11 +119,19 @@ public class WebSocketProcessor implements Serializable {
 
     public void invokeWebSocketProtocol(String webSocketMessage) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
+        dispatch(list);
+    }
+
+    private void dispatch(List<AtmosphereRequest> list) {
         if (list == null) return;
 
         for (final AtmosphereRequest r : list) {
             if (r != null) {
-                asyncExecutor.execute(new Runnable() {
+
+                boolean b = r.dispatchRequestAsynchronously();
+                ExecutorService s = (executeAsync || b) ? asyncExecutor : voidExecutor;
+
+                s.execute(new Runnable() {
                     @Override
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
@@ -141,26 +151,7 @@ public class WebSocketProcessor implements Serializable {
 
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        if (list == null) return;
-
-        for (final AtmosphereRequest r : list) {
-            if (r != null) {
-                asyncExecutor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
-                        try {
-                            dispatch(r, w);
-                        } finally {
-                            if (recycleAtmosphereRequestResponse) {
-                                r.destroy();
-                                w.destroy();
-                            }
-                        }
-                    }
-                });
-            }
-        }
+        dispatch(list);
     }
 
     /**
@@ -232,7 +223,8 @@ public class WebSocketProcessor implements Serializable {
                 WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
             }
         }
-        asyncExecutor.shutdownNow();
+        asyncExecutor.shutdown();
+        voidExecutor.shutdown();
     }
 
     @Override
