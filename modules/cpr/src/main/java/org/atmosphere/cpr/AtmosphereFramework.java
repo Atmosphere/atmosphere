@@ -933,7 +933,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    protected void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
+    public void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
         logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
@@ -949,7 +949,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         loadAtmosphereHandlersFromPath(classloader, realPath);
     }
 
-    protected void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
+    public void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
         if (file.isDirectory()) {
