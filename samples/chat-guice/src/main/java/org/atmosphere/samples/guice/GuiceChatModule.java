@@ -53,11 +53,12 @@
 package org.atmosphere.samples.guice;
 
 import com.google.inject.servlet.ServletModule;
+import org.atmosphere.commons.jersey.GuiceResourceChat;
 
 public class GuiceChatModule extends ServletModule {
 
     @Override
     protected void configureServlets() {
-        bind(org.atmosphere.commons.jersey.ResourceChat.class);
+        bind(GuiceResourceChat.class);
     }
 }
