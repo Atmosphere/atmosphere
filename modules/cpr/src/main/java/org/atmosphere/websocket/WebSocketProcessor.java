@@ -18,7 +18,6 @@ package org.atmosphere.websocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -27,8 +26,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.cpr.Meteor;
-import org.slf4j.Logger;
+import org.atmosphere.util.VoidExecutorService;import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
@@ -48,7 +46,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
-import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -87,78 +84,7 @@ public class WebSocketProcessor implements Serializable {
             asyncExecutor = Executors.newCachedThreadPool();
         } else {
             executeAsync = false;
-            asyncExecutor = new ExecutorService() {
-                @Override
-                public void shutdown() {
-                }
-
-                @Override
-                public List<Runnable> shutdownNow() {
-                    return null;  
-                }
-
-                @Override
-                public boolean isShutdown() {
-                    return false;  
-                }
-
-                @Override
-                public boolean isTerminated() {
-                    return false;  
-                }
-
-                @Override
-                public boolean awaitTermination(long l, TimeUnit timeUnit) throws InterruptedException {
-                    return false;  
-                }
-
-                @Override
-                public <T> Future<T> submit(Callable<T> tCallable) {
-                    try {
-                        tCallable.call();
-                    } catch (Exception e) {
-                        logger.trace("",e);
-                    }
-                    return null;  
-                }
-
-                @Override
-                public <T> Future<T> submit(Runnable runnable, T t) {
-                    runnable.run();
-                    return null;  
-                }
-
-                @Override
-                public Future<?> submit(Runnable runnable) {
-                    runnable.run();
-                    return null;  
-                }
-
-                @Override
-                public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> callables) throws InterruptedException {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit) throws InterruptedException {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public <T> T invokeAny(Collection<? extends Callable<T>> callables) throws InterruptedException, ExecutionException {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public <T> T invokeAny(Collection<? extends Callable<T>> callables, long l, TimeUnit timeUnit) throws InterruptedException, ExecutionException, TimeoutException {
-                    throw new UnsupportedOperationException();
-                }
-
-                @Override
-                public void execute(Runnable runnable) {
-                    runnable.run();
-                }
-            };           
+            asyncExecutor = VoidExecutorService.VOID;
         }
     }
 
