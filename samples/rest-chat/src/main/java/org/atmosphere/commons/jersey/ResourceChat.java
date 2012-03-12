@@ -64,7 +64,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MultivaluedMap;
 
-@Path("/chat")
+@Path("/")
 @Produces("text/html;charset=ISO-8859-1")
 public class ResourceChat {
 
