@@ -76,11 +76,10 @@ public class WebSocketProcessor implements Serializable {
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION);
         if (s != null && Boolean.valueOf(s)) {
             executeAsync = true;
-            asyncExecutor = Executors.newCachedThreadPool();
         } else {
             executeAsync = false;
-            asyncExecutor = VoidExecutorService.VOID;
         }
+        asyncExecutor = Executors.newCachedThreadPool();
     }
 
     public final void dispatch(final AtmosphereRequest request) throws IOException {
@@ -233,6 +232,7 @@ public class WebSocketProcessor implements Serializable {
                 WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
             }
         }
+        asyncExecutor.shutdownNow();
     }
 
     @Override
