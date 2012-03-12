@@ -279,13 +279,23 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         } else {
             path = req.getServletPath();
         }
-        if (path == null || path.length() <= 1) {
-            path = "/all";
+
+        if (path.isEmpty()) {
+            path = "/";
         }
 
+        // (1) First, try exact match
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
         if (atmosphereHandlerWrapper == null) {
-            atmosphereHandlerWrapper = map("/all");
+            // (2) Try with a trailing /
+            if (!path.endsWith("/")) {
+                atmosphereHandlerWrapper = map(path + "/");
+            }
+
+            // (3) Try wildcard
+            if (atmosphereHandlerWrapper == null) {
+                atmosphereHandlerWrapper = map("/all");
+            }
         }
 
         if (atmosphereHandlerWrapper == null) {

@@ -125,7 +125,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getServletPath() {
-        return b.servletPath != null ? b.servletPath : super.getServletPath();
+        return b.servletPath != "" ? b.servletPath : super.getServletPath();
     }
 
     /**
