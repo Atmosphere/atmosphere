@@ -53,8 +53,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
+    private final boolean destroyable;
 
-    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -62,9 +63,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = destroyable;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(r);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -72,6 +74,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = destroyable;
     }
 
     private AtmosphereResponse(Builder b) {
@@ -84,6 +87,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(b.writeStatusAndHeader.get());
         this.headers = b.headers;
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = b.destroyable;
     }
 
     public final static class Builder {
@@ -95,8 +99,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
+        public boolean destroyable = true;
 
         public Builder() {
+        }
+
+        public Builder destroyable(boolean isRecyclable) {
+            this.destroyable = isRecyclable;
+            return this;
         }
 
         public Builder asyncIOWriter(AsyncIOWriter asyncIOWriter) {
@@ -149,6 +159,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     public void destroy() {
+        if (!destroyable) return;
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -377,6 +388,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         } else {
             return _r().getCharacterEncoding();
         }
+    }
+
+    /**
+     * Can this object be destroyed. Default is true.
+     */
+    public boolean isDestroyable() {
+        return destroyable;
     }
 
     /**

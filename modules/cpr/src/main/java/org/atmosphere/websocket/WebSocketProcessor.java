@@ -57,7 +57,7 @@ public class WebSocketProcessor implements Serializable {
     private final WebSocket webSocket;
     private final WebSocketProtocol webSocketProtocol;
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
-    private final boolean recycleAtmosphereRequestResponse;
+    private final boolean destroyable;
     private final boolean executeAsync;
     private final ExecutorService asyncExecutor;
     private final ExecutorService voidExecutor;
@@ -69,9 +69,9 @@ public class WebSocketProcessor implements Serializable {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
         if (s != null && Boolean.valueOf(s)) {
-            recycleAtmosphereRequestResponse = true;
+            destroyable = true;
         } else {
-            recycleAtmosphereRequestResponse = false;
+            destroyable = false;
         }
 
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION);
@@ -92,12 +92,13 @@ public class WebSocketProcessor implements Serializable {
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
 
-        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request);
+        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request, destroyable);
         AtmosphereRequest r = new AtmosphereRequest.Builder()
                 .request(request)
                 .pathInfo(pathInfo)
                 .requestURI(requestURI)
                 .headers(configureHeader(request))
+                .destroyable(destroyable)
                 .build();
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
@@ -134,14 +135,12 @@ public class WebSocketProcessor implements Serializable {
                 s.execute(new Runnable() {
                     @Override
                     public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r);
+                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r, destroyable);
                         try {
                             dispatch(r, w);
                         } finally {
-                            if (recycleAtmosphereRequestResponse) {
-                                r.destroy();
-                                w.destroy();
-                            }
+                            r.destroy();
+                            w.destroy();
                         }
                     }
                 });
@@ -211,11 +210,11 @@ public class WebSocketProcessor implements Serializable {
                 }
             }
         } finally {
-            if (r != null && AtmosphereRequest.class.isAssignableFrom(r.getClass())) {
+            if (r != null) {
                 r.destroy();
             }
 
-            if (s != null && AtmosphereResponse.class.isAssignableFrom(s.getClass())) {
+            if (s != null) {
                 s.destroy();
             }
 
@@ -233,8 +232,7 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void notifyListener(WebSocketEventListener.WebSocketEvent event) {
-        AtmosphereResource resource =
-                (AtmosphereResource) webSocket.resource();
+        AtmosphereResource resource = webSocket.resource();
         if (resource == null) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);
