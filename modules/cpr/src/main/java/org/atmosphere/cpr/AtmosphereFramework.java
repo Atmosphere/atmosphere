@@ -1062,11 +1062,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
-        AtmosphereRequest r = null;
         Action a = null;
         try {
-            if (config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
-                    && (isIECandidate(req) || req.getParameter(HeaderConfig.JSONP_CALLBACK_NAME) != null)
+            if ((config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
+                    || (isIECandidate(req) || req.getParameter(HeaderConfig.JSONP_CALLBACK_NAME) != null))
                     && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
 
                 Map<String, String> headers = configureQueryStringAsRequest(req);
@@ -1075,13 +1074,11 @@ public class AtmosphereFramework implements ServletContextProvider {
                     body = null;
                 }
 
-                r = new AtmosphereRequest.Builder()
-                        .headers(headers)
-                        .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
-                        .body(body)
-                        .request(req).build();
+                req.headers(headers)
+                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
+                   .body(body);
 
-                a = cometSupport.service(r, res);
+                a = cometSupport.service(req, res);
             } else {
                 return cometSupport.service(req, res);
             }
@@ -1101,8 +1098,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw ex;
             }
         } finally {
-            if (r != null && a != null && a.type != Action.TYPE.SUSPEND) {
-                r.destroy();
+            if (req != null && a != null && a.type != Action.TYPE.SUSPEND) {
+                req.destroy();
+                res.destroy();
             }
         }
         return null;
