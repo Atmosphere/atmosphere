@@ -75,7 +75,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
-            } else {
+            } else if (b.data != null) {
                 byte[] b2 = b.data.getBytes();
                 configureStream(b2, 0, b2.length, "UTF-8");
             }
@@ -351,41 +351,65 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public HttpSession getSession() {
         return session;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public HttpSession getSession(boolean create) {
         return session;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getRemoteAddr() {
         return b.request != null ? b.request.getRemoteAddr() : b.remoteAddr;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getRemoteHost() {
         return b.request != null ? b.request.getRemoteHost() : b.remoteHost;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int getRemotePort() {
         return b.request != null ? b.request.getRemotePort() : b.remotePort;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getLocalName() {
         return b.request != null ? b.request.getLocalName() : b.localName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int getLocalPort() {
         return b.request != null ? b.request.getLocalPort() : b.localPort;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getLocalAddr() {
         return b.request != null ? b.request.getLocalAddr() : b.localAddr;
@@ -397,6 +421,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     public boolean dispatchRequestAsynchronously(){
         return b.dispatchRequestAsynchronously;
+    }
+
+    /**
+     * Can this object be destroyed. Default is true.
+     */
+    public boolean isDestroyable() {
+        return b.destroyable;
     }
 
     /**
@@ -419,6 +450,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public void destroy() {
+        if (!b.destroyable) return;
+
         b.localAttributes.clear();
         if (bis != null) {
             try {
@@ -468,8 +501,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String localName = "";
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
+        private boolean destroyable = true;
 
         public Builder() {
+        }
+
+        public Builder destroyable(boolean destroyable) {
+            this.destroyable = destroyable;
+            return this;
         }
 
         public Builder headers(Map<String, String> headers) {

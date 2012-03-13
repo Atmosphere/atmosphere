@@ -50,6 +50,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String contentType;
     private String methodType;
     private String delimiter;
+    private boolean destroyable;
 
     /**
      * {@inheritDoc}
@@ -73,6 +74,13 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             delimiter = "@@";
         }
         this.delimiter = delimiter;
+
+        String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            destroyable = true;
+        } else {
+            destroyable = false;
+        }
     }
 
     /**
@@ -103,6 +111,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .body(d)
                 .attributes(m)
                 .pathInfo(pathInfo)
+                .destroyable(destroyable)
                 .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
                 .build());
 
