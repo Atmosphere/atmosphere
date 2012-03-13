@@ -32,8 +32,15 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Wrapper around an {@link HttpServletResponse} which use an instance of {@link org.atmosphere.websocket.WebSocket}
- * as a writer.
+ * An Atmosphere's response representation. An AtmosphereResponse can be used to construct bi-directional asynchronous
+ * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
+ * suspended, this object can be used to write message back tp the client at any moment.
+ * <br/>
+ * This object can delegates the write operation to {@link AsyncIOWriter}. An {@link AsyncProtocol} can also be
+ * consulted before the bytes/string write process gets delegated to an {@link AsyncIOWriter}. If {@link org.atmosphere.cpr.AsyncProtocol#inspectResponse()}
+ * return true, the {@link org.atmosphere.cpr.AsyncProtocol#handleResponse(AtmosphereResponse, String)} will have a chance to
+ * manipulate the bytes and return a new representation. That new representation will then be delegated to an
+ * {@link AsyncIOWriter}.
  */
 public class AtmosphereResponse extends HttpServletResponseWrapper {
 
@@ -803,6 +810,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
     }
 
+    /**
+     * Wrap an {@link HttpServletResponse}
+     * @param response  {@link HttpServletResponse}
+     * @return  an {@link AtmosphereResponse}
+     */
     public final static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();
     }

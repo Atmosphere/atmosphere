@@ -50,7 +50,14 @@ import java.util.Map;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
 /**
- * An Atmosphere request representation.
+ * An Atmosphere request representation. An {@link AtmosphereRequest} is a two-way communication channel between the
+ * client and the server. If the {@link org.atmosphere.cpr.AtmosphereRequest#isDestroyable()} is set to false, or if its
+ * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moments between requests.
+ * You can use it's associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
+ * <br/>
+ * You can retrieve the AtmosphereResource can be retrieved as an attribute {@link FrameworkConfig#ATMOSPHERE_RESOURCE}.
+ *
+ * @author Jeanfrancois Arcand
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
@@ -1003,6 +1010,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    /**
+     * Wrap an {@link HttpServletRequest}.
+     * @param request {@link HttpServletRequest}
+     * @return an {@link AtmosphereRequest}
+     */
     public final static AtmosphereRequest wrap(HttpServletRequest request) {
         return new Builder().request(request).build();
     }
