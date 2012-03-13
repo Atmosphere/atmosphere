@@ -909,11 +909,10 @@ jQuery.atmosphere = function() {
                     open: function() {
                         var iframe = doc.createElement("iframe");
 
-                        if (rq.method == 'POST') {
-                            url = _attachHeaders(rq);
-                            if (rq.data != '') {
-                                url += "&X-Atmosphere-Post-Body=" + rq.data;
-                            }
+                        rq.attachHeadersAsQueryString = true;
+                        url = _attachHeaders(rq);
+                        if (rq.data != '') {
+                            url += "&X-Atmosphere-Post-Body=" + rq.data;
                         }
 
                         // Finally attach a timestamp to prevent Android and IE caching.
