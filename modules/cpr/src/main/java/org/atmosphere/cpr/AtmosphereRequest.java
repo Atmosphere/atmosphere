@@ -54,13 +54,13 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
-    private final ServletInputStream bis;
-    private final BufferedReader br;
+    private ServletInputStream bis;
+    private BufferedReader br;
     private final Map<String, String> headers;
     private final Map<String, String[]> queryStrings;
     private final String pathInfo;
     private final HttpSession session;
-    private final String methodType;
+    private String methodType;
     private final String contentType;
     private final Builder b;
 
@@ -74,26 +74,28 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
-                bis = new ByteInputStream(b.dataBytes, b.offset, b.length);
-                try {
-                    br = new BufferedReader(new StringReader(new String(b.dataBytes, b.offset, b.length, b.encoding)));
-                } catch (UnsupportedEncodingException e) {
-                    throw new RuntimeException(e);
-                }
-            } else if (b.data != null) {
-                bis = new ByteInputStream(b.data.getBytes(), 0, b.data.getBytes().length);
-                br = new BufferedReader(new StringReader(b.data));
+                configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else {
-                bis = null;
-                br = null;
+                byte[] b2 = b.data.getBytes();
+                configureStream(b2, 0, b2.length, "UTF-8");
             }
         } else {
             bis = new IS(b.inputStream);
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
+
         methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
         contentType = b.contentType == null ? (b.request != null ? b.request.getContentType() : "text/plain") : b.contentType;
         this.b = b;
+    }
+
+    private void configureStream(byte[] bytes, int offset, int length, String encoding) {
+        bis = new ByteInputStream(bytes, offset, length);
+        try {
+            br = new BufferedReader(new StringReader(new String(bytes, offset, length, encoding)));
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -193,6 +195,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getHeader(String s) {
+        return getHeader(s, true);
+    }
+
+    public String getHeader(String s, boolean checkCase) {
         String name = super.getHeader(s);
         if (name == null) {
             if (headers.get(s) != null) {
@@ -200,7 +206,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
 
             if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
-                return (String) b.request.getAttribute(s);
+                name = (String) b.request.getAttribute(s);
             }
         }
 
@@ -211,8 +217,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 return "keep-alive";
             }
         }
-        return name;
 
+        if (checkCase) {
+            return getHeader(s.toLowerCase(), false);
+        }
+
+        return name;
     }
 
     /**
@@ -279,6 +289,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public BufferedReader getReader() throws IOException {
         return br == null ? (b.request != null ? b.request.getReader() : null) : br;
+    }
+
+    protected AtmosphereRequest headers(Map<String, String> headers) {
+        headers.putAll(headers);
+        return this;
+    }
+
+    public AtmosphereRequest method(String m) {
+        methodType = m;
+        return this;
+    }
+
+    public AtmosphereRequest body(String body) {
+        byte[] b = body.getBytes();
+        configureStream(b, 0, b.length, "ISO-8859-1");
+        return this;
     }
 
     private final static class ByteInputStream extends ServletInputStream {
