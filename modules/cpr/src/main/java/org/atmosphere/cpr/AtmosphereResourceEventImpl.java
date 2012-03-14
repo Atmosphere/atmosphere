@@ -141,10 +141,12 @@ public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     protected void setCancelled(boolean isCancelled) {
+        resource.action().type = AtmosphereFramework.Action.TYPE.CANCELLED;
         this.isCancelled.set(isCancelled);
     }
 
     protected void setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+        resource.action().type = AtmosphereFramework.Action.TYPE.TIMEOUT;
         this.isResumedOnTimeout.set(isResumedOnTimeout);
     }
 
