@@ -3,7 +3,7 @@ The Atmosphere Framework has both client and server ready to use components. The
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
-To use Atmosphere, add the following dependency:
+### To use Atmosphere, add the following dependency:
 
      <dependency>
          <groupId>org.atmosphere</groupId>
@@ -12,7 +12,10 @@ To use Atmosphere, add the following dependency:
       </dependency>
 Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central.
 
-#### Get Started
+#### Getting started
+Take a look at the PubSub [Client]() [Server]() or the Chat [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/webapp/jquery/application.js#L1) [Server]() to quickly get started!
+
+#### Must read
 
    [Writing a REST over WebSocket/Comet apps using JQuery](http://jfarcand.wordpress.com/2010/06/15/using-atmospheres-jquery-plug-in-to-build-applicationsupporting-both-websocket-and-comet/)
 
