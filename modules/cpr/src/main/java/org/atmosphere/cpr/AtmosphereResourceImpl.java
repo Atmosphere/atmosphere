@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +71,7 @@ import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
@@ -160,6 +162,29 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereHandler getAtmosphereHandler() {
         return atmosphereHandler;
+    }
+
+    @Override
+    public TRANSPORT transport() {
+        if (req == null) return TRANSPORT.UNDEFINED;
+
+        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (s == null) return TRANSPORT.UNDEFINED;
+
+        s = s.replace("-","_").toUpperCase();
+        if (TRANSPORT.POOLING.name().equals(s)) {
+            return TRANSPORT.POOLING;
+        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
+            return TRANSPORT.LONG_POLLING;
+        } else if (TRANSPORT.STREAMING.name().equals(s)) {
+            return TRANSPORT.STREAMING;
+        } else if (TRANSPORT.JSONP.name().equals(s)) {
+            return TRANSPORT.JSONP;
+        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
+            return TRANSPORT.WEBSOCKET;
+        } else {
+            return TRANSPORT.UNDEFINED;
+        }
     }
 
     /**
@@ -297,6 +322,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                         }
                     }
                 }
+            }
+
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) != null && !req.getHeader(X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase("streaming")) {
+                flushComment = false;
             }
 
             if (flushComment) {

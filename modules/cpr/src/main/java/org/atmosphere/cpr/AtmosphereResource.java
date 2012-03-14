@@ -20,7 +20,7 @@
  * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
  * 
  * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
+ * General License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
  * may not use this file except in compliance with the License. You can obtain
  * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
@@ -68,12 +68,20 @@ import java.util.concurrent.TimeUnit;
  */
 public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle {
 
+    enum TRANSPORT { POOLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED}
+    
+    /**
+     * Return the current {@link TRANSPORT}. The transport value is retrieved using the {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT}
+     * header value.
+     */
+    TRANSPORT transport(); 
+    
     /**
      * Complete the {@link AtmosphereResponse} and finish/commit it. If the
      * {@link AtmosphereResponse} is in the process of being resumed, invoking
      * that method has no effect.
      */
-    public AtmosphereResource resume();
+    AtmosphereResource resume();
 
     /**
      * Suspend the {@link AtmosphereResponse} indefinitely.
@@ -84,7 +92,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * The Framework will output some HTML comments when suspending the response
      * in order to make sure all Browser works well with suspended response.
      */
-    public AtmosphereResource suspend();
+    AtmosphereResource suspend();
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -106,7 +114,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *                resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
      *                times out will throw an {@link IllegalStateException}.
      */
-    public AtmosphereResource suspend(long timeout);
+    AtmosphereResource suspend(long timeout);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -130,7 +138,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param timeunit The time unit of the timeout value
      */
 
-    public AtmosphereResource suspend(long timeout, TimeUnit timeunit);
+    AtmosphereResource suspend(long timeout, TimeUnit timeunit);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -154,7 +162,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
      *                     browser working. Set it to false if you want to remove it.
      */
-    public AtmosphereResource suspend(long timeout, boolean flushComment);
+    AtmosphereResource suspend(long timeout, boolean flushComment);
 
     /**
      * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
@@ -180,35 +188,35 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *                     browser working. Set it to false if you want to remove it.
      */
 
-    public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment);
+    AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment);
 
     /**
      * Return the underlying {@link AtmosphereRequest} Request.
      *
      * @return {@link AtmosphereRequest} the underlying Request.
      */
-    public AtmosphereRequest getRequest();
+    AtmosphereRequest getRequest();
 
     /**
      * Return the {@link AtmosphereResponse}
      *
      * @return {@link AtmosphereResponse} the underlying Response.
      */
-    public AtmosphereResponse getResponse();
+    AtmosphereResponse getResponse();
 
     /**
      * Return the {@link AtmosphereConfig}
      *
      * @return the {@link AtmosphereConfig}
      */
-    public AtmosphereConfig getAtmosphereConfig();
+    AtmosphereConfig getAtmosphereConfig();
 
     /**
      * Return the current {@link Broadcaster}
      *
      * @return the current {@link Broadcaster}
      */
-    public Broadcaster getBroadcaster();
+    Broadcaster getBroadcaster();
 
     /**
      * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}
@@ -216,7 +224,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *
      * @param broadcaster
      */
-    public AtmosphereResource setBroadcaster(Broadcaster broadcaster);
+    AtmosphereResource setBroadcaster(Broadcaster broadcaster);
 
     /**
      * Set the {@link Serializer} to use when {@link AtmosphereResource#write}
@@ -224,7 +232,7 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      *
      * @param s the {@link Serializer}
      */
-    public AtmosphereResource setSerializer(Serializer s);
+    AtmosphereResource setSerializer(Serializer s);
 
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
@@ -235,25 +243,25 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      * @param o  {@link Object}
      * @throws java.io.IOException
      */
-    public AtmosphereResource write(OutputStream os, Object o) throws IOException;
+    AtmosphereResource write(OutputStream os, Object o) throws IOException;
 
     /**
      * Get the {@link Serializer} or null if not defined.
      *
      * @return the {@link Serializer} or null if not defined.
      */
-    public Serializer getSerializer();
+    Serializer getSerializer();
 
     /**
      * Return the current {@link AtmosphereResourceEvent}.
      */
-    public AtmosphereResourceEvent getAtmosphereResourceEvent();
+    AtmosphereResourceEvent getAtmosphereResourceEvent();
 
     /**
      * Return the associated {@link AtmosphereHandler} associated with this resource.
      *
      * @return the associated {@link AtmosphereHandler} associated with this resource.
      */
-    public AtmosphereHandler getAtmosphereHandler();
+    AtmosphereHandler getAtmosphereHandler();
 
 }
