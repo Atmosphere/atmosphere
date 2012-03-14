@@ -216,16 +216,29 @@ jQuery.atmosphere = function() {
              */
             function _execute() {
                 if (_request.transport != 'websocket') {
+                    _open(_request.transport);
                     _executeRequest();
 
                 } else if (_request.transport == 'websocket') {
                     if (!_supportWebsocket()) {
                         jQuery.atmosphere.log(_request.logLevel, ["Websocket is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")"]);
+                        _open(_request.fallbackTransport);
                         _reconnectWithFallbackTransport();
                     } else {
                         _executeWebSocket();
                     }
                 }
+            }
+
+            /**
+             * @private
+             */
+            function _open(transport) {
+                _response.state = 'opening';
+                _response.status = 200;
+                _response.transport = transport;
+                _response.responseBody = "";
+                _invokeCallback();
             }
 
             /**
@@ -349,10 +362,7 @@ jQuery.atmosphere = function() {
                     }
 
                     _subscribed = true;
-                    _response.state = 'opening';
-                    _response.status = 200;
-                    _response.responseBody = "";
-                    _invokeCallback();
+                    _open("websocket");
 
                     webSocketOpened = true;
 
