@@ -63,8 +63,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream bis;
     private BufferedReader br;
-    private final Map<String, String> headers;
-    private final Map<String, String[]> queryStrings;
     private final String pathInfo;
     private final HttpSession session;
     private String methodType;
@@ -74,8 +72,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
-        headers = b.headers == null ? new HashMap<String, String>() : b.headers;
-        queryStrings = b.queryStrings == null ? new HashMap<String, String[]>() : b.queryStrings;
         session = b.request == null ?
                 new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
 
@@ -163,8 +159,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             list.add(contentType);
         }
 
-        if (headers.get(name) != null) {
-            list.add(headers.get(name));
+        if (b.headers.get(name) != null) {
+            list.add(b.headers.get(name));
         }
 
         if (b.request != null) {
@@ -195,7 +191,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
 
-        list.addAll(headers.keySet());
+        list.addAll(b.headers.keySet());
 
         return Collections.enumeration(list);
     }
@@ -208,8 +204,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public String getHeader(String s, boolean checkCase) {
         String name = super.getHeader(s);
         if (name == null) {
-            if (headers.get(s) != null) {
-                return headers.get(s);
+            if (b.headers.get(s) != null) {
+                return b.headers.get(s);
             }
 
             if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
@@ -225,7 +221,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
 
-        if (checkCase) {
+        if (name == null && checkCase) {
             return getHeader(s.toLowerCase(), false);
         }
 
@@ -239,8 +235,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public String getParameter(String s) {
         String name = super.getParameter(s);
         if (name == null) {
-            if (queryStrings.get(s) != null) {
-                return queryStrings.get(s)[0];
+            if (b.queryStrings.get(s) != null) {
+                return b.queryStrings.get(s)[0];
             }
         }
         return name;
@@ -253,17 +249,17 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public Map<String, String[]> getParameterMap() {
         Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
         for (Map.Entry<String, String[]> e : m.entrySet()) {
-            String[] s = queryStrings.get(e.getKey());
+            String[] s = b.queryStrings.get(e.getKey());
             if (s != null) {
                 String[] s1 = new String[s.length + e.getValue().length];
                 System.arraycopy(s, 0, s1, 0, s.length);
                 System.arraycopy(s1, s.length + 1, e.getValue(), 0, e.getValue().length);
-                queryStrings.put(e.getKey(), s1);
+                b.queryStrings.put(e.getKey(), s1);
             } else {
-                queryStrings.put(e.getKey(), e.getValue());
+                b.queryStrings.put(e.getKey(), e.getValue());
             }
         }
-        return Collections.unmodifiableMap(queryStrings);
+        return Collections.unmodifiableMap(b.queryStrings);
     }
 
     /**
@@ -272,8 +268,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public String[] getParameterValues(String s) {
         String[] list = super.getParameterValues(s) == null ? new String[0] : super.getParameterValues(s);
-        if (queryStrings.get(s) != null) {
-            String[] newList = queryStrings.get(s);
+        if (b.queryStrings.get(s) != null) {
+            String[] newList = b.queryStrings.get(s);
             String[] s1 = new String[list.length + newList.length];
             System.arraycopy(list, 0, s1, 0, list.length);
             System.arraycopy(s1, list.length, newList, 0, newList.length);
@@ -356,6 +352,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b.request != null) {
             b.request.removeAttribute(name);
         }
+    }
+
+    public Map<String,Object> attributes() {
+        return b.localAttributes;
     }
 
     /**
@@ -474,8 +474,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
 
-        headers.clear();
-        queryStrings.clear();
+        b.headers.clear();
+        b.queryStrings.clear();
 
         // Help GC
         if (b.request != null) {
@@ -494,8 +494,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String methodType;
         private String contentType;
         private String data;
-        private Map<String, String> headers;
-        private Map<String, String[]> queryStrings;
+        private Map<String, String> headers = new HashMap<String, String>();
+        private Map<String, String[]> queryStrings = new HashMap<String, String[]>();
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
