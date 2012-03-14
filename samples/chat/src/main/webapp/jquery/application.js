@@ -1,90 +1,83 @@
-var count = 0;
-var app = {
-    url: document.location.toString() + 'ChatAtmosphereHandler',
-    initialize: function() {
-        $('login-name').focus();
-        app.listen();
-    },
-    listen: function() {
-        $('comet-frame').src = app.url + '?' + count;
-        count ++;
-    },
-    login: function() {
-        var name = $F('login-name');
-        if (! name.length > 0) {
-            $('system-message').style.color = 'red';
-            $('login-name').focus();
-            return;
+$(function () {
+    "use strict";
+
+    var content = $('#content');
+    var input = $('#input');
+    var status = $('#status');
+    var myName = false;
+    var author = null;
+    var logged = false;
+    var callback = function callback(response) {
+        // Websocket events.
+        $.atmosphere.log('info', ["response.state: " + response.state]);
+        $.atmosphere.log('info', ["response.transport: " + response.transport]);
+        $.atmosphere.log('info', ["response.status: " + response.status]);
+
+        if (response.transport != 'polling') {
+
+            switch (response.state) {
+                case "messageReceived" :
+                    var message = response.responseBody;
+                    try {
+                        var json = JSON.parse(message);
+                    } catch (e) {
+                        console.log('This doesn\'t look like a valid JSON: ', message.data);
+                        return;
+                    }
+
+                    if (!logged) {
+                        logged = true;
+                        status.text(myName + ': ').css('color', 'blue');
+                        input.removeAttr('disabled').focus();
+                    } else {
+                        input.removeAttr('disabled');
+
+                        var me = json.author == author;
+                        addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(json.time));
+                    }
+
+                    break;
+                case "opening" :
+                    input.removeAttr('disabled').focus();
+                    status.text('Choose name:');
+                    break;
+                case "error" :
+                    content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
+                        + 'connection or the server is down' }));
+
+            }
         }
-        $('system-message').style.color = '#2d2b3d';
-        $('system-message').innerHTML = name + ':';
 
-        $('login-button').disabled = true;
-        $('login-form').style.display = 'none';
-        $('message-form').style.display = '';
+    }
 
-        var query =
-                'action=login' +
-                        '&name=' + encodeURI($F('login-name'));
-        new Ajax.Request(app.url, {
-            postBody: query,
-            onSuccess: function() {
-                $('message').focus();
+    var connection = $.atmosphere.subscribe(document.location.toString() + 'chat',
+        callback,
+        $.atmosphere.request = { logLevel : 'debug', transport : 'websocket' , fallbackTransport: 'long-polling'})
+
+    input.keydown(function(e) {
+        if (e.keyCode === 13) {
+            var msg = $(this).val();
+
+            // First message is always the author's name
+            if (author == null) {
+                author = msg;
             }
-        });
-    },
-    post: function() {
-        var message = $F('message');
-        if (!message > 0) {
-            return;
+
+            connection.push(JSON.stringify({ author: author, message: msg }));
+            $(this).val('');
+
+            input.attr('disabled', 'disabled');
+            if (myName === false) {
+                myName = msg;
+            }
         }
-        $('message').disabled = true;
-        $('post-button').disabled = true;
+    });
 
-        var query =
-                'action=post' +
-                        '&name=' + encodeURI($F('login-name')) +
-                        '&message=' + encodeURI(message);
-        new Ajax.Request(app.url, {
-            postBody: query,
-            onComplete: function() {
-                $('message').disabled = false;
-                $('post-button').disabled = false;
-                $('message').focus();
-                $('message').value = '';
-            }
-        });
-    },
-    update: function(data) {
-        var p = document.createElement('p');
-        p.innerHTML = data.name + ':<br/>' + data.message;
-
-        $('display').appendChild(p);
-
-        new Fx.Scroll('display').down();
+    function addMessage(author, message, color, datetime) {
+        content.append('<p><span style="color:' + color + '">' + author + '</span> @ ' +
+            + (datetime.getHours() < 10 ? '0' + datetime.getHours() : datetime.getHours()) + ':'
+            + (datetime.getMinutes() < 10 ? '0' + datetime.getMinutes() : datetime.getMinutes())
+            + ': ' + message + '</p>');
     }
-};
-var rules = {
-    '#login-name': function(elem) {
-        Event.observe(elem, 'keydown', function(e) {
-            if (e.keyCode == 13) {
-                $('login-button').focus();
-            }
-        });
-    },
-    '#login-button': function(elem) {
-        elem.onclick = app.login;
-    },
-    '#message': function(elem) {
-        Event.observe(elem, 'keydown', function(e) {
-            if (e.shiftKey && e.keyCode == 13) {
-                $('post-button').focus();
-            }
-        });
-    },
-    '#post-button': function(elem) {
-        elem.onclick = app.post;
-    }
-};
-Behaviour.addLoadEvent(app.initialize);
-Behaviour.register(rules);
+});
+

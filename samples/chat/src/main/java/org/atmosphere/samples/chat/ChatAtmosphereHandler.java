@@ -57,158 +57,77 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.plugin.jgroups.JGroupsFilter;
-import org.atmosphere.util.XSSHtmlFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Date;
 
 /**
  * Simple AtmosphereHandler that implement the logic to build a Chat application.
  *
  * @author Jeanfrancois Arcand
- * @author TAKAI Naoto (original author for the Comet based Chat).
  */
 public class ChatAtmosphereHandler implements AtmosphereHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
+    @Override
+    public void onRequest(AtmosphereResource r) throws IOException {
 
-    private final static String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
-    private final static String END_SCRIPT_TAG = "</script>\n";
-    private final static long serialVersionUID = -2919167206889576860L;
+        AtmosphereRequest req = r.getRequest();
 
-    private final static String CLUSTER = "org.atmosphere.useCluster";
-
-    private AtomicBoolean filterAdded = new AtomicBoolean(false);
-
-    public ChatAtmosphereHandler() {
-    }
-
-    /**
-     * When the {@link AtmosphereServlet} detect an {@link HttpServletRequest}
-     * maps to this {@link AtmosphereHandler}, the  {@link AtmosphereHandler#onRequest}
-     * gets invoked and the response will be suspended depending on the http
-     * method, e.g. GET will suspend the connection, POST will broadcast chat
-     * message to suspended connection.
-     *
-     * @param event An {@link AtmosphereResource}
-     * @throws java.io.IOException
-     */
-    public void onRequest(AtmosphereResource event) throws IOException {
-
-        AtmosphereRequest req = event.getRequest();
-        AtmosphereResponse res = event.getResponse();
-
-        res.setContentType("text/html;charset=ISO-8859-1");
+        // First, tell Atmosphere to allow bi-directional communication by suspending.
         if (req.getMethod().equalsIgnoreCase("GET")) {
-            event.suspend();
-
-            Broadcaster bc = event.getBroadcaster();
-            String clusterType = event.getAtmosphereConfig().getInitParameter(CLUSTER);
-            if (!filterAdded.getAndSet(true) && clusterType != null) {
-                if (clusterType.equals("jgroups")) {
-                    event.getAtmosphereConfig().getServletContext().log("JGroupsFilter enabled");
-                    bc.getBroadcasterConfig().addFilter(
-                            new JGroupsFilter(bc));
-                }
-            }
-
-            //Simple Broadcast
-            bc.getBroadcasterConfig().addFilter(new XSSHtmlFilter());
-            Future<String> f = bc.broadcast(event.getAtmosphereConfig().getWebServerName()
-                    + "**has suspended a connection from "
-                    + req.getRemoteAddr());
-
-            try {
-                // Wait for the push to occurs. This is blocking a thread as the Broadcast operation
-                // is usually asynchronous, e.g executed using an {@link ExecuturService}
-                f.get();
-            } catch (InterruptedException ex) {
-                logger.error("", ex);
-            } catch (ExecutionException ex) {
-                logger.error("", ex);
-            }
-
-            // Ping the connection every 30 seconds
-            bc.scheduleFixedBroadcast(req.getRemoteAddr() + "**is still listening", 30, TimeUnit.SECONDS);
-
-            // Delay a message until the next broadcast.
-            bc.delayBroadcast("Delayed Chat message");
+            // We are using HTTP long-polling with an invite timeout
+            r.suspend();
+        // Second, broadcast message to all connected users.
         } else if (req.getMethod().equalsIgnoreCase("POST")) {
-            String action = req.getParameterValues("action")[0];
-            String name = req.getParameterValues("name")[0];
-
-            if ("login".equals(action)) {
-                req.getSession().setAttribute("name", name);
-                event.getBroadcaster().broadcast("System Message from "
-                        + event.getAtmosphereConfig().getWebServerName() + "**" + name + " has joined.");
-
-            } else if ("post".equals(action)) {
-                String message = req.getParameterValues("message")[0];
-                event.getBroadcaster().broadcast(name + "**" + message);
-            } else {
-                res.setStatus(422);
-            }
-            res.getWriter().write("success");
-            res.getWriter().flush();
+            r.getBroadcaster().broadcast(req.getReader().readLine().trim());
         }
     }
 
-    /**
-     * Invoked when a call to {@link Broadcaster#broadcast(java.lang.Object)} is
-     * issued or when the response times out, e.g whne the value
-     * {@link AtmosphereResource#suspend(long)}
-     * expires.
-     *
-     * @param event An {@link AtmosphereResourceEvent}
-     * @throws java.io.IOException
-     */
+    @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        AtmosphereResource r = event.getResource();
+        AtmosphereResponse res = r.getResponse();
 
-        HttpServletRequest req = event.getResource().getRequest();
-        HttpServletResponse res = event.getResource().getResponse();
+        if (event.isSuspended()) {
+            String body = event.getMessage().toString();
 
-        if (event.getMessage() == null) return;
+            // Simple JSON -- Use Jackson for more complex structure
+            // Message looks like { "author" : "foo", "message" : "bar" }
+            String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);
+            String message = body.substring(body.lastIndexOf(":") + 2, body.length() - 2);
 
-        String e = event.getMessage().toString();
-
-        String name = e;
-        String message = "";
-
-        if (e.indexOf("**") > 0) {
-            name = e.substring(0, e.indexOf("**"));
-            message = e.substring(e.indexOf("**") + 2);
+            res.getWriter().write(new Data(author, message).toString());
+            switch (r.transport()) {
+                case JSONP:
+                case LONG_POLLING:
+                    event.getResource().resume();
+                    break;
+                case WEBSOCKET :
+                case STREAMING:
+                    res.getWriter().flush();
+                    break;
+            }
+        } else if (!event.isResuming()){
+            event.getResource().getBroadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
         }
-
-        String msg = BEGIN_SCRIPT_TAG + toJsonp(name, message) + END_SCRIPT_TAG;
-
-        if (event.isCancelled()) {
-            event.getResource().getBroadcaster()
-                    .broadcast(req.getSession().getAttribute("name") + " has left");
-        } else if (event.isResuming() || event.isResumedOnTimeout()) {
-            String script = "<script>window.parent.app.listen();\n</script>";
-
-            res.getWriter().write(script);
-        } else {
-            res.getWriter().write(msg);
-        }
-        res.getWriter().flush();
     }
 
-    private String toJsonp(String name, String message) {
-        return "window.parent.app.update({ name: \"" + name + "\", message: \""
-                + message + "\" });\n";
-    }
-
+    @Override
     public void destroy() {
+    }
+
+    private final static class Data {
+
+        private final String text;
+        private final String author;
+
+        public Data(String author, String text) {
+            this.author = author;
+            this.text = text;
+        }
+
+        public String toString() {
+            return "{ \"text\" : \"" + text + "\", \"author\" : \"" + author + "\" , \"time\" : " + new Date().getTime() + "}";
+        }
     }
 }
