@@ -101,6 +101,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
         Map<String,Object> m = new HashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+        // Propagate the original attribute to WebSocket message.
+        m.putAll(resource.getRequest().attributes());
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
