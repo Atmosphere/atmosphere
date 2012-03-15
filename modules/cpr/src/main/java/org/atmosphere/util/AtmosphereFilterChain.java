@@ -168,6 +168,8 @@ public final class AtmosphereFilterChain implements FilterChain {
         try {
             if (servlet != null) {
                 servlet.service(request, response);
+            } else {
+                throw new ServletException("No Servlet Defined");
             }
 
         } catch (IOException e) {

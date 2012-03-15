@@ -128,7 +128,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
         logger.trace("WebSocket.onControl.");
-        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {

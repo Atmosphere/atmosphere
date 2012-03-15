@@ -79,17 +79,17 @@ public class MeteorServlet extends AtmosphereServlet {
     }
 
     public MeteorServlet(boolean isFilter) {
-        super(isFilter);
+        super(isFilter, false);
     }
 
     @Override
     public void init(final ServletConfig sc) throws ServletException {
         super.init(sc);
 
-        String servletClass = sc.getInitParameter(SERVLET_CLASS);
-        String mapping = sc.getInitParameter(MAPPING);
-        String filterClass = sc.getInitParameter(FILTER_CLASS);
-        String filterName = sc.getInitParameter(FILTER_NAME);
+        String servletClass = framework().getAtmosphereConfig().getInitParameter(SERVLET_CLASS);
+        String mapping = framework().getAtmosphereConfig().getInitParameter(MAPPING);
+        String filterClass = framework().getAtmosphereConfig().getInitParameter(FILTER_CLASS);
+        String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
 
         ReflectorServletProcessor r = new ReflectorServletProcessor();
         r.setServletClassName(servletClass);
@@ -99,7 +99,7 @@ public class MeteorServlet extends AtmosphereServlet {
         if (mapping == null) {
             mapping = "/*";
         }
-        framework.addAtmosphereHandler(mapping, r);
+        framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
     }
 
     @Override

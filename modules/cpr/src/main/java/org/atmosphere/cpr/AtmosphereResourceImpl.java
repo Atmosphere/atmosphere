@@ -53,12 +53,12 @@
 package org.atmosphere.cpr;
 
 import static org.atmosphere.cpr.AtmosphereFramework.Action;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -99,7 +99,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean useWriter = true;
     private boolean isResumed = false;
     private boolean isCancelled = false;
-
+    private boolean resumeOnBroadcast = false;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -164,6 +164,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return atmosphereHandler;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public TRANSPORT transport() {
         if (req == null) return TRANSPORT.UNDEFINED;
@@ -171,9 +174,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (s == null) return TRANSPORT.UNDEFINED;
 
-        s = s.replace("-","_").toUpperCase();
-        if (TRANSPORT.POOLING.name().equals(s)) {
-            return TRANSPORT.POOLING;
+        s = s.replace("-", "_").toUpperCase();
+        if (TRANSPORT.POLLING.name().equals(s)) {
+            return TRANSPORT.POLLING;
         } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
             return TRANSPORT.LONG_POLLING;
         } else if (TRANSPORT.STREAMING.name().equals(s)) {
@@ -185,6 +188,33 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } else {
             return TRANSPORT.UNDEFINED;
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast) {
+        this.resumeOnBroadcast = resumeOnBroadcast;
+        // For legacy reason
+        req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, resumeOnBroadcast);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isSuspended() {
+        return event.isSuspended();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean resumeOnBroadcast() {
+        return resumeOnBroadcast;
     }
 
     /**
@@ -530,11 +560,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    public boolean isResumed(){
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isResumed() {
         return isResumed;
     }
 
-    protected boolean isCancelled(){
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isCancelled() {
         return isCancelled;
     }
 

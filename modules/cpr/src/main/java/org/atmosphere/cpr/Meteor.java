@@ -201,6 +201,26 @@ public class Meteor {
     }
 
     /**
+     * Resume the Meteor after the first broadcast operation. This is useful when long-polling is used.
+     * @param resumeOnBroadcast
+     * @return this
+     */
+    public Meteor resumeOnBroadcast(boolean resumeOnBroadcast) {
+        r.resumeOnBroadcast(resumeOnBroadcast);
+        return this;
+    }
+
+    /**
+     * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be
+     * explicitly set by the client by adding the appropriate {@link HeaderConfig.X_ATMOSPHERE_TRANSPORT} value,
+     * which can be long-polling, streaming, websocket or jsonp.
+     * @return
+     */
+    public AtmosphereResource.TRANSPORT transport() {
+        return r.transport();
+    }
+
+    /**
      * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
      * suspend the response forever.
      *
@@ -340,9 +360,11 @@ public class Meteor {
      *
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
-    public void addListener(AtmosphereResourceEventListener e) {
-        if (destroyed()) return;
-        r.addEventListener(e);
+    public Meteor addListener(AtmosphereResourceEventListener e) {
+        if (!destroyed()) {
+            r.addEventListener(e);
+        }
+        return this;
     }
 
     /**
@@ -352,9 +374,11 @@ public class Meteor {
      *
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
-    public void removeListener(AtmosphereResourceEventListener e) {
-        if (destroyed()) return;
-        r.removeEventListener(e);
+    public Meteor removeListener(AtmosphereResourceEventListener e) {
+        if (!destroyed()){
+            r.removeEventListener(e);
+        }
+        return this;
     }
 
     /**

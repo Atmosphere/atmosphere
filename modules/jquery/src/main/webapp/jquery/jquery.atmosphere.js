@@ -1101,9 +1101,25 @@ jQuery.atmosphere = function() {
             function _getPushRequest(message) {
             	var msg = _getStringMessage(message);
 
-                var rq = _request;
-                rq.data = msg;
-                rq.method = 'POST';
+                var rq = {
+                    connected: false,
+                    timeout: 60000,
+                    method: 'POST',
+                    url: _request.url,
+                    contentType : _request.contentType,
+                    headers: {},
+                    cache: true,
+                    async: true,
+                    ifModified: false,
+                    callback: null,
+                    dataType: '',
+                    data : msg,
+                    suspend : false,
+                    maxRequest : 60,
+                    logLevel : 'info',
+                    requestCount : 0,
+                    transport: 'polling'
+                };
 
                 return rq;
             }

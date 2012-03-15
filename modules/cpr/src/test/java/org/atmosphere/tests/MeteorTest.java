@@ -136,7 +136,7 @@ public class MeteorTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = org.atmosphere.tests.BaseTest.TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
+        int port = org.atmosphere.tests.BaseTest.TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", 8080);
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new Server(port);
