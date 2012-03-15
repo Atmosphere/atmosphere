@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
@@ -13,6 +14,12 @@
     <name>atmosphere-meteor-chat</name>
     <url>http://maven.apache.org</url>
     <dependencies>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-jquery</artifactId>
+            <version>${project.version}</version>
+            <type>war</type>
+        </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>

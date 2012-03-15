@@ -15,38 +15,26 @@
  */
 package org.atmosphere.samples.chat;
 
-import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.Meteor;
-import org.atmosphere.util.XSSHtmlFilter;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Date;
+
+import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
 
 /**
  * Simple Servlet that implement the logic to build a Chat application using
  * a {@link Meteor} to suspend and broadcast chat message.
  *
  * @author Jeanfrancois Arcand
- * @autor TAKAI Naoto (Orginial author for the Comet based Chat).
  */
 public class MeteorChat extends HttpServlet {
-
-    private final static long serialVersionUID = -2919167206889576860L;
-
-    /**
-     * List of {@link BroadcastFilter}
-     */
-    private final List<BroadcastFilter> list;
-
-    public MeteorChat() {
-        list = new LinkedList<BroadcastFilter>();
-        list.add(new XSSHtmlFilter());
-        list.add(new JsonpFilter());
-    }
 
     /**
      * Create a {@link Meteor} and use it to suspend the response.
@@ -56,48 +44,42 @@ public class MeteorChat extends HttpServlet {
      */
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        Meteor m = Meteor.build(req, list, null);
-
-        // Log all events on the concole.
-        m.addListener(new EventsLogger());
-
+        // Set the logger level to TRACE to see what's happening.
+        Meteor m = Meteor.build(req).addListener(new AtmosphereResourceEventListenerAdapter());
         req.getSession().setAttribute("meteor", m);
 
-        res.setContentType("text/html;charset=ISO-8859-1");
-
-        m.suspend(-1);
-        m.broadcast(req.getServerName() + "__has suspended a connection from " + req.getRemoteAddr());
+        m.resumeOnBroadcast(m.transport() == LONG_POLLING ? true : false).suspend(-1);
     }
 
     /**
-     * Re-use the {@link Meteor} created onthe first GET for broadcasting message.
+     * Re-use the {@link Meteor} created on the first GET for broadcasting message.
      *
      * @param req An {@link HttpServletRequest}
      * @param res An {@link HttpServletResponse}
      */
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        Meteor m = (Meteor) req.getSession().getAttribute("meteor");
-        res.setCharacterEncoding("UTF-8");
-        String action = req.getParameterValues("action")[0];
-        String name = req.getParameterValues("name")[0];
+        String body = req.getReader().readLine().trim();
 
-        if ("login".equals(action)) {
-            req.getSession().setAttribute("name", name);
-            m.broadcast("System Message from " + req.getServerName() + "__" + name + " has joined.");
-            res.getWriter().write("success");
-            res.getWriter().flush();
-        } else if ("post".equals(action)) {
-            String message = req.getParameterValues("message")[0];
-            m.broadcast(name + "__" + message);
-            res.getWriter().write("success");
-            res.getWriter().flush();
-        } else {
-            res.setStatus(422);
-
-            res.getWriter().write("success");
-            res.getWriter().flush();
-        }
+        // Simple JSON -- Use Jackson for more complex structure
+        // Message looks like { "author" : "foo", "message" : "bar" }
+        String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);
+        String message = body.substring(body.lastIndexOf(":") + 2, body.length() - 2);
+        BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "/*").broadcast(new Data(author, message).toString());
     }
 
+    private final static class Data {
+
+        private final String text;
+        private final String author;
+
+        public Data(String author, String text) {
+            this.author = author;
+            this.text = text;
+        }
+
+        public String toString() {
+            return "{ \"text\" : \"" + text + "\", \"author\" : \"" + author + "\" , \"time\" : " + new Date().getTime() + "}";
+        }
+    }
 }

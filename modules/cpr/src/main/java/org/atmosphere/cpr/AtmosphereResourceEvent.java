@@ -58,8 +58,8 @@ import java.io.OutputStream;
 /**
  * An AtmosphereResourceEvent is created every time an event occurs like when a
  * {@link Broadcaster#broadcast(java.lang.Object)} is executed, when a Browser close
- * remotly close the connection or when a suspended times out or gets resumed. When
- * such events occcurs, an instance of that class will be created and its associated
+ * remotely close the connection or when a suspended times out or gets resumed. When
+ * such events occurs, an instance of that class will be created and its associated
  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}
  * will be invoked.
  *

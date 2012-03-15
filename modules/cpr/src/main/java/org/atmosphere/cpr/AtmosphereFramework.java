@@ -184,6 +184,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected WebSocketProtocol webSocketProtocol;
     protected String handlersPath = "/WEB-INF/classes/";
     protected ServletConfig servletConfig;
+    protected boolean autoDetectHandlers = true;
 
     @Override
     public ServletContext getServletContext() {
@@ -269,14 +270,14 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Create an AtmosphereFramework.
      */
     public AtmosphereFramework() {
-        this(false);
+        this(false, true);
     }
 
     /**
      * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}
      */
     public AtmosphereFramework(ServletConfig sc) throws ServletException {
-        this(false);
+        this(false, true);
         init(sc);
     }
 
@@ -285,8 +286,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
      */
-    public AtmosphereFramework(boolean isFilter) {
+    public AtmosphereFramework(boolean isFilter, boolean autoDetectHandlers) {
         this.isFilter = isFilter;
+        this.autoDetectHandlers = autoDetectHandlers;
         readSystemProperties();
         populateBroadcasterType();
         config = new AtmosphereConfig(this);
@@ -476,11 +478,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             cometSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
 
-
-            logger.info("Using broadcaster class: {}", broadcasterClassName);
+            logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
-            logger.error("failed to initialize atmosphere framework", t);
+            logger.error("Failed to initialize Atmosphere Framework", t);
 
             if (t instanceof ServletException) {
                 throw (ServletException) t;
@@ -634,6 +635,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public void loadConfiguration(ServletConfig sc) throws ServletException {
+
+        if (!autoDetectHandlers) return;
+
         try {
             URL url = sc.getServletContext().getResource(handlersPath);
             URLClassLoader urlC = new URLClassLoader(new URL[]{url},

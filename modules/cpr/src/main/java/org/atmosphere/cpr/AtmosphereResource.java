@@ -68,14 +68,43 @@ import java.util.concurrent.TimeUnit;
  */
 public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle {
 
-    enum TRANSPORT { POOLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED}
-    
+    enum TRANSPORT {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED}
+
     /**
      * Return the current {@link TRANSPORT}. The transport value is retrieved using the {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT}
      * header value.
      */
-    TRANSPORT transport(); 
-    
+    TRANSPORT transport();
+
+    /**
+     * Set to true to resume the response once after the first broadcast. False by default.
+     * @param resumeOnBroadcast
+     */
+    AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast);
+
+    /**
+     * Return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
+     * @return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
+     */
+    boolean isSuspended();
+
+    /**
+     * Return the is the {@link org.atmosphere.cpr.AtmosphereResource#resumeOnBroadcast()}
+     */
+    boolean resumeOnBroadcast();
+
+    /**
+     * Return true if this object has been resumed.
+     * @return true if this object has been resumed.
+     */
+    boolean isResumed();
+
+    /**
+     * Return true if this object has been cancelled.
+     * @return true if this object has been cancelled.
+     */
+    boolean isCancelled();
+
     /**
      * Complete the {@link AtmosphereResponse} and finish/commit it. If the
      * {@link AtmosphereResponse} is in the process of being resumed, invoking

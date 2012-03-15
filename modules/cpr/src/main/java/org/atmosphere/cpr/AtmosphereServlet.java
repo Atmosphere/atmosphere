@@ -173,7 +173,16 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
      */
     public AtmosphereServlet(boolean isFilter) {
-        framework = new AtmosphereFramework(isFilter);
+        this(isFilter, true);
+    }
+
+    /**
+     * Create an Atmosphere Servlet.
+     *
+     * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
+     */
+    public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
+        framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
     }
 
     @Override
