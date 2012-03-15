@@ -19,7 +19,6 @@ import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.container.version.JettyWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -27,7 +26,6 @@ import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpSession;
 import java.io.UnsupportedEncodingException;
@@ -58,7 +56,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     private final AtmosphereFramework framework;
     private WebSocketProtocol webSocketProtocol;
 
-    public JettyWebSocketHandler(HttpServletRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
+    public JettyWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
         this.request = new JettyRequestFix(request);
         this.framework = framework;
         this.webSocketProtocol = webSocketProtocol;
@@ -130,6 +128,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
         logger.trace("WebSocket.onControl.");
+        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
         try {
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocket()));
         } catch (UnsupportedEncodingException e) {
@@ -213,7 +212,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         private final String serverName;
         private final int serverPort;
 
-        public JettyRequestFix(HttpServletRequest request) {
+        public JettyRequestFix(AtmosphereRequest request) {
             super(request);
             this.servletPath = request.getServletPath();
             this.contextPath = request.getContextPath();
