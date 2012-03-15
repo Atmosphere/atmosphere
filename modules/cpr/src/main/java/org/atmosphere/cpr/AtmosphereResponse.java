@@ -354,6 +354,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * {@inheritDoc}
      */
     public String getHeader(String name) {
+        if (name.equalsIgnoreCase("content-type")) {
+            String s = headers.get("Content-Type");
+            return s == null ? contentType : s;
+        }
         return headers.get(name);
     }
 
@@ -362,7 +366,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public Collection<String> getHeaders(String name) {
         ArrayList<String> s = new ArrayList<String>();
-        s.add(headers.get(name));
+        String h;
+        if (name.equalsIgnoreCase("content-type")) {
+            h = headers.get("Content-Type");
+        } else {
+            h = headers.get(name);
+        }
+        s.add(h);
         return Collections.unmodifiableList(s);
     }
 
