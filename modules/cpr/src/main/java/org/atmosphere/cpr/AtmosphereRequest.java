@@ -66,7 +66,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final String pathInfo;
     private final HttpSession session;
     private String methodType;
-    private final String contentType;
     private final Builder b;
 
     private AtmosphereRequest(Builder b) {
@@ -88,7 +87,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
-        contentType = b.contentType == null ? (b.request != null ? b.request.getContentType() : "text/plain") : b.contentType;
         this.b = b;
     }
 
@@ -122,7 +120,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getContentType() {
-        return contentType;
+        return b.contentType != null ? b.contentType : super.getContentType();
     }
 
     /**
@@ -156,17 +154,20 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public Enumeration getHeaders(String name) {
         ArrayList list = Collections.list(super.getHeaders(name));
         if (name.equalsIgnoreCase("content-type")) {
-            list.add(contentType);
-        }
+            String s = getContentType();
+            if (s != null) {
+                list.add(s);
+            }
+        } else {
+            if (b.headers.get(name) != null) {
+                list.add(b.headers.get(name));
+            }
 
-        if (b.headers.get(name) != null) {
-            list.add(b.headers.get(name));
-        }
-
-        if (b.request != null) {
-            if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
-                if (b.request.getAttribute(name) != null) {
-                    list.add(b.request.getAttribute(name));
+            if (b.request != null) {
+                if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
+                    if (b.request.getAttribute(name) != null) {
+                        list.add(b.request.getAttribute(name));
+                    }
                 }
             }
         }
@@ -179,7 +180,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public Enumeration<String> getHeaderNames() {
         ArrayList list = Collections.list(super.getHeaderNames());
-        list.add("content-type");
+        if (b.contentType != null) {
+            list.add("Content-Type");
+        }
 
         if (b.request != null) {
             Enumeration e = b.request.getAttributeNames();
@@ -202,6 +205,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public String getHeader(String s, boolean checkCase) {
+
+        if ("content-type".equalsIgnoreCase(s)) {
+            return getContentType();
+        }
+
         String name = super.getHeader(s);
         if (name == null) {
             if (b.headers.get(s) != null) {
@@ -213,16 +221,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
 
-        if (name == null) {
-            if ("content-type".equalsIgnoreCase(s)) {
-                return contentType;
-            } else if ("connection".equalsIgnoreCase(s)) {
-                return "keep-alive";
-            }
-        }
-
         if (name == null && checkCase) {
             return getHeader(s.toLowerCase(), false);
+        }
+
+        if (name == null && "connection".equalsIgnoreCase(s)) {
+            return "keep-alive";
         }
 
         return name;
