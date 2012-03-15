@@ -32,8 +32,15 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Wrapper around an {@link HttpServletResponse} which use an instance of {@link org.atmosphere.websocket.WebSocket}
- * as a writer.
+ * An Atmosphere's response representation. An AtmosphereResponse can be used to construct bi-directional asynchronous
+ * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
+ * suspended, this object can be used to write message back tp the client at any moment.
+ * <br/>
+ * This object can delegates the write operation to {@link AsyncIOWriter}. An {@link AsyncProtocol} can also be
+ * consulted before the bytes/string write process gets delegated to an {@link AsyncIOWriter}. If {@link org.atmosphere.cpr.AsyncProtocol#inspectResponse()}
+ * return true, the {@link org.atmosphere.cpr.AsyncProtocol#handleResponse(AtmosphereResponse, String)} will have a chance to
+ * manipulate the bytes and return a new representation. That new representation will then be delegated to an
+ * {@link AsyncIOWriter}.
  */
 public class AtmosphereResponse extends HttpServletResponseWrapper {
 
@@ -44,7 +51,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private String statusMessage = "OK";
     private String charSet = "UTF-8";
     private long contentLength = -1;
-    private String contentType = "application/json";
+    private String contentType = "text/html";
     private boolean isCommited = false;
     private Locale locale;
     private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
@@ -53,8 +60,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
+    private final boolean destroyable;
 
-    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -62,9 +70,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = destroyable;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(r);
         this.asyncIOWriter = asyncIOWriter;
         this.asyncProtocol = asyncProtocol;
@@ -72,6 +81,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = destroyable;
     }
 
     private AtmosphereResponse(Builder b) {
@@ -84,6 +94,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.writeStatusAndHeader.set(b.writeStatusAndHeader.get());
         this.headers = b.headers;
         this.delegateToNativeResponse = asyncIOWriter == null;
+        this.destroyable = b.destroyable;
     }
 
     public final static class Builder {
@@ -95,8 +106,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
+        public boolean destroyable = true;
 
         public Builder() {
+        }
+
+        public Builder destroyable(boolean isRecyclable) {
+            this.destroyable = isRecyclable;
+            return this;
         }
 
         public Builder asyncIOWriter(AsyncIOWriter asyncIOWriter) {
@@ -149,6 +166,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     public void destroy() {
+        if (!destroyable) return;
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -336,10 +354,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * {@inheritDoc}
      */
     public String getHeader(String name) {
-        if (name.equalsIgnoreCase("content-type")) {
-            String s = headers.get("Content-Type");
-            return s == null ? contentType : s;
-        }
         return headers.get(name);
     }
 
@@ -348,13 +362,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public Collection<String> getHeaders(String name) {
         ArrayList<String> s = new ArrayList<String>();
-        String h;
-        if (name.equalsIgnoreCase("content-type")) {
-            h = headers.get("Content-Type");
-        } else {
-            h = headers.get(name);
-        }
-        s.add(h);
+        s.add(headers.get(name));
         return Collections.unmodifiableList(s);
     }
 
@@ -387,6 +395,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         } else {
             return _r().getCharacterEncoding();
         }
+    }
+
+    /**
+     * Can this object be destroyed. Default is true.
+     */
+    public boolean isDestroyable() {
+        return destroyable;
     }
 
     /**
@@ -795,6 +810,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
     }
 
+    /**
+     * Wrap an {@link HttpServletResponse}
+     * @param response  {@link HttpServletResponse}
+     * @return  an {@link AtmosphereResponse}
+     */
     public final static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();
     }
