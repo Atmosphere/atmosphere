@@ -1079,8 +1079,11 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 req.headers(headers)
-                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod())
-                   .body(body);
+                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+
+                if (body != null) {
+                   req.body(body);
+                }
 
                 a = cometSupport.service(req, res);
             } else {
