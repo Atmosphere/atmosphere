@@ -12,10 +12,12 @@
     <version>0.9-SNAPSHOT</version>
     <name>atmosphere-samples</name>
     <modules>
+        <!-- sample using jQuery.atmosphere.js-->
         <module>commons</module>
-        <!-- old sample using Prototype.js -->
         <module>chat</module>
         <module>rest-chat</module>
+
+        <!-- old sample using Prototype.js -->
         <module>scala-chat</module>
         <module>tictactoe</module>
         <module>meteor-chat</module>
@@ -42,11 +44,12 @@
         <module>spring-websocket</module>
     </modules>
     <build>
-        <finalName>${artifactId}</finalName>
+        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
                 <configuration>
                     <source>1.6</source>
                     <target>1.6</target>
@@ -76,7 +79,7 @@
             <dependency>
                 <groupId>org.atmosphere</groupId>
                 <artifactId>atmosphere-runtime</artifactId>
-                <version>${pom.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.geronimo.specs</groupId>
@@ -98,7 +101,7 @@
                 <dependency>
                     <groupId>org.atmosphere</groupId>
                     <artifactId>atmosphere-runtime</artifactId>
-                    <version>${pom.version}</version>
+                    <version>${project.version}</version>
                     <exclusions>
                         <exclusion>
                             <groupId>org.atmosphere</groupId>
@@ -111,6 +114,7 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-war-plugin</artifactId>
+                        <version>2.1.1</version>
                         <configuration>
                             <packagingExcludes>WEB-INF/context.xml,META-INF/context.xml</packagingExcludes>
                         </configuration>
@@ -124,7 +128,7 @@
                 <dependency>
                     <groupId>org.atmosphere</groupId>
                     <artifactId>atmosphere-runtime</artifactId>
-                    <version>${pom.version}</version>
+                    <version>${project.version}</version>
                     <exclusions>
                         <exclusion>
                             <groupId>org.atmosphere</groupId>
@@ -137,6 +141,7 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-war-plugin</artifactId>
+                        <version>2.1.1</version>
                         <configuration>
                             <packagingExcludes>WEB-INF/context.xml,META-INF/context.xml</packagingExcludes>
                         </configuration>
