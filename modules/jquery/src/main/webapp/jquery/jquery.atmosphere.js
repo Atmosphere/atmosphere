@@ -1094,32 +1094,16 @@ jQuery.atmosphere = function() {
             /**
              * Build request use to push message using method 'POST' <br>.
              * Transport is defined as 'polling' and 'suspend' is set to false.
-             * 
+             *
              * @return {Object} Request object use to push message.
              * @private
              */
             function _getPushRequest(message) {
             	var msg = _getStringMessage(message);
 
-                var rq = {
-                    connected: false,
-                    timeout: 60000,
-                    method: 'POST',
-                    url: _request.url,
-                    contentType : '',
-                    headers: {},
-                    cache: true,
-                    async: true,
-                    ifModified: false,
-                    callback: null,
-                    dataType: '',
-                    data : msg,
-                    suspend : false,
-                    maxRequest : 60,
-                    logLevel : 'info',
-                    requestCount : 0,
-                    transport: 'polling'
-                };
+                var rq = _request;
+                rq.data = msg;
+                rq.method = 'POST';
 
                 return rq;
             }
