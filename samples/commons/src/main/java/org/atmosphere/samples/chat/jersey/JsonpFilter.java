@@ -16,9 +16,9 @@
 /*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- * 
+ *
  * Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
- * 
+ *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
@@ -26,7 +26,7 @@
  * a copy of the License at https://jersey.dev.java.net/CDDL+GPL.html
  * or jersey/legal/LICENSE.txt.  See the License for the specific
  * language governing permissions and limitations under the License.
- * 
+ *
  * When distributing the software, include this License Header Notice in each
  * file and include the License file at jersey/legal/LICENSE.txt.
  * Sun designates this particular file as subject to the "Classpath" exception
@@ -35,9 +35,9 @@
  * Header, with the fields enclosed by brackets [] replaced by your own
  * identifying information: "Portions Copyrighted [year]
  * [name of copyright owner]"
- * 
+ *
  * Contributor(s):
- * 
+ *
  * If you wish your version of this file to be governed by only the CDDL or
  * only the GPL Version 2, indicate your decision by adding "[Contributor]
  * elects to include this software in this distribution under the [CDDL or GPL
@@ -49,51 +49,35 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.commons.jersey;
+package org.atmosphere.samples.chat.jersey;
 
-import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Schedule;
-import org.atmosphere.annotation.Suspend;
-import org.atmosphere.util.XSSHtmlFilter;
+import org.atmosphere.cpr.BroadcastFilter;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MultivaluedMap;
+/**
+ * Simple {@link BroadcastFilter} that produce jsonp String.
+ *
+ * @author Jeanfrancois Arcand
+ */
+public class JsonpFilter implements BroadcastFilter {
 
-@Path("/")
-@Produces("text/html;charset=ISO-8859-1")
-public class GuiceResourceChat {
+    private static final String BEGIN_SCRIPT_TAG = "<script type='text/javascript'>\n";
+    private static final String END_SCRIPT_TAG = "</script>\n";
 
-    @Suspend
-    @GET
-    public String suspend() {
-        return "";
-    }
+    public BroadcastAction filter(Object originalMessage, Object o) {
+        if (o instanceof String) {
+            String m = (String) o;
+            String name = m;
+            String message = "";
 
-    @Broadcast({XSSHtmlFilter.class, JsonpFilter.class})
-    @Consumes("application/x-www-form-urlencoded")
-    @POST
-    public String publishMessage(MultivaluedMap<String, String> form) {
-        String action = form.getFirst("action");
-        String name = form.getFirst("name");
+            if (m.indexOf("__") > 0) {
+                name = m.substring(0, m.indexOf("__"));
+                message = m.substring(m.indexOf("__") + 2);
+            }
 
-        if ("login".equals(action)) {
-            return ("System Message" + "__" + name + " has joined.");
-        } else if ("post".equals(action)) {
-            return name + "__" + form.getFirst("message");
+            return new BroadcastAction(BEGIN_SCRIPT_TAG + "window.parent.app.update({ name: \""
+                    + name + "\", message: \"" + message + "\" });\n" + END_SCRIPT_TAG);
         } else {
-            throw new WebApplicationException(422);
+            return new BroadcastAction(o);
         }
-    }
-
-    @Schedule(period = 30)
-    @POST
-    @Path("/ping")
-    public String pingSuspendedClients() {
-        return "Atmosphere__ping";
     }
 }
