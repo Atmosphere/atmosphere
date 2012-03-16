@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.9.0.RC1</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring</artifactId>
     <packaging>jar</packaging>
-    <version>0.9-SNAPSHOT</version>
+    <version>0.9.0.RC1</version>
     <name>atmosphere-spring</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
@@ -19,7 +19,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9.0.RC1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
