@@ -265,6 +265,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
     }
 
+    @Override
+    public boolean remove(Object id) {
+        return store.remove(id) != null;
+    }
+
     /**
      * {@inheritDoc}
      */
