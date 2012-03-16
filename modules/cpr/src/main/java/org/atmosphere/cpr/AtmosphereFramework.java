@@ -766,6 +766,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         try {
             webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
                     .loadClass(webSocketProtocolClassName).newInstance();
+            logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName );
         } catch (Exception ex) {
             logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
             webSocketProtocol = new SimpleHttpProtocol();
