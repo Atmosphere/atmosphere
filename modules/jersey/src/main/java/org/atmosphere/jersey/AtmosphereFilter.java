@@ -833,7 +833,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
             servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
 
-            logger.debug("Linked HttpServletRequest {} with ContainerResponse {}", servletReq, response);
             // Set the content-type based on the returned entity.
             try {
                 MediaType contentType = response.getMediaType();
