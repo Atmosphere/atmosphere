@@ -1121,6 +1121,10 @@ jQuery.atmosphere = function() {
                     transport: 'polling'
                 };
 
+                if (typeof(message) == 'object') {
+                    rq = $.extend(rq, message);
+                }
+
                 return rq;
             }
 
