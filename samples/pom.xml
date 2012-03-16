@@ -20,7 +20,6 @@
         <module>meteor-chat</module>
         <module>chat-guice</module>
 
-
         <!-- Using Javascript -->
         <module>tictactoe</module>
 
