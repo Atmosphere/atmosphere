@@ -52,6 +52,7 @@
 
 package org.atmosphere.handler;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
@@ -132,7 +133,15 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
 
             Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
-            if (resumeOnBroadcast) {
+            if (!resumeOnBroadcast) {
+                // For legacy reason, check the attribute as well
+                Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+                if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+                    resumeOnBroadcast = Boolean.class.cast(o);
+                }
+            }
+
+            if (resumeOnBroadcast != null && resumeOnBroadcast) {
                 event.getResource().resume();
             }
         }
