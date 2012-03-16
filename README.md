@@ -44,7 +44,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 #### Browse sample's code
 
-[Guice](
+[Guice](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat-guice/src/main/java/org/atmosphere/samples/guice/GuiceChatConfig.java#L58)
 
 [PubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java#L76)
 
