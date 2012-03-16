@@ -1,5 +1,5 @@
 ## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
-The Atmosphere Framework has both client and server ready to use components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**).
+The Atmosphere Framework has both client and server ready to use components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
@@ -40,7 +40,7 @@ Atmosphere 0.8.6 is our official release, and our work in progress version is 0.
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
-(**) The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported, an massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
+(**) The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported. Massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
 
 #### Browse sample's code
 
