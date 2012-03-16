@@ -38,7 +38,6 @@ public class AtmosphereConfig {
     private boolean supportSession = true;
     private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
     private final AtmosphereFramework framework;
-    // for custom properties
     private final Map<String, Object> properties = new HashMap<String, Object>();
 
     public AtmosphereConfig(AtmosphereFramework framework) {
