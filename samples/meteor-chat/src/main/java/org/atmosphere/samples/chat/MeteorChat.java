@@ -61,6 +61,8 @@ public class MeteorChat extends HttpServlet {
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
         String body = req.getReader().readLine().trim();
 
+        Meteor m = (Meteor) req.getSession().getAttribute("meteor");
+
         // Simple JSON -- Use Jackson for more complex structure
         // Message looks like { "author" : "foo", "message" : "bar" }
         String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);

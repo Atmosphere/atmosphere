@@ -14,6 +14,10 @@
             <param-name>com.sun.jersey.config.property.packages</param-name>
             <param-value>org.atmosphere.commons.jersey</param-value>
         </init-param>
+        <init-param>
+            <param-name>org.atmosphere.websocket.messageContentType</param-name>
+            <param-value>application/json</param-value>
+        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
