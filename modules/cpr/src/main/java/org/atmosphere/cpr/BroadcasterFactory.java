@@ -160,6 +160,11 @@ public abstract class BroadcasterFactory {
     abstract public void removeAllAtmosphereResource(AtmosphereResource r);
 
     /**
+     * Remove the associated {@link Broadcaster}
+     */
+    abstract public boolean remove(Object id);
+
+    /**
      * Return an immutable Collection of {@link Broadcaster} this factory contains.
      *
      * @return an immutable Collection of {@link Broadcaster} this factory contains.
