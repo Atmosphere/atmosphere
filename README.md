@@ -1,5 +1,5 @@
 ## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
-The Atmosphere Framework has both client and server ready to use components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
+The Atmosphere Framework contains client and server side components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
