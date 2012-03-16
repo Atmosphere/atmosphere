@@ -133,7 +133,7 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             }
 
             @Override
-            public Broadcaster get(Class<? extends Broadcaster> c, Object id)  {
+            public Broadcaster get(Class<? extends Broadcaster> c, Object id) {
                 return _get().get(c, id);
             }
 
@@ -175,6 +175,11 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             @Override
             public void removeAllAtmosphereResource(AtmosphereResource r) {
                 _get().removeAllAtmosphereResource(r);
+            }
+
+            @Override
+            public boolean remove(Object id) {
+                return _get().remove(id);
             }
 
             @Override
