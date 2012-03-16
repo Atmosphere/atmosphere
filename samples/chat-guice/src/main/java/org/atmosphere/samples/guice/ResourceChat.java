@@ -13,23 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.commons.jersey;
+package org.atmosphere.samples.guice;
 
 import org.atmosphere.annotation.Broadcast;
-import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.util.XSSHtmlFilter;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import java.util.Date;
 
 @Path("/")
 public class ResourceChat {

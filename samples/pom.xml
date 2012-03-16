@@ -16,12 +16,13 @@
         <module>commons</module>
         <module>chat</module>
         <module>rest-chat</module>
-
-        <!-- old sample using Prototype.js -->
         <module>scala-chat</module>
-        <module>tictactoe</module>
         <module>meteor-chat</module>
         <module>chat-guice</module>
+
+
+        <!-- Using Javascript -->
+        <module>tictactoe</module>
 
         <!-- sample using GWT -->
         <module>gwt-demo</module>

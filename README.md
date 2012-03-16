@@ -44,6 +44,8 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 #### Browse sample's code
 
+[Guice](
+
 [PubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java#L76)
 
 [JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L30)
