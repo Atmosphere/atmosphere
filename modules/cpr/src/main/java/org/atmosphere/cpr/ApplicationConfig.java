@@ -236,5 +236,8 @@ public interface ApplicationConfig {
      *  Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
      */
     String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
-
+    /**
+     * The default content-type value used when Atmosphere requires one. Default is text/plain.
+     */
+    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContextType";
 }
