@@ -867,7 +867,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 if (entity != null) {
                     b = b.header("Content-Type", ct);
                 }
-                servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
+                servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, ct);
 
                 boolean eclipse362468 = false;
                 String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
