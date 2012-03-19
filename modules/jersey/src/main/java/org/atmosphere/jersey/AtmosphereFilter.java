@@ -855,9 +855,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                 Response.ResponseBuilder b = Response.ok();
                 b = configureHeaders(b);
+
+                AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+                String defaultCT = config.getInitParameter(ApplicationConfig.DEFAULT_CONTENT_TYPE);
+                if (defaultCT == null) {
+                    defaultCT = "text/plain; charset=ISO-8859-1";
+                }
+
+                String ct = contentType == null ? defaultCT : contentType.toString();
+
                 if (entity != null) {
-                    b = b.header("Content-Type", contentType != null ?
-                            contentType.toString() : "text/html; charset=ISO-8859-1");
+                    b = b.header("Content-Type", ct);
                 }
                 servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, contentType.toString());
 
