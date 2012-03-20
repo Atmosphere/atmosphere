@@ -110,4 +110,9 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     @Override
     public void flush() throws IOException {
     }
+
+    @Override
+    public String toString() {
+        return connection.toString();
+    }
 }

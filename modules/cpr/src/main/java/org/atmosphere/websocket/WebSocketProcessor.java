@@ -32,10 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -93,17 +90,11 @@ public class WebSocketProcessor implements Serializable {
         String requestURI = request.getRequestURI();
 
         AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request, destroyable);
-        AtmosphereRequest r = new AtmosphereRequest.Builder()
-                .request(request)
-                .pathInfo(pathInfo)
-                .requestURI(requestURI)
-                .headers(configureHeader(request))
-                .destroyable(destroyable)
-                .build();
 
+        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
-        dispatch(r, wsr);
+        dispatch(request, wsr);
 
         webSocketProtocol.onOpen(webSocket);
 
@@ -270,20 +261,6 @@ public class WebSocketProcessor implements Serializable {
                 }
             }
         }
-    }
-
-    public static final Map<String, String> configureHeader(AtmosphereRequest request) {
-        Map<String, String> headers = new HashMap<String, String>();
-
-        Enumeration<String> e = request.getParameterNames();
-        String s;
-        while (e.hasMoreElements()) {
-            s = e.nextElement();
-            headers.put(s, request.getParameter(s));
-        }
-
-        headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
-        return headers;
     }
 
     public final static class WebSocketException extends Exception {
