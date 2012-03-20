@@ -8,8 +8,8 @@ $(function () {
     var author = null;
     var logged = false;
     var callback = function callback(response) {
-        if (response.transport != 'polling') {
 
+        if (response.transport != 'polling') {
             switch (response.state) {
                 case "messageReceived" :
                     var message = response.responseBody;
@@ -39,7 +39,10 @@ $(function () {
                 case "error" :
                     content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
                         + 'connection or the server is down' }));
-
+                    break;
+                case "closed" :
+                    console.log('Connection Closed');
+                    break;
             }
         }
 
