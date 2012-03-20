@@ -160,6 +160,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 action = cancelled(req, res);
             } else {
                 logger.trace("Cancelling response: {}", res);
+                event.close();
             }
         }
         return action;
