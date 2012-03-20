@@ -106,6 +106,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
+        // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
         list.add(new AtmosphereRequest.Builder()
                 .request(resource.getRequest())
                 .method(methodType)
@@ -114,7 +115,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .attributes(m)
                 .pathInfo(pathInfo)
                 .destroyable(destroyable)
-                .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
+                .headers(resource.getRequest().headersMap())
                 .build());
 
         return list;
