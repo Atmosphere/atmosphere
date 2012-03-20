@@ -216,13 +216,13 @@ jQuery.atmosphere = function() {
              */
             function _execute() {
                 if (_request.transport != 'websocket') {
-                    _open(_request.transport);
+                    _open('opening',_request.transport);
                     _executeRequest();
 
                 } else if (_request.transport == 'websocket') {
                     if (!_supportWebsocket()) {
                         jQuery.atmosphere.log(_request.logLevel, ["Websocket is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")"]);
-                        _open(_request.fallbackTransport);
+                        _open('opening', _request.fallbackTransport);
                         _reconnectWithFallbackTransport();
                     } else {
                         _executeWebSocket();
@@ -233,12 +233,16 @@ jQuery.atmosphere = function() {
             /**
              * @private
              */
-            function _open(transport) {
-                _response.state = 'opening';
+            function _open(state, transport) {
+                var prevState = _response.state;
+                _response.state = state;
                 _response.status = 200;
+                var prevTransport = _response.transport;
                 _response.transport = transport;
                 _response.responseBody = "";
                 _invokeCallback();
+                _response.state = prevState;
+                _response.transport = prevTransport;
             }
 
             /**
@@ -362,7 +366,7 @@ jQuery.atmosphere = function() {
                     }
 
                     _subscribed = true;
-                    _open("websocket");
+                    _open(webSocketOpened ? 're-opening' : 'opening', "websocket");
 
                     webSocketOpened = true;
 
@@ -438,6 +442,7 @@ jQuery.atmosphere = function() {
 
                     } else if (!webSocketOpened) {
                         jQuery.atmosphere.log(_request.logLevel, ["Websocket failed. Downgrading to Comet and resending"]);
+                        _open('opening', _request.fallbackTransport);
                         _reconnectWithFallbackTransport();
 
                     } else if ((_subscribed) && (_response.transport == 'websocket')) {
@@ -732,6 +737,8 @@ jQuery.atmosphere = function() {
                                 // Close and reopen connection on large data received
                                 ajaxRequest.abort();
                                 _doRequest(ajaxRequest, rq, true);
+                            } else {
+                                _open('re-opening', rq.transport);
                             }
                         }
                     };
@@ -1182,14 +1189,16 @@ jQuery.atmosphere = function() {
                 };
 
                 // Invoke global callbacks
-                jQuery.atmosphere.log(_request.logLevel, ["Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks"]);
                 if (jQuery.atmosphere.callbacks.length > 0) {
+                    jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
                     jQuery.each(jQuery.atmosphere.callbacks, call);
                 }
 
                 // Invoke request callback
                 if (typeof(_request.callback) == 'function') {
-                    jQuery.atmosphere.log(_request.logLevel, ["Invoking request callbacks"]);
+                    if (_request.logLevel == 'debug') {
+                        jQuery.atmosphere.debug("Invoking request callbacks");
+                    }
                     _request.callback(_response);
                 }
             }
