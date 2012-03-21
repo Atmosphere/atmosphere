@@ -298,11 +298,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return br == null ? (b.request != null ? b.request.getReader() : null) : br;
     }
 
+    /**
+     * Add all headers contained with the Map.
+     * @param headers
+     * @return this;
+     */
     public AtmosphereRequest headers(Map<String, String> headers) {
         b.headers.putAll(headers);
         return this;
     }
 
+    /**
+     * Add a header.
+     * @param name
+     * @param value
+     * @return
+     */
     public AtmosphereRequest header(String name, String value) {
         b.headers.put(name, value);
         return this;
