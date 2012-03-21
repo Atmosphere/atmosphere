@@ -32,7 +32,6 @@ import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.font.CreatedFontTracker;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -433,7 +432,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param sc the {@link ServletContext}
      */
-    public void init(final ServletConfig sc) throws ServletException {
+    public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
         try {
             ServletContextHolder.register(this);
 
@@ -489,6 +488,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             throw new ServletException(t.getCause());
         }
+        return this;
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
