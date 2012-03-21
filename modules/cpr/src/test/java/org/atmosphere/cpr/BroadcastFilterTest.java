@@ -53,6 +53,14 @@ public class BroadcastFilterTest {
     }
 
     @Test
+    public void testProgrammaticBroadcastFilter() throws ExecutionException, InterruptedException, ServletException {
+        broadcaster.getBroadcasterConfig().addFilter(new Filter());
+        broadcaster.broadcast("0").get();
+
+        assertEquals(atmosphereHandler.value.get().toString(), "0foo");
+    }
+
+    @Test
     public void testInitBroadcastFilter() throws ExecutionException, InterruptedException, ServletException {
         AtmosphereConfig config = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCAST_FILTER_CLASSES, Filter.class.getName())
