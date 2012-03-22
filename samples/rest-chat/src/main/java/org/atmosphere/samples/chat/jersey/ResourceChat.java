@@ -26,14 +26,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 
-@Path("/")
-@Produces("application/json")
-
 /**
  * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
  *
  * @author Jeanfrancois Arcand
  */
+@Path("/")
+@Produces("application/json")
 public class ResourceChat {
 
     /**
