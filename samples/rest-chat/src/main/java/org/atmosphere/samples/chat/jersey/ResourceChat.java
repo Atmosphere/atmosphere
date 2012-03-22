@@ -29,15 +29,28 @@ import javax.ws.rs.core.Context;
 @Path("/")
 @Produces("application/json")
 
-
+/**
+ * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class ResourceChat {
 
+    /**
+     * Suspend the response without writing anything back to the client.
+     * @return a white space
+     */
     @Suspend
     @GET
     public String suspend() {
         return "";
     }
 
+    /**
+     * Broadcast the received message object to all suspended response. Do not write back the message to the calling connection.
+     * @param message a {@link Message}
+     * @return a {@link Response}
+     */
     @Broadcast(writeEntity = false)
     @POST
     public Response broadcast(Message message) {
