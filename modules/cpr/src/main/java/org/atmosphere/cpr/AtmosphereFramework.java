@@ -482,6 +482,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
+            Throwable a;
+            while ( (a = t.getCause()) != null) {
+                logger.error("Failed to initialize Atmosphere Framework", a);
+            }
+
             if (t instanceof ServletException) {
                 throw (ServletException) t;
             }
