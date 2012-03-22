@@ -15,7 +15,6 @@
  */
 package org.atmosphere.samples.chat.jersey;
 
-import com.sun.jersey.api.json.JSONWithPadding;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.Broadcaster;
@@ -53,8 +52,8 @@ public class ResourceChat {
      */
     @Broadcast(writeEntity = false)
     @POST
-    public JSONWithPadding broadcast(Message message) {
-        return new JSONWithPadding(new Response(message.author, message.message));
+    public Response broadcast(Message message) {
+        return new Response(message.author, message.message);
     }
 
 }
