@@ -486,7 +486,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw (ServletException) t;
             }
 
-            throw new ServletException(t.getCause());
+            throw new ServletException(t);
         }
         return this;
     }
