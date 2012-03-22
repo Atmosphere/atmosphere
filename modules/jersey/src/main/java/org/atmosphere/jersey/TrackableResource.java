@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  * return new TrackableResource(AtmosphereResource.class, "abcdef", Response.OK());
  * }
  * @POST public String asyncBroadcast(@HeaderParam("X-Atmosphere-tracking-id") TrackableResource<AtmosphereResource> track) {
- * AtmosphereResource<?,?> r = track.resource();
+ * AtmosphereResource r = track.resource();
  * ...
  * }
  * </blockquote><pre>
