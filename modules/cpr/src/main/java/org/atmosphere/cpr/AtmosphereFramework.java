@@ -764,7 +764,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void initWebSocketProtocol() {
         if (webSocketProtocol != null) return;
         try {
-            webSocketProtocol = (WebSocketProtocol) JettyWebSocketHandler.class.getClassLoader()
+            webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
                     .loadClass(webSocketProtocolClassName).newInstance();
             logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName );
         } catch (Exception ex) {
@@ -940,6 +940,10 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
+
+        // If Handler has been added
+        if (atmosphereHandlers.size() > 0) return;
+
         logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
         String realPath = servletContext.getRealPath(handlersPath);
@@ -991,6 +995,10 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     protected void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
+
+
+        if (webSocketProtocolClassName.equalsIgnoreCase(SimpleHttpProtocol.class.getName())) return;
+
         logger.info("Auto detecting WebSocketHandler {}", handlersPath);
 
         String realPath = servletContext.getRealPath(handlersPath);
