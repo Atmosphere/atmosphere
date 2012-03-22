@@ -119,7 +119,7 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
 
         class BroadcasterFactoryProxy extends BroadcasterFactory {
             BroadcasterFactory _get() {
-                return BroadcasterFactory.getDefault();
+                return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
             }
 
             @Override
