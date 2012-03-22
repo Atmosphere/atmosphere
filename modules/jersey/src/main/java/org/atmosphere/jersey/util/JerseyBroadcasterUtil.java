@@ -18,6 +18,7 @@ package org.atmosphere.jersey.util;
 import com.sun.jersey.spi.container.ContainerResponse;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -29,7 +30,6 @@ import org.atmosphere.jersey.AtmosphereFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import java.util.List;
@@ -45,7 +45,7 @@ public final class JerseyBroadcasterUtil {
     private static final Logger logger = LoggerFactory.getLogger(JerseyBroadcasterUtil.class);
 
     public final static void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
-        HttpServletRequest request = (HttpServletRequest) r.getRequest();
+        AtmosphereRequest request = r.getRequest();
         ContainerResponse cr = null;
         try {
             cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
