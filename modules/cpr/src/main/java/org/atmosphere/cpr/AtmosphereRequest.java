@@ -46,6 +46,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
@@ -378,6 +379,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
+    /**
+     * Return the locally added attribute.
+     * @return
+     */
     public Map<String,Object> attributes() {
         return b.localAttributes;
     }
@@ -466,18 +471,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<String> getAttributeNames() {
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.putAll(b.localAttributes);
-
+        Set<String> l = b.localAttributes.keySet();
         Enumeration<String> e = (b.request != null ? b.request.getAttributeNames() : null);
         if (e != null) {
-            String s;
             while (e.hasMoreElements()) {
-                s = e.nextElement();
-                m.put(s, b.request.getAttribute(s));
+                l.add(e.nextElement());
             }
         }
-        return Collections.enumeration(m.keySet());
+        return Collections.enumeration(l);
     }
 
     public void destroy() {
