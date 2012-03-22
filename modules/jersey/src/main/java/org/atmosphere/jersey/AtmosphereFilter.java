@@ -258,6 +258,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 return response;
             }
 
+            if (action == Action.NONE) return response;
+
             // Check first if something was defined in web.xml
             AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
             String p = config.getInitParameter(ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
@@ -285,13 +287,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 useResumeAnnotation = true;
             }
 
+            // Force the status code to 200 events independently of the value of the entity (null or not)
+            if (response.getStatus() == 204) {
+                response.setStatus(200);
+            }
+
             switch (action) {
                 case ASYNCHRONOUS:
-                    // Force the status code to 200 events independently of the value of the entity (null or not)
-                    if (response.getStatus() == 204) {
-                        response.setStatus(200);
-                    }
-
                     String transport = getHeaderOrQueryValue(X_ATMOSPHERE_TRANSPORT);
                     String broadcasterName = getHeaderOrQueryValue(topic);
                     if (transport == null || broadcasterName == null) {
@@ -512,6 +514,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     broadcast(response, r, timeout);
+                    if (!writeEntity) {
+                        response.setEntity(null);
+                    }
                     break;
                 case SCHEDULE:
                 case SCHEDULE_RESUME:
@@ -626,7 +631,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             if (enableAccessControl) {
-                b = b.header(ACCESS_CONTROL_ALLOW_ORIGIN,  servletReq.getHeader("Origin") == null ? "*" : servletReq.getHeader("Origin"));
+                b = b.header(ACCESS_CONTROL_ALLOW_ORIGIN, servletReq.getHeader("Origin") == null ? "*" : servletReq.getHeader("Origin"));
                 b = b.header(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
             return b;
@@ -703,9 +708,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (msg == null) return;
 
                     if (delay == -1) {
-                        Future<Object> f = b.broadcast(msg);
-                        if (f == null) return;
-                        Object t = f.get();
+                        Object t = b.broadcast(msg).get();
                         if (o instanceof Broadcastable) {
                             r.setEntity(returnMsg);
                         }
