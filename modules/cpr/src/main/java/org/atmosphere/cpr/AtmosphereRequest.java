@@ -39,6 +39,7 @@ import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -70,6 +71,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private String methodType;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
+    private boolean queryComputed = false;
 
     private AtmosphereRequest(Builder b) {
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
@@ -363,16 +365,11 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public Map<String, String[]> getParameterMap() {
-        Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
-        for (Map.Entry<String, String[]> e : m.entrySet()) {
-            String[] s = b.queryStrings.get(e.getKey());
-            if (s != null) {
-                String[] s1 = new String[s.length + e.getValue().length];
-                System.arraycopy(s, 0, s1, 0, s.length);
-                System.arraycopy(s1, s.length + 1, e.getValue(), 0, e.getValue().length);
-                b.queryStrings.put(e.getKey(), s1);
-            } else {
-                b.queryStrings.put(e.getKey(), e.getValue());
+        if (!queryComputed) {
+            queryComputed = true;
+            Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
+            for (String e : m.keySet()) {
+               b.queryStrings.put(e, getParameterValues(e));
             }
         }
         return Collections.unmodifiableMap(b.queryStrings);
@@ -391,15 +388,20 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String[] getParameterValues(String s) {
-        String[] list = b.request.getParameterValues(s) == null ? new String[0] : b.request.getParameterValues(s);
-        if (b.queryStrings.get(s) != null) {
+        String[] list = b.request.getParameterValues(s);
+        if (list !=  null && b.queryStrings.get(s) != null) {
             String[] newList = b.queryStrings.get(s);
-            String[] s1 = new String[list.length + newList.length];
-            System.arraycopy(list, 0, s1, 0, list.length);
-            System.arraycopy(s1, list.length, newList, 0, newList.length);
-            list = s1;
+            if (!Arrays.deepEquals(list, newList)) {
+                String[] s1 = new String[list.length + newList.length];
+                System.arraycopy(list, 0, s1, 0, list.length);
+                System.arraycopy(newList, 0, s1, list.length, newList.length);
+                return s1;
+            } else {
+                return list;
+            }
+        } else {
+            return list;
         }
-        return list;
     }
 
     /**
@@ -490,9 +492,6 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void setAttribute(String s, Object o) {
         b.localAttributes.put(s, o);
-        if (b.request != null) {
-            b.request.setAttribute(s, o);
-        }
     }
 
     /**
@@ -541,9 +540,6 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void removeAttribute(String name) {
         b.localAttributes.remove(name);
-        if (b.request != null) {
-            b.request.removeAttribute(name);
-        }
     }
 
     /**
