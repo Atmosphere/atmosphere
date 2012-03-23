@@ -812,7 +812,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
-                ", hasCode" + hashCode() +
+                " hasCode" + hashCode() +
                 ",\n action=" + action +
                 ",\n broadcaster=" + broadcaster.getClass().getName() +
                 ",\n cometSupport=" + cometSupport +
