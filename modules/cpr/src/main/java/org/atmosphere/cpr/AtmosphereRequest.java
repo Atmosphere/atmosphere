@@ -90,7 +90,7 @@ public class AtmosphereRequest implements HttpServletRequest {
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
 
-        if (b.request  == null) b.request(new NoOpsRequest());
+        if (b.request == null) b.request(new NoOpsRequest());
 
         methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
         this.b = b;
@@ -369,7 +369,7 @@ public class AtmosphereRequest implements HttpServletRequest {
             queryComputed = true;
             Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
             for (String e : m.keySet()) {
-               b.queryStrings.put(e, getParameterValues(e));
+                b.queryStrings.put(e, getParameterValues(e));
             }
         }
         return Collections.unmodifiableMap(b.queryStrings);
@@ -389,7 +389,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public String[] getParameterValues(String s) {
         String[] list = b.request.getParameterValues(s);
-        if (list !=  null && b.queryStrings.get(s) != null) {
+        if (list != null && b.queryStrings.get(s) != null) {
             String[] newList = b.queryStrings.get(s);
             if (!Arrays.deepEquals(list, newList)) {
                 String[] s1 = new String[list.length + newList.length];
@@ -438,6 +438,7 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     /**
      * Add all headers contained with the Map.
+     *
      * @param headers
      * @return this;
      */
@@ -448,6 +449,7 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     /**
      * Add a header.
+     *
      * @param name
      * @param value
      * @return
@@ -457,7 +459,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         return this;
     }
 
-    public Map<String,String> headersMap() {
+    public Map<String, String> headersMap() {
         return b.headers;
     }
 
@@ -492,6 +494,9 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void setAttribute(String s, Object o) {
         b.localAttributes.put(s, o);
+        if (b.request != null) {
+            b.request.setAttribute(s, o);
+        }
     }
 
     /**
@@ -515,7 +520,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
-        return b.request.startAsync(request,response);
+        return b.request.startAsync(request, response);
     }
 
     /**
@@ -540,13 +545,17 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void removeAttribute(String name) {
         b.localAttributes.remove(name);
+        if (b.request != null) {
+            b.request.removeAttribute(name);
+        }
     }
 
     /**
      * Return the locally added attribute.
+     *
      * @return
      */
-    public Map<String,Object> attributes() {
+    public Map<String, Object> attributes() {
         return b.localAttributes;
     }
 
@@ -619,7 +628,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public void login(String username, String password) throws ServletException {
-        b.request.login(username,password);
+        b.request.login(username, password);
     }
 
     /**
@@ -712,7 +721,8 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     /**
      * {@inheritDoc}
-     */    @Override
+     */
+    @Override
     public boolean isSecure() {
         return b.request.isSecure();
     }
@@ -760,9 +770,10 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     /**
      * Dispatch the request asynchronously to container. The default is false.
+     *
      * @return true to dispatch asynchronously the request to container.
      */
-    public boolean dispatchRequestAsynchronously(){
+    public boolean dispatchRequestAsynchronously() {
         return b.dispatchRequestAsynchronously;
     }
 
@@ -1360,6 +1371,7 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     /**
      * Wrap an {@link HttpServletRequest}.
+     *
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
