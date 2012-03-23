@@ -400,7 +400,7 @@ public class AtmosphereRequest implements HttpServletRequest {
                 return list;
             }
         } else {
-            return list;
+            return list == null ? b.queryStrings.get(s) : list;
         }
     }
 
