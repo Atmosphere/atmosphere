@@ -46,6 +46,8 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 [Guice](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat-guice/src/main/java/org/atmosphere/samples/guice/GuiceChatConfig.java#L58)
 
+[Spring](https://github.com/Atmosphere/atmosphere/blob/master/samples/spring-websocket/src/main/java/org/atmosphere/samples/pubsub/services/ChatService.java#L34)
+
 [PubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java#L76)
 
 [JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L30)
