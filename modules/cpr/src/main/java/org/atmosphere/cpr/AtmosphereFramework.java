@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.JettyWebSocketHandler;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
@@ -261,34 +262,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         public Action(TYPE type, long timeout) {
             this.timeout = timeout;
             this.type = type;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Action action = (Action) o;
-
-            if (timeout != action.timeout) return false;
-            if (type != action.type) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = (int) (timeout ^ (timeout >>> 32));
-            result = 31 * result + (type != null ? type.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Action{" +
-                    "timeout=" + timeout +
-                    ", type=" + type +
-                    '}';
         }
     }
 
