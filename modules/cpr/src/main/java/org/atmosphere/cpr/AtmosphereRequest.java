@@ -27,7 +27,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
@@ -44,6 +43,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -60,7 +60,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereRequest extends HttpServletRequestWrapper {
+public class AtmosphereRequest implements HttpServletRequest {
 
     private ServletInputStream bis;
     private BufferedReader br;
@@ -70,7 +70,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Builder b;
 
     private AtmosphereRequest(Builder b) {
-        super(b.request == null ? new NoOpsRequest() : b.request);
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         session = b.request == null ?
                 new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
@@ -112,6 +111,38 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public String getPathTranslated() {
+        return b.request.getPathTranslated();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getQueryString() {
+        return b.request.getQueryString();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getRemoteUser() {
+        return b.request.getRemoteUser();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getRequestedSessionId() {
+        return b.request.getRequestedSessionId();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getMethod() {
         return methodType;
     }
@@ -120,8 +151,29 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public Part getPart(String name) throws IOException, ServletException {
+        return b.request.getPart(name);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Collection<Part> getParts() throws IOException, ServletException {
+        return b.request.getParts();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getContentType() {
-        return b.contentType != null ? b.contentType : super.getContentType();
+        return b.contentType != null ? b.contentType : b.request.getContentType();
+    }
+
+    @Override
+    public DispatcherType getDispatcherType() {
+        return b.request.getDispatcherType();
     }
 
     /**
@@ -129,7 +181,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getServletPath() {
-        return b.servletPath != "" ? b.servletPath : super.getServletPath();
+        return b.servletPath != "" ? b.servletPath : (b.request != null ? b.request.getServletPath() : "");
     }
 
     /**
@@ -137,7 +189,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRequestURI() {
-        return b.requestURI != null ? b.requestURI : (b.request != null ? super.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : (b.request != null ? b.request.getRequestURI() : null);
     }
 
     /**
@@ -153,7 +205,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration getHeaders(String name) {
-        ArrayList list = Collections.list(super.getHeaders(name));
+        ArrayList list = Collections.list(b.request.getHeaders(name));
         if (name.equalsIgnoreCase("content-type")) {
             String s = getContentType();
             if (s != null) {
@@ -179,8 +231,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public int getIntHeader(String name) {
+        return b.request.getIntHeader(name);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Enumeration<String> getHeaderNames() {
-        ArrayList list = Collections.list(super.getHeaderNames());
+        ArrayList list = Collections.list(b.request.getHeaderNames());
         if (b.contentType != null) {
             list.add("Content-Type");
         }
@@ -200,6 +260,49 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.enumeration(list);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
+        return b.request.authenticate(response);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getAuthType() {
+        return b.request.getAuthType();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getContextPath() {
+        return b.request.getContextPath();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Cookie[] getCookies() {
+        return b.request.getCookies();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long getDateHeader(String name) {
+        return b.request.getDateHeader(name);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getHeader(String s) {
         return getHeader(s, true);
@@ -211,7 +314,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return getContentType();
         }
 
-        String name = super.getHeader(s);
+        String name = b.request.getHeader(s);
         if (name == null) {
             if (b.headers.get(s) != null) {
                 return b.headers.get(s);
@@ -238,7 +341,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getParameter(String s) {
-        String name = super.getParameter(s);
+        String name = b.request.getParameter(s);
         if (name == null) {
             if (b.queryStrings.get(s) != null) {
                 return b.queryStrings.get(s)[0];
@@ -271,8 +374,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public Enumeration<String> getParameterNames() {
+        return Collections.enumeration(getParameterMap().keySet());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String[] getParameterValues(String s) {
-        String[] list = super.getParameterValues(s) == null ? new String[0] : super.getParameterValues(s);
+        String[] list = b.request.getParameterValues(s) == null ? new String[0] : b.request.getParameterValues(s);
         if (b.queryStrings.get(s) != null) {
             String[] newList = b.queryStrings.get(s);
             String[] s1 = new String[list.length + newList.length];
@@ -281,6 +392,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             list = s1;
         }
         return list;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getProtocol() {
+        return b.request.getProtocol();
     }
 
     /**
@@ -297,6 +416,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public BufferedReader getReader() throws IOException {
         return br == null ? (b.request != null ? b.request.getReader() : null) : br;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getRealPath(String path) {
+        return b.request.getRealPath(path);
     }
 
     /**
@@ -364,6 +491,38 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
+        b.request.setCharacterEncoding(env);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AsyncContext startAsync() {
+        return b.request.startAsync();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
+        return b.request.startAsync(request,response);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AsyncContext getAsyncContext() {
+        return b.request.getAsyncContext();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Object getAttribute(String s) {
         return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (b.request != null ? b.request.getAttribute(s) : null);
     }
@@ -407,6 +566,70 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * {@inheritDoc}
      */
     @Override
+    public Principal getUserPrincipal() {
+        return b.request.getUserPrincipal();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isRequestedSessionIdFromCookie() {
+        return b.request.isRequestedSessionIdFromCookie();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isRequestedSessionIdFromUrl() {
+        return b.request.isRequestedSessionIdFromUrl();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isRequestedSessionIdFromURL() {
+        return b.request.isRequestedSessionIdFromURL();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isRequestedSessionIdValid() {
+        return b.request.isRequestedSessionIdValid();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isUserInRole(String role) {
+        return b.request.isUserInRole(role);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void login(String username, String password) throws ServletException {
+        b.request.login(username,password);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void logout() throws ServletException {
+        b.request.logout();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getRemoteAddr() {
         return b.request != null ? b.request.getRemoteAddr() : b.remoteAddr;
     }
@@ -425,6 +648,69 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public int getRemotePort() {
         return b.request != null ? b.request.getRemotePort() : b.remotePort;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public RequestDispatcher getRequestDispatcher(String path) {
+        return b.request.getRequestDispatcher(path);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getScheme() {
+        return b.request.getScheme();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getServerName() {
+        return b.request.getServerName();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getServerPort() {
+        return b.request.getServerPort();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ServletContext getServletContext() {
+        return b.request.getServletContext();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isAsyncStarted() {
+        return b.request.isAsyncStarted();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isAsyncSupported() {
+        return b.request.isAsyncSupported();
+    }
+
+    /**
+     * {@inheritDoc}
+     */    @Override
+    public boolean isSecure() {
+        return b.request.isSecure();
     }
 
     /**
@@ -452,6 +738,23 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Locale getLocale() {
+        return b.request.getLocale();
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Enumeration<Locale> getLocales() {
+        return b.request.getLocales();
+    }
+
+    /**
      * Dispatch the request asynchronously to container. The default is false.
      * @return true to dispatch asynchronously the request to container.
      */
@@ -471,7 +774,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<String> getAttributeNames() {
-        Set<String> l = b.localAttributes.keySet();
+        Set<String> l = new HashSet();
+        l.addAll(b.localAttributes.keySet());
         Enumeration<String> e = (b.request != null ? b.request.getAttributeNames() : null);
         if (e != null) {
             while (e.hasMoreElements()) {
@@ -479,6 +783,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
         return Collections.enumeration(l);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getCharacterEncoding() {
+        return b.request.getCharacterEncoding();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getContentLength() {
+        return b.request.getContentLength();
     }
 
     public void destroy() {
@@ -654,7 +974,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
     }
-
 
     private final static class IS extends ServletInputStream {
 

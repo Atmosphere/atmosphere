@@ -181,7 +181,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return new Action(Action.TYPE.RESUME);
     }
 
-     /**
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -204,11 +204,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 request.removeAttribute(Continuation.class.getName());
                 return;
             } else {
-                if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-                    request = AtmosphereRequest.class.cast(request).getRequest();
-                } else {
-                    return;
-                }
+                return;
             }
         }
     }
