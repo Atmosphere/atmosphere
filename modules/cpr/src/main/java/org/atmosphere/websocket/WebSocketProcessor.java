@@ -91,9 +91,7 @@ public class WebSocketProcessor implements Serializable {
 
         AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request, destroyable);
 
-        request.header(HeaderConfig.X_ATMOSPHERE_TRANSPORT,
-                HeaderConfig.WEBSOCKET_TRANSPORT)
-                .headers(configureHeader(request));
+        request.headers(configureHeader(request));
 
         request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
