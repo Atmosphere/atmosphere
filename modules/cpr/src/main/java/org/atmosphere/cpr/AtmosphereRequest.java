@@ -47,6 +47,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
@@ -68,6 +69,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private final HttpSession session;
     private String methodType;
     private final Builder b;
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     private AtmosphereRequest(Builder b) {
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
@@ -99,6 +101,10 @@ public class AtmosphereRequest implements HttpServletRequest {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public boolean destroybed() {
+        return destroyed.get();
     }
 
     /**
@@ -804,7 +810,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     }
 
     public void destroy() {
-        if (!b.destroyable) return;
+        if (!b.destroyable || destroyed.getAndSet(true)) return;
 
         b.localAttributes.clear();
         if (bis != null) {

@@ -92,7 +92,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             throws IOException {
 
         Object message = event.getMessage();
-        if (message == null || event.isCancelled()) return;
+        if (message == null || event.isCancelled() || event.getResource().getRequest().destroybed()) return;
 
         if (event.getResource().getSerializer() != null) {
             try {
