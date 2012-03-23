@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jetty 8 WebSocket support.
@@ -35,7 +34,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
     private final AtmosphereConfig config;
-    private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public Jetty8WebSocket(Connection connection, AtmosphereConfig config) {
         this.connection = connection;
@@ -47,12 +45,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      */
     @Override
     public void writeError(int errorCode, String message) throws IOException {
-        if (!firstWrite.get()) {
-            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
-                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
-        } else {
-            logger.warn("{} {}", errorCode, message);
-        }
+        logger.debug("{} {}", errorCode, message);
     }
 
     /**
@@ -60,7 +53,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      */
     @Override
     public void redirect(String location) throws IOException {
-        logger.error("WebSocket Redirect not supported");
+        logger.error("redirect not supported");
     }
 
     /**
@@ -68,7 +61,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(String data) throws IOException {
-        firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         connection.sendMessage(data);
@@ -79,7 +71,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data) throws IOException {
-        firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
@@ -95,7 +86,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data, int offset, int length) throws IOException {
-        firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
@@ -114,7 +104,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         logger.trace("WebSocket.close()");
         connection.disconnect();
     }
-
     /**
      * {@inheritDoc}
      */
