@@ -1364,4 +1364,44 @@ public class AtmosphereRequest implements HttpServletRequest {
     public final static AtmosphereRequest wrap(HttpServletRequest request) {
         return new Builder().request(request).build();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AtmosphereRequest that = (AtmosphereRequest) o;
+
+        if (b != null ? !b.equals(that.b) : that.b != null) return false;
+        if (bis != null ? !bis.equals(that.bis) : that.bis != null) return false;
+        if (br != null ? !br.equals(that.br) : that.br != null) return false;
+        if (methodType != null ? !methodType.equals(that.methodType) : that.methodType != null) return false;
+        if (pathInfo != null ? !pathInfo.equals(that.pathInfo) : that.pathInfo != null) return false;
+        if (session != null ? !session.equals(that.session) : that.session != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = bis != null ? bis.hashCode() : 0;
+        result = 31 * result + (br != null ? br.hashCode() : 0);
+        result = 31 * result + (pathInfo != null ? pathInfo.hashCode() : 0);
+        result = 31 * result + (session != null ? session.hashCode() : 0);
+        result = 31 * result + (methodType != null ? methodType.hashCode() : 0);
+        result = 31 * result + (b != null ? b.hashCode() : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "AtmosphereRequest{" +
+                "bis=" + bis +
+                ", br=" + br +
+                ", pathInfo='" + pathInfo + '\'' +
+                ", session=" + session +
+                ", methodType='" + methodType + '\'' +
+                ", b=" + b +
+                '}';
+    }
 }
