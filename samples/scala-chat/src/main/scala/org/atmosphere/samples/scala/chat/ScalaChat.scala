@@ -17,21 +17,18 @@ package org.atmosphere.samples.scala.chat
 
 import javax.ws.rs.{GET, POST, Path, Produces, Consumes}
 import org.atmosphere.annotation.{Broadcast, Suspend}
-import org.atmosphere.cpr.Broadcaster
-import javax.ws.rs.core.Context
 
 @Path("/")
+@Produces(Array("application/json"))
 class ScalaChat {
 
   @Suspend
-  @Produces(Array("application/json"))
   @GET def suspend: String = {
     return ""
   }
 
-  @Broadcast
-  @Consumes(Array("application/json"))
-  @POST def broadcast(@Context b: Broadcaster, message: Message): Unit = {
-    b.broadcast(new Response(message.author, message.message))
+  @Broadcast(writeEntity = false)
+  @POST def broadcast(message: Message): Response = {
+   new Response(message.author, message.message)
   }
 }
