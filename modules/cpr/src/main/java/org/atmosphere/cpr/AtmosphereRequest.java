@@ -351,7 +351,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getParameter(String s) {
-        String name = b.request.getParameter(s);
+        String name = b.request  == null ? null : b.request.getParameter(s);
         if (name == null) {
             if (b.queryStrings.get(s) != null) {
                 return b.queryStrings.get(s)[0];
