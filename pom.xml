@@ -471,7 +471,7 @@
         <grizzly-version>1.9.39</grizzly-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
-        <jetty7-version>7.6.0.v20120127</jetty7-version>
+        <jetty7-version>8.1.2.v20120308</jetty7-version>
         <tomcat-version>6.0.18</tomcat-version>
         <tomcat7-version>7.0.26</tomcat7-version>
         <jgroups-version>2.8.0.GA</jgroups-version>
