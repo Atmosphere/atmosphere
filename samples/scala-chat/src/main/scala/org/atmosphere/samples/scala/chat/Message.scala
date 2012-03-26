@@ -15,17 +15,23 @@
  */
 package org.atmosphere.samples.scala.chat
 
+import scala.reflect.BeanInfo
+import scala.reflect.BeanProperty
 import javax.xml.bind.annotation.XmlRootElement
 
+@BeanInfo
 @XmlRootElement
 class Message {
 
-    def this(author: String, message: String) {
-      this ()
-      this.author = author
-      this.message = message
-    }
+  @BeanProperty
+  var author: String = ""
+  @BeanProperty
+  var message: String = ""
 
-    var author: String = ""
-    var message: String = ""
+  def this(author: String, message: String) {
+    this ()
+    this.author = author
+    this.message = message
+  }
+
 }

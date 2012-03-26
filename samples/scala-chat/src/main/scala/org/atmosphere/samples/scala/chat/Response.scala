@@ -17,11 +17,16 @@ package org.atmosphere.samples.scala.chat
 
 import java.util.Date
 import javax.xml.bind.annotation.XmlRootElement
+import reflect.{BeanProperty, BeanInfo}
 
+@BeanInfo
 @XmlRootElement
 class Response {
+  @BeanProperty
   var text: String = null
+  @BeanProperty
   var author: String = null
+  @BeanProperty
   var time: Long = 0L
 
   def this(author: String, text: String) {
