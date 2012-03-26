@@ -51,7 +51,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
         } else {
-            logger.debug("{} {}", errorCode, message);
+            logger.warn("{} {}", errorCode, message);
         }
     }
 
