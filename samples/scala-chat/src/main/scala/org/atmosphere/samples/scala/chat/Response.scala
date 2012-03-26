@@ -16,7 +16,9 @@
 package org.atmosphere.samples.scala.chat
 
 import java.util.Date
+import javax.xml.bind.annotation.XmlRootElement
 
+@XmlRootElement
 class Response {
   var text: String = null
   var author: String = null
