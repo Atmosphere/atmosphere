@@ -128,7 +128,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     /**
      * Suspend the connection by invoking {@link AtmosphereRequest#startAsync()}
      *
-     * @param action The {@link AtmosphereServlet.Action}
+     * @param action The {@link org.atmosphere.cpr.AtmosphereFramework.Action}
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
      * @throws java.io.IOException
@@ -139,7 +139,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         if (!req.isAsyncStarted()) {
             AsyncContext asyncContext = req.startAsync();
-            asyncContext.addListener(new CometListener());
+            asyncContext.addListener(new CometListener(this));
             // Do nothing except setting the times out
             if (action.timeout != -1) {
                 asyncContext.setTimeout(action.timeout);
@@ -188,7 +188,18 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     /**
      * Servlet 3.0 async listener support.
      */
-    private class CometListener implements AsyncListener {
+    private final static class CometListener implements AsyncListener {
+
+        private final AsynchronousProcessor p;
+
+        public CometListener(){
+            p = null;
+        }
+
+        // For JBoss 7 https://github.com/Atmosphere/atmosphere/issues/240
+        public CometListener(AsynchronousProcessor processor){
+            this.p = processor;
+        }
 
         public void onComplete(AsyncEvent event) throws IOException {
             logger.debug("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
@@ -198,7 +209,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             logger.debug("onTimeout(): event: {}", event.getAsyncContext().getRequest());
 
             try {
-                timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
+                p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
             } catch (ServletException ex) {
                 logger.debug("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
@@ -209,7 +220,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             logger.debug("onError(): event: {}", event.getAsyncContext().getResponse());
 
             try {
-                cancelled((AtmosphereRequest) event.getAsyncContext().getRequest(),
+                p.cancelled((AtmosphereRequest) event.getAsyncContext().getRequest(),
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
             } catch (Throwable ex) {
                 logger.debug("failed cancelling comet response: " + event.getAsyncContext().getResponse(), ex);
