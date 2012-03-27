@@ -76,7 +76,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private AtmosphereRequest(Builder b) {
         pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         session = b.request == null ?
-                new FakeHttpSession("", null, System.currentTimeMillis()) : b.request.getSession();
+                new FakeHttpSession("", null, System.currentTimeMillis(), -1) : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
