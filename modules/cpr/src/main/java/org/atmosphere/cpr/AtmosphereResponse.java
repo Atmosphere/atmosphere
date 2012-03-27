@@ -16,11 +16,15 @@
 package org.atmosphere.cpr;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class AtmosphereResponse implements HttpServletResponse {
 
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponse.class);
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers;
     private AsyncIOWriter asyncIOWriter;
@@ -724,147 +729,163 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     private final static class DummyHttpServletResponse implements HttpServletResponse {
         public void addCookie(Cookie cookie) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public boolean containsHeader(String name) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return false;
         }
 
         public String encodeURL(String url) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return url;
         }
 
         public String encodeRedirectURL(String url) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return url;
         }
 
         public String encodeUrl(String url) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return url;
         }
 
         public String encodeRedirectUrl(String url) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return url;
         }
 
         public void sendError(int sc, String msg) throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void sendError(int sc) throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void sendRedirect(String location) throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setDateHeader(String name, long date) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void addDateHeader(String name, long date) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setHeader(String name, String value) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void addHeader(String name, String value) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setIntHeader(String name, int value) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void addIntHeader(String name, int value) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setStatus(int sc) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setStatus(int sc, String sm) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public int getStatus() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return 200;
         }
 
         public String getHeader(String name) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return null;
         }
 
         public Collection<String> getHeaders(String name) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return Collections.emptyList();
         }
 
         public Collection<String> getHeaderNames() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return Collections.emptyList();
         }
 
         public String getCharacterEncoding() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return "ISO-8859-1";
         }
 
         public String getContentType() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return "text/plain";
         }
 
         public ServletOutputStream getOutputStream() throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return new NoOpsOutputStream();
         }
 
         public PrintWriter getWriter() throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return new PrintWriter(new NoOpsPrintWriter());
         }
 
         public void setCharacterEncoding(String charset) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setContentLength(int len) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setContentType(String type) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setBufferSize(int size) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public int getBufferSize() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return -1;
         }
 
         public void flushBuffer() throws IOException {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void resetBuffer() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public boolean isCommitted() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return false;
         }
 
         public void reset() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public void setLocale(Locale loc) {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
         }
 
         public Locale getLocale() {
-            throw new UnsupportedOperationException();
+            logger.trace("Unsupported");
+            return Locale.ENGLISH;
         }
     }
 
@@ -883,6 +904,27 @@ public class AtmosphereResponse implements HttpServletResponse {
         @Override
         public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
             return new byte[0];
+        }
+    }
+
+    private final static class NoOpsOutputStream extends ServletOutputStream {
+        @Override
+        public void write(int i) throws IOException {
+        }
+    }
+
+    private final static class NoOpsPrintWriter extends Writer {
+
+        @Override
+        public void write(char[] chars, int i, int i1) throws IOException {
+        }
+
+        @Override
+        public void flush() throws IOException {
+        }
+
+        @Override
+        public void close() throws IOException {
         }
     }
 
