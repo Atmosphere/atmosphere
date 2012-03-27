@@ -223,7 +223,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             this.serverPort = request.getServerPort();
 
             HttpSession session = request.getSession(true);
-            httpSession = new FakeHttpSession(session.getId(), session.getServletContext(), session.getCreationTime());
+            httpSession = new FakeHttpSession(session);
 
             Enumeration<String> e = request.getHeaderNames();
             String s;
