@@ -1126,7 +1126,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 return cometSupport.service(req, res);
             }
         } catch (IllegalStateException ex) {
-            if (ex.getMessage() != null && ex.getMessage().startsWith("Tomcat failed")) {
+            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed") )) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", cometSupport.getClass().getName(),
                             ex.getMessage());
