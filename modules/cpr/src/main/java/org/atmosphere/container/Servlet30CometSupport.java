@@ -192,12 +192,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         private final AsynchronousProcessor p;
 
-        public CometListener(){
+        // For JBoss 7 https://github.com/Atmosphere/atmosphere/issues/240
+        public CometListener() {
             p = null;
         }
 
-        // For JBoss 7 https://github.com/Atmosphere/atmosphere/issues/240
-        public CometListener(AsynchronousProcessor processor){
+        public CometListener(AsynchronousProcessor processor) {
             this.p = processor;
         }
 
@@ -207,6 +207,11 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         public void onTimeout(AsyncEvent event) throws IOException {
             logger.debug("onTimeout(): event: {}", event.getAsyncContext().getRequest());
+
+            if (p == null) {
+                logger.error("Invalid state - CometListener");
+                return;
+            }
 
             try {
                 p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
@@ -218,6 +223,11 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         public void onError(AsyncEvent event) {
             logger.debug("onError(): event: {}", event.getAsyncContext().getResponse());
+
+            if (p == null) {
+                logger.error("Invalid state - CometListener");
+                return;
+            }
 
             try {
                 p.cancelled((AtmosphereRequest) event.getAsyncContext().getRequest(),
