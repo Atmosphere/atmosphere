@@ -73,7 +73,7 @@ jQuery.atmosphere = function() {
                 enableXDR : false,
                 rewriteURL : false,
                 attachHeadersAsQueryString : false,
-                executeCallbackBeforeReconnect : true,
+                executeCallbackBeforeReconnect : false,
                 readyState : 0,
                 lastTimestamp : 0
             };
@@ -282,7 +282,7 @@ jQuery.atmosphere = function() {
                     },
                     jsonp : "jsonpTransport",
                     success: function(json) {
-                        if (rq.executeCallbackBeforeReconnect) {
+                        if (!rq.executeCallbackBeforeReconnect) {
                             _reconnect(_jqxhr, rq);
                         }
 
@@ -292,7 +292,7 @@ jQuery.atmosphere = function() {
                         }
                         _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
-                        if (!rq.executeCallbackBeforeReconnect) {
+                        if (rq.executeCallbackBeforeReconnect) {
                             _reconnect(_jqxhr, rq);
                         }
                     },
@@ -719,7 +719,7 @@ jQuery.atmosphere = function() {
                                 _response.state = "messagePublished";
                             }
 
-                            if (rq.executeCallbackBeforeReconnect) {
+                            if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
@@ -729,7 +729,7 @@ jQuery.atmosphere = function() {
                             }
                             _invokeCallback();
 
-                            if (!rq.executeCallbackBeforeReconnect) {
+                            if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
