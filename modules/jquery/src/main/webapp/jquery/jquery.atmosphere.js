@@ -1191,7 +1191,11 @@ jQuery.atmosphere = function() {
                 // Invoke global callbacks
                 if (jQuery.atmosphere.callbacks.length > 0) {
                     jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
-                    jQuery.each(jQuery.atmosphere.callbacks, call);
+                    try {
+                        jQuery.each(jQuery.atmosphere.callbacks, call);
+                    } catch (e) {
+                        jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
+                    }
                 }
 
                 // Invoke request callback
@@ -1199,7 +1203,11 @@ jQuery.atmosphere = function() {
                     if (_request.logLevel == 'debug') {
                         jQuery.atmosphere.debug("Invoking request callbacks");
                     }
-                    _request.callback(_response);
+                    try {
+                        _request.callback(_response);
+                    } catch (e) {
+                        jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
+                    }
                 }
             }
 
