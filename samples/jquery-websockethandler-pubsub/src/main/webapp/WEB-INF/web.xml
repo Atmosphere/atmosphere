@@ -9,6 +9,11 @@
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
+        <!-- Only required if mvn jetty:run is used -->
+        <init-param>
+            <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
+            <param-value>org.atmosphere.samples.pubsub.WebSocketPubSub</param-value>
+        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
