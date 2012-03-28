@@ -75,7 +75,8 @@ jQuery.atmosphere = function() {
                 attachHeadersAsQueryString : false,
                 executeCallbackBeforeReconnect : false,
                 readyState : 0,
-                lastTimestamp : 0
+                lastTimestamp : 0,
+                withCredentials : false
             };
 
             /**
@@ -771,6 +772,13 @@ jQuery.atmosphere = function() {
                 if (create) {
                     ajaxRequest.open(request.method, url, true);
                 }
+
+                if (request.withCredentials) {
+                    if ("withCredentials" in ajaxRequest) {
+                        ajaxRequest.withCredentials = true;
+                    }
+                }
+
                 ajaxRequest.setRequestHeader("X-Atmosphere-Framework", jQuery.atmosphere.version);
                 ajaxRequest.setRequestHeader("X-Atmosphere-Transport", request.transport);
                 if (request.lastTimestamp != undefined) {
