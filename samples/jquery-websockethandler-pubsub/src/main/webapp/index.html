@@ -6,9 +6,9 @@
 
     <script type="text/javascript">
         $(document).ready(function() {
-            var connectedEndpoint;
-            var callbackAdded = false;
-            var baseUrl = document.location.toString()  + 'pubsub/'
+            var detectedTransport = null;
+            var socket = $.atmosphere;
+            var subSocket;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -19,37 +19,40 @@
                 return document.getElementById(arguments[0]);
             }
 
+            function getTransport(t) {
+                transport = t.options[t.selectedIndex].value;
+                if (transport == 'autodetect') {
+                    transport = 'websocket';
+                }
+
+                return false;
+            }
+
             function getElementByIdValue() {
+                detectedTransport = null;
                 return document.getElementById(arguments[0]).value;
             }
 
             function subscribe() {
-                // jquery.atmosphere.response
-                function callback(response) {
-                    // Websocket events.
-                    $.atmosphere.log('info', ["response.state: " + response.state]);
-                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
-                    $.atmosphere.log('info', ["response.status: " + response.status]);
+                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                    transport: getElementByIdValue('transport')};
 
-                    if (response.transport != 'polling' && response.state == 'messageReceived') {
-                        $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
-                        if (response.status == 200) {
-                            var data = response.responseBody;
-                            if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data));
-                            }
+                request.onMessage = function (response) {
+                    detectedTransport = response.transport;
+                    if (response.status == 200) {
+                        var data = response.responseBody;
+                        if (data.length > 0) {
+                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
                         }
                     }
-                }
+                };
 
-                var location = baseUrl + getElementByIdValue('topic');
-                connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: 'websocket' });
-                callbackAdded = true;
+                subSocket = socket.subscribe(request);
             }
 
             function unsubscribe(){
-                $.atmosphere.unsubscribe();
+                callbackAdded = false;
+                socket.unsubscribe();
             }
 
             function connect() {
@@ -58,6 +61,7 @@
                 getElementById('sendMessage').className = '';
                 getElementById('phrase').focus();
                 subscribe();
+                getElementById('connect').value = "Switch transport";
             }
 
             getElementById('connect').onclick = function(event) {
@@ -81,7 +85,14 @@
             getElementById('phrase').onkeyup = function(event) {
                 var keyc = getKeyCode(event);
                 if (keyc == 13 || keyc == 10) {
-                    connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase')});
+
+                    var m = " sent using " + detectedTransport;
+                    if (detectedTransport == null) {
+                        detectedTransport = getElementByIdValue('transport');
+                        m = " sent trying to use " + detectedTransport;
+                    }
+
+                    subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -94,7 +105,14 @@
                     alert("Please enter a message to publish");
                     return;
                 }
-                connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase')});
+
+                var m = " sent using " + detectedTransport;
+                if (detectedTransport == null) {
+                    detectedTransport = getElementByIdValue('transport');
+                    m = " sent trying to use " + detectedTransport;
+                }
+
+                subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                 getElementById('phrase').value = '';
                 return false;
@@ -132,15 +150,33 @@
     </style>
 </head>
 <body>
-<h1>WebSocketHandler PubSub Sample using Atmosphere's JQuery Plug In</h1>
+<h1>PubSub Sample using Atmosphere's JQuery Plug In. By default the sample use the DefaultBroadcaster.</h1>
+<h2>To enable Redis, XMPP, Hazelcast of ActiveMQ (JMS), uncomments in pom.xml the associated dependency or put atmosphere-{hazelcast|jms|xmpp|redis}.jar under WEB-INF/lib</h2>
 
-<h2>Subscribe to</h2>
+<h2>Select PubSub topic to subscribe</h2>
+
 <div id='pubsub'>
     <input id='topic' type='text'/>
+</div>
+<h2>Select transport to use for subscribing</h2>
+
+<h3>You can change the transport any time.</h3>
+
+<div id='select_transport'>
+    <select id="transport">
+        <option id="autodetect" value="websocket">autodetect</option>
+        <option id="jsonp" value="jsonp">jsonp</option>
+        <option id="long-polling" value="long-polling">long-polling</option>
+        <option id="streaming" value="streaming">http streaming</option>
+        <option id="websocket" value="websocket">websocket</option>
+    </select>
     <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
 </div>
 <br/>
-<h2 id="s_h" class='hidden'>Publish</h2>
+<br/>
+
+<h2 id="s_h" class='hidden'>Publish Topic</h2>
+
 <div id='sendMessage' class='hidden'>
     <input id='phrase' type='text'/>
     <input id='send_message' class='button' type='submit' name='Publish' value='Publish Message'/>
