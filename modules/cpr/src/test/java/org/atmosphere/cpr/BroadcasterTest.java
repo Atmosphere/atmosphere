@@ -59,6 +59,7 @@ public class BroadcasterTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
+        atmosphereHandler.value.set(new HashSet());
     }
 
     @Test
