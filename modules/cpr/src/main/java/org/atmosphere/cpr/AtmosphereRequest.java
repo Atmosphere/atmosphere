@@ -90,9 +90,10 @@ public class AtmosphereRequest implements HttpServletRequest {
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
 
+        methodType = b.methodType == null ? (isNotNoOps()? b.request.getMethod() : "GET") : b.methodType;
+
         if (b.request == null) b.request(new NoOpsRequest());
 
-        methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
         this.b = b;
     }
 
@@ -191,7 +192,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getServletPath() {
-        return b.servletPath != "" ? b.servletPath : (b.request != null ? b.request.getServletPath() : "");
+        return b.servletPath != "" ? b.servletPath : (isNotNoOps()? b.request.getServletPath() : "");
     }
 
     /**
@@ -199,7 +200,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRequestURI() {
-        return b.requestURI != null ? b.requestURI : (b.request != null ? b.request.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : (isNotNoOps()? b.request.getRequestURI() : null);
     }
 
     /**
@@ -207,7 +208,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public StringBuffer getRequestURL() {
-        return b.requestURL != null ? new StringBuffer(b.requestURL) : (b.request != null ? b.request.getRequestURL() : null);
+        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps()? b.request.getRequestURL() : null);
     }
 
     /**
@@ -226,7 +227,7 @@ public class AtmosphereRequest implements HttpServletRequest {
                 list.add(b.headers.get(name));
             }
 
-            if (b.request != null) {
+            if (isNotNoOps()) {
                 if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
                     if (b.request.getAttribute(name) != null) {
                         list.add(b.request.getAttribute(name));
@@ -330,7 +331,7 @@ public class AtmosphereRequest implements HttpServletRequest {
                 return b.headers.get(s);
             }
 
-            if (s.startsWith(X_ATMOSPHERE) && b.request != null) {
+            if (s.startsWith(X_ATMOSPHERE) && isNotNoOps()) {
                 name = (String) b.request.getAttribute(s);
             }
         }
@@ -367,7 +368,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     public Map<String, String[]> getParameterMap() {
         if (!queryComputed) {
             queryComputed = true;
-            Map<String, String[]> m = (b.request != null ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
+            Map<String, String[]> m = (isNotNoOps()? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
             for (String e : m.keySet()) {
                 b.queryStrings.put(e, getParameterValues(e));
             }
@@ -417,7 +418,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? (b.request != null ? b.request.getInputStream() : null) : bis;
+        return bis == null ? (isNotNoOps()? b.request.getInputStream() : null) : bis;
     }
 
     /**
@@ -425,7 +426,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? (b.request != null ? b.request.getReader() : null) : br;
+        return br == null ? (isNotNoOps()? b.request.getReader() : null) : br;
     }
 
     /**
@@ -494,7 +495,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void setAttribute(String s, Object o) {
         b.localAttributes.put(s, o);
-        if (b.request != null) {
+        if (isNotNoOps()) {
             b.request.setAttribute(s, o);
         }
     }
@@ -536,7 +537,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public Object getAttribute(String s) {
-        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (b.request != null ? b.request.getAttribute(s) : null);
+        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps()? b.request.getAttribute(s) : null);
     }
 
     /**
@@ -545,7 +546,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public void removeAttribute(String name) {
         b.localAttributes.remove(name);
-        if (b.request != null) {
+        if (isNotNoOps()) {
             b.request.removeAttribute(name);
         }
     }
@@ -644,7 +645,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRemoteAddr() {
-        return b.request != null ? b.request.getRemoteAddr() : b.remoteAddr;
+        return isNotNoOps()? b.request.getRemoteAddr() : b.remoteAddr;
     }
 
     /**
@@ -652,7 +653,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRemoteHost() {
-        return b.request != null ? b.request.getRemoteHost() : b.remoteHost;
+        return isNotNoOps()? b.request.getRemoteHost() : b.remoteHost;
     }
 
     /**
@@ -660,7 +661,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public int getRemotePort() {
-        return b.request != null ? b.request.getRemotePort() : b.remotePort;
+        return isNotNoOps()? b.request.getRemotePort() : b.remotePort;
     }
 
     /**
@@ -732,7 +733,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getLocalName() {
-        return b.request != null ? b.request.getLocalName() : b.localName;
+        return isNotNoOps()? b.request.getLocalName() : b.localName;
     }
 
     /**
@@ -740,7 +741,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public int getLocalPort() {
-        return b.request != null ? b.request.getLocalPort() : b.localPort;
+        return isNotNoOps()? b.request.getLocalPort() : b.localPort;
     }
 
     /**
@@ -748,7 +749,11 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getLocalAddr() {
-        return b.request != null ? b.request.getLocalAddr() : b.localAddr;
+        return isNotNoOps()? b.request.getLocalAddr() : b.localAddr;
+    }
+
+    private boolean isNotNoOps(){
+        return !NoOpsRequest.class.isAssignableFrom(b.request.getClass());
     }
 
     /**
@@ -791,7 +796,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     public Enumeration<String> getAttributeNames() {
         Set<String> l = new HashSet();
         l.addAll(b.localAttributes.keySet());
-        Enumeration<String> e = (b.request != null ? b.request.getAttributeNames() : null);
+        Enumeration<String> e = (isNotNoOps()? b.request.getAttributeNames() : null);
         if (e != null) {
             while (e.hasMoreElements()) {
                 l.add(e.nextElement());
@@ -838,9 +843,8 @@ public class AtmosphereRequest implements HttpServletRequest {
         b.queryStrings.clear();
 
         // Help GC
-        if (b.request != null) {
+        if (isNotNoOps()) {
             b.request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            b.request = null;
         }
     }
 
@@ -1251,12 +1255,12 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         @Override
         public String getLocalAddr() {
-            return null;
+            return "";
         }
 
         @Override
         public String getParameter(String name) {
-            return null;
+            return "";
         }
 
         @Override
@@ -1276,7 +1280,7 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         @Override
         public String getProtocol() {
-            return null;
+            return "WebSocket";
         }
 
         @Override
@@ -1286,17 +1290,17 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         @Override
         public String getRealPath(String path) {
-            return null;
+            return path;
         }
 
         @Override
         public String getRemoteAddr() {
-            return null;
+            return "";
         }
 
         @Override
         public String getRemoteHost() {
-            return null;
+            return "";
         }
 
         @Override
@@ -1311,12 +1315,12 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         @Override
         public String getScheme() {
-            return null;
+            return "WebSocket";
         }
 
         @Override
         public String getServerName() {
-            return null;
+            return "";
         }
 
         @Override
