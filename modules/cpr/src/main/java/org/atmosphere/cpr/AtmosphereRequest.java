@@ -90,7 +90,7 @@ public class AtmosphereRequest implements HttpServletRequest {
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
 
-        methodType = b.methodType == null ? (isNotNoOps()? b.request.getMethod() : "GET") : b.methodType;
+        methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
 
         if (b.request == null) b.request(new NoOpsRequest());
 
