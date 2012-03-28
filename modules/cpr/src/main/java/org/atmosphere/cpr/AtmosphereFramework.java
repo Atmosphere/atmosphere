@@ -183,6 +183,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String handlersPath = "/WEB-INF/classes/";
     protected ServletConfig servletConfig;
     protected boolean autoDetectHandlers = true;
+    private boolean hasNewWebSocketProtocol = false;
 
     @Override
     public ServletContext getServletContext() {
@@ -1023,10 +1024,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
 
+        if (hasNewWebSocketProtocol) return;
 
-        if (webSocketProtocolClassName.equalsIgnoreCase(SimpleHttpProtocol.class.getName())) return;
-
-        logger.info("Auto detecting WebSocketHandler {}", handlersPath);
+        logger.info("Auto detecting WebSocketHandler in {}", handlersPath);
 
         String realPath = servletContext.getRealPath(handlersPath);
 
@@ -1246,6 +1246,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public AtmosphereFramework setWebSocketProtocolClassName(String webSocketProtocolClassName) {
+        hasNewWebSocketProtocol = true;
         this.webSocketProtocolClassName = webSocketProtocolClassName;
         return this;
     }
