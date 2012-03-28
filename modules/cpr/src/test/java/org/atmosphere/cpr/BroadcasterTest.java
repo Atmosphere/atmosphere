@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.w3c.dom.stylesheets.LinkStyle;
@@ -55,10 +56,15 @@ public class BroadcasterTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
+    @AfterMethod
+    public void unSetUp() throws Exception {
+        broadcaster.removeAtmosphereResource(ar);
+    }
+
     @Test
     public void testDirectBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(atmosphereHandler.value.get(), ar);
+        assertEquals(atmosphereHandler.value.get().toArray()[0], ar);
     }
 
     @Test
