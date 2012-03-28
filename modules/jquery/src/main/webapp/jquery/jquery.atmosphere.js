@@ -40,6 +40,13 @@ jQuery.atmosphere = function() {
         requests : [],
         callbacks : [],
 
+        onError : function(response) {},
+        onClose : function(response) {},
+        onOpen : function(response) {},
+        onMessage : function(response) {},
+        onReconnect : function(response) {},
+        onMessagePublished : function(response) {},
+
         AtmosphereRequest : function(options) {
 
             /**
@@ -76,7 +83,13 @@ jQuery.atmosphere = function() {
                 executeCallbackBeforeReconnect : false,
                 readyState : 0,
                 lastTimestamp : 0,
-                withCredentials : false
+                withCredentials : false,
+                onError : function(response) {},
+                onClose : function(response) {},
+                onOpen : function(response) {},
+                onMessage : function(response) {},
+                onReconnect : function(response) {},
+                onMessagePublished : function(response) {}
             };
 
             /**
@@ -95,14 +108,14 @@ jQuery.atmosphere = function() {
 
             /**
              * {number} Request id.
-             * 
+             *
              * @private
              */
             var _uuid = 0;
 
             /**
              * {websocket} Opened web socket.
-             * 
+             *
              * @private
              */
             var _websocket = null;
@@ -110,42 +123,42 @@ jQuery.atmosphere = function() {
             /**
              * {XMLHttpRequest, ActiveXObject} Opened ajax request (in case of
              * http-streaming or long-polling)
-             * 
+             *
              * @private
              */
             var _activeRequest = null;
 
             /**
              * {Object} Object use for streaming with IE.
-             * 
+             *
              * @private
              */
             var _ieStream = null;
 
             /**
              * {Object} Object use for jsonp transport.
-             * 
+             *
              * @private
              */
             var _jqxhr = null;
 
             /**
              * {boolean} If request has been subscribed or not.
-             * 
+             *
              * @private
              */
             var _subscribed = true;
 
             /**
              * {number} Number of test reconnection.
-             * 
+             *
              * @private
              */
             var _requestCount = 0;
 
             /**
              * {boolean} If request is currently aborded.
-             * 
+             *
              * @private
              */
             var _abordingConnection = false;
@@ -155,7 +168,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Initialize atmosphere request object.
-             * 
+             *
              * @private
              */
             function _init() {
@@ -181,7 +194,7 @@ jQuery.atmosphere = function() {
             /**
              * Subscribe request using request transport. <br>
              * If request is currently opened, this one will be closed.
-             * 
+             *
              * @param {Object}
              *            Request parameters.
              * @private
@@ -198,7 +211,7 @@ jQuery.atmosphere = function() {
             /**
              * Check if web socket is supported (check for custom implementation
              * provided by request object or browser implementation).
-             * 
+             *
              * @returns {boolean} True if web socket is supported, false
              *          otherwise.
              * @private
@@ -212,7 +225,7 @@ jQuery.atmosphere = function() {
              * If request transport is 'websocket' but websocket can't be
              * opened, request will automatically reconnect using fallback
              * transport.
-             * 
+             *
              * @private
              */
             function _execute() {
@@ -248,7 +261,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Execute request using jsonp transport.
-             * 
+             *
              * @param request
              *            {Object} request Request parameters, if
              *            undefined _request object will be used.
@@ -306,7 +319,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Build websocket object.
-             * 
+             *
              * @param location
              *            {string} Web socket url.
              * @returns {websocket} Web socket object.
@@ -326,7 +339,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Build web socket url from request url.
-             * 
+             *
              * @return {string} Web socket url (start with "ws" or "wss" for
              *         secure web socket).
              * @private
@@ -344,7 +357,7 @@ jQuery.atmosphere = function() {
              * Open web socket. <br>
              * Automatically use fallback transport if web socket can't be
              * opened.
-             * 
+             *
              * @private
              */
             function _executeWebSocket() {
@@ -461,7 +474,7 @@ jQuery.atmosphere = function() {
             /**
              * Reconnect request with fallback transport. <br>
              * Used in case websocket can't be opened.
-             * 
+             *
              * @private
              */
             function _reconnectWithFallbackTransport() {
@@ -473,11 +486,11 @@ jQuery.atmosphere = function() {
 
             /**
              * Get url from request and attach headers to it.
-             * 
+             *
              * @param request
              *            {Object} request Request parameters, if
              *            undefined _request object will be used.
-             * 
+             *
              * @returns {Object} Request object, if undefined,
              *          _request object will be used.
              * @private
@@ -525,7 +538,7 @@ jQuery.atmosphere = function() {
              * Build ajax request. <br>
              * Ajax Request is an XMLHttpRequest object, except for IE6 where
              * ajax request is an ActiveXObject.
-             * 
+             *
              * @return {XMLHttpRequest, ActiveXObject} Ajax request.
              * @private
              */
@@ -547,7 +560,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Execute ajax request. <br>
-             * 
+             *
              * @param request
              *            {Object} request Request parameters, if
              *            undefined _request object will be used.
@@ -1045,7 +1058,7 @@ jQuery.atmosphere = function() {
             /**
              * Send message. <br>
              * Will be automatically dispatch to other connected.
-             * 
+             *
              * @param {Object,
              *            string} Message to send.
              * @private
@@ -1065,7 +1078,7 @@ jQuery.atmosphere = function() {
             /**
              * Send a message using currently opened ajax request (using
              * http-streaming or long-polling). <br>
-             * 
+             *
              * @param {string, Object} Message to send. This is an object, string
              *            message is saved in data member.
              * @private
@@ -1078,7 +1091,7 @@ jQuery.atmosphere = function() {
             /**
              * Send a message using currently opened ie streaming (using
              * http-streaming or long-polling). <br>
-             * 
+             *
              * @param {string, Object} Message to send. This is an object, string
              *            message is saved in data member.
              * @private
@@ -1089,7 +1102,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Send a message using jsonp transport. <br>
-             * 
+             *
              * @param {string, Object} Message to send. This is an object, string
              *            message is saved in data member.
              * @private
@@ -1145,7 +1158,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Send a message using currently opened websocket. <br>
-             * 
+             *
              * @param {string, Object}
              *            Message to send. This is an object, string message is
              *            saved in data member.
@@ -1186,15 +1199,62 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
             }
 
+            function _invokeFunction(response) {
+                 switch (response.state) {
+                    case "messageReceived" :
+                        if (typeof(_request.onMessage) != 'undefined') _request.onMessage(response);
+                        break;
+                    case "error" :
+                        if (typeof(_request.onError) != 'undefined') _request.onError(response);
+                        break;
+                     case "opening" :
+                         if (typeof(_request.onOpen) != 'undefined') _request.onOpen(response);
+                         break;
+                    case "messagePublished" :
+                        if (typeof(_request.onMessagePublished) != 'undefined') _request.onMessagePublished(response);
+                        break;
+                    case "re-opening" :
+                        if (typeof(_request.onReconnect) != 'undefined') _request.onReconnect(response);
+                        break;
+                    case "closed" :
+                        if (typeof(_request.onClose) != 'undefined') _request.onClose(response);
+                        break;
+                }
+
+                // Global
+                switch (response.state) {
+                    case "messageReceived" :
+                        if (typeof(jQuery.atmosphere.onMessage) != 'undefined') jQuery.atmosphere.onMessage(response);
+                        break;
+                    case "error" :
+                        if (typeof(jQuery.atmosphere.onError) != 'undefined') jQuery.atmosphere.onError(response);
+                        break;
+                     case "opening" :
+                         if (typeof(jQuery.atmosphere.onOpen) != 'undefined') jQuery.atmosphere.onOpen(response);
+                         break;
+                    case "messagePublished" :
+                        if (typeof(jQuery.atmosphere.onMessagePublished) != 'undefined') jQuery.atmosphere.onMessagePublished(response);
+                        break;
+                    case "re-opening" :
+                        if (typeof(jQuery.atmosphere.onReconnect) != 'undefined') jQuery.atmosphere.onReconnect(response);
+                        break;
+                    case "closed" :
+                        if (typeof(jQuery.atmosphere.onClose) != 'undefined') jQuery.atmosphere.onClose(response);
+                        break;
+                }
+            }
+
             /**
              * Invoke request callbacks.
-             * 
+             *
              * @private
              */
             function _invokeCallback() {
                 var call = function (index, func) {
                     func(_response);
                 };
+
+                _invokeFunction(_response);
 
                 // Invoke global callbacks
                 if (jQuery.atmosphere.callbacks.length > 0) {
@@ -1221,7 +1281,7 @@ jQuery.atmosphere = function() {
 
             /**
              * Close request.
-             * 
+             *
              * @private
              */
             function _close() {
@@ -1284,7 +1344,12 @@ jQuery.atmosphere = function() {
             if (typeof(callback) == 'function') {
                 jQuery.atmosphere.addCallback(callback);
             }
-            request.url = url;
+
+            if (typeof(url) != "string") {
+                request = url;
+            } else {
+                request.url = url;
+            }
 
             var rq = new jQuery.atmosphere.AtmosphereRequest(request);
             jQuery.atmosphere.requests[jQuery.atmosphere.requests.length] = rq;
