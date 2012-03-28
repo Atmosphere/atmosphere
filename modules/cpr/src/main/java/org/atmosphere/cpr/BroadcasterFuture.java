@@ -81,10 +81,14 @@ public class BroadcasterFuture<E> implements Future {
     }
 
     public BroadcasterFuture(Future<?> innerFuture, E msg) {
+        this(innerFuture, msg, 1);
+    }
+
+    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
         this.msg = msg;
         this.innerFuture = innerFuture;
         if (innerFuture == null) {
-            latch = new CountDownLatch(1);
+            latch = new CountDownLatch(latchCount);
         } else {
             latch = null;
         }
