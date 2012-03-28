@@ -23,7 +23,9 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
    [White Paper PDF (a little bit old)](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
 
-#### Current status of the Project
+#### Latest publication
+
+[Comet/WebSocket? Introducing the Atmosphere framework](http://www.ncolomer.net/2012/03/comewebsocket-introducing-the-atmosphere-framework/)
 
 [Latest Presentation - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
 
