@@ -7,51 +7,46 @@ $(function () {
     var myName = false;
     var author = null;
     var logged = false;
-    var callback = function callback(response) {
-        $.atmosphere.log('info', ["response.state: " + response.state]);
-        $.atmosphere.log('info', ["response.transport: " + response.transport]);
-        $.atmosphere.log('info', ["response.status: " + response.status]);
+    var socket = $.atmosphere;
+    var request = { url: document.location.toString() + 'meteor',
+                    contentType : "application/json",
+                    logLevel : 'debug',
+                    transport : 'websocket' ,
+                    fallbackTransport: 'long-polling'};
 
-        if (response.transport != 'polling') {
 
-            switch (response.state) {
-                case "messageReceived" :
-                    var message = response.responseBody;
-                    try {
-                        var json = JSON.parse(message);
-                    } catch (e) {
-                        console.log('This doesn\'t look like a valid JSON: ', message.data);
-                        return;
-                    }
+    request.onOpen = function(response) {
+        input.removeAttr('disabled').focus();
+        status.text('Choose name:');
+    };
 
-                    if (!logged) {
-                        logged = true;
-                        status.text(myName + ': ').css('color', 'blue');
-                        input.removeAttr('disabled').focus();
-                    } else {
-                        input.removeAttr('disabled');
-
-                        var me = json.author == author;
-                        addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(json.time));
-                    }
-
-                    break;
-                case "opening" :
-                    input.removeAttr('disabled').focus();
-                    status.text('Choose name:');
-                    break;
-                case "error" :
-                    content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
-                        + 'connection or the server is down' }));
-
-            }
+    request.onMessage = function (response) {
+        var message = response.responseBody;
+        try {
+            var json = JSON.parse(message);
+        } catch (e) {
+            console.log('This doesn\'t look like a valid JSON: ', message.data);
+            return;
         }
 
-    }
+        if (!logged) {
+            logged = true;
+            status.text(myName + ': ').css('color', 'blue');
+            input.removeAttr('disabled').focus();
+        } else {
+            input.removeAttr('disabled');
 
-    var connection = $.atmosphere.subscribe(document.location.toString() + 'meteor',
-        callback,
-        $.atmosphere.request = { logLevel : 'debug', transport : 'websocket' , fallbackTransport: 'long-polling'})
+            var me = json.author == author;
+            addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(json.time));
+        }
+    };
+
+    request.onError = function(response) {
+        content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
+            + 'socket or the server is down' }));
+    };
+
+    var subSocket = socket.subscribe(request);
 
     input.keydown(function(e) {
         if (e.keyCode === 13) {
@@ -62,7 +57,7 @@ $(function () {
                 author = msg;
             }
 
-            connection.push(JSON.stringify({ author: author, message: msg }));
+            subSocket.push(JSON.stringify({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');
