@@ -239,6 +239,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
         public final long currentTime;
         public CachedMessage next;
         public final boolean isTail;
+        public Object t;
 
         public CachedMessage(boolean isTail) {
             this.currentTime = 0L;
@@ -281,6 +282,15 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
 
         public boolean isTail() {
             return isTail;
+        }
+
+        public CachedMessage setKey(Object t) {
+            this.t = t;
+            return this;
+        }
+
+        public Object getKey() {
+            return t;
         }
 
     }
