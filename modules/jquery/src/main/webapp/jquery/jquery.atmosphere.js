@@ -84,6 +84,8 @@ jQuery.atmosphere = function() {
                 readyState : 0,
                 lastTimestamp : 0,
                 withCredentials : false,
+                trackMessageLength : false ,
+                messageDelimiter : '',
                 onError : function(response) {},
                 onClose : function(response) {},
                 onOpen : function(response) {},
@@ -99,6 +101,7 @@ jQuery.atmosphere = function() {
             var _response = {
                 status: 200,
                 responseBody : '',
+                expectedBodySize : -1,
                 headers : [],
                 state : "messageReceived",
                 transport : "polling",
@@ -397,8 +400,38 @@ jQuery.atmosphere = function() {
 
                     _response.state = 'messageReceived';
                     _response.status = 200;
-                    _response.responseBody = message.data;
-                    _invokeCallback();
+
+                    var message = message.data;
+                    var skipCallbackInvokation = false;
+
+                    if (_request.trackMessageLength) {
+                        // The message length is the included within the message
+                        var messageStart = message.indexOf(_request.messageDelimiter);
+
+                        var length = _response.expectedBodySize;
+                        if (messageStart != -1) {
+                            length = message.substring(0, messageStart);
+                            message = message.substring(messageStart + 1);
+                            _response.expectedBodySize = length;
+                        }
+
+                        if (messageStart != -1) {
+                            _response.responseBody = message;
+                        } else {
+                            _response.responseBody += message;
+                        }
+
+                        if (_response.responseBody.length != length) {
+                            skipCallbackInvokation = true;
+                        }
+                    } else {
+                        _response.responseBody = message;
+                    }
+
+                    if (!skipCallbackInvokation) {
+                        _invokeCallback();
+                        _response.responseBody = '';
+                    }
                 };
 
                 _websocket.onerror = function(message) {
@@ -514,6 +547,11 @@ jQuery.atmosphere = function() {
                 url += "?X-Atmosphere-tracking-id=" + _uuid;
                 url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;
                 url += "&X-Atmosphere-Transport=" + rq.transport;
+
+                if (rq.trackMessageLength) {
+                    url += "&X-Atmosphere-TrackMessageSize=" +  "true";
+                }
+
                 if (rq.lastTimestamp != undefined) {
                     url += "&X-Cache-Date=" + rq.lastTimestamp;
                 } else {
@@ -622,7 +660,7 @@ jQuery.atmosphere = function() {
                             return;
                         }
 
-                        var junkForWebkit = false;
+                        var skipCallbackInvokation = false;
                         var update = false;
 
                         // Remote server disconnected us, reconnect.
@@ -666,25 +704,49 @@ jQuery.atmosphere = function() {
                             var responseText = ajaxRequest.responseText;
                             this.previousLastIndex = rq.lastIndex;
                             if (rq.transport == 'streaming') {
-                                _response.responseBody = responseText.substring(rq.lastIndex, responseText.length);
+                                var text = responseText.substring(rq.lastIndex, responseText.length);
                                 _response.isJunkEnded = true;
 
-                                if (rq.lastIndex == 0 && _response.responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
+                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
                                     _response.isJunkEnded = false;
                                 }
 
+                                var messageComplete = true;
                                 if (!_response.isJunkEnded) {
                                     var endOfJunk = "<!-- EOD -->";
                                     var endOfJunkLenght = endOfJunk.length;
-                                    var junkEnd = _response.responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
 
-                                    if (junkEnd > endOfJunkLenght && junkEnd != _response.responseBody.length) {
-                                        _response.responseBody = _response.responseBody.substring(junkEnd);
+                                    if (junkEnd > endOfJunkLenght && junkEnd != text.length) {
+                                        _response.responseBody = text.substring(junkEnd);
                                     } else {
-                                        junkForWebkit = true;
+                                        skipCallbackInvokation = true;
                                     }
                                 } else {
-                                    _response.responseBody = responseText.substring(rq.lastIndex, responseText.length);
+                                    var message = responseText.substring(rq.lastIndex, responseText.length);
+                                    if (rq.trackMessageLength) {
+                                        // The message length is the included within the message
+                                        var messageStart = message.indexOf(rq.messageDelimiter);
+
+                                        var length = _response.expectedBodySize;
+                                        if (messageStart != -1) {
+                                            length = message.substring(0, messageStart);
+                                            message = message.substring(messageStart + 1);
+                                            _response.expectedBodySize = length;
+                                        }
+
+                                        if (messageStart != -1) {
+                                            _response.responseBody = message;
+                                        } else {
+                                            _response.responseBody += message;
+                                        }
+
+                                        if (_response.responseBody.length != length) {
+                                            skipCallbackInvokation = true;
+                                        }
+                                    } else {
+                                        _response.responseBody = message;
+                                    }
                                 }
                                 rq.lastIndex = responseText.length;
 
@@ -712,11 +774,33 @@ jQuery.atmosphere = function() {
                                     }, 0);
                                 }
 
-                                if (junkForWebkit) {
+                                if (skipCallbackInvokation) {
                                     return;
                                 }
                             } else {
-                                _response.responseBody = responseText;
+                                if (rq.trackMessageLength) {
+                                    // The message length is the included within the message
+                                    var messageStart = responseText.indexOf(rq.messageDelimiter);
+
+                                    var length = _response.expectedBodySize;
+                                    if (messageStart != -1) {
+                                        length = responseText.substring(0, messageStart);
+                                        responseText = responseText.substring(messageStart + 1);
+                                        _response.expectedBodySize = length;
+                                    }
+
+                                    if (messageStart != -1) {
+                                        _response.responseBody = responseText;
+                                    } else {
+                                        _response.responseBody += responseText;
+                                    }
+
+                                    if (_response.responseBody.length != length) {
+                                        skipCallbackInvokation = true;
+                                    }
+                                } else {
+                                    _response.responseBody = responseText;
+                                }
                                 rq.lastIndex = responseText.length;
                             }
 
@@ -798,6 +882,10 @@ jQuery.atmosphere = function() {
                     ajaxRequest.setRequestHeader("X-Cache-Date", request.lastTimestamp);
                 } else {
                     ajaxRequest.setRequestHeader("X-Cache-Date", 0);
+                }
+
+                if (request.trackMessageLength) {
+                    ajaxRequest.setRequestHeader("X-Atmosphere-TrackMessageSize", "true")
                 }
 
                 if (request.contentType != '') {
