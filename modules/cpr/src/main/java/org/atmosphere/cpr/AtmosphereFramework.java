@@ -647,6 +647,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
         if (s != null) {
             broadcasterFilters.addAll(Arrays.asList(s.split(",")));
+            logger.info("Installing BroadcastFilter class(es) {}", s);
         }
         s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
         if (s != null) {
