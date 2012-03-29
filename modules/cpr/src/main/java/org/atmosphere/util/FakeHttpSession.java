@@ -131,7 +131,7 @@ public class FakeHttpSession implements HttpSession {
             Object o = getAttribute(k);
             if (o == null) continue;
 
-            attributes.put(k, getAttribute(k));
+            attributes.put(k, o);
         }
         return this;
     }
