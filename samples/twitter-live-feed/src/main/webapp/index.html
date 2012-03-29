@@ -6,9 +6,8 @@
     <script type="text/javascript" src="jquery/jquery.form.js"></script>
     <script type="text/javascript">
         $(document).ready(function() {
-            var connectedEndpoint;
-            var callbackAdded = false;
-            var incompleteMessage = "";
+            var socket = $.atmosphere;
+            var subSocket;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -33,36 +32,33 @@
             }
 
             function subscribe() {
-                function callback(response) {
-                    $.atmosphere.log('info', ["response.state: " + response.state]);
-                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
-                    $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
+                var request = { url : document.location.toString() + 'search/' + getElementByIdValue('topic'),
+                    transport: getElementByIdValue('transport'),
+                    attachHeadersAsQueryString : true,
+                    trackMessageLength : true,
+                    messageDelimiter: "|"
+                };
 
-                    if (response.transport != 'polling' && response.state == 'messageReceived') {
-                        if (response.status == 200) {
-                            var data = response.responseBody;
+                request.onMessage = function (response) {
+                    detectedTransport = response.transport;
+                    if (response.status == 200) {
+                        var data = response.responseBody;
 
-                            try {
-                                var result = $.parseJSON(incompleteMessage + data);
-                                incompleteMessage = "";
+                        try {
+                            var result = $.parseJSON(data);
 
-                                var i = 0;
-                                for (i = result.results.length - 1; i > -1; i--) {
-                                    $('#result').prepend($('<li>').append($('<a>').append(result.results[i].text))).highlight(getElementById('topic').value);
-                                    $('#result').prepend($('<li>').append($('<h3>').append(result.results[i].from_user).append('</h3>')));
-                                }
-                            } catch (err) {
-                                incompleteMessage = data;
+                            var i = 0;
+                            for (i = result.results.length - 1; i > -1; i--) {
+                                $('#result').prepend($('<li>').append($('<a>').append(result.results[i].text))).highlight(getElementById('topic').value);
+                                $('#result').prepend($('<li>').append($('<h3>').append(result.results[i].from_user).append('</h3>')));
                             }
+                        } catch (err) {
+                            alert("Exception: " + err)
                         }
                     }
-                }
+                };
 
-                /* transport can be : long-polling, streaming or websocket */
-                connectedEndpoint = $.atmosphere.subscribe(document.location.toString() + 'search/' + getElementByIdValue('topic'),
-                        !callbackAdded ? callback : null,
-                        $.atmosphere.request = {transport: getElementByIdValue('transport')});
-                callbackAdded = true;
+                subSocket = socket.subscribe(request);
             }
 
             function connect() {
@@ -71,7 +67,7 @@
             }
 
             function stop() {
-                $.atmosphere.publish(document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop");
+                socket.publish(document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop");
             }
 
             getElementById('connect').onclick = function(event) {
