@@ -10,14 +10,6 @@
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <init-param>
-            <param-name>org.atmosphere.cpr.allowQueryStreamAsPostOrGet</param-name>
-            <param-value>true</param-value>
-        </init-param>
-        <init-param>
-            <param-name>org.atmosphere.useWebSocket</param-name>
-            <param-value>true</param-value>
-        </init-param>
-        <init-param>
             <param-name>org.atmosphere.useNative</param-name>
             <param-value>true</param-value>
         </init-param>
