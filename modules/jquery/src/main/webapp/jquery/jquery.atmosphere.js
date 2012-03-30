@@ -1271,46 +1271,30 @@ jQuery.atmosphere = function() {
             }
 
             function _invokeFunction(response) {
+                _f(response, _request);
+                // Global
+                _f(response, jQuery.atmosphere);
+            }
+
+            function _f(response, f) {
                  switch (response.state) {
                     case "messageReceived" :
-                        if (typeof(_request.onMessage) != 'undefined') _request.onMessage(response);
+                        if (typeof(f.onMessage) != 'undefined') f.onMessage(response);
                         break;
                     case "error" :
-                        if (typeof(_request.onError) != 'undefined') _request.onError(response);
+                        if (typeof(f.onError) != 'undefined') f.onError(response);
                         break;
                      case "opening" :
-                         if (typeof(_request.onOpen) != 'undefined') _request.onOpen(response);
+                         if (typeof(f.onOpen) != 'undefined') f.onOpen(response);
                          break;
                     case "messagePublished" :
-                        if (typeof(_request.onMessagePublished) != 'undefined') _request.onMessagePublished(response);
+                        if (typeof(f.onMessagePublished) != 'undefined') f.onMessagePublished(response);
                         break;
                     case "re-opening" :
-                        if (typeof(_request.onReconnect) != 'undefined') _request.onReconnect(response);
+                        if (typeof(f.onReconnect) != 'undefined') f.onReconnect(response);
                         break;
                     case "closed" :
-                        if (typeof(_request.onClose) != 'undefined') _request.onClose(response);
-                        break;
-                }
-
-                // Global
-                switch (response.state) {
-                    case "messageReceived" :
-                        if (typeof(jQuery.atmosphere.onMessage) != 'undefined') jQuery.atmosphere.onMessage(response);
-                        break;
-                    case "error" :
-                        if (typeof(jQuery.atmosphere.onError) != 'undefined') jQuery.atmosphere.onError(response);
-                        break;
-                     case "opening" :
-                         if (typeof(jQuery.atmosphere.onOpen) != 'undefined') jQuery.atmosphere.onOpen(response);
-                         break;
-                    case "messagePublished" :
-                        if (typeof(jQuery.atmosphere.onMessagePublished) != 'undefined') jQuery.atmosphere.onMessagePublished(response);
-                        break;
-                    case "re-opening" :
-                        if (typeof(jQuery.atmosphere.onReconnect) != 'undefined') jQuery.atmosphere.onReconnect(response);
-                        break;
-                    case "closed" :
-                        if (typeof(jQuery.atmosphere.onClose) != 'undefined') jQuery.atmosphere.onClose(response);
+                        if (typeof(f.onClose) != 'undefined') f.onClose(response);
                         break;
                 }
             }
