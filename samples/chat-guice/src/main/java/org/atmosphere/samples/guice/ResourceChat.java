@@ -27,20 +27,24 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 
 @Path("/")
+@Produces("application/json")
 public class ResourceChat {
 
     @Suspend
-    @Produces("application/json")
     @GET
     public String suspend() {
         return "";
     }
 
-    @Broadcast
-    @Consumes("application/json")
+    /**
+     * Broadcast the received message object to all suspended response. Do not write back the message to the calling connection.
+     * @param message a {@link Message}
+     * @return a {@link Response}
+     */
+    @Broadcast(writeEntity = false)
     @POST
-    public void broadcast(@Context Broadcaster b, Message message) {
-        b.broadcast(new Response(message.author, message.message));
+    public Response broadcast(Message message) {
+        return new Response(message.author, message.message);
     }
 
 }
