@@ -560,7 +560,8 @@ jQuery.atmosphere = function() {
                     return url;
                 }
 
-                url += "?X-Atmosphere-tracking-id=" + _uuid;
+                url += (url.indexOf('?') != -1) ? '&' : '?';
+                url += "X-Atmosphere-tracking-id=" + _uuid;
                 url += "&X-Atmosphere-Framework=" + jQuery.atmosphere.version;
                 url += "&X-Atmosphere-Transport=" + rq.transport;
 
@@ -1483,6 +1484,7 @@ jQuery.atmosphere = function() {
             } else if (jQuery.browser.opera) {
                 return true;
             }
+
             // Force Android to use CORS as some version like 2.2.3 fail otherwise
             var ua = navigator.userAgent.toLowerCase();
             var isAndroid = ua.indexOf("android") > -1;
