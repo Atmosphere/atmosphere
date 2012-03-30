@@ -46,7 +46,7 @@ jQuery.atmosphere = function() {
         onClose : function(response) {},
         onOpen : function(response) {},
         onMessage : function(response) {},
-        onReconnect : function(response) {},
+        onReconnect : function(request, response) {},
         onMessagePublished : function(response) {},
 
         AtmosphereRequest : function(options) {
@@ -92,7 +92,7 @@ jQuery.atmosphere = function() {
                 onClose : function(response) {},
                 onOpen : function(response) {},
                 onMessage : function(response) {},
-                onReconnect : function(response) {},
+                onReconnect : function(request, response) {},
                 onMessagePublished : function(response) {}
             };
 
@@ -877,8 +877,6 @@ jQuery.atmosphere = function() {
 
             function _reconnect(ajaxRequest, request, force) {
             	if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
-                    _request.method = 'GET';
-                    _request.data = "";
                     _executeRequest();
                 }
             }
@@ -1291,7 +1289,7 @@ jQuery.atmosphere = function() {
                         if (typeof(f.onMessagePublished) != 'undefined') f.onMessagePublished(response);
                         break;
                     case "re-opening" :
-                        if (typeof(f.onReconnect) != 'undefined') f.onReconnect(response);
+                        if (typeof(f.onReconnect) != 'undefined') f.onReconnect(_request, response);
                         break;
                     case "closed" :
                         if (typeof(f.onClose) != 'undefined') f.onClose(response);
