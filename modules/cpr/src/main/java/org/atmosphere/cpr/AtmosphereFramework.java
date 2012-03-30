@@ -1123,7 +1123,12 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         Action a = null;
         try {
-            if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
+            boolean skip = true;
+            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) ;
+            if (s != null) {
+                skip = Boolean.valueOf(s);
+            }
+            if (!skip || req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 if (body != null && body.isEmpty()) {
