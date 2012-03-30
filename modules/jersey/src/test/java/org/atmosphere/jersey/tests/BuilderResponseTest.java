@@ -34,7 +34,7 @@ public class BuilderResponseTest extends BlockingIOJerseyTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @Override

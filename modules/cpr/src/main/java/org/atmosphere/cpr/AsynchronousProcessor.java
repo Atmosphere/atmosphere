@@ -78,7 +78,7 @@ import static org.atmosphere.cpr.AtmosphereFramework.*;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsynchronousProcessor implements CometSupport<AtmosphereResourceImpl> {
+public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
@@ -540,7 +540,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
     /**
      * An Callback class that can be used by Framework integrator to handle the close/timedout/resume life cycle
-     * of an {@link AtmosphereResource}. This class support only support {@link CometSupport} implementation that
+     * of an {@link AtmosphereResource}. This class support only support {@link AsyncSupport} implementation that
      * extends {@link AsynchronousProcessor}
      */
     public final static class AsynchronousProcessorHook {
@@ -549,14 +549,14 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         public AsynchronousProcessorHook(AtmosphereResourceImpl r) {
             this.r = r;
-            if (!AsynchronousProcessor.class.isAssignableFrom(r.cometSupport.getClass())) {
-                throw new IllegalStateException("CometSupport must extends AsynchronousProcessor");
+            if (!AsynchronousProcessor.class.isAssignableFrom(r.asyncSupport.getClass())) {
+                throw new IllegalStateException("AsyncSupport must extends AsynchronousProcessor");
             }
         }
 
         public void closed() {
             try {
-                ((AsynchronousProcessor)r.cometSupport).cancelled(r.getRequest(false), r.getResponse(false));
+                ((AsynchronousProcessor)r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
@@ -566,7 +566,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
 
         public void timedOut() {
             try {
-                ((AsynchronousProcessor)r.cometSupport).timedout(r.getRequest(false), r.getResponse(false));
+                ((AsynchronousProcessor)r.asyncSupport).timedout(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
@@ -575,7 +575,7 @@ public abstract class AsynchronousProcessor implements CometSupport<AtmosphereRe
         }
 
         public void resume() {
-            ((AsynchronousProcessor)r.cometSupport).action(r);
+            ((AsynchronousProcessor)r.asyncSupport).action(r);
         }
     }
 }

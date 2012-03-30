@@ -153,7 +153,7 @@ public class BroadcasterScopeTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)

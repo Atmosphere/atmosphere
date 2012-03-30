@@ -60,10 +60,10 @@ import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.JettyCometSupport;
-import org.atmosphere.container.JettyCometSupportWithWebSocket;
+import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
 import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.Servlet30CometSupport;
-import org.atmosphere.container.Servlet30CometSupportWithWebSocket;
+import org.atmosphere.container.Servlet30AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -74,13 +74,13 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * This is the default implementation of @link {CometSupportResolver}
+ * This is the default implementation of @link {AsyncSupportResolver}
  *
  * @author Viktor Klang
  */
-public class DefaultCometSupportResolver implements CometSupportResolver {
+public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultCometSupportResolver.class);
+    private static final Logger logger = LoggerFactory.getLogger(DefaultAsyncSupportResolver.class);
 
     public final static String SERVLET_30 = "javax.servlet.AsyncListener";
     public final static String GLASSFISH_V2 = "com.sun.enterprise.web.PEWebContainer";
@@ -98,7 +98,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
 
     private final AtmosphereConfig config;
 
-    public DefaultCometSupportResolver(final AtmosphereConfig config) {
+    public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
     }
 
@@ -124,8 +124,8 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      *
      * @return
      */
-    public List<Class<? extends CometSupport>> detectContainersPresent() {
-        return new LinkedList<Class<? extends CometSupport>>() {
+    public List<Class<? extends AsyncSupport>> detectContainersPresent() {
+        return new LinkedList<Class<? extends AsyncSupport>>() {
             {
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);
@@ -160,11 +160,11 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         };
     }
 
-    public List<Class<? extends CometSupport>> detectWebSocketPresent() {
-        List l = new LinkedList<Class<? extends CometSupport>>() {
+    public List<Class<? extends AsyncSupport>> detectWebSocketPresent() {
+        List l = new LinkedList<Class<? extends AsyncSupport>>() {
             {
                 if (testClassExists(JETTY_8))
-                    add(JettyCometSupportWithWebSocket.class);
+                    add(JettyAsyncSupportWithWebSocket.class);
 
                 if (testClassExists(GRIZZLY_WEBSOCKET))
                     add(GlassFishWebSocketSupport.class);
@@ -175,15 +175,15 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     /**
-     * This method is used to determine the default CometSupport if all else fails
+     * This method is used to determine the default AsyncSupport if all else fails
      *
      * @param preferBlocking
      * @return
      */
-    public CometSupport defaultCometSupport(final boolean preferBlocking) {
+    public AsyncSupport defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
             if (detectWebSocketPresent().size() > 0) {
-                return new Servlet30CometSupportWithWebSocket(config);
+                return new Servlet30AsyncSupportWithWebSocket(config);
             }
             return new Servlet30CometSupport(config);
         } else {
@@ -192,14 +192,14 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     }
 
     /**
-     * Given a Class of something that extends CometSupport, it tries to return an instance of that class
+     * Given a Class of something that extends AsyncSupport, it tries to return an instance of that class
      * <p/>
      * The class has to have a visible constructor with the signature (@link {AtmosphereConfig})
      *
      * @param targetClass
      * @return an instance of the specified class
      */
-    public CometSupport newCometSupport(final Class<? extends CometSupport> targetClass) {
+    public AsyncSupport newCometSupport(final Class<? extends AsyncSupport> targetClass) {
         try {
             return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
@@ -210,10 +210,10 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         }
     }
 
-    public CometSupport newCometSupport(final String targetClassFQN) {
+    public AsyncSupport newCometSupport(final String targetClassFQN) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            return (CometSupport) cl.loadClass(targetClassFQN)
+            return (AsyncSupport) cl.loadClass(targetClassFQN)
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
             logger.error("failed to create comet support class: {}, error: {}", targetClassFQN, e.getMessage());
@@ -226,12 +226,12 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      *
      * @param useNativeIfPossible - should the resolver try to use a native container comet support if present?
      * @param defaultToBlocking   - should the resolver default to blocking IO comet support?
-     * @return an instance of CometSupport
+     * @return an instance of AsyncSupport
      */
-    public CometSupport resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking) {
-        final CometSupport servletAsyncSupport = defaultCometSupport(defaultToBlocking);
+    public AsyncSupport resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking) {
+        final AsyncSupport servletAsyncSupport = defaultCometSupport(defaultToBlocking);
 
-        final CometSupport nativeSupport;
+        final AsyncSupport nativeSupport;
         if (!defaultToBlocking && (useNativeIfPossible ||
                 servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.class.getName()))) {
             nativeSupport = resolveNativeCometSupport(detectContainersPresent());
@@ -240,9 +240,9 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         return servletAsyncSupport;
     }
 
-    public CometSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
-        CometSupport cs;
-        List<Class<? extends CometSupport>> l;
+    public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
+        AsyncSupport cs;
+        List<Class<? extends AsyncSupport>> l;
         if (!useWebsocketIfPossible) {
             cs = resolve(useNativeIfPossible, defaultToBlocking);
         } else {
@@ -260,7 +260,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
         }
     }
 
-    public CometSupport resolveWebSocket(final java.util.List<Class<? extends CometSupport>> available) {
+    public AsyncSupport resolveWebSocket(final java.util.List<Class<? extends AsyncSupport>> available) {
         if (available == null || available.isEmpty()) return null;
         else return newCometSupport(available.get(0));
     }
@@ -271,7 +271,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
      * @param available
      * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers
      */
-    protected CometSupport resolveNativeCometSupport(final java.util.List<Class<? extends CometSupport>> available) {
+    protected AsyncSupport resolveNativeCometSupport(final java.util.List<Class<? extends AsyncSupport>> available) {
         if (available == null || available.isEmpty()) return null;
         else if (available.size() == 1) return newCometSupport(available.get(0));
         else return resolveMultipleNativeSupportConflict(available);
@@ -280,11 +280,11 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     /**
      * This method is called if there are more than one potential native container in scope
      *
-     * @return a CometSupport instance
+     * @return a AsyncSupport instance
      */
-    protected CometSupport resolveMultipleNativeSupportConflict(final List<Class<? extends CometSupport>> available) {
+    protected AsyncSupport resolveMultipleNativeSupportConflict(final List<Class<? extends AsyncSupport>> available) {
         final StringBuilder b = new StringBuilder("Found multiple containers, please specify which one to use: ");
-        for (Class<? extends CometSupport> cs : available) {
+        for (Class<? extends AsyncSupport> cs : available) {
             b.append((cs != null) ? cs.getCanonicalName() : "null").append(", ");
         }
 

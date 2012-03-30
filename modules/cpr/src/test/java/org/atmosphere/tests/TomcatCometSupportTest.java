@@ -75,7 +75,7 @@ public class TomcatCometSupportTest extends BaseTest {
     public static class TomcatAtmosphereServlet extends AtmosphereServlet {
 
         public void init(final ServletConfig sc) throws ServletException {
-            framework().setCometSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
+            framework().setAsyncSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
             super.init(sc);
         }
 
@@ -104,7 +104,7 @@ public class TomcatCometSupportTest extends BaseTest {
         w.addMapping("/*");
         w.setServletClass(TomcatAtmosphereServlet.class.getName());
         w.setLoadOnStartup(0);
-        //w.addInitParameter(CometSupport.MAX_INACTIVE, "20000");
+        //w.addInitParameter(AsyncSupport.MAX_INACTIVE, "20000");
 
         c.addChild(w);
         host.addChild(c);

@@ -33,7 +33,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
- * Netty's Framework {@link org.atmosphere.cpr.CometSupport}
+ * Netty's Framework {@link org.atmosphere.cpr.AsyncSupport}
  */
 public class NettyCometSupport extends AsynchronousProcessor {
 

@@ -200,7 +200,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -214,7 +214,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -228,7 +228,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -242,7 +242,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -256,7 +256,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -270,7 +270,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -284,7 +284,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     }
 
     /**
-     * Delegate the request processing to an instance of {@link CometSupport}
+     * Delegate the request processing to an instance of {@link AsyncSupport}
      *
      * @param req the {@link HttpServletRequest}
      * @param res the {@link HttpServletResponse}
@@ -312,10 +312,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(TomcatCometSupport.COMET_EVENT, cometEvent);
 
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.cometSupport) {
-                if (!framework.cometSupport.getClass().equals(TomcatCometSupport.class)) {
+            synchronized (framework.asyncSupport) {
+                if (!framework.asyncSupport.getClass().equals(TomcatCometSupport.class)) {
                     logger.warn("TomcatCometSupport is enabled, switching to it");
-                    framework.cometSupport = new TomcatCometSupport(framework.config);
+                    framework.asyncSupport = new TomcatCometSupport(framework.config);
                 }
             }
         }
@@ -332,10 +332,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(Tomcat7CometSupport.COMET_EVENT, cometEvent);
 
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.cometSupport) {
-                if (!framework.cometSupport.getClass().equals(Tomcat7CometSupport.class)) {
+            synchronized (framework.asyncSupport) {
+                if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
                     logger.warn("TomcatCometSupport is enabled, switching to it");
-                    framework.cometSupport = new Tomcat7CometSupport(framework.config);
+                    framework.asyncSupport = new Tomcat7CometSupport(framework.config);
                 }
             }
         }
@@ -358,10 +358,10 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
         req.setAttribute(JBossWebCometSupport.HTTP_EVENT, httpEvent);
 
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.cometSupport) {
-                if (!framework.cometSupport.getClass().equals(JBossWebCometSupport.class)) {
+            synchronized (framework.asyncSupport) {
+                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)) {
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
-                    framework.cometSupport = new JBossWebCometSupport(framework.config);
+                    framework.asyncSupport = new JBossWebCometSupport(framework.config);
                 }
             }
         }
@@ -414,7 +414,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
      * @throws javax.servlet.ServletException
      */
     protected void doTimeout(RequestResponseKey rrk) throws IOException, ServletException {
-        ((AsynchronousProcessor) framework.cometSupport).timedout(AtmosphereRequest.wrap(rrk.getRequest()),
+        ((AsynchronousProcessor) framework.asyncSupport).timedout(AtmosphereRequest.wrap(rrk.getRequest()),
                 AtmosphereResponse.wrap(rrk.getResponse()));
     }
 

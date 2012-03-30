@@ -146,7 +146,7 @@ public class WebSocketProcessor implements Serializable {
     }
 
     /**
-     * Dispatch to request/response to the {@link org.atmosphere.cpr.CometSupport} implementation as it was a normal HTTP request.
+     * Dispatch to request/response to the {@link org.atmosphere.cpr.AsyncSupport} implementation as it was a normal HTTP request.
      *
      * @param request a {@link AtmosphereRequest}
      * @param r       a {@link AtmosphereResponse}

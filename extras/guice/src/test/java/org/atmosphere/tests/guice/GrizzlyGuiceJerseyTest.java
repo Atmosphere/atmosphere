@@ -158,7 +158,7 @@ public class GrizzlyGuiceJerseyTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new GrizzlyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     public void startServer() throws Exception {

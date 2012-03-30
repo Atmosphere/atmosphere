@@ -30,7 +30,7 @@ public abstract class BaseJettyTest extends BaseTest {
 
     @Override
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new org.atmosphere.container.JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new org.atmosphere.container.JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
     @Override
     public void startServer() throws Exception {

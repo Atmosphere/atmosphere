@@ -19,7 +19,6 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.w3c.dom.stylesheets.LinkStyle;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -71,7 +70,7 @@ public class BroadcasterTest {
     @Test
     public void testSetBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         AtmosphereConfig config = new AtmosphereFramework()
-                .setCometSupport(mock(BlockingIOCometSupport.class))
+                .setAsyncSupport(mock(BlockingIOCometSupport.class))
                 .init(new ServletConfig() {
                     @Override
                     public String getServletName() {

@@ -64,7 +64,7 @@ public class BroadcastFilterTest {
     public void testInitBroadcastFilter() throws ExecutionException, InterruptedException, ServletException {
         AtmosphereConfig config = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCAST_FILTER_CLASSES, Filter.class.getName())
-                .setCometSupport(mock(BlockingIOCometSupport.class))
+                .setAsyncSupport(mock(BlockingIOCometSupport.class))
                 .init(new ServletConfig() {
                     @Override
                     public String getServletName() {

@@ -90,7 +90,7 @@ public class BlockingIOCometSupportTest extends BaseTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)

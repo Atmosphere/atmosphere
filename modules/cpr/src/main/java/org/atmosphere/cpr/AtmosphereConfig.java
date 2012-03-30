@@ -24,7 +24,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
 
@@ -61,7 +60,7 @@ public class AtmosphereConfig {
     }
 
     public String getWebServerName() {
-        return framework.getCometSupport().getContainerName();
+        return framework.getAsyncSupport().getContainerName();
     }
 
     public Map<String, AtmosphereFramework.AtmosphereHandlerWrapper> handlers() {
