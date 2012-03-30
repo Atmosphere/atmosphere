@@ -1123,10 +1123,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         Action a = null;
         try {
-            if ((config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) != null
-                    || (isIECandidate(req) || req.getParameter(HeaderConfig.JSONP_CALLBACK_NAME) != null))
-                    && req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
-
+            if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 if (body != null && body.isEmpty()) {
@@ -1139,11 +1136,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                 if (body != null) {
                    req.body(body);
                 }
-
-                a = asyncSupport.service(req, res);
-            } else {
-                return asyncSupport.service(req, res);
             }
+            a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed") )) {
                 if (!isFilter) {
@@ -1154,7 +1148,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 logger.trace(ex.getMessage(), ex);
 
                 asyncSupport = new BlockingIOCometSupport(config);
-                doCometSupport(req, res);
+                a = doCometSupport(req, res);
             } else {
                 logger.error("AtmosphereFramework exception", ex);
                 throw ex;
