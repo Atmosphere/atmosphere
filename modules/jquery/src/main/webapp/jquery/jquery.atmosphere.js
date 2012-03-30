@@ -85,7 +85,7 @@ jQuery.atmosphere = function() {
                 lastTimestamp : 0,
                 withCredentials : false,
                 trackMessageLength : false ,
-                messageDelimiter : '',
+                messageDelimiter : '|',
                 onError : function(response) {},
                 onClose : function(response) {},
                 onOpen : function(response) {},
@@ -305,8 +305,13 @@ jQuery.atmosphere = function() {
 
                         var msg = json.message;
                         if (msg != null && typeof msg != 'string') {
-                            msg = jQuery.stringifyJSON(msg);
+                            try {
+                                msg = jQuery.stringifyJSON(msg);
+                            } catch (err) {
+                                // The message was partial
+                            }
                         }
+
                         _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
                         if (rq.executeCallbackBeforeReconnect) {
@@ -402,33 +407,9 @@ jQuery.atmosphere = function() {
                     _response.status = 200;
 
                     var message = message.data;
-                    var skipCallbackInvokation = false;
+                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
 
-                    if (_request.trackMessageLength) {
-                        // The message length is the included within the message
-                        var messageStart = message.indexOf(_request.messageDelimiter);
-
-                        var length = _response.expectedBodySize;
-                        if (messageStart != -1) {
-                            length = message.substring(0, messageStart);
-                            message = message.substring(messageStart + 1);
-                            _response.expectedBodySize = length;
-                        }
-
-                        if (messageStart != -1) {
-                            _response.responseBody = message;
-                        } else {
-                            _response.responseBody += message;
-                        }
-
-                        if (_response.responseBody.length != length) {
-                            skipCallbackInvokation = true;
-                        }
-                    } else {
-                        _response.responseBody = message;
-                    }
-
-                    if (!skipCallbackInvokation) {
+                    if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
                     }
@@ -502,6 +483,41 @@ jQuery.atmosphere = function() {
                         }
                     }
                 };
+            }
+
+            /**
+             * Track received message and make sure callbacks/functions are only invoked when the complete message
+             * has been received.
+             *
+             * @param message
+             * @param request
+             * @param response
+             */
+            function _trackMessageSize(message, request, response) {
+                 if (request.trackMessageLength) {
+                    // The message length is the included within the message
+                    var messageStart = message.indexOf(request.messageDelimiter);
+
+                    var length = response.expectedBodySize;
+                    if (messageStart != -1) {
+                        length = message.substring(0, messageStart);
+                        message = message.substring(messageStart + 1);
+                        response.expectedBodySize = length;
+                    }
+
+                    if (messageStart != -1) {
+                        response.responseBody = message;
+                    } else {
+                        response.responseBody += message;
+                    }
+
+                    if (response.responseBody.length != length) {
+                        return true;
+                    }
+                } else {
+                    response.responseBody = message;
+                }
+                return false;
             }
 
             /**
@@ -660,7 +676,7 @@ jQuery.atmosphere = function() {
                             return;
                         }
 
-                        var skipCallbackInvokation = false;
+                        var skipCallbackInvocation = false;
                         var update = false;
 
                         // Remote server disconnected us, reconnect.
@@ -711,7 +727,6 @@ jQuery.atmosphere = function() {
                                     _response.isJunkEnded = false;
                                 }
 
-                                var messageComplete = true;
                                 if (!_response.isJunkEnded) {
                                     var endOfJunk = "<!-- EOD -->";
                                     var endOfJunkLenght = endOfJunk.length;
@@ -720,33 +735,11 @@ jQuery.atmosphere = function() {
                                     if (junkEnd > endOfJunkLenght && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
                                     } else {
-                                        skipCallbackInvokation = true;
+                                        skipCallbackInvocation = true;
                                     }
                                 } else {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
-                                    if (rq.trackMessageLength) {
-                                        // The message length is the included within the message
-                                        var messageStart = message.indexOf(rq.messageDelimiter);
-
-                                        var length = _response.expectedBodySize;
-                                        if (messageStart != -1) {
-                                            length = message.substring(0, messageStart);
-                                            message = message.substring(messageStart + 1);
-                                            _response.expectedBodySize = length;
-                                        }
-
-                                        if (messageStart != -1) {
-                                            _response.responseBody = message;
-                                        } else {
-                                            _response.responseBody += message;
-                                        }
-
-                                        if (_response.responseBody.length != length) {
-                                            skipCallbackInvokation = true;
-                                        }
-                                    } else {
-                                        _response.responseBody = message;
-                                    }
+                                    skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                 }
                                 rq.lastIndex = responseText.length;
 
@@ -774,33 +767,11 @@ jQuery.atmosphere = function() {
                                     }, 0);
                                 }
 
-                                if (skipCallbackInvokation) {
+                                if (skipCallbackInvocation) {
                                     return;
                                 }
                             } else {
-                                if (rq.trackMessageLength) {
-                                    // The message length is the included within the message
-                                    var messageStart = responseText.indexOf(rq.messageDelimiter);
-
-                                    var length = _response.expectedBodySize;
-                                    if (messageStart != -1) {
-                                        length = responseText.substring(0, messageStart);
-                                        responseText = responseText.substring(messageStart + 1);
-                                        _response.expectedBodySize = length;
-                                    }
-
-                                    if (messageStart != -1) {
-                                        _response.responseBody = responseText;
-                                    } else {
-                                        _response.responseBody += responseText;
-                                    }
-
-                                    if (_response.responseBody.length != length) {
-                                        skipCallbackInvokation = true;
-                                    }
-                                } else {
-                                    _response.responseBody = responseText;
-                                }
+                                skipCallbackInvocation = _trackMessageSize(responseText, rq, _response);
                                 rq.lastIndex = responseText.length;
                             }
 
@@ -1279,9 +1250,19 @@ jQuery.atmosphere = function() {
             }
 
             function _prepareCallback(messageBody, state, errorCode, transport) {
+
+                var skipCallbackInvocation = false
+                if (state == "messageReceived") {
+                    if (_trackMessageSize(messageBody, _request, _response)) return;
+                }
+
                 _response.transport = transport;
                 _response.status = errorCode;
-                _response.responseBody = messageBody;
+
+                // If not -1, we have buffered the message.
+                if (_response.expectedBodySize == -1) {
+                    _response.responseBody = messageBody;
+                }
                 _response.state = state;
 
                 _invokeCallback();
@@ -1484,6 +1465,17 @@ jQuery.atmosphere = function() {
             if (idx >= 0) {
                 jQuery.atmosphere.requests.splice(idx, 1);
             }
+        },
+
+        publish: function(request) {
+            if (typeof(request.callback) == 'function') {
+                jQuery.atmosphere.addCallback(callback);
+            }
+            request.transport = "polling";
+
+            var rq = new jQuery.atmosphere.AtmosphereRequest(request);
+            jQuery.atmosphere.requests[jQuery.atmosphere.requests.length] = rq;
+            return rq;
         },
 
         checkCORSSupport : function() {
