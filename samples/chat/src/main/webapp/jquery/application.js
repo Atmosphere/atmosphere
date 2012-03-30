@@ -20,6 +20,10 @@ $(function () {
         status.text('Choose name:');
     };
 
+    request.onReconnect = function (request, response) {
+        socket.info("Reconnecting")
+    };
+
     request.onMessage = function (response) {
         var message = response.responseBody;
         try {
