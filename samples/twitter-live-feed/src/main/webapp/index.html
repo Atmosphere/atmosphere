@@ -36,7 +36,7 @@
                     transport: getElementByIdValue('transport'),
                     attachHeadersAsQueryString : true,
                     trackMessageLength : true,
-                    messageDelimiter: "|"
+                    maxRequest: 1
                 };
 
                 request.onMessage = function (response) {
@@ -67,7 +67,8 @@
             }
 
             function stop() {
-                socket.publish(document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop");
+                var request = { url : document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop" }
+                socket.publish(request);
             }
 
             getElementById('connect').onclick = function(event) {
@@ -76,6 +77,14 @@
                     return;
                 }
                 connect();
+            }
+
+            getElementById('stop').onclick = function(event) {
+                if (getElementById('topic').value == '') {
+                    alert("Please enter a hashtag");
+                    return;
+                }
+                stop();
             }
 
             getElementById('topic').onkeyup = function(event) {
