@@ -58,7 +58,7 @@ public interface FrameworkConfig {
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
     /**
-     * Tell a {@link CometSupport} it can support session or not
+     * Tell a {@link AsyncSupport} it can support session or not
      */
     String SUPPORT_SESSION = AsynchronousProcessor.class.getName() + ".supportSession";
     /**

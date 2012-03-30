@@ -81,7 +81,7 @@ public class Jetty7CometSupportTest extends BaseTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new Jetty7CometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new Jetty7CometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)

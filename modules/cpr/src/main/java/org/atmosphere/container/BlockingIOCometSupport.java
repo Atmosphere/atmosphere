@@ -62,7 +62,6 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +75,7 @@ import java.util.concurrent.TimeUnit;
  * This class gets used when the {@link AtmosphereServlet} fails to autodetect
  * the Servlet Container we are running on.
  * <p/>
- * This {@link CometSupport} implementation uses a blocking approach, meaning
+ * This {@link org.atmosphere.cpr.AsyncSupport} implementation uses a blocking approach, meaning
  * the request thread will be blocked until another Thread invoke the
  * {@link Broadcaster#broadcast}
  *

@@ -57,9 +57,9 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
     /**
-     * Tell Atmosphere which {@link org.atmosphere.cpr.CometSupport} implementation to use.
+     * Tell Atmosphere which {@link AsyncSupport} implementation to use.
      */
-    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".cometSupport";
+    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".asyncSupport";
     /**
      * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.
      */
@@ -126,11 +126,11 @@ public interface ApplicationConfig {
      */
     String BROADCAST_FILTER_CLASSES = ApplicationConfig.class.getPackage().getName() + ".broadcastFilterClasses";
     /**
-     * A request attribute used to tell {@link org.atmosphere.cpr.CometSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
+     * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
      */
     String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     /**
-     * A request attribute telling a {@link org.atmosphere.cpr.CometSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
+     * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
      */
     String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     /**
@@ -140,7 +140,7 @@ public interface ApplicationConfig {
     /**
      * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)
      */
-    String MAX_INACTIVE = CometSupport.class.getName() + ".maxInactiveActivity";
+    String MAX_INACTIVE = "org.atmosphere.cpr.CometSupport.maxInactiveActivity";
     /**
      * Support {@link Trackable} by default and create instance of those objects on the fly
      */

@@ -50,7 +50,7 @@
 		</applicationConfig>
 
 		<applicationConfig>
-			<param-name>org.atmosphere.cpr.cometSupport</param-name>
+			<param-name>org.atmosphere.cpr.asyncSupport</param-name>
 			<param-value></param-value>
 		</applicationConfig>
 
@@ -140,8 +140,8 @@
 		</applicationConfig>
 
 		<applicationConfig>
-			<param-name>org.atmosphere.cpr.CometSupport.maxInactiveActivity
-			</param-name>
+			<param-name>org.atmosphere.cpr.AsyncSupport.maxInactiveActivity
+            </param-name>
 			<param-value></param-value>
 		</applicationConfig>
 

@@ -27,34 +27,27 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 
 /**
- * WebSocket Portable Runtime implementation on top of Jetty's.
+ * This class is the same as {@link JettyAsyncSupportWithWebSocket} implementation and add Websocket support
+ * to Servlet 3.0.
  *
  * @author Jeanfrancois Arcand
  */
-public class JettyCometSupportWithWebSocket extends Jetty7CometSupport {
+public class Servlet30AsyncSupportWithWebSocket extends Servlet30CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(JettyCometSupportWithWebSocket.class);
+    private static final Logger logger = LoggerFactory.getLogger(Servlet30AsyncSupportWithWebSocket.class);
     private final WebSocketFactory webSocketFactory;
 
-    public JettyCometSupportWithWebSocket(final AtmosphereConfig config) {
+    public Servlet30AsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
-        WebSocketFactory wsf;
-        try {
-            String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
-            if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-                wsf = JettyWebSocketUtil.getFactory(config);
-            } else {
-                wsf = null;
-            }
-        } catch (Throwable e) {
-            // If we can't parse Jetty version, assume it's 8 and up.
-            try {
-                logger.trace("Unable to parse Jetty version {}", config.getServletContext().getServerInfo());
-            } catch (Throwable t) {}
-            wsf = JettyWebSocketUtil.getFactory(config);
+        boolean isJetty = config.getServletContext().getServerInfo().toLowerCase().startsWith("jetty");
+        if (isJetty) {
+            webSocketFactory = JettyWebSocketUtil.getFactory(config);
+        }  else {
+            webSocketFactory = null;
         }
-        webSocketFactory = wsf;
+        //TODO: Add Grizzly support here as well.
+
     }
 
     /**

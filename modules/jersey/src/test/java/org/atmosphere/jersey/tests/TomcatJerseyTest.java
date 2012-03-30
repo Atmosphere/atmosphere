@@ -42,7 +42,7 @@ public class TomcatJerseyTest extends BasePubSubTest {
             framework().addInitParameter(ApplicationConfig.MAX_INACTIVE, "20000");
             framework().addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
             framework().addInitParameter("org.atmosphere.cpr.broadcasterClass", RecyclableBroadcaster.class.getName());
-            framework().setCometSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
+            framework().setAsyncSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
             super.init(sc);
         }
 

@@ -168,7 +168,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
     protected boolean useStreamForFlushingComments = false;
-    protected CometSupport cometSupport;
+    protected AsyncSupport asyncSupport;
     protected String broadcasterClassName = DefaultBroadcaster.class.getName();
     protected boolean isCometSupportSpecified = false;
     protected boolean isBroadcasterSpecified = false;
@@ -502,7 +502,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
             initWebSocketProtocol();
-            cometSupport.init(scFacade);
+            asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
 
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
@@ -617,7 +617,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
         if (s != null) {
-            cometSupport = new DefaultCometSupportResolver(config).newCometSupport(s);
+            asyncSupport = new DefaultAsyncSupportResolver(config).newCometSupport(s);
             isCometSupportSpecified = true;
         }
         s = sc.getInitParameter(BROADCASTER_CLASS);
@@ -804,8 +804,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public AtmosphereFramework destroy() {
-        if (cometSupport != null && AsynchronousProcessor.class.isAssignableFrom(cometSupport.getClass())) {
-            ((AsynchronousProcessor) cometSupport).shutdown();
+        if (asyncSupport != null && AsynchronousProcessor.class.isAssignableFrom(asyncSupport.getClass())) {
+            ((AsynchronousProcessor) asyncSupport).shutdown();
         }
 
         // We just need one bc to shutdown the shared thread pool
@@ -896,7 +896,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 if (atmoHandler.getCometSupport() != null) {
-                    cometSupport = (CometSupport) c.loadClass(atmoHandler.getCometSupport())
+                    asyncSupport = (AsyncSupport) c.loadClass(atmoHandler.getCometSupport())
                             .getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                             .newInstance(new Object[]{config});
                 }
@@ -914,33 +914,51 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Set the {@link CometSupport} implementation. Make sure you don't set
+     * Set the {@link AsyncSupport} implementation. Make sure you don't set
      * an implementation that only works on some Container. See {@link BlockingIOCometSupport}
      * for an example.
      *
-     * @param cometSupport
+     * @param asyncSupport
      */
-    public AtmosphereFramework setCometSupport(CometSupport cometSupport) {
-        this.cometSupport = cometSupport;
+    public AtmosphereFramework setAsyncSupport(AsyncSupport asyncSupport) {
+        this.asyncSupport = asyncSupport;
         return this;
     }
 
     /**
-     * Return the current {@link CometSupport}
-     *
-     * @return the current {@link CometSupport}
+     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
+     * @param asyncSupport
+     * @return
      */
-    public CometSupport getCometSupport() {
-        return cometSupport;
+    public AtmosphereFramework setCometSupport(AsyncSupport asyncSupport) {
+        return setAsyncSupport(asyncSupport);
     }
 
     /**
-     * Returns an instance of CometSupportResolver {@link CometSupportResolver}
+     * Return the current {@link AsyncSupport}
+     *
+     * @return the current {@link AsyncSupport}
+     */
+    public AsyncSupport getAsyncSupport() {
+        return asyncSupport;
+    }
+
+    /**
+     * Return the current {@link AsyncSupport}
+     *
+     * @return the current {@link AsyncSupport}
+     */
+    public AsyncSupport getCometSupport() {
+        return asyncSupport;
+    }
+
+    /**
+     * Returns an instance of AsyncSupportResolver {@link AsyncSupportResolver}
      *
      * @return CometSupportResolver
      */
-    protected CometSupportResolver createCometSupportResolver() {
-        return new DefaultCometSupportResolver(config);
+    protected AsyncSupportResolver createAsyncSupportResolver() {
+        return new DefaultAsyncSupportResolver(config);
     }
 
 
@@ -949,13 +967,13 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     protected void autoDetectContainer() {
         // Was defined in atmosphere.xml
-        if (getCometSupport() == null) {
-            setCometSupport(createCometSupportResolver()
+        if (getAsyncSupport() == null) {
+            setAsyncSupport(createAsyncSupportResolver()
                     .resolve(useNativeImplementation, useBlockingImplementation, webSocketEnabled));
         }
 
         logger.info("Atmosphere is using async support: {} running under container: {}",
-                getCometSupport().getClass().getName(), cometSupport.getContainerName());
+                getAsyncSupport().getClass().getName(), asyncSupport.getContainerName());
     }
 
     /**
@@ -1089,7 +1107,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Invoke the proprietary {@link CometSupport}
+     * Invoke the proprietary {@link AsyncSupport}
      *
      * @param req
      * @param res
@@ -1122,20 +1140,20 @@ public class AtmosphereFramework implements ServletContextProvider {
                    req.body(body);
                 }
 
-                a = cometSupport.service(req, res);
+                a = asyncSupport.service(req, res);
             } else {
-                return cometSupport.service(req, res);
+                return asyncSupport.service(req, res);
             }
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed") )) {
                 if (!isFilter) {
-                    logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", cometSupport.getClass().getName(),
+                    logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
                     logger.warn("Using BlockingIOCometSupport.");
                 }
                 logger.trace(ex.getMessage(), ex);
 
-                cometSupport = new BlockingIOCometSupport(config);
+                asyncSupport = new BlockingIOCometSupport(config);
                 doCometSupport(req, res);
             } else {
                 logger.error("AtmosphereServlet exception", ex);

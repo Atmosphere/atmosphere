@@ -67,6 +67,6 @@ public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setCometSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 }

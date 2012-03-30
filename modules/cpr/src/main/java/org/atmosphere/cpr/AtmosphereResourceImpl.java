@@ -91,7 +91,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     protected final Action action = new Action();
     protected Broadcaster broadcaster;
     private final AtmosphereConfig config;
-    protected final CometSupport cometSupport;
+    protected final AsyncSupport asyncSupport;
     private Serializer serializer;
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
@@ -117,17 +117,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
      * @param req               The {@link AtmosphereRequest}
      * @param response          The {@link AtmosphereResource}
-     * @param cometSupport      The {@link org.atmosphere.cpr.CometSupport}
+     * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
                                   AtmosphereRequest req, AtmosphereResponse response,
-                                  CometSupport cometSupport, AtmosphereHandler atmosphereHandler) {
+                                  AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
         this.broadcaster = broadcaster;
         this.config = config;
-        this.cometSupport = cometSupport;
+        this.asyncSupport = asyncSupport;
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
@@ -276,7 +276,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 if (req.getAttribute(PRE_SUSPEND) == null) {
-                    cometSupport.action(this);
+                    asyncSupport.action(this);
                 }
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
@@ -344,7 +344,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                        if (writeHeaders && !cometSupport.supportWebSocket()) {
+                        if (writeHeaders && !asyncSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
                             req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
@@ -751,7 +751,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public synchronized void cancel() throws IOException {
         action.type = Action.TYPE.RESUME;
         isCancelled = true;
-        cometSupport.action(this);
+        asyncSupport.action(this);
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
             AtmosphereResponse.class.cast(response).close();
@@ -815,7 +815,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 "\n hasCode" + hashCode() +
                 ",\n action=" + action +
                 ",\n broadcaster=" + broadcaster.getClass().getName() +
-                ",\n cometSupport=" + cometSupport +
+                ",\n asyncSupport=" + asyncSupport +
                 ",\n serializer=" + serializer +
                 ",\n isInScope=" + isInScope +
                 ",\n useWriter=" + useWriter +

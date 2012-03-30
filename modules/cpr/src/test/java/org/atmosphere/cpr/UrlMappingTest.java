@@ -37,7 +37,7 @@ public class UrlMappingTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setCometSupport(mock(CometSupport.class));
+        framework.setAsyncSupport(mock(AsyncSupport.class));
         framework.init(new ServletConfig() {
             @Override
             public String getServletName() {
