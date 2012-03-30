@@ -53,7 +53,7 @@
 package org.atmosphere.cpr;
 
 /**
- * This interface is used by AtmosphereServlet to determine which AsyncSupport instance should be used
+ * This interface is used by {@link AtmosphereFramework} to determine which AsyncSupport instance should be used
  *
  * @author Viktor Klang
  */

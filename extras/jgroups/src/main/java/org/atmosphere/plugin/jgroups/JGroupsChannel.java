@@ -15,11 +15,6 @@
  */
 package org.atmosphere.plugin.jgroups;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.atmosphere.cpr.Broadcaster;
 import org.jgroups.ChannelException;
 import org.jgroups.JChannel;
@@ -27,6 +22,11 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * JGroupsChannel establishes a connection to a

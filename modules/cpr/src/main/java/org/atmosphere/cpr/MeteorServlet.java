@@ -55,7 +55,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.handler.ReflectorServletProcessor;
 
 import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;

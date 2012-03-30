@@ -69,8 +69,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+import static org.atmosphere.cpr.AtmosphereFramework.Action;
+import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
-import static org.atmosphere.cpr.AtmosphereFramework.*;
 
 /**
  * Base class which implement the semantics of suspending and resuming of a

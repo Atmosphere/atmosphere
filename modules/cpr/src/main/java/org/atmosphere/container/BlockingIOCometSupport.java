@@ -56,11 +56,10 @@ import org.apache.catalina.CometEvent;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.Broadcaster;
 import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
@@ -72,7 +71,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class gets used when the {@link AtmosphereServlet} fails to autodetect
+ * This class gets used when the {@link org.atmosphere.cpr.AtmosphereFramework} fails to autodetect
  * the Servlet Container we are running on.
  * <p/>
  * This {@link org.atmosphere.cpr.AsyncSupport} implementation uses a blocking approach, meaning

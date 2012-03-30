@@ -53,6 +53,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -75,8 +76,6 @@ import java.util.ArrayList;
 public class WebDotXmlReader {
 
     private static final Logger logger = LoggerFactory.getLogger(WebDotXmlReader.class);
-
-    private static final String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
 
     private final ArrayList<String> mappings = new ArrayList<String>();
 
@@ -120,7 +119,7 @@ public class WebDotXmlReader {
                 }
 
                 if (n.getNodeName().equals("servlet-class")) {
-                    if (n.getFirstChild().getNodeValue().equals(ATMOSPHERE_SERVLET)) {
+                    if (n.getFirstChild().getNodeValue().equals(FrameworkConfig.ATMOSPHERE_SERVLET)) {
                         break;
                     }
                 }

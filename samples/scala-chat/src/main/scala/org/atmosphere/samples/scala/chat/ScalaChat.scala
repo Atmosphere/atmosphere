@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.scala.chat
 
-import javax.ws.rs.{GET, POST, Path, Produces, Consumes}
+import javax.ws.rs.{GET, POST, Path, Produces}
 import org.atmosphere.annotation.{Broadcast, Suspend}
 
 @Path("/")

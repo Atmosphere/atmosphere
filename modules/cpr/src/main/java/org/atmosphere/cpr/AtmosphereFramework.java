@@ -1156,7 +1156,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 asyncSupport = new BlockingIOCometSupport(config);
                 doCometSupport(req, res);
             } else {
-                logger.error("AtmosphereServlet exception", ex);
+                logger.error("AtmosphereFramework exception", ex);
                 throw ex;
             }
         } finally {
