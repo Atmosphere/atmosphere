@@ -79,7 +79,7 @@ jQuery.atmosphere = function() {
                 webSocketPathDelimiter: "@@",
                 enableXDR : false,
                 rewriteURL : false,
-                attachHeadersAsQueryString : false,
+                attachHeadersAsQueryString : true,
                 executeCallbackBeforeReconnect : false,
                 readyState : 0,
                 lastTimestamp : 0,
@@ -1006,7 +1006,6 @@ jQuery.atmosphere = function() {
                     open: function() {
                         var iframe = doc.createElement("iframe");
 
-                        rq.attachHeadersAsQueryString = true;
                         url = _attachHeaders(rq);
                         if (rq.data != '') {
                             url += "&X-Atmosphere-Post-Body=" + rq.data;
