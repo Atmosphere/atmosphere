@@ -123,7 +123,9 @@ public class TwitterFeed {
     public String stopSearch(final @PathParam("tagid") Broadcaster feed,
                              final @PathParam("tagid") String tagid) {
         feed.resumeAll();
-        futures.get(tagid).cancel(true);
+        if (futures.get(tagid) != null) {
+            futures.get(tagid).cancel(true);
+        }
         logger.info("Stopping real time update for {}", tagid);
         return "DONE";
     }
