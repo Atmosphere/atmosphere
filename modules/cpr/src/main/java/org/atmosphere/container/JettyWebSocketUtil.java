@@ -22,7 +22,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;

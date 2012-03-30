@@ -55,11 +55,10 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +69,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 
 /**
- * This class gets used when the {@link AtmosphereServlet} detect the container
+ * This class gets used when the {@link org.atmosphere.cpr.AtmosphereFramework} detect the container
  * detect Servlet 3.0 Asynch API.
  *
  * @author Jeanfrancois Arcand

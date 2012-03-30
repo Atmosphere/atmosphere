@@ -17,14 +17,11 @@ package org.atmosphere.samples.chat.jersey;
 
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
-import org.atmosphere.cpr.Broadcaster;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
 
 /**
  * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
