@@ -12,6 +12,8 @@
  * limitations under the License.
  */
 /*
+ * Part of this code has been taked from
+ *
  * jQuery Stream @VERSION
  * Comet Streaming JavaScript Library
  * http://code.google.com/p/jquery-stream/
