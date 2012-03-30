@@ -532,6 +532,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void push(Entry entry) {
+        push(entry, true);
+    }
+
+    protected void push(Entry entry, boolean rec) {
 
         if (destroyed.get()) {
             return;
@@ -542,7 +546,7 @@ public class DefaultBroadcaster implements Broadcaster {
             recentActivity.set(true);
 
             String prevMessage = entry.message.toString();
-            if (!delayedBroadcast.isEmpty()) {
+            if (rec && !delayedBroadcast.isEmpty()) {
                 Iterator<Entry> i = delayedBroadcast.iterator();
                 StringBuilder b = new StringBuilder();
                 while (i.hasNext()) {
@@ -554,7 +558,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                 && entry.message instanceof String) {
                             b.append(e.message);
                         } else {
-                            push(e);
+                            push(e, false);
                         }
                     } finally {
                         i.remove();
