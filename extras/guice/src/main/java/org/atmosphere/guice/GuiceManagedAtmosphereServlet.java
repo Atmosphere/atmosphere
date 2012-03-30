@@ -28,16 +28,8 @@ import javax.servlet.ServletException;
 @Singleton
 public class GuiceManagedAtmosphereServlet extends AtmosphereGuiceServlet {
 
-    /**
-     * Install Guice event if other extension has been already installed.
-     *
-     * @param sc {@link javax.servlet.ServletConfig}
-     * @throws javax.servlet.ServletException
-     */
-    @Override
-    protected void loadConfiguration(ServletConfig sc) throws ServletException {
-        sc.getServletContext().setAttribute(SKIP_GUICE_FILTER, "true");
-        super.loadConfiguration(sc);
+    public GuiceManagedAtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
+        super(isFilter, autoDetectHandlers, true);
     }
 }
 
