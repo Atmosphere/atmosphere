@@ -66,17 +66,15 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     private ServletInputStream bis;
     private BufferedReader br;
-    private final String pathInfo;
     private final HttpSession session;
-    private String methodType;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
 
     private AtmosphereRequest(Builder b) {
-        pathInfo = b.pathInfo == "" ? b.request.getPathInfo() : b.pathInfo;
         session = b.request == null ?
-                new FakeHttpSession("", null, System.currentTimeMillis(), -1) : b.request.getSession();
+                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
+                    b.session != null ? b.session : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -89,8 +87,6 @@ public class AtmosphereRequest implements HttpServletRequest {
             bis = new IS(b.inputStream);
             br = new BufferedReader(new InputStreamReader(b.inputStream));
         }
-
-        methodType = b.methodType == null ? (b.request != null ? b.request.getMethod() : "GET") : b.methodType;
 
         if (b.request == null) b.request(new NoOpsRequest());
 
@@ -115,7 +111,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getPathInfo() {
-        return pathInfo;
+        return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
 
     /**
@@ -155,7 +151,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getMethod() {
-        return methodType;
+        return b.methodType;
     }
 
     /**
@@ -292,7 +288,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getContextPath() {
-        return b.request.getContextPath();
+        return isNotNoOps() && b.request.getContextPath() != null ? b.request.getContextPath() :  b.contextPath != null ? b.contextPath : "";
     }
 
     /**
@@ -465,7 +461,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     }
 
     public AtmosphereRequest method(String m) {
-        methodType = m;
+        b.method(m);
         return this;
     }
 
@@ -685,7 +681,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getServerName() {
-        return b.request.getServerName();
+        return b.serverName != "" ? b.serverName : b.request.getServerName();
     }
 
     /**
@@ -693,7 +689,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public int getServerPort() {
-        return b.request.getServerPort();
+        return b.serverPort != 0 ? b.serverPort : b.request.getServerPort();
     }
 
     /**
@@ -855,7 +851,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         private int offset;
         private int length;
         private String encoding = "UTF-8";
-        private String methodType;
+        private String methodType = "GET";
         private String contentType;
         private String data;
         private Map<String, String> headers = new HashMap<String, String>();
@@ -873,6 +869,11 @@ public class AtmosphereRequest implements HttpServletRequest {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
+
+        private String contextPath = "";
+        private String serverName = "";
+        private int serverPort = 0;
+        private HttpSession session;
 
         public Builder() {
         }
@@ -990,6 +991,26 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         public Builder queryStrings(Map<String, String[]> queryStrings) {
             this.queryStrings = queryStrings;
+            return this;
+        }
+
+        public Builder contextPath(String contextPath) {
+            this.contextPath = contextPath == null ? "" : contextPath;
+            return this;
+        }
+
+        public Builder serverName(String serverName) {
+            this.serverName = serverName;
+            return this;
+        }
+
+        public Builder serverPort(int serverPort) {
+            this.serverPort = serverPort;
+            return this;
+        }
+
+        public Builder session(HttpSession session) {
+            this.session = session;
             return this;
         }
     }
@@ -1380,7 +1401,62 @@ public class AtmosphereRequest implements HttpServletRequest {
      * @return an {@link AtmosphereRequest}
      */
     public final static AtmosphereRequest wrap(HttpServletRequest request) {
+        // Do not rewrap.
+        if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+            return AtmosphereRequest.class.cast(request);
+        }
         return new Builder().request(request).build();
+    }
+
+    /**
+     * Copy the HttpServletRequest content inside an AtmosphereRequest. By default the returned AtmosphereRequest
+     * is not destroyable.
+     *
+     * @param request {@link HttpServletRequest}
+     * @return an {@link AtmosphereRequest}
+     */
+    public final static AtmosphereRequest loadInMemory(HttpServletRequest request) {
+        Builder b = null;
+        boolean isWrapped = false;
+        if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
+            b = AtmosphereRequest.class.cast(request).b;
+            isWrapped = true;
+        } else {
+            b = new Builder();
+            b.request(request);
+        }
+
+        b.servletPath(request.getServletPath())
+            .pathInfo(request.getPathInfo())
+            .contextPath(request.getContextPath())
+            .requestURI(request.getRequestURI())
+            .requestURL(request.getRequestURL().toString())
+            .method(request.getMethod())
+            .serverName(request.getServerName())
+            .serverPort(request.getServerPort())
+            .destroyable(false)
+            .session(new FakeHttpSession(request.getSession(true)));
+
+        Enumeration<String> e = request.getHeaderNames();
+        String s;
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            b.headers.put(s, request.getHeader(s));
+        }
+
+        e = request.getAttributeNames();
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            b.localAttributes.put(s, request.getAttribute(s));
+        }
+
+        e = request.getParameterNames();
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            b.queryStrings.put(s, request.getParameterValues(s));
+        }
+
+        return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
 
     @Override
@@ -1393,8 +1469,6 @@ public class AtmosphereRequest implements HttpServletRequest {
         if (b != null ? !b.equals(that.b) : that.b != null) return false;
         if (bis != null ? !bis.equals(that.bis) : that.bis != null) return false;
         if (br != null ? !br.equals(that.br) : that.br != null) return false;
-        if (methodType != null ? !methodType.equals(that.methodType) : that.methodType != null) return false;
-        if (pathInfo != null ? !pathInfo.equals(that.pathInfo) : that.pathInfo != null) return false;
         if (session != null ? !session.equals(that.session) : that.session != null) return false;
 
         return true;
@@ -1404,9 +1478,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     public int hashCode() {
         int result = bis != null ? bis.hashCode() : 0;
         result = 31 * result + (br != null ? br.hashCode() : 0);
-        result = 31 * result + (pathInfo != null ? pathInfo.hashCode() : 0);
         result = 31 * result + (session != null ? session.hashCode() : 0);
-        result = 31 * result + (methodType != null ? methodType.hashCode() : 0);
         result = 31 * result + (b != null ? b.hashCode() : 0);
         return result;
     }
@@ -1414,12 +1486,12 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public String toString() {
         return "AtmosphereRequest{" +
-                "bis=" + bis +
-                ", br=" + br +
-                ", pathInfo='" + pathInfo + '\'' +
-                ", session=" + session +
-                ", methodType='" + methodType + '\'' +
-                ", b=" + b +
+                " contextPath=" + getContextPath() +
+                " servletPath=" + getServletPath() +
+                " pathInfo=" + getPathInfo() +
+                " requestURI=" + getRequestURI() +
+                " requestURL=" + getRequestURL() +
+                " destroyable=" + b.destroyable +
                 '}';
     }
 }
