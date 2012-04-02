@@ -102,7 +102,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         }
     }
 
-    public boolean destroybed() {
+    public boolean destroyed() {
         return destroyed.get();
     }
 
@@ -151,7 +151,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getMethod() {
-        return b.methodType;
+        return b.methodType != null ? b.methodType : b.request.getMethod();
     }
 
     /**
@@ -846,7 +846,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         private int offset;
         private int length;
         private String encoding = "UTF-8";
-        private String methodType = "GET";
+        private String methodType;
         private String contentType;
         private String data;
         private Map<String, String> headers = new HashMap<String, String>();
