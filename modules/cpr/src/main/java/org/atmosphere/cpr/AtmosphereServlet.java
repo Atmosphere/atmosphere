@@ -428,7 +428,7 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
     public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.debug("WebSocket upgrade requested");
         request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-        return new JettyWebSocketHandler(AtmosphereRequest.wrap(request), framework, framework.webSocketProtocol);
+        return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request), framework, framework.webSocketProtocol);
     }
 
 }
