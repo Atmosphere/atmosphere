@@ -791,14 +791,15 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     protected void initWebSocketProtocol() {
-        if (webSocketProtocol != null) return;
-        try {
-            webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
-                    .loadClass(webSocketProtocolClassName).newInstance();
-            logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName );
-        } catch (Exception ex) {
-            logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
-            webSocketProtocol = new SimpleHttpProtocol();
+        if (webSocketProtocol == null) {
+            try {
+                webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
+                        .loadClass(webSocketProtocolClassName).newInstance();
+                logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName);
+            } catch (Exception ex) {
+                logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
+                webSocketProtocol = new SimpleHttpProtocol();
+            }
         }
         webSocketProtocol.configure(config);
     }
