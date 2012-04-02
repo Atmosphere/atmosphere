@@ -74,7 +74,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private AtmosphereRequest(Builder b) {
         session = b.request == null ?
                 new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                    b.session != null ? b.session : b.request.getSession();
+                b.session != null ? b.session : b.request.getSession();
 
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
@@ -188,7 +188,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getServletPath() {
-        return b.servletPath != "" ? b.servletPath : (isNotNoOps()? b.request.getServletPath() : "");
+        return b.servletPath != "" ? b.servletPath : (isNotNoOps() ? b.request.getServletPath() : "");
     }
 
     /**
@@ -196,7 +196,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRequestURI() {
-        return b.requestURI != null ? b.requestURI : (isNotNoOps()? b.request.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : (isNotNoOps() ? b.request.getRequestURI() : null);
     }
 
     /**
@@ -204,7 +204,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public StringBuffer getRequestURL() {
-        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps()? b.request.getRequestURL() : null);
+        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps() ? b.request.getRequestURL() : null);
     }
 
     /**
@@ -288,7 +288,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getContextPath() {
-        return isNotNoOps() && b.request.getContextPath() != null ? b.request.getContextPath() :  b.contextPath != null ? b.contextPath : "";
+        return isNotNoOps() && b.request.getContextPath() != null ? b.request.getContextPath() : b.contextPath != null ? b.contextPath : "";
     }
 
     /**
@@ -364,7 +364,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     public Map<String, String[]> getParameterMap() {
         if (!queryComputed) {
             queryComputed = true;
-            Map<String, String[]> m = (isNotNoOps()? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
+            Map<String, String[]> m = (isNotNoOps() ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
             for (String e : m.keySet()) {
                 b.queryStrings.put(e, getParameterValues(e));
             }
@@ -414,7 +414,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? (isNotNoOps()? b.request.getInputStream() : null) : bis;
+        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : null) : bis;
     }
 
     /**
@@ -422,7 +422,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? (isNotNoOps()? b.request.getReader() : null) : br;
+        return br == null ? (isNotNoOps() ? b.request.getReader() : null) : br;
     }
 
     /**
@@ -533,7 +533,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public Object getAttribute(String s) {
-        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps()? b.request.getAttribute(s) : null);
+        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps() ? b.request.getAttribute(s) : null);
     }
 
     /**
@@ -641,7 +641,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRemoteAddr() {
-        return isNotNoOps()? b.request.getRemoteAddr() : b.remoteAddr;
+        return isNotNoOps() ? b.request.getRemoteAddr() : b.remoteAddr;
     }
 
     /**
@@ -649,7 +649,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getRemoteHost() {
-        return isNotNoOps()? b.request.getRemoteHost() : b.remoteHost;
+        return isNotNoOps() ? b.request.getRemoteHost() : b.remoteHost;
     }
 
     /**
@@ -657,7 +657,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public int getRemotePort() {
-        return isNotNoOps()? b.request.getRemotePort() : b.remotePort;
+        return isNotNoOps() ? b.request.getRemotePort() : b.remotePort;
     }
 
     /**
@@ -729,7 +729,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getLocalName() {
-        return isNotNoOps()? b.request.getLocalName() : b.localName;
+        return isNotNoOps() ? b.request.getLocalName() : b.localName;
     }
 
     /**
@@ -737,7 +737,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public int getLocalPort() {
-        return isNotNoOps()? b.request.getLocalPort() : b.localPort;
+        return isNotNoOps() ? b.request.getLocalPort() : b.localPort;
     }
 
     /**
@@ -745,10 +745,10 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getLocalAddr() {
-        return isNotNoOps()? b.request.getLocalAddr() : b.localAddr;
+        return isNotNoOps() ? b.request.getLocalAddr() : b.localAddr;
     }
 
-    private boolean isNotNoOps(){
+    private boolean isNotNoOps() {
         return !NoOpsRequest.class.isAssignableFrom(b.request.getClass());
     }
 
@@ -792,7 +792,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     public Enumeration<String> getAttributeNames() {
         Set<String> l = new HashSet();
         l.addAll(b.localAttributes.keySet());
-        Enumeration<String> e = (isNotNoOps()? b.request.getAttributeNames() : null);
+        Enumeration<String> e = (isNotNoOps() ? b.request.getAttributeNames() : null);
         if (e != null) {
             while (e.hasMoreElements()) {
                 l.add(e.nextElement());
@@ -1422,15 +1422,15 @@ public class AtmosphereRequest implements HttpServletRequest {
         }
 
         b.servletPath(request.getServletPath())
-            .pathInfo(request.getPathInfo())
-            .contextPath(request.getContextPath())
-            .requestURI(request.getRequestURI())
-            .requestURL(request.getRequestURL().toString())
-            .method(request.getMethod())
-            .serverName(request.getServerName())
-            .serverPort(request.getServerPort())
-            .destroyable(false)
-            .session(new FakeHttpSession(request.getSession(true)));
+                .pathInfo(request.getPathInfo())
+                .contextPath(request.getContextPath())
+                .requestURI(request.getRequestURI())
+                .requestURL(request.getRequestURL().toString())
+                .method(request.getMethod())
+                .serverName(request.getServerName())
+                .serverPort(request.getServerPort())
+                .destroyable(false)
+                .session(new FakeHttpSession(request.getSession(true)));
 
         Enumeration<String> e = request.getHeaderNames();
         String s;
@@ -1480,13 +1480,25 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     @Override
     public String toString() {
-        return "AtmosphereRequest{" +
-                " contextPath=" + getContextPath() +
-                " servletPath=" + getServletPath() +
-                " pathInfo=" + getPathInfo() +
-                " requestURI=" + getRequestURI() +
-                " requestURL=" + getRequestURL() +
-                " destroyable=" + b.destroyable +
-                '}';
+        try {
+            return "AtmosphereRequest{" +
+                    " contextPath=" + getContextPath() +
+                    " servletPath=" + getServletPath() +
+                    " pathInfo=" + getPathInfo() +
+                    " requestURI=" + getRequestURI() +
+                    " requestURL=" + getRequestURL() +
+                    " destroyable=" + b.destroyable +
+                    '}';
+        } catch (Exception e) {
+            // Jetty error
+            return "AtmosphereRequest{" +
+                    " contextPath=" + getContextPath() +
+                    " servletPath=" + getServletPath() +
+                    " pathInfo=" + getPathInfo() +
+                    " requestURI=" + getRequestURI() +
+                    " destroyable=" + b.destroyable +
+                    '}';
+
+        }
     }
 }
