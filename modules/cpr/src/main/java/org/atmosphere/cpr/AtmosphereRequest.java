@@ -837,11 +837,6 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         b.headers.clear();
         b.queryStrings.clear();
-
-        // Help GC
-        if (isNotNoOps()) {
-            b.request.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-        }
     }
 
     public final static class Builder {
