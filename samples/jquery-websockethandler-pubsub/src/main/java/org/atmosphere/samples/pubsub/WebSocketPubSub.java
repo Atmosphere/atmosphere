@@ -39,7 +39,7 @@ public class WebSocketPubSub extends WebSocketHandler {
 
     @Override
     public void onTextMessage(WebSocket webSocket, String message) {
-        AtmosphereResource r = (AtmosphereResource) webSocket.resource();
+        AtmosphereResource r = webSocket.resource();
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
 
         if (message != null && message.indexOf("message") != -1) {
