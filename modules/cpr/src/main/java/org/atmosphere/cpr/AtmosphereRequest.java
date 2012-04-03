@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -66,16 +68,12 @@ public class AtmosphereRequest implements HttpServletRequest {
 
     private ServletInputStream bis;
     private BufferedReader br;
-    private final HttpSession session;
+    private HttpSession session;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
 
     private AtmosphereRequest(Builder b) {
-        session = b.request == null ?
-                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                b.session != null ? b.session : b.request.getSession();
-
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
@@ -561,6 +559,11 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public HttpSession getSession() {
+        if (session == null) {
+            session = !isNotNoOps() ?
+                    new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
+                    b.session != null ? b.session : b.request.getSession();
+        }
         return session;
     }
 
@@ -569,6 +572,9 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public HttpSession getSession(boolean create) {
+        if (create) {
+            return getSession();
+        }
         return session;
     }
 
