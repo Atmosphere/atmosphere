@@ -844,7 +844,7 @@ jQuery.atmosphere = function() {
                     ajaxRequest.open(request.method, url, true);
                 }
 
-                if (request.withCredentials) {
+                if (_request.withCredentials) {
                     if ("withCredentials" in ajaxRequest) {
                         ajaxRequest.withCredentials = true;
                     }
