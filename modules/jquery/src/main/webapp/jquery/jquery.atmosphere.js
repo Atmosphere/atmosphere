@@ -88,6 +88,7 @@ jQuery.atmosphere = function() {
                 withCredentials : false,
                 trackMessageLength : false ,
                 messageDelimiter : '|',
+                connectTimeout : -1,
                 onError : function(response) {},
                 onClose : function(response) {},
                 onOpen : function(response) {},
@@ -301,7 +302,7 @@ jQuery.atmosphere = function() {
                     },
                     jsonp : "jsonpTransport",
                     success: function(json) {
-                        if (!rq.executeCallbackBeforeReconnect) {
+                        if (rq.executeCallbackBeforeReconnect) {
                             _reconnect(_jqxhr, rq);
                         }
 
@@ -316,7 +317,7 @@ jQuery.atmosphere = function() {
 
                         _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
-                        if (rq.executeCallbackBeforeReconnect) {
+                        if (!rq.executeCallbackBeforeReconnect) {
                             _reconnect(_jqxhr, rq);
                         }
                     },
@@ -383,6 +384,19 @@ jQuery.atmosphere = function() {
                 }
 
                 _websocket = _getWebSocket(location);
+
+                if (_request.connectTimeout > 0) {
+                    setTimeout(function() {
+                        if (!webSocketOpened) {
+                            var _message = {
+                                code : 1002,
+                                reason : "",
+                                wasClean : false
+                            };
+                            _websocket.onclose(_message);
+                        }
+                    }, _request.connectTimeout);
+                }
 
                 _websocket.onopen = function(message) {
                     if (_request.logLevel == 'debug') {
@@ -708,7 +722,6 @@ jQuery.atmosphere = function() {
 
                         } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200 && rq.transport != 'long-polling') {
                             update = true;
-
                         } else {
                             clearTimeout(rq.id);
                         }
@@ -820,7 +833,6 @@ jQuery.atmosphere = function() {
                         rq.id = setTimeout(function() {
                             ajaxRequest.abort();
                             _subscribe(rq);
-
                         }, rq.timeout);
                     }
                     _subscribed = true;
@@ -842,6 +854,14 @@ jQuery.atmosphere = function() {
 
                 if (create) {
                     ajaxRequest.open(request.method, url, true);
+                    if (request.connectTimeout > -1) {
+                        setTimeout(function() {
+                            if (request.requestCount == 0) {
+                                ajaxRequest.abort();
+                                _prepareCallback("Connect timeout", "closed", 200, request.transport);
+                            }
+                        }, request.connectTimeout);
+                    }
                 }
 
                 if (_request.withCredentials) {
@@ -971,6 +991,14 @@ jQuery.atmosphere = function() {
                         }
                         xdr.open(rq.method, rewriteURL(url));
                         xdr.send();
+                        if (rq.connectTimeout > -1) {
+                            setTimeout(function() {
+                                if (rq.requestCount == 0) {
+                                    xdr.abort();
+                                    _prepareCallback("Connect timeout", "closed", 200, rq.transport);
+                                }
+                            }, rq.connectTimeout);
+                        }
                     },
                     close: function() {
                         xdr.abort();
@@ -1251,7 +1279,6 @@ jQuery.atmosphere = function() {
 
             function _prepareCallback(messageBody, state, errorCode, transport) {
 
-                var skipCallbackInvocation = false
                 if (state == "messageReceived") {
                     if (_trackMessageSize(messageBody, _request, _response)) return;
                 }
