@@ -491,7 +491,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     invokeAtmosphereHandler(r);
 
                     try {
-                        r.getResponse().sendError(503, "Remotely closed");
                         r.getResponse().getOutputStream().close();
                     } catch (Throwable t) {
                         try {
