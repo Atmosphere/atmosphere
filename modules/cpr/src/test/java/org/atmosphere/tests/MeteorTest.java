@@ -1,4 +1,3 @@
-
 /*
 * Copyright 2012 Jeanfrancois Arcand
 *
@@ -133,8 +132,20 @@ public class MeteorTest {
         }
     }
 
-    @BeforeMethod(alwaysRun = true)
-    public void startServer() throws Exception {
+    public static class Meteor2 extends HttpServlet {
+        @Override
+        public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+            final Meteor m = Meteor.build(req);
+            req.getSession().setAttribute("meteor", m);
+            m.suspend(20000, false).resumeOnBroadcast(true).broadcast("resume");
+
+            if (servletLatch != null) {
+                servletLatch.countDown();
+            }
+        }
+    }
+
+    public void startServer(String className) throws Exception {
 
         int port = org.atmosphere.tests.BaseTest.TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
@@ -142,7 +153,7 @@ public class MeteorTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new MeteorServlet();
-        atmoServlet.framework().addInitParameter("org.atmosphere.servlet", Meteor1.class.getName());
+        atmoServlet.framework().addInitParameter("org.atmosphere.servlet", className);
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
@@ -160,7 +171,8 @@ public class MeteorTest {
     }
 
     @Test(timeOut = 20000, enabled = true)
-    public void testSuspendTimeout() {
+    public void testSuspendTimeout() throws Exception {
+        startServer(Meteor1.class.getName());
         logger.info("running test: testSuspendTimeout");
 
         AsyncHttpClient c = new AsyncHttpClient();
@@ -186,7 +198,8 @@ public class MeteorTest {
     }
 
     @Test(timeOut = 60000, enabled = true)
-    public void testResumeOnBroadcast() {
+    public void testResumeOnBroadcast() throws Exception {
+        startServer(Meteor1.class.getName());
         logger.info("running test: testResumeOnBroadcast");
 
         final CountDownLatch latch = new CountDownLatch(1);
@@ -235,4 +248,30 @@ public class MeteorTest {
         c.close();
     }
 
+    @Test(timeOut = 20000, enabled = true)
+    public void testProgrammaticResumeOnBroadcast() throws Exception {
+        startServer(Meteor2.class.getName());
+        logger.info("running test: testSuspendTimeout");
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            long currentTime = System.currentTimeMillis();
+            Response r = c.prepareGet(urlTarget).execute().get();
+
+            long time = System.currentTimeMillis() - currentTime;
+            if (time > 5000 && time < 15000) {
+                assertTrue(true);
+            } else {
+                assertFalse(false);
+            }
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "resume");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
+    }
 }
