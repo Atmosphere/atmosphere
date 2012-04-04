@@ -1122,7 +1122,8 @@ jQuery.atmosphere = function() {
                                 }
 
                                 if (cdoc.readyState === "complete") {
-                                    _prepareCallback("", "completed", 200, rq.transport);
+                                    _prepareCallback("", "re-opening", 200, rq.transport);
+                                    _ieStreaming(rq);
                                     return false;
                                 }
                             }, null);
