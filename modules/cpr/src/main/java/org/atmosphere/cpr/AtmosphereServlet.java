@@ -157,7 +157,7 @@ import java.io.IOException;
  */
 public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;
 
     /**
