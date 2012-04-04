@@ -25,7 +25,6 @@ import javax.ws.rs.core.PathSegment;
 import java.io.InputStream;
 
 @Path("/")
-@Produces("text/html")
 public class FileResource {
 
     private
@@ -34,11 +33,13 @@ public class FileResource {
 
     @Path("/jquery/{id}")
     @GET
+    @Produces("application/javascript")
     public InputStream getJQuery(@PathParam("id") PathSegment ps) {
         return sc.getResourceAsStream("/jquery/" + ps.getPath());
     }
 
     @GET
+    @Produces("text/html")
     public InputStream getIndex() {
         return sc.getResourceAsStream("/index.html");
     }
