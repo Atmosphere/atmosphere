@@ -18,10 +18,12 @@ package org.atmosphere.tests;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -98,33 +100,17 @@ public class MeteorTest {
         public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
             final Meteor m = Meteor.build(req);
             req.getSession().setAttribute("meteor", m);
-            m.suspend(5000, false);
-
-            m.broadcast("resume");
-            m.addListener(new AtmosphereResourceEventListener() {
-
-                @Override
-                public void onSuspend(final AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onDisconnect(AtmosphereResourceEvent event) {
-                }
-
+            m.addListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent event) {
                     event.getResource().getRequest().setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "true");
                 }
 
                 @Override
-                public void onThrowable(AtmosphereResourceEvent event) {
-
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    event.getResource().getBroadcaster().broadcast("resume");
                 }
-            });
+            }).suspend(5000, false);
 
             if (servletLatch != null) {
                 servletLatch.countDown();
@@ -137,7 +123,13 @@ public class MeteorTest {
         public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
             final Meteor m = Meteor.build(req);
             req.getSession().setAttribute("meteor", m);
-            m.suspend(20000, false).resumeOnBroadcast(true).broadcast("resume");
+            m.addListener(new AtmosphereResourceEventListenerAdapter() {
+
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    event.getResource().getBroadcaster().broadcast("resume");
+                }
+            }).suspend(20000, false).resumeOnBroadcast(true);
 
             if (servletLatch != null) {
                 servletLatch.countDown();
@@ -160,7 +152,7 @@ public class MeteorTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
