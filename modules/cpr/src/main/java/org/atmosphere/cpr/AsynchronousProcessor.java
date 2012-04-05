@@ -413,7 +413,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereRequest req = r.getRequest(false);
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
-
+        r.getAtmosphereResourceEvent().setMessage(null);
         try {
             if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                 AtmosphereHandler atmosphereHandler =
