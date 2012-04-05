@@ -108,6 +108,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
     private final AtmosphereHandler atmosphereHandler;
     private final boolean writeHeaders;
+    private final String padding;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -142,9 +143,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
-        String padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
-        beginCompatibleData = createStreamingPadding(padding);
-
+        padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
     }
 
@@ -412,6 +411,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     void write() {
+
+        if (beginCompatibleData == null) {
+           beginCompatibleData = createStreamingPadding(padding);
+        }
+
         try {
             if (useWriter && !((Boolean) req.getAttribute(ApplicationConfig.PROPERTY_USE_STREAM))) {
                 try {
