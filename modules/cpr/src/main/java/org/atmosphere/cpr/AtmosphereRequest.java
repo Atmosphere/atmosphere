@@ -313,6 +313,10 @@ public class AtmosphereRequest implements HttpServletRequest {
         return getHeader(s, true);
     }
 
+    public HttpServletRequest wrappedRequest() {
+        return b.request;
+    }
+
     public String getHeader(String s, boolean checkCase) {
 
         if ("content-type".equalsIgnoreCase(s)) {
@@ -1424,7 +1428,6 @@ public class AtmosphereRequest implements HttpServletRequest {
             isWrapped = true;
         } else {
             b = new Builder();
-            b.request(request);
         }
 
         b.servletPath(request.getServletPath())
@@ -1436,7 +1439,8 @@ public class AtmosphereRequest implements HttpServletRequest {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(new FakeHttpSession(request.getSession(true)));
+                .session(new FakeHttpSession(request.getSession(true)))
+                .request(new NoOpsRequest());
 
         Enumeration<String> e = request.getHeaderNames();
         String s;

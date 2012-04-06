@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
+ * Copyright 2012 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -48,7 +48,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     private WebSocketProcessor webSocketProcessor;
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
-    private WebSocketProtocol webSocketProtocol;
+    private final WebSocketProtocol webSocketProtocol;
 
     public JettyWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
         this.request = request;

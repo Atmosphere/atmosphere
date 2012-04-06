@@ -64,6 +64,7 @@ import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.Servlet30AsyncSupportWithWebSocket;
 import org.atmosphere.container.Servlet30CometSupport;
+import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -85,6 +86,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String SERVLET_30 = "javax.servlet.AsyncListener";
     public final static String GLASSFISH_V2 = "com.sun.enterprise.web.PEWebContainer";
     public final static String TOMCAT_7 = "org.apache.catalina.comet.CometFilterChain";
+    public final static String TOMCAT_WEBSOCKET = "org.apache.catalina.websocket.WebSocketServlet";
     public final static String TOMCAT = "org.apache.coyote.http11.Http11NioProcessor";
     public final static String JBOSS_5 = "org.jboss.";
     public final static String JETTY = "org.mortbay.util.ajax.Continuation";
@@ -163,6 +165,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public List<Class<? extends AsyncSupport>> detectWebSocketPresent() {
         List l = new LinkedList<Class<? extends AsyncSupport>>() {
             {
+                if (testClassExists(TOMCAT_WEBSOCKET))
+                    add(Tomcat7AsyncSupportWithWebSocket.class);
+
                 if (testClassExists(JETTY_8))
                     add(JettyAsyncSupportWithWebSocket.class);
 
