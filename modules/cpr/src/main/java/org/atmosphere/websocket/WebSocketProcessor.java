@@ -183,35 +183,40 @@ public class WebSocketProcessor implements Serializable {
     public void close(int closeCode) {
         logger.debug("WebSocket closed with {}", closeCode);
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
-        AtmosphereRequest r = resource.getRequest(false);
-        AtmosphereResponse s = resource.getResponse(false);
-        try {
-            webSocketProtocol.onClose(webSocket);
 
-            if (resource != null && resource.isInScope()) {
-                AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
-                        r.getAttribute(ASYNCHRONOUS_HOOK);
-                if (h != null) {
-                    if (closeCode == 1000) {
-                        h.timedOut();
+        if (resource == null) {
+            logger.warn("Unable to retrieve AtmosphereResource for {}", webSocket);
+        } else {
+            AtmosphereRequest r = resource.getRequest(false);
+            AtmosphereResponse s = resource.getResponse(false);
+            try {
+                webSocketProtocol.onClose(webSocket);
+
+                if (resource != null && resource.isInScope()) {
+                    AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
+                            r.getAttribute(ASYNCHRONOUS_HOOK);
+                    if (h != null) {
+                        if (closeCode == 1000) {
+                            h.timedOut();
+                        } else {
+                            h.closed();
+                        }
                     } else {
-                        h.closed();
+                        logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                     }
-                } else {
-                    logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                 }
-            }
-        } finally {
-            if (r != null) {
-                r.destroy();
-            }
+            } finally {
+                if (r != null) {
+                    r.destroy();
+                }
 
-            if (s != null) {
-                s.destroy();
-            }
+                if (s != null) {
+                    s.destroy();
+                }
 
-            if (webSocket != null) {
-                WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
+                if (webSocket != null) {
+                    WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
+                }
             }
         }
         asyncExecutor.shutdown();

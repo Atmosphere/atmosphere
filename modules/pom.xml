@@ -21,6 +21,7 @@
         <module>compat-jbossweb</module>
         <module>compat-weblogic</module>
         <module>cpr</module>
+        <module>acceptance-tests</module>
         <module>annotations</module>
         <module>jersey</module>
         <module>jquery</module>

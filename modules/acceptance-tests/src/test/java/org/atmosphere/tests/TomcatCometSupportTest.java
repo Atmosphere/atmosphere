@@ -85,6 +85,7 @@ public class TomcatCometSupportTest extends BaseTest {
     public void startServer() throws Exception {
 
         System.setProperty("org.atmosphere.useNative", "true");
+        try {
 
         int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
@@ -114,7 +115,11 @@ public class TomcatCometSupportTest extends BaseTest {
         embedded.addEngine(engine);
         embedded.addConnector(connector);
         embedded.start();
+
         atmoServlet = (AtmosphereServlet) w.getServlet();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
 
     }
 

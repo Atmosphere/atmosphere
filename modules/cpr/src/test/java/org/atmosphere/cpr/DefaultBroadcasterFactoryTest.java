@@ -20,7 +20,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for the {@link DefaultBroadcasterFactory}.
+ * Unit tests for the {@link org.atmosphere.cpr.DefaultBroadcasterFactory}.
  * 
  * @author Jason Burgess
  */
