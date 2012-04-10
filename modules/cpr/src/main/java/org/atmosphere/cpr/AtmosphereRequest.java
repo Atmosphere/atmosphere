@@ -16,8 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -28,7 +26,6 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -1421,19 +1418,17 @@ public class AtmosphereRequest implements HttpServletRequest {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest loadInMemory(HttpServletRequest request) {
+    public final static AtmosphereRequest loadInMemory(HttpServletRequest request, boolean loadInMemory) {
         Builder b;
+        HttpServletRequest r;
         boolean isWrapped = false;
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
             isWrapped = true;
+            r = request;
         } else {
             b = new Builder();
-        }
-
-        load(request, b);
-        if (isWrapped) {
-            load(b.request, b);
+            r = new NoOpsRequest();
         }
 
         b.servletPath(request.getServletPath())
@@ -1445,10 +1440,15 @@ public class AtmosphereRequest implements HttpServletRequest {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(new FakeHttpSession(request.getSession(true)))
-                .request(new NoOpsRequest());
+                .session(new FakeHttpSession(request.getSession(true)));
 
-
+        if (loadInMemory) {
+            load(request, b);
+            if (isWrapped) {
+                load(b.request, b);
+            }
+            b.request(r);
+        }
 
         return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }

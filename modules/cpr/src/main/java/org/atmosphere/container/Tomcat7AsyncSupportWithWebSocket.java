@@ -99,7 +99,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             }
 
             RequestFacade facade = (RequestFacade) req.wrappedRequest();
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req), config.framework(), config.framework().getWebSocketProtocol());
+            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true), config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
         }
 
