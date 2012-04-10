@@ -1,19 +1,4 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-/*
 * Copyright 2012 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -28,7 +13,7 @@
 * License for the specific language governing permissions and limitations under
 * the License.
 */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
@@ -37,6 +22,7 @@ import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -53,25 +39,25 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-public class BroadcasterLifecycleTest {
+public class ConcurrentBroadcastTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(BroadcasterLifecycleTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ConcurrentBroadcastTest.class);
+
+    private static final int MAX_CLIENT = 100;
 
     protected AtmosphereServlet atmoServlet;
     protected final static String ROOT = "/*";
     protected String urlTarget;
     protected Server server;
     protected Context root;
-    private final static AtomicReference<AtmosphereResource> ref = new AtomicReference<AtmosphereResource>();
-    private final static CountDownLatch suspended = new CountDownLatch(2);
-    private final static CountDownLatch broadcasterCreated = new CountDownLatch(1);
+    private final static CountDownLatch suspended = new CountDownLatch(MAX_CLIENT);
+    private final static CountDownLatch broadcasterReady = new CountDownLatch(MAX_CLIENT);
 
 
     public static class TestHelper {
@@ -115,14 +101,10 @@ public class BroadcasterLifecycleTest {
         server = new Server(port);
         root = new Context(server, "/", Context.SESSIONS);
         atmoServlet = new AtmosphereServlet();
+        atmoServlet.framework().addAtmosphereHandler("/suspend", new SuspendAndResume());
         configureCometSupport();
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
         server.start();
-
-        atmoServlet.framework().addAtmosphereHandler("/suspend", new LifeCycleTestHandler());
-        atmoServlet.framework().addAtmosphereHandler("/destroy", new Destroy());
-        atmoServlet.framework().addAtmosphereHandler("/invoke", new Invoker());
-
     }
 
     public void configureCometSupport() {
@@ -136,37 +118,44 @@ public class BroadcasterLifecycleTest {
         server = null;
     }
 
-    @Test(timeOut = 20000, enabled = true)
-    public void testBroadcasterLifecylePolicy() {
-        logger.info("Running testBroadcasterLifecylePolicy");
+    @Test(timeOut = 60000, enabled = true)
+    public void testConcurrentSuspendAndBroadcast() {
+        logger.info("Running testConcurrentSuspendAndBroadcast");
 
         AsyncHttpClient c = new AsyncHttpClient();
         Broadcaster b = null;
         try {
-            final AtomicReference<Response> r = new AtomicReference();
-            c.prepareGet(urlTarget + "/suspend").execute(new AsyncCompletionHandler<Response>() {
+            final AtomicReference<StringBuffer> r = new AtomicReference<StringBuffer>(new StringBuffer());
+            for (int i = 0; i < MAX_CLIENT; i++) {
 
-                @Override
-                public Response onCompleted(Response response) throws Exception {
-                    r.set(response);
-                    suspended.countDown();
-                    return response;
-                }
-            });
+                c.prepareGet(urlTarget + "/suspend").execute(new AsyncCompletionHandler<Response>() {
 
-            // Destroy the Broadcaster
-            Response response = c.prepareGet(urlTarget + "/destroy").execute().get();
-            assertEquals(response.getStatusCode(), 200);
+                    @Override
+                    public Response onCompleted(Response response) throws Exception {
+                        r.get().append(response.getResponseBody());
+                        suspended.countDown();
+                        logger.info("suspendedCount" + suspended.getCount());
+                        return response;
+                    }
+                });
+            }
 
-            response = c.prepareGet(urlTarget + "/invoke").execute().get();
-            assertEquals(response.getStatusCode(), 200);
+            broadcasterReady.await(10, TimeUnit.SECONDS);
 
-            suspended.await(20, TimeUnit.SECONDS);
+            BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "/suspend").broadcast("foo").get();
 
-            assertEquals(r.get().getResponseBody(), "Recovering a dead broadcasted");
+            suspended.await(60, TimeUnit.SECONDS);
+
+            StringBuffer b2 = new StringBuffer();
+            for (int i=0; i < MAX_CLIENT; i++) {
+                b2.append("foo");
+            }
+
+            assertEquals(r.get().toString(), b2.toString());
 
         } catch (Exception e) {
             logger.error("test failed", e);
+            e.printStackTrace();
             fail(e.getMessage());
         } finally {
             if (b != null) b.destroy();
@@ -174,25 +163,26 @@ public class BroadcasterLifecycleTest {
         c.close();
     }
 
-    private static final class LifeCycleTestHandler implements AtmosphereHandler {
-
-        private Broadcaster broadcaster;
+    private static final class SuspendAndResume implements AtmosphereHandler {
 
         @Override
         public void onRequest(AtmosphereResource r) throws IOException {
-            broadcaster = BroadcasterFactory.getDefault().get("Test-Destroy");
-            r.setBroadcaster(broadcaster);
-            ref.set(r);
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    broadcasterReady.countDown();
+                }
+            });
             r.suspend(-1, false);
         }
 
         @Override
         public void onStateChange(AtmosphereResourceEvent r) throws IOException {
-            if (r.isSuspended()) {
+            if (r.isSuspended() && !r.isResuming()) {
+                logger.info("Resumed");
                 r.getResource().getResponse().getWriter().print(r.getMessage());
                 r.getResource().getResponse().getWriter().flush();
                 r.getResource().resume();
-                suspended.countDown();
             }
         }
 
@@ -201,48 +191,4 @@ public class BroadcasterLifecycleTest {
         }
     }
 
-    private static final class Destroy implements AtmosphereHandler {
-
-        @Override
-        public void onRequest(AtmosphereResource r) throws IOException {
-            try {
-                broadcasterCreated.await(5, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                throw new IOException(e);
-            }
-
-            BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "Test-Destroy").destroy();
-        }
-
-        @Override
-        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
-        }
-
-        @Override
-        public void destroy() {
-        }
-    }
-
-    private static final class Invoker implements AtmosphereHandler {
-
-        @Override
-        public void onRequest(AtmosphereResource r) throws IOException {
-            try {
-                ref.get().getBroadcaster().broadcast("Recovering a dead broadcasted").get();
-            } catch (InterruptedException e) {
-                throw new IOException(e);
-            } catch (ExecutionException e) {
-                throw new IOException(e);
-            }
-            ref.get().resume();
-        }
-
-        @Override
-        public void onStateChange(AtmosphereResourceEvent r) throws IOException {
-        }
-
-        @Override
-        public void destroy() {
-        }
-    }
 }
