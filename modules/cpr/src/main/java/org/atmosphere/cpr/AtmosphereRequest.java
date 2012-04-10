@@ -28,6 +28,7 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -1306,7 +1307,7 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         @Override
         public String getProtocol() {
-            return "WebSocket";
+            return "HTTP/1.1";
         }
 
         @Override
@@ -1421,13 +1422,18 @@ public class AtmosphereRequest implements HttpServletRequest {
      * @return an {@link AtmosphereRequest}
      */
     public final static AtmosphereRequest loadInMemory(HttpServletRequest request) {
-        Builder b = null;
+        Builder b;
         boolean isWrapped = false;
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
             isWrapped = true;
         } else {
             b = new Builder();
+        }
+
+        load(request, b);
+        if (isWrapped) {
+            load(b.request, b);
         }
 
         b.servletPath(request.getServletPath())
@@ -1442,6 +1448,12 @@ public class AtmosphereRequest implements HttpServletRequest {
                 .session(new FakeHttpSession(request.getSession(true)))
                 .request(new NoOpsRequest());
 
+
+
+        return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
+    }
+
+    private static void load(HttpServletRequest request, Builder b) {
         Enumeration<String> e = request.getHeaderNames();
         String s;
         while (e.hasMoreElements()) {
@@ -1460,8 +1472,6 @@ public class AtmosphereRequest implements HttpServletRequest {
             s = e.nextElement();
             b.queryStrings.put(s, request.getParameterValues(s));
         }
-
-        return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
 
     @Override
