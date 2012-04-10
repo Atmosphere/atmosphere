@@ -37,7 +37,7 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
 
 public class TomcatWebSocketHandler extends MessageInbound {
 
-    private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketHandler.class);
 
     private WebSocketProcessor webSocketProcessor;
     private final AtmosphereRequest request;
