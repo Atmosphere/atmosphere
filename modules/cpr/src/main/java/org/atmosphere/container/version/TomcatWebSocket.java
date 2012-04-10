@@ -63,6 +63,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
         outbound.writeTextMessage(CharBuffer.wrap(data));
+        lastWrite = System.currentTimeMillis();
     }
 
     /**
@@ -73,6 +74,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
         outbound.writeTextMessage(CharBuffer.wrap(new String(data)));
+        lastWrite = System.currentTimeMillis();
     }
 
     /**
@@ -83,6 +85,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
         outbound.writeTextMessage(CharBuffer.wrap(new String(data, offset, length)));
+        lastWrite = System.currentTimeMillis();
     }
 
     /**
