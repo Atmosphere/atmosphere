@@ -386,7 +386,7 @@ jQuery.atmosphere = function() {
                 _websocket = _getWebSocket(location);
 
                 if (_request.connectTimeout > 0) {
-                    setTimeout(function() {
+                    _request.id = setTimeout(function() {
                         if (!webSocketOpened) {
                             var _message = {
                                 code : 1002,
@@ -865,7 +865,7 @@ jQuery.atmosphere = function() {
                 if (create) {
                     ajaxRequest.open(request.method, url, true);
                     if (request.connectTimeout > -1) {
-                        setTimeout(function() {
+                        request.id = setTimeout(function() {
                             if (request.requestCount == 0) {
                                 ajaxRequest.abort();
                                 _prepareCallback("Connect timeout", "closed", 200, request.transport);
@@ -1002,7 +1002,7 @@ jQuery.atmosphere = function() {
                         xdr.open(rq.method, rewriteURL(url));
                         xdr.send();
                         if (rq.connectTimeout > -1) {
-                            setTimeout(function() {
+                            rq.id = setTimeout(function() {
                                 if (rq.requestCount == 0) {
                                     xdr.abort();
                                     _prepareCallback("Connect timeout", "closed", 200, rq.transport);
@@ -1464,6 +1464,7 @@ jQuery.atmosphere = function() {
             if (jQuery.atmosphere.requests.length > 0) {
                 for (var i = 0; i < jQuery.atmosphere.requests.length; i++) {
                     jQuery.atmosphere.requests[i].close();
+                    clearTimeout(jQuery.atmosphere.requests[i].id);
                 }
             }
             jQuery.atmosphere.requests = [];
@@ -1479,6 +1480,7 @@ jQuery.atmosphere = function() {
                     // Suppose you can subscribe once to an url
                     if (rq.getUrl() == url) {
                         rq.close();
+                        clearTimeout(rq.id);
                         idx = i;
                         break;
                     }
