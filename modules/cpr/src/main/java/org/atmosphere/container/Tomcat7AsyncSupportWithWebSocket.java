@@ -132,7 +132,6 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
     * This only works for tokens. Quoted strings need more sophisticated
     * parsing.
     */
-
     private boolean headerContainsToken(HttpServletRequest req,
                                         String headerName, String target) {
         Enumeration<String> headers = req.getHeaders(headerName);
