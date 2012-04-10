@@ -125,10 +125,6 @@
                     <groupId>org.apache.tomcat</groupId>
                     <artifactId>tomcat-util</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>org.atmosphere</groupId>
-                    <artifactId>atmosphere-compat-jetty</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
     </dependencies>
