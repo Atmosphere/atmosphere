@@ -80,7 +80,7 @@ public interface AtmosphereResourceEvent {
      *
      * @param o an Object that can be retrieved with {@link #getMessage()}.
      */
-    public void setMessage(Object o);
+    public AtmosphereResourceEvent setMessage(Object o);
 
     /**
      * Return true is the response gets resumed after a timeout.
@@ -124,13 +124,13 @@ public interface AtmosphereResourceEvent {
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
      * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
-     * will be directly written using the {
+     * will be directly written using the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
      *
      * @param os {@link OutputStream}
      * @param o  {@link Object}
      * @throws java.io.IOException
      */
-    public void write(OutputStream os, Object o) throws IOException;
+    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException;
 
     /**
      * Return a {@link Throwable} if an unexpected exception occured.
@@ -138,4 +138,12 @@ public interface AtmosphereResourceEvent {
      * @return {@link Throwable} if an unexpected exception occured.
      */
     public Throwable throwable();
+
+    /**
+     * Write the {@link byte} using the underlying {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
+     *
+     * @param o  {@link byte}
+     * @throws java.io.IOException
+     */
+    public AtmosphereResourceEvent write(byte[] o) throws IOException ;
 }
