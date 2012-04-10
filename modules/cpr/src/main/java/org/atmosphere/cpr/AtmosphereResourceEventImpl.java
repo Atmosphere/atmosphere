@@ -142,12 +142,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     protected AtmosphereResourceEvent setCancelled(boolean isCancelled) {
+        check();
         resource.action().type = AtmosphereFramework.Action.TYPE.CANCELLED;
         this.isCancelled.set(isCancelled);
         return this;
     }
 
     protected AtmosphereResourceEvent setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+        check();
         resource.action().type = AtmosphereFramework.Action.TYPE.TIMEOUT;
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         return this;
@@ -192,8 +194,17 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      */
     @Override
     public AtmosphereResourceEvent write(byte[] o) throws IOException {
+        check();
         resource.getResponse().getOutputStream().write(o);
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Broadcaster broadcaster() {
+        return resource.getBroadcaster();
     }
 
     /**
@@ -207,8 +218,13 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException {
+        check();
         resource.write(os, o);
         return this;
+    }
+
+    private void check() {
+        if (resource == null) throw new IllegalStateException("Recycled");
     }
 
     public AtmosphereResourceEvent setThrowable(Throwable t) {
