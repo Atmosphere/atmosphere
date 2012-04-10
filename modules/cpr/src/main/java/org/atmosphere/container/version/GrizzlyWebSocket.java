@@ -20,11 +20,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GrizzlyWebSocket extends WebSocketAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final com.sun.grizzly.websockets.WebSocket webSocket;
+    private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
         this.webSocket = webSocket;
@@ -35,10 +37,14 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void writeError(int errorCode, String message) throws IOException {
-        logger.debug("{} {}", errorCode, message);
-        if (resource() != null) {
+        if (!firstWrite.get()) {
+            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
+                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
+        } else {
+            logger.debug("{} {}", errorCode, message);
         }
     }
+
     /**
      * {@inheritDoc}
      */
@@ -46,27 +52,34 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
     public void redirect(String location) throws IOException {
         logger.error("redirect not supported");
     }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void write(String data) throws IOException {
         webSocket.send(data);
+        lastWrite = System.currentTimeMillis();
     }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void write(byte[] data) throws IOException {
         webSocket.send(new String(data));
+        lastWrite = System.currentTimeMillis();
     }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void write(byte[] data, int offset, int length) throws IOException {
         webSocket.send(new String(data, offset, length));
+        lastWrite = System.currentTimeMillis();
     }
+
     /**
      * {@inheritDoc}
      */
@@ -74,6 +87,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
     public void close() throws IOException {
         webSocket.close();
     }
+
     /**
      * {@inheritDoc}
      */
