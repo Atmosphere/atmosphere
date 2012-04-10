@@ -6,11 +6,9 @@
 
     <script type="text/javascript">
         $(document).ready(function() {
-            var connectedEndpoint;
-            var callbackAdded = false;
             var detectedTransport = null;
-            var apiUrl = null;
-            var baseUrl = '/atmosphere-pubsub-websocket/a/'
+            var socket = $.atmosphere;
+            var subSocket;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -33,34 +31,25 @@
             function subscribe() {
                 unsubscribe();
 
-                // jquery.atmosphere.response
-                function callback(response) {
-                    // Websocket events.
-                    $.atmosphere.log('info', ["response.state: " + response.state]);
-                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
-                    $.atmosphere.log('info', ["response.status: " + response.status]);
+                var request = { url : document.location.toString() + 'a/' + getElementByIdValue('api') + getElementByIdValue('topic') ,
+                                transport: getElementByIdValue('transport') };
 
+                request.onMessage = function (response) {
                     detectedTransport = response.transport;
-                    if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed') {
-                        $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
-                        if (response.status == 200) {
-                            var data = response.responseBody;
-                            if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text("[API] " + getURL() + " [Message]: " + data + " [Detected transport]: " + detectedTransport));
-                            }
+                    if (response.status == 200) {
+                        var data = response.responseBody;
+                        if (data.length > 0) {
+                            $('ul').prepend($('<li></li>').text("[API] " + getURL() + " [Message]: " + data + " [Detected transport]: " + detectedTransport));
                         }
                     }
-                }
+                };
 
-                var location = baseUrl + getElementByIdValue('api') + getElementByIdValue('topic');
-                connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
-                callbackAdded = true;
+                subSocket = socket.subscribe(request);
+
             }
 
             function unsubscribe() {
-                callbackAdded = false;
-                $.atmosphere.unsubscribe();
+                socket.unsubscribe();
             }
 
             function connect() {
@@ -98,7 +87,7 @@
                         m = " sent trying to use " + detectedTransport;
                     }
 
-                    connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                    subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -118,7 +107,7 @@
                     m = " sent trying to use " + detectedTransport;
                 }
 
-                connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                 getElementById('phrase').value = '';
                 return false;
