@@ -49,7 +49,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;

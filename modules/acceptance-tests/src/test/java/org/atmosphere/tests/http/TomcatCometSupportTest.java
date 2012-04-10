@@ -49,45 +49,90 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
-import org.atmosphere.container.Jetty7CometSupport;
+import org.apache.catalina.Context;
+import org.apache.catalina.Engine;
+import org.apache.catalina.Host;
+import org.apache.catalina.LifecycleException;
+import org.apache.catalina.Wrapper;
+import org.apache.catalina.connector.Connector;
+import org.apache.catalina.startup.Embedded;
+import org.apache.coyote.http11.Http11NioProtocol;
+import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class Jetty7CometSupportTest extends BaseTest {
-    protected Server server;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import java.io.File;
+
+public class TomcatCometSupportTest extends BaseTest {
+
+    protected Embedded embedded;
+
+    public static class TomcatAtmosphereServlet extends AtmosphereServlet {
+
+        public void init(final ServletConfig sc) throws ServletException {
+            framework().setAsyncSupport(new TomcatCometSupport(framework().getAtmosphereConfig()));
+            super.init(sc);
+        }
+
+    }
 
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
+        System.setProperty("org.atmosphere.useNative", "true");
+        try {
+
         int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
+        embedded = new Embedded();
+        String path = new File(".").getAbsolutePath();
+        embedded.setCatalinaHome(path);
 
-        server = new Server(port);
+        Engine engine = embedded.createEngine();
+        engine.setDefaultHost("127.0.0.1");
 
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        server.setHandler(context);
+        Host host = embedded.createHost("127.0.0.1", path);
+        engine.addChild(host);
 
-        atmoServlet = new AtmosphereServlet();
-        configureCometSupport();
-        context.addServlet(new ServletHolder(atmoServlet), "/");
-        server.start();
+        Context c = embedded.createContext("/", path);
+        c.setReloadable(false);
+        Wrapper w = c.createWrapper();
+        w.addMapping("/*");
+        w.setServletClass(TomcatAtmosphereServlet.class.getName());
+        w.setLoadOnStartup(0);
+        //w.addInitParameter(AsyncSupport.MAX_INACTIVE, "20000");
+
+        c.addChild(w);
+        host.addChild(c);
+
+        Connector connector = embedded.createConnector("127.0.0.1", port, Http11NioProtocol.class.getName());
+        connector.setContainer(host);
+        embedded.addEngine(engine);
+        embedded.addConnector(connector);
+        embedded.start();
+
+        atmoServlet = (AtmosphereServlet) w.getServlet();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setAsyncSupport(new Jetty7CometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
-    public void unsetAtmosphereHandler() throws Exception {
-        atmoServlet.framework().destroy();
-        server.stop();
-        server = null;
+    public void unsetAtmosphereHandler() {
+        try {
+            embedded.stop();
+        } catch (LifecycleException ignored) {
+            // simply ignore the stop of the container, which may fail
+            logger.info("server stop failed", ignored);
+        }
     }
 }

@@ -49,7 +49,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;

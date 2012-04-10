@@ -49,7 +49,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
 import org.atmosphere.container.JettyCometSupport;
 import org.mortbay.jetty.Connector;

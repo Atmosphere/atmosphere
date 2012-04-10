@@ -49,7 +49,7 @@
  * only if the new code is made subject to such option by the copyright
  * holder.
  */
-package org.atmosphere.tests;
+package org.atmosphere.tests.http;
 
 import com.sun.grizzly.comet.CometAsyncFilter;
 import com.sun.grizzly.http.embed.GrizzlyWebServer;
