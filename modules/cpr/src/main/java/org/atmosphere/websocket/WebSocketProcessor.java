@@ -38,11 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 
@@ -65,7 +61,6 @@ public class WebSocketProcessor implements Serializable {
     private final boolean executeAsync;
     private final ExecutorService asyncExecutor;
     private final ExecutorService voidExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
 
     public WebSocketProcessor(AtmosphereFramework framework, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
         this.webSocket = webSocket;
@@ -109,24 +104,8 @@ public class WebSocketProcessor implements Serializable {
                 webSocketProtocol.onError(webSocket,
                         new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
             } else {
-                final AsynchronousProcessor.AsynchronousProcessorHook hook =
-                        new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource());
-                request.setAttribute(ASYNCHRONOUS_HOOK, hook);
-
-                final AtmosphereFramework.Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
-                if (!framework.getAsyncSupport().getContainerName().contains("Netty")) {
-                    final AtomicReference<Future<?>> f = new AtomicReference();
-                    f.set(scheduler.scheduleAtFixedRate(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())
-                                    && System.currentTimeMillis() - WebSocketAdapter.class.cast(webSocket).lastTick() > action.timeout) {
-                                hook.timedOut();
-                                f.get().cancel(true);
-                            }
-                        }
-                    }, action.timeout, action.timeout, TimeUnit.MILLISECONDS));
-                }
+                request.setAttribute(ASYNCHRONOUS_HOOK,
+                        new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource()));
             }
         }
     }
@@ -242,7 +221,6 @@ public class WebSocketProcessor implements Serializable {
         }
         asyncExecutor.shutdown();
         voidExecutor.shutdown();
-        scheduler.shutdown();
     }
 
     @Override

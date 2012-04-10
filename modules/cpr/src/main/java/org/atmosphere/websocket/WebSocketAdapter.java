@@ -27,7 +27,6 @@ import java.io.IOException;
 public abstract class WebSocketAdapter implements WebSocket{
 
     private AtmosphereResource r;
-    protected long lastWrite = 0;
 
     /**
      * Configure the {@link AtmosphereResource}
@@ -46,9 +45,5 @@ public abstract class WebSocketAdapter implements WebSocket{
     @Override
     public AtmosphereResource resource() {
         return r;
-    }
-
-    public long lastTick() {
-        return lastWrite == -1 ? System.currentTimeMillis() : lastWrite;
     }
 }
