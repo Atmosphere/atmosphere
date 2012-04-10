@@ -128,6 +128,7 @@ public interface AtmosphereResourceEvent {
      *
      * @param os {@link OutputStream}
      * @param o  {@link Object}
+     *
      * @throws java.io.IOException
      */
     public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException;
@@ -146,4 +147,9 @@ public interface AtmosphereResourceEvent {
      * @throws java.io.IOException
      */
     public AtmosphereResourceEvent write(byte[] o) throws IOException ;
+
+    /**
+     * Return the broadcaster associated with the {@link AtmosphereResource} this object contains.
+     */
+    public Broadcaster broadcaster();
 }

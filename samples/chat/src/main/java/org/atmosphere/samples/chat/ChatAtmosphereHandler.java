@@ -71,7 +71,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
                     break;
             }
         } else if (!event.isResuming()){
-            event.getResource().getBroadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
+            event.broadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
         }
     }
 
