@@ -86,7 +86,7 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request), config.framework(), config.framework().getWebSocketProtocol());
+                return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request, false), config.framework(), config.framework().getWebSocketProtocol());
             }
         });
 
