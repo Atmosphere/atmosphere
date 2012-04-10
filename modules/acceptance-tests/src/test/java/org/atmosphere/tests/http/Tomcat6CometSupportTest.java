@@ -68,7 +68,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.File;
 
-public class TomcatCometSupportTest extends BaseTest {
+public class Tomcat6CometSupportTest extends BaseTest {
 
     protected Embedded embedded;
 
