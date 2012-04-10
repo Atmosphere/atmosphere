@@ -358,7 +358,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             if (flushComment) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
-            } else {
+            } else if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
             }
 
@@ -413,7 +413,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void write() {
 
         if (beginCompatibleData == null) {
-           beginCompatibleData = createStreamingPadding(padding);
+            beginCompatibleData = createStreamingPadding(padding);
         }
 
         try {
