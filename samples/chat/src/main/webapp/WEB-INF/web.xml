@@ -10,10 +10,7 @@
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
-        <init-param>
-            <param-name>org.atmosphere.useNative</param-name>
-            <param-value>true</param-value>
-        </init-param>
+        <async-supported>true</async-supported>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
