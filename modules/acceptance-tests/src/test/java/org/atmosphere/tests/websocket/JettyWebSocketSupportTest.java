@@ -65,7 +65,7 @@ public class JettyWebSocketSupportTest extends BaseTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = 8080;
+        int port = findFreePort();
         urlTarget = "ws://127.0.0.1:" + port + "/invoke";
 
         server = new Server(port);
