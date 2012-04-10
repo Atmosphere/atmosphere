@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
+public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     // Was the remote connection closed.
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
@@ -122,8 +122,9 @@ public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      *
      * @param message The message broadcasted using {@link Broadcaster#broadcast(java.lang.Object)}
      */
-    public void setMessage(Object message) {
+    public AtmosphereResourceEvent setMessage(Object message) {
         this.message = message;
+        return this;
     }
 
     /**
@@ -140,14 +141,16 @@ public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return isCancelled.get();
     }
 
-    protected void setCancelled(boolean isCancelled) {
+    protected AtmosphereResourceEvent setCancelled(boolean isCancelled) {
         resource.action().type = AtmosphereFramework.Action.TYPE.CANCELLED;
         this.isCancelled.set(isCancelled);
+        return this;
     }
 
-    protected void setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+    protected AtmosphereResourceEvent setIsResumedOnTimeout(boolean isResumedOnTimeout) {
         resource.action().type = AtmosphereFramework.Action.TYPE.TIMEOUT;
         this.isResumedOnTimeout.set(isResumedOnTimeout);
+        return this;
     }
 
     @Override
@@ -179,10 +182,18 @@ public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     /**
      * {@inheritDoc}
-
      */
     public Throwable throwable() {
         return throwable;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AtmosphereResourceEvent write(byte[] o) throws IOException {
+        resource.getResponse().getOutputStream().write(o);
+        return this;
     }
 
     /**
@@ -195,17 +206,20 @@ public class  AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
-    public void write(OutputStream os, Object o) throws IOException {
+    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException {
         resource.write(os, o);
+        return this;
     }
 
-    public void setThrowable(Throwable t) {
+    public AtmosphereResourceEvent setThrowable(Throwable t) {
         this.throwable = t;
+        return this;
     }
 
-    public void destroy(){
+    public AtmosphereResourceEvent destroy() {
         resource = null;
         message = null;
+        return this;
     }
 
     @Override
