@@ -85,24 +85,6 @@ public abstract class BaseTest {
     protected final static String ROOT = "/*";
     protected String urlTarget;
 
-    public static class TestHelper {
-
-        public static int getEnvVariable(final String varName, int defaultValue) {
-            if (null == varName) {
-                return defaultValue;
-            }
-            String varValue = System.getenv(varName);
-            if (null != varValue) {
-                try {
-                    return Integer.parseInt(varValue);
-                } catch (NumberFormatException e) {
-                    // will return default value bellow
-                }
-            }
-            return defaultValue;
-        }
-    }
-
     protected int findFreePort() throws IOException {
         ServerSocket socket = null;
 
@@ -132,10 +114,7 @@ public abstract class BaseTest {
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
-            private long currentTime;
-
             public void onRequest(AtmosphereResource event) throws IOException {
-                currentTime = System.currentTimeMillis();
                 event.suspend(5000, false);
             }
 
