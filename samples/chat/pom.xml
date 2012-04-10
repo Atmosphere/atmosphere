@@ -26,8 +26,7 @@
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-jetty-websocketdraft8</artifactId>
-            <version>${project.version}</version>
+            <artifactId>atmosphere-runtime</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
