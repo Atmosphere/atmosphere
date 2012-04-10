@@ -34,8 +34,7 @@
             }
 
             function subscribe() {
-                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                    transport: getElementByIdValue('transport')};
+                var request = { url : document.location.toString() + 'a/' + getElementByIdValue('api') + getElementByIdValue('topic') };
 
                 request.onMessage = function (response) {
                     detectedTransport = response.transport;
@@ -51,7 +50,6 @@
             }
 
             function unsubscribe(){
-                callbackAdded = false;
                 socket.unsubscribe();
             }
 
