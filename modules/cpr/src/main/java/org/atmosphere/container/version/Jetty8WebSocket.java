@@ -72,7 +72,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         connection.sendMessage(data);
-        lastWrite = System.currentTimeMillis();
     }
 
     /**
@@ -89,7 +88,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         } else {
             connection.sendMessage(new String(data, 0, data.length, "UTF-8"));
         }
-        lastWrite = System.currentTimeMillis();
     }
 
     /**
@@ -106,7 +104,6 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         } else {
             connection.sendMessage(new String(data, offset, length, "UTF-8"));
         }
-        lastWrite = System.currentTimeMillis();
     }
 
     /**
