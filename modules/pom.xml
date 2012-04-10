@@ -15,11 +15,9 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <modules>
-        <module>compat-jetty</module>
         <module>compat-tomcat</module>
         <module>compat-tomcat7</module>
         <module>compat-jbossweb</module>
-        <module>compat-weblogic</module>
         <module>cpr</module>
         <module>acceptance-tests</module>
         <module>annotations</module>

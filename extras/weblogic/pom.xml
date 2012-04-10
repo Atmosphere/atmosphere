@@ -36,8 +36,7 @@
                     <instructions>
                         <Import-Package>*</Import-Package>
                         <Export-Package>
-                            org.atmosphere.*,
-                            weblogic.servlet.http.*,
+                            org.atmosphere.weblogic.*
                         </Export-Package>
                     </instructions>
                 </configuration>

@@ -29,12 +29,6 @@
             </resource>
         </resources>
 
-        <testResources>
-            <testResource>
-                <directory>../acceptance-tests/src/test/resources</directory>
-            </testResource>
-        </testResources>
-
         <plugins>
             <plugin>
                 <groupId>org.apache.felix</groupId>
@@ -117,11 +111,6 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-compat-weblogic</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

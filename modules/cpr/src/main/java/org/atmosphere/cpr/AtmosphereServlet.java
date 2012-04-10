@@ -56,22 +56,18 @@ package org.atmosphere.cpr;
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JettyWebSocketHandler;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.container.WebLogicCometSupport;
 import org.atmosphere.di.ServletContextProvider;
-import org.atmosphere.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import weblogic.servlet.http.AbstractAsyncServlet;
-import weblogic.servlet.http.RequestResponseKey;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -155,7 +151,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet extends AbstractAsyncServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
+public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;
@@ -366,69 +362,6 @@ public class AtmosphereServlet extends AbstractAsyncServlet implements CometProc
             }
         }
         framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
-    }
-
-    /**
-     * Weblogic specific comet based implementation.
-     *
-     * @param rrk
-     * @return true if suspended
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    protected boolean doRequest(RequestResponseKey rrk) throws IOException, ServletException {
-        try {
-            rrk.getRequest().getSession().setAttribute(WebLogicCometSupport.RRK, rrk);
-            AtmosphereFramework.Action action = framework.doCometSupport(AtmosphereRequest.wrap(rrk.getRequest()), AtmosphereResponse.wrap(rrk.getResponse()));
-            if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
-                if (action.timeout == -1) {
-                    rrk.setTimeout(Integer.MAX_VALUE);
-                } else {
-                    rrk.setTimeout((int) action.timeout);
-                }
-            }
-            return action.type == AtmosphereFramework.Action.TYPE.SUSPEND;
-        } catch (IllegalStateException ex) {
-            logger.error("AtmosphereServlet.doRequest exception", ex);
-            throw ex;
-        }
-    }
-
-    /**
-     * Weblogic specific comet based implementation.
-     *
-     * @param rrk
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    protected void doResponse(RequestResponseKey rrk, Object context)
-            throws IOException, ServletException {
-        rrk.getResponse().flushBuffer();
-    }
-
-    /**
-     * Weblogic specific comet based implementation.
-     *
-     * @param rrk
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    protected void doTimeout(RequestResponseKey rrk) throws IOException, ServletException {
-        ((AsynchronousProcessor) framework.asyncSupport).timedout(AtmosphereRequest.wrap(rrk.getRequest()),
-                AtmosphereResponse.wrap(rrk.getResponse()));
-    }
-
-    /**
-     * Jetty 7.2 & 8.0.0-M1/M2and up WebSocket support.
-     *
-     * @param request
-     * @param protocol
-     * @return a {@link org.eclipse.jetty.websocket.WebSocket}}
-     */
-    public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
-        logger.debug("WebSocket upgrade requested");
-        request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-        return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request), framework, framework.webSocketProtocol);
     }
 
 }
