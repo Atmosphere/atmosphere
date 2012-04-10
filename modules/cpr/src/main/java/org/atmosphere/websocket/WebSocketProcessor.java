@@ -114,7 +114,7 @@ public class WebSocketProcessor implements Serializable {
                 request.setAttribute(ASYNCHRONOUS_HOOK, hook);
 
                 final AtmosphereFramework.Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
-                if (!framework.getAsyncSupport().getContainerName().contains("Netty")) {
+                if (action.timeout != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
                     final AtomicReference<Future<?>> f = new AtomicReference();
                     f.set(scheduler.scheduleAtFixedRate(new Runnable() {
                         @Override
