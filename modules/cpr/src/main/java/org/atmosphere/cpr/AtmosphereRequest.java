@@ -1428,7 +1428,7 @@ public class AtmosphereRequest implements HttpServletRequest {
             r = request;
         } else {
             b = new Builder();
-            r = new NoOpsRequest();
+            b.request(request);
         }
 
         b.servletPath(request.getServletPath())
@@ -1443,6 +1443,7 @@ public class AtmosphereRequest implements HttpServletRequest {
                 .session(new FakeHttpSession(request.getSession(true)));
 
         if (loadInMemory) {
+            r = new NoOpsRequest();
             load(request, b);
             if (isWrapped) {
                 load(b.request, b);

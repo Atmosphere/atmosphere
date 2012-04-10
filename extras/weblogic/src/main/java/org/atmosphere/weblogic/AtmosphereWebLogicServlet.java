@@ -13,9 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
- package org.atmosphere.cpr;
+ package org.atmosphere.weblogic;
 
-import org.atmosphere.container.WebLogicCometSupport;
+import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import weblogic.servlet.http.AbstractAsyncServlet;
@@ -119,7 +123,7 @@ public class AtmosphereWebLogicServlet extends AbstractAsyncServlet {
      * @throws javax.servlet.ServletException
      */
     protected void doTimeout(RequestResponseKey rrk) throws IOException, ServletException {
-        ((AsynchronousProcessor) framework.asyncSupport).timedout(AtmosphereRequest.wrap(rrk.getRequest()),
+        ((AsynchronousProcessor) framework.getAsyncSupport()).timedout(AtmosphereRequest.wrap(rrk.getRequest()),
                 AtmosphereResponse.wrap(rrk.getResponse()));
     }
 

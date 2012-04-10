@@ -50,27 +50,73 @@
  * holder.
  *
  */
+package org.atmosphere.weblogic;
 
-package weblogic.servlet.http;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import weblogic.servlet.http.AbstractAsyncServlet;
+import weblogic.servlet.http.RequestResponseKey;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import java.io.IOException;
 
 /**
- * Fake Weblogic class to allow compilation of support for that web container.
+ * Weblogic support.
  *
  * @author Jeanfrancois Arcand
  */
-public class RequestResponseKey {
-    public HttpServletRequest getRequest() {
-        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
+public class WebLogicCometSupport extends AsynchronousProcessor {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebLogicCometSupport.class);
+
+    public static final String RRK = "RequestResponseKey";
+
+    public WebLogicCometSupport(AtmosphereConfig config) {
+        super(config);
     }
 
-    public HttpServletResponse getResponse() {
-        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
+    /**
+     * {@inheritDoc}
+     */
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
+            throws IOException, ServletException {
+        Action action = suspended(req, res);
+        if (action.type == Action.TYPE.SUSPEND) {
+            logger.debug("Suspending response: {}", res);
+        } else if (action.type == Action.TYPE.RESUME) {
+            logger.debug("Resuming response: {}", res);
+
+            Action nextAction = resumed(req, res);
+            if (nextAction.type == Action.TYPE.SUSPEND) {
+                logger.debug("Suspending after resuming response: {}", res);
+            }
+        }
+        return action;
     }
 
-    public void setTimeout(int i) {
-        throw new UnsupportedOperationException("Please remove the atmosphere-compat-weblogic from your classpath");
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void action(AtmosphereResourceImpl actionEvent) {
+        super.action(actionEvent);
+        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
+                (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
+                        || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+            try {
+                RequestResponseKey rrk = (RequestResponseKey) actionEvent.getRequest().getSession().getAttribute(RRK);
+                AbstractAsyncServlet.notify(rrk, null);
+            } catch (IOException ex) {
+                logger.debug("action failed", ex);
+            }
+        }
     }
+
 }

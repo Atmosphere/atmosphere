@@ -90,7 +90,7 @@
             <scope>test</scope>
         </dependency>
 
-                <dependency>
+        <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>catalina</artifactId>
             <version>${tomcat-version}</version>
@@ -124,6 +124,10 @@
                 <exclusion>
                     <groupId>org.apache.tomcat</groupId>
                     <artifactId>tomcat-util</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.atmosphere</groupId>
+                    <artifactId>atmosphere-compat-jetty</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

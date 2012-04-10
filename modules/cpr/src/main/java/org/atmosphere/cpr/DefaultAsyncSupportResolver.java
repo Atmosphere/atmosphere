@@ -67,7 +67,6 @@ import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.container.WebLogicCometSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +92,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
-    public final static String WEBLOGIC = "weblogic.servlet.http.FutureResponseModel";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
     public final static String NETTY = "org.jboss.netty.channel.Channel";
@@ -155,9 +153,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(GRIZZLY))
                     add(GrizzlyCometSupport.class);
-
-                if (testClassExists(WEBLOGIC))
-                    add(WebLogicCometSupport.class);
             }
         };
     }

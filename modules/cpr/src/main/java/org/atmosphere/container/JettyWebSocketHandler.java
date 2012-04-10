@@ -16,7 +16,6 @@
 package org.atmosphere.container;
 
 import org.atmosphere.container.version.Jetty8WebSocket;
-import org.atmosphere.container.version.JettyWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -30,7 +29,6 @@ import java.io.UnsupportedEncodingException;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONTROL;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.DISCONNECT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.HANDSHAKE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
@@ -54,57 +52,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         this.request = request;
         this.framework = framework;
         this.webSocketProtocol = webSocketProtocol;
-    }
-
-    @Override
-    public void onConnect(org.eclipse.jetty.websocket.WebSocket.Outbound outbound) {
-
-        logger.debug("WebSocket.onConnect (outbound)");
-        try {
-            webSocketProcessor = new WebSocketProcessor(framework, new JettyWebSocket(outbound), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
-        } catch (Exception e) {
-            logger.warn("failed to connect to web socket", e);
-        }
-    }
-
-    @Override
-    public void onMessage(byte frame, String data) {
-        logger.trace("WebSocket.onMessage (frame/string)");
-        webSocketProcessor.invokeWebSocketProtocol(data);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
-    }
-
-    @Override
-    public void onMessage(byte frame, byte[] data, int offset, int length) {
-        logger.trace("WebSocket.onMessage (frame)");
-        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
-        try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("UnsupportedEncodingException", e);
-
-        }
-    }
-
-    @Override
-    public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
-        logger.trace("WebSocket.onFragment");
-        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
-        try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("UnsupportedEncodingException", e);
-
-        }
-    }
-
-    @Override
-    public void onDisconnect() {
-        request.destroy();
-        logger.trace("WebSocket.onDisconnect");
-        webSocketProcessor.close(1000);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
     }
 
     @Override
