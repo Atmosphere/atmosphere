@@ -27,6 +27,7 @@ import javax.ws.rs.core.ExecutionContext;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AtmosphereExecutionContext implements ExecutionContext {
 
@@ -35,15 +36,27 @@ public class AtmosphereExecutionContext implements ExecutionContext {
     private Object response;
     private TimeUnit unit;
     private long time = -1;
+    private AtomicBoolean resumed = new AtomicBoolean(false);
 
     public AtmosphereExecutionContext(AtmosphereResourceImpl r) {
         this.resource = r;
         resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
             @Override
             public void onResume(AtmosphereResourceEvent event) {
-                JerseyBroadcasterUtil.broadcast(resource,
-                        new AtmosphereResourceEventImpl(resource, false, false, null).setMessage(response),
-                        resource.getBroadcaster());
+                if (!resumed.getAndSet(true)) {
+                    try {
+                        JerseyBroadcasterUtil.broadcast(resource,
+                                new AtmosphereResourceEventImpl(resource, false, false, null).setMessage(response),
+                                resource.getBroadcaster());
+                    } catch (Throwable t) {
+                        logger.trace("", t);
+                        try {
+                            resource.cancel();
+                        } catch (IOException e) {
+                            logger.trace("", t);
+                        }
+                    }
+                }
             }
         });
     }
