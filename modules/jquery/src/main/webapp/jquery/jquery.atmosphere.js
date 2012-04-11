@@ -840,8 +840,10 @@ jQuery.atmosphere = function() {
 
                     if (rq.suspend) {
                         rq.id = setTimeout(function() {
-                            ajaxRequest.abort();
-                            _subscribe(rq);
+                            if (_subscribed) {
+                                ajaxRequest.abort();
+                                _subscribe(rq);
+                            }
                         }, rq.timeout);
                     }
                     _subscribed = true;
@@ -1375,6 +1377,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _close() {
+                _subscribed = false;
                 _abordingConnection = true;
                 _response.state = 'unsubscribe';
                 _response.responseBody = "";
