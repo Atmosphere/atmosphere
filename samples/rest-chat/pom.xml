@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-samples-commons</artifactId>
+            <artifactId>atmosphere-jersey</artifactId>
             <version>${project.version}</version>
         </dependency>
 
