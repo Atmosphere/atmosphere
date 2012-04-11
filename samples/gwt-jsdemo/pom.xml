@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>0.9</version>
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
@@ -24,19 +24,19 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-js</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9</version>
             <type>war</type>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-server</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-common</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9</version>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>
