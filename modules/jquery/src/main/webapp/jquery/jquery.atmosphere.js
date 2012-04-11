@@ -245,7 +245,7 @@ jQuery.atmosphere = function() {
                         _open('opening', _request.fallbackTransport);
                         _reconnectWithFallbackTransport();
                     } else {
-                        _executeWebSocket();
+                        _executeWebSocket(false);
                     }
                 }
             }
@@ -371,8 +371,7 @@ jQuery.atmosphere = function() {
              *
              * @private
              */
-            function _executeWebSocket() {
-                var webSocketOpened = false;
+            function _executeWebSocket(webSocketOpened) {
 
                 _response.transport = "websocket";
 
@@ -493,7 +492,7 @@ jQuery.atmosphere = function() {
                         if (_requestCount++ < _request.maxRequest) {
                             _request.requestCount = _requestCount;
                             _response.responseBody = "";
-                            _executeWebSocket();
+                            _executeWebSocket(true);
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["Websocket reconnect maximum try reached " + _request.requestCount]);
                         }
