@@ -47,10 +47,12 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
@@ -60,7 +62,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
     private static final long serialVersionUID = 1L;
     private static byte[] WS_ACCEPT;
 
-    private MessageDigest sha1Helper;
+    private Queue<MessageDigest> sha1Helpers = new ConcurrentLinkedQueue<MessageDigest>();
 
     public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
         super(config);
@@ -70,7 +72,6 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
     public void init(ServletConfig sc) throws ServletException {
         try {
             WS_ACCEPT = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11".getBytes("ISO_8859_1");
-            sha1Helper = MessageDigest.getInstance("SHA1");
         } catch (Exception e) {
             throw new ServletException(e);
         }
@@ -83,7 +84,6 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             // Information required to send the server handshake message
             String key;
             String subProtocol = null;
-            List<String> extensions = Collections.emptyList();
 
             if (!headerContainsToken(req, "upgrade", "websocket")) {
                 return super.service(req, res);
@@ -168,15 +168,28 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
     }
 
 
-    private String getWebSocketAccept(String key) {
-        synchronized (sha1Helper) {
-            sha1Helper.reset();
+    private String getWebSocketAccept(String key) throws ServletException {
+
+        MessageDigest sha1Helper = sha1Helpers.poll();
+        if (sha1Helper == null) {
             try {
-                sha1Helper.update(key.getBytes("ISO_8859_1"));
-            } catch (UnsupportedEncodingException e) {
+                sha1Helper = MessageDigest.getInstance("SHA1");
+            } catch (NoSuchAlgorithmException e) {
+                throw new ServletException(e);
             }
-            return org.apache.catalina.util.Base64.encode(sha1Helper.digest(WS_ACCEPT));
         }
+
+        sha1Helper.reset();
+        try {
+            sha1Helper.update(key.getBytes("ISO_8859_1"));
+        } catch (UnsupportedEncodingException e) {
+            throw new ServletException(e);
+        }
+        String result = org.apache.catalina.util.Base64.encode(sha1Helper.digest(WS_ACCEPT));
+
+        sha1Helpers.add(sha1Helper);
+
+        return result;
     }
 
     @Override
