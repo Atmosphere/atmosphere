@@ -99,6 +99,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean isResumed = false;
     private boolean isCancelled = false;
     private boolean resumeOnBroadcast = false;
+    private Object writeOnTimeout = null;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -160,6 +161,23 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereHandler getAtmosphereHandler() {
         return atmosphereHandler;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AtmosphereResource writeOnTimeout(Object o) {
+        writeOnTimeout = o;
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object writeOnTimeout() {
+        return writeOnTimeout;
     }
 
     /**
