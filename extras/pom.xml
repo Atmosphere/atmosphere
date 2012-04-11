@@ -24,5 +24,6 @@
         <module>hazelcast</module>
         <module>weblogic</module>
         <module>jetty-websocketdraft8</module>
+        <module>jaxrs2</module>
     </modules>
 </project>

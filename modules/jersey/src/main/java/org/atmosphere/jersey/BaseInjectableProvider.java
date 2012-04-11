@@ -63,7 +63,7 @@ import java.lang.reflect.Type;
 /**
  * @author Paul Sandoz
  */
-abstract class BaseInjectableProvider implements InjectableProvider<Context, Type> {
+abstract public class BaseInjectableProvider implements InjectableProvider<Context, Type> {
     // The current {@link HttpServletRequest{
     @Context
     HttpServletRequest req;
