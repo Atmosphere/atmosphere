@@ -293,4 +293,14 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      */
     AtmosphereHandler getAtmosphereHandler();
 
+    /**
+     * Set a message that will be written when the resource times out. Cab be an {@link Object} or {@link java.util.concurrent.Callable}
+     */
+    AtmosphereResource writeOnTimeout(Object o);
+
+    /**
+     * Return the object that will be written when the resource times out;
+     */
+    Object writeOnTimeout();
+
 }
