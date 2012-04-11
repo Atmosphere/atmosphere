@@ -46,7 +46,6 @@ public class MeteorChat extends HttpServlet {
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         // Set the logger level to TRACE to see what's happening.
         Meteor m = Meteor.build(req).addListener(new AtmosphereResourceEventListenerAdapter());
-        req.getSession().setAttribute("meteor", m);
 
         m.resumeOnBroadcast(m.transport() == LONG_POLLING ? true : false).suspend(-1);
     }
@@ -60,9 +59,6 @@ public class MeteorChat extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
         String body = req.getReader().readLine().trim();
-
-        Meteor m = (Meteor) req.getSession().getAttribute("meteor");
-
         // Simple JSON -- Use Jackson for more complex structure
         // Message looks like { "author" : "foo", "message" : "bar" }
         String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);
