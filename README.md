@@ -68,6 +68,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 [Meteor](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-meteor-pubsub/src/main/java/org/atmosphere/samples/pubsub/MeteorPubSub.java#L30)
 
+[JAXRS 2.0 Async API](https://github.com/Atmosphere/atmosphere/blob/master/samples/jaxrs2-chat/src/main/java/org/atmosphere/samples/chat/jersey/Jaxrs2Chat.java#L34)
 
 #### Changes logs
 [0.8.6](http://is.gd/Pi4ZPo)
