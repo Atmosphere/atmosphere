@@ -64,7 +64,7 @@ public class JettyAsyncSupportWithWebSocket extends Jetty7CometSupport {
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
         Action action = JettyWebSocketUtil.doService(this,req,res,webSocketFactory);
-        return action == null? super.service(req,res) : action;
+        return action == null ? super.service(req,res) : action;
     }
 
     /**

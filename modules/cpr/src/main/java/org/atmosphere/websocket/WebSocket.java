@@ -30,6 +30,7 @@ public interface WebSocket extends AsyncIOWriter {
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
+    public final static String WEBSOCKET_ACCEPT_DONE = WebSocket.class.getName() + ".acceptDone";
 
     /**
      * Return the current {@link AtmosphereResource} representing the underlying connection and the original

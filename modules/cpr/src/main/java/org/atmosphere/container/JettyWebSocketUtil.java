@@ -55,12 +55,13 @@ public class JettyWebSocketUtil {
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
-        if (!webSocketEnabled) {
+        if (!webSocketEnabled && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
             return null;
         } else {
             if (webSocketFactory != null && !b) {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
+                req.setAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE, true);
                 return new AtmosphereFramework.Action();
             }
 
