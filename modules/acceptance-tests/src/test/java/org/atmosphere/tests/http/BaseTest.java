@@ -189,6 +189,58 @@ public abstract class BaseTest {
     }
 
     @Test(timeOut = 60000, enabled = true)
+    public void testWriteOnTimeout() {
+        logger.info("{}: running test: testWriteOnTimeout", getClass().getSimpleName());
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            private long currentTime;
+
+            public void onRequest(AtmosphereResource event) throws IOException {
+                currentTime = System.currentTimeMillis();
+                event.writeOnTimeout("yo!!!").suspend(5000, false);
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+
+                try {
+                    event.write(event.getMessage().toString().getBytes());
+                    assertTrue(event.isResumedOnTimeout());
+                    long time = System.currentTimeMillis() - currentTime;
+                    if (time > 5000 && time < 15000) {
+                        assertTrue(true);
+                    } else {
+                        assertFalse(false);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            Response r = c.prepareGet(urlTarget).execute().get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            String resume = r.getResponseBody();
+            assertEquals(resume, "yo!!!");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
+    }
+
+
+    @Test(timeOut = 60000, enabled = true)
     public void testSuspendWithCommentsTimeout() {
         logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
