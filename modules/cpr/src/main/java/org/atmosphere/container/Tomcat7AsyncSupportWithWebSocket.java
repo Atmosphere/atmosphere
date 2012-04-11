@@ -94,9 +94,9 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             }
 
             if (!headerContainsToken(req, "sec-websocket-version", "13")) {
-                res.setStatus(426);
-                res.setHeader("Sec-WebSocket-Version", "13");
-                return super.service(req, res);
+                logger.debug("WebSocket version not supported. Downgrading to Comet");
+                res.sendError(202, "Websocket protocol not supported");
+                return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CANCELLED);
             }
 
             key = req.getHeader("Sec-WebSocket-Key");
@@ -144,7 +144,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
                 }
             }
         }
-        return true;
+        return false;
     }
 
 
