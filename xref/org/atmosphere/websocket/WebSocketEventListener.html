@@ -9,7 +9,7 @@
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/websocket/WebSocketEventListener.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2011 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -72,13 +72,13 @@
 <a class="jxr_linenumber" name="62" href="#62">62</a>      <strong class="jxr_keyword">void</strong> onConnect(<a href="../../../org/atmosphere/websocket/WebSocketEventListener.html">WebSocketEvent</a> event);
 <a class="jxr_linenumber" name="63" href="#63">63</a>  
 <a class="jxr_linenumber" name="64" href="#64">64</a>  
-<a class="jxr_linenumber" name="65" href="#65">65</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/websocket/WebSocketEventListener.html">WebSocketEvent</a> {
-<a class="jxr_linenumber" name="66" href="#66">66</a>          <strong class="jxr_keyword">public</strong> enum <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">TYPE</a> { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT}
+<a class="jxr_linenumber" name="65" href="#65">65</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/websocket/WebSocketEventListener.html">WebSocketEvent</a> {
+<a class="jxr_linenumber" name="66" href="#66">66</a>          <strong class="jxr_keyword">public</strong> enum <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">TYPE</a> { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT}
 <a class="jxr_linenumber" name="67" href="#67">67</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String message;
-<a class="jxr_linenumber" name="68" href="#68">68</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">TYPE</a> type;
+<a class="jxr_linenumber" name="68" href="#68">68</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">TYPE</a> type;
 <a class="jxr_linenumber" name="69" href="#69">69</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket;
 <a class="jxr_linenumber" name="70" href="#70">70</a>  
-<a class="jxr_linenumber" name="71" href="#71">71</a>          <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocketEventListener.html">WebSocketEvent</a>(String message, <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">TYPE</a> type, <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket) {
+<a class="jxr_linenumber" name="71" href="#71">71</a>          <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocketEventListener.html">WebSocketEvent</a>(String message, <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">TYPE</a> type, <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket) {
 <a class="jxr_linenumber" name="72" href="#72">72</a>              <strong class="jxr_keyword">this</strong>.message = message;
 <a class="jxr_linenumber" name="73" href="#73">73</a>              <strong class="jxr_keyword">this</strong>.type = type;
 <a class="jxr_linenumber" name="74" href="#74">74</a>              <strong class="jxr_keyword">this</strong>.webSocket = webSocket;
@@ -104,7 +104,7 @@
 <a class="jxr_linenumber" name="94" href="#94">94</a>  <em class="jxr_javadoccomment">         * The type of the last Websocket's event.</em>
 <a class="jxr_linenumber" name="95" href="#95">95</a>  <em class="jxr_javadoccomment">         * @return the type.</em>
 <a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">         */</em>
-<a class="jxr_linenumber" name="97" href="#97">97</a>          <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereServlet.html">TYPE</a> type() {
+<a class="jxr_linenumber" name="97" href="#97">97</a>          <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">TYPE</a> type() {
 <a class="jxr_linenumber" name="98" href="#98">98</a>              <strong class="jxr_keyword">return</strong> type;
 <a class="jxr_linenumber" name="99" href="#99">99</a>          }
 <a class="jxr_linenumber" name="100" href="#100">100</a> 

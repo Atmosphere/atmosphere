@@ -9,7 +9,7 @@
 <div id="overview"><a href="../../../../../apidocs/org/atmosphere/plugin/redis/RedisBroadcaster.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2011 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -27,7 +27,7 @@
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  
 <a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.apache.commons.pool.impl.GenericObjectPool;
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereServlet;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
 <a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.AbstractBroadcasterProxy;
 <a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
 <a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
@@ -58,11 +58,11 @@
 <a class="jxr_linenumber" name="48" href="#48">48</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> sharedPool = false;
 <a class="jxr_linenumber" name="49" href="#49">49</a>      <strong class="jxr_keyword">private</strong> JedisPool jedisPool;
 <a class="jxr_linenumber" name="50" href="#50">50</a>  
-<a class="jxr_linenumber" name="51" href="#51">51</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/plugin/redis/RedisBroadcaster.html">RedisBroadcaster</a>(String id, AtmosphereServlet.AtmosphereConfig config) {
+<a class="jxr_linenumber" name="51" href="#51">51</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/plugin/redis/RedisBroadcaster.html">RedisBroadcaster</a>(String id, <a href="../../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
 <a class="jxr_linenumber" name="52" href="#52">52</a>          <strong class="jxr_keyword">this</strong>(id, URI.create(<span class="jxr_string">"http://localhost:6379"</span>), config);
 <a class="jxr_linenumber" name="53" href="#53">53</a>      }
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
-<a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/plugin/redis/RedisBroadcaster.html">RedisBroadcaster</a>(String id, URI uri, AtmosphereServlet.AtmosphereConfig config) {
+<a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/plugin/redis/RedisBroadcaster.html">RedisBroadcaster</a>(String id, URI uri, <a href="../../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
 <a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">super</strong>(id, uri, config);
 <a class="jxr_linenumber" name="57" href="#57">57</a>      }
 <a class="jxr_linenumber" name="58" href="#58">58</a>  
