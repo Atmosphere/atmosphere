@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -113,7 +114,11 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
                 res.setHeader("Sec-WebSocket-Protocol", subProtocol);
             }
 
-            RequestFacade facade = (RequestFacade) req.wrappedRequest();
+            HttpServletRequest hsr = req.wrappedRequest();
+            while (hsr instanceof HttpServletRequestWrapper)
+                hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
+
+            RequestFacade facade = (RequestFacade) hsr;
             StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true), config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
         }
