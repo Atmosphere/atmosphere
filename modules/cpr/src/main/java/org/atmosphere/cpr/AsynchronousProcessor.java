@@ -84,7 +84,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
-    private static final int DEFAULT_SESSION_TIMEOUT = 1800;
     protected final AtmosphereConfig config;
     protected final ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
@@ -205,9 +204,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // operation from disparate requests.
             HttpSession session = req.getSession(true);
             // Do not allow times out.
-            if (session.getMaxInactiveInterval() == DEFAULT_SESSION_TIMEOUT) {
-                session.setMaxInactiveInterval(-1);
-            }
+            SessionTimeoutSupport.setupTimeout(session);
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
@@ -322,6 +319,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
+        SessionTimeoutSupport.restoreTimeout(request);
+
         return action(request, response);
     }
 
@@ -343,6 +342,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereResourceImpl r = null;
         try {
+            SessionTimeoutSupport.restoreTimeout(request);
+
             if (trackActiveRequest) {
                 long l = (Long) request.getAttribute(MAX_INACTIVE);
                 if (l == -1) {
@@ -472,6 +473,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         synchronized (req) {
+            SessionTimeoutSupport.restoreTimeout(req);
+
             AtmosphereResourceImpl r = null;
             try {
                 if (trackActiveRequest) {
