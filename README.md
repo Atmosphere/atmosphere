@@ -8,7 +8,7 @@ The Atmosphere Framework contains client and server side components. The majorit
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>0.8.6</version>
+         <version>0.9</version>
       </dependency>
 ```
       
@@ -42,7 +42,7 @@ For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to 
 
 Several Samples are available [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
-Atmosphere 0.8.6 is our official release, and our work in progress version is 0.9, targeted for end of Mid April 2012
+Atmosphere 0.9 is our official release, and our work in progress version is 1.0, targeted for end of End of May 2012
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
@@ -71,6 +71,9 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [JAXRS 2.0 Async API](https://github.com/Atmosphere/atmosphere/blob/master/samples/jaxrs2-chat/src/main/java/org/atmosphere/samples/chat/jersey/Jaxrs2Chat.java#L34)
 
 #### Changes logs
+
+[0.9.0](https://github.com/Atmosphere/atmosphere/issues?sort=created&labels=0.9.0&direction=desc&state=closed)
+
 [0.8.6](http://is.gd/Pi4ZPo)
 
 [0.8.5](http://is.gd/yVgcaj)
