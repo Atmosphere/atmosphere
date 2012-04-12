@@ -34,20 +34,20 @@
             }
 
             function subscribe() {
-                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                    transport: getElementByIdValue('transport')};
+var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+    transport: getElementByIdValue('transport')};
 
-                request.onMessage = function (response) {
-                    detectedTransport = response.transport;
-                    if (response.status == 200) {
-                        var data = response.responseBody;
-                        if (data.length > 0) {
-                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
-                        }
-                    }
-                };
+request.onMessage = function (response) {
+    detectedTransport = response.transport;
+    if (response.status == 200) {
+        var data = response.responseBody;
+        if (data.length > 0) {
+            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
+        }
+    }
+};
 
-                subSocket = socket.subscribe(request);
+subSocket = socket.subscribe(request);
             }
 
             function unsubscribe(){
