@@ -66,7 +66,7 @@ public interface AtmosphereResourceEventListener {
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onSuspend(AtmosphereResourceEvent event);
+    AtmosphereResourceEventListener onSuspend(AtmosphereResourceEvent event);
 
     /**
      * Invoked when the {@link AtmosphereResource#resume} is invoked or when the
@@ -74,21 +74,21 @@ public interface AtmosphereResourceEventListener {
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onResume(AtmosphereResourceEvent event);
+    AtmosphereResourceEventListener onResume(AtmosphereResourceEvent event);
 
     /**
      * Invoked when the remote connection gets closed.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onDisconnect(AtmosphereResourceEvent event);
+    AtmosphereResourceEventListener onDisconnect(AtmosphereResourceEvent event);
 
     /**
      * Invoked when a {@link Broadcaster#broadcast} occurs.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
-    void onBroadcast(AtmosphereResourceEvent event);
+    AtmosphereResourceEventListener onBroadcast(AtmosphereResourceEvent event);
 
 
     /**
@@ -97,6 +97,6 @@ public interface AtmosphereResourceEventListener {
      *
      * @param event a {@link AtmosphereResourceEvent}
      */
-    void onThrowable(AtmosphereResourceEvent event);
+    AtmosphereResourceEventListener onThrowable(AtmosphereResourceEvent event);
 
 }
