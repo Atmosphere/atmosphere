@@ -29,37 +29,37 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
      * When the hanshake occurs
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onHandshake(WebSocketEvent event);
+    void onHandshake(WebSocketEvent event);
 
     /**
      * When a message is sent
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onMessage(WebSocketEvent event);
+    void onMessage(WebSocketEvent event);
 
     /**
      * When the close occurs
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onClose(WebSocketEvent event);
+    void onClose(WebSocketEvent event);
 
     /**
      * When the control occurs
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onControl(WebSocketEvent event);
+    void onControl(WebSocketEvent event);
 
     /**
      * When the disconnect occurs
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onDisconnect(WebSocketEvent event);
+    void onDisconnect(WebSocketEvent event);
 
      /**
      * When the connect occurs
      * @param event {@link WebSocketEvent}
      */
-    AtmosphereResourceEventListener onConnect(WebSocketEvent event);
+    void onConnect(WebSocketEvent event);
 
 
     public static final class WebSocketEvent {
