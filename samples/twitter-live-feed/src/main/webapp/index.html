@@ -34,9 +34,7 @@
             function subscribe() {
                 var request = { url : document.location.toString() + 'search/' + getElementByIdValue('topic'),
                     transport: getElementByIdValue('transport'),
-                    attachHeadersAsQueryString : true,
                     trackMessageLength : true,
-                    maxRequest: 1
                 };
 
                 request.onMessage = function (response) {
