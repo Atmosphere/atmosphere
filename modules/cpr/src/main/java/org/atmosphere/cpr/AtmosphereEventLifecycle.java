@@ -63,30 +63,30 @@ public interface AtmosphereEventLifecycle {
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
-    public void addEventListener(AtmosphereResourceEventListener e);
+    public AtmosphereEventLifecycle addEventListener(AtmosphereResourceEventListener e);
 
     /**
      * Remove a{@link AtmosphereResourceEventListener}.
      *
      * @param e
      */
-    public void removeEventListener(AtmosphereResourceEventListener e);
+    public AtmosphereEventLifecycle removeEventListener(AtmosphereResourceEventListener e);
 
     /**
      * Remove all {@link AtmosphereResourceEventListener}.
      */
-    public void removeEventListeners();
+    public AtmosphereEventLifecycle removeEventListeners();
 
     /**
      * Notify {@link AtmosphereResourceEventListener}.
      *
      * @param e an instance of AtmosphereResourceEvent
      */
-    public void notifyListeners(AtmosphereResourceEvent e);
+    public AtmosphereEventLifecycle notifyListeners(AtmosphereResourceEvent e);
 
     /**
      * Notify All {@link AtmosphereResourceEventListener}.
      */
-    public void notifyListeners();
+    public AtmosphereEventLifecycle notifyListeners();
 
 }

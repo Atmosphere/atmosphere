@@ -657,9 +657,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
-    public void addEventListener(AtmosphereResourceEventListener e) {
-        if (listeners.contains(e)) return;
+    public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
+        if (listeners.contains(e)) return this;
         listeners.add(e);
+        return this;
     }
 
     /**
@@ -667,32 +668,35 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
-    public void removeEventListener(AtmosphereResourceEventListener e) {
+    public AtmosphereResource removeEventListener(AtmosphereResourceEventListener e) {
         listeners.remove(e);
+        return this;
     }
 
     /**
      * Remove all {@link AtmosphereResourceEventListener}.
      */
-    public void removeEventListeners() {
+    public AtmosphereResource removeEventListeners() {
         listeners.clear();
+        return this;
     }
 
     /**
      * Notify {@link AtmosphereResourceEventListener}.
      */
-    public void notifyListeners() {
+    public AtmosphereResource notifyListeners() {
         notifyListeners(event);
+        return this;
     }
 
     /**
      * Notify {@link AtmosphereResourceEventListener}.
      */
-    public void notifyListeners(AtmosphereResourceEvent event) {
+    public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.size() > 0) {
             logger.trace("Invoking listener with {}", event);
         } else {
-            return;
+            return this;
         }
 
         Action oldAction = action;
@@ -721,6 +725,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 logger.warn("Listener error {}", t2);
             }
         }
+        return this;
     }
 
     /**
