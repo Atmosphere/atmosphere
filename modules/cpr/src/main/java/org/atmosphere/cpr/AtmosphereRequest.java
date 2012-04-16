@@ -857,12 +857,12 @@ public class AtmosphereRequest implements HttpServletRequest {
         private String methodType;
         private String contentType;
         private String data;
-        private Map<String, String> headers = new HashMap<String, String>();
-        private Map<String, String[]> queryStrings = new HashMap<String, String[]>();
+        private Map<String, String> headers = Collections.synchronizedMap(new HashMap<String, String>());
+        private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
-        private Map<String, Object> localAttributes = new HashMap<String, Object>();
+        private Map<String, Object> localAttributes = Collections.synchronizedMap(new HashMap<String, Object>());
         private InputStream inputStream;
         private String remoteAddr = "";
         private String remoteHost = "";
@@ -887,7 +887,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         }
 
         public Builder headers(Map<String, String> headers) {
-            this.headers = headers;
+            this.headers = Collections.synchronizedMap(headers);
             return this;
         }
 
@@ -927,7 +927,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         }
 
         public Builder attributes(Map<String, Object> attributes) {
-            localAttributes = attributes;
+            localAttributes = Collections.synchronizedMap(attributes);
             return this;
         }
 
@@ -993,7 +993,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         }
 
         public Builder queryStrings(Map<String, String[]> queryStrings) {
-            this.queryStrings = queryStrings;
+            this.queryStrings = Collections.synchronizedMap(queryStrings);
             return this;
         }
 
