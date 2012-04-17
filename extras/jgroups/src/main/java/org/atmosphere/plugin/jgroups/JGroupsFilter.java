@@ -47,6 +47,14 @@ public class JGroupsFilter implements ClusterBroadcastFilter {
     private JGroupsChannel jchannel;
     private Broadcaster bc;
 
+    public JGroupsFilter(){
+        jchannel = DefaultJGroupsChannelFactory.getDefaultJGroupsChannel();
+    }
+
+    public JGroupsFilter(String jGroupsFilterLocation){
+        jchannel = DefaultJGroupsChannelFactory.getDefaultJGroupsChannel(jGroupsFilterLocation);
+    }
+
     /**
      * Constructor
      *
