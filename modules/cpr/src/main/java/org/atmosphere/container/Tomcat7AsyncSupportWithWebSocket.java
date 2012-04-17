@@ -86,11 +86,11 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             String key;
             String subProtocol = null;
 
-            if (!headerContainsToken(req, "upgrade", "websocket")) {
+            if (!headerContainsToken(req, "Upgrade", "websocket")) {
                 return super.service(req, res);
             }
 
-            if (!headerContainsToken(req, "connection", "upgrade")) {
+            if (!headerContainsToken(req, "Connection", "upgrade")) {
                 return super.service(req, res);
             }
 
@@ -106,8 +106,8 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             }
 
             // If we got this far, all is good. Accept the connection.
-            res.setHeader("upgrade", "websocket");
-            res.setHeader("connection", "upgrade");
+            res.setHeader("Upgrade", "websocket");
+            res.setHeader("Connection", "upgrade");
             res.setHeader("Sec-WebSocket-Accept", getWebSocketAccept(key));
 
             if (subProtocol != null) {
@@ -121,6 +121,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
             RequestFacade facade = (RequestFacade) hsr;
             StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true), config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
+            return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CREATED);
         }
 
         AtmosphereFramework.Action action = suspended(req, res);
