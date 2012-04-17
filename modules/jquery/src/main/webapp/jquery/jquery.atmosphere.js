@@ -1671,6 +1671,10 @@ jQuery.atmosphere = function() {
 
         debug: function() {
             jQuery.atmosphere.log('debug', arguments);
+        },
+
+        error: function() {
+            jQuery.atmosphere.log('error', arguments);
         }
     };
 }();
