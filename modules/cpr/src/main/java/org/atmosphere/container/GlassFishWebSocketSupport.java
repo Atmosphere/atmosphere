@@ -62,6 +62,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
@@ -106,17 +108,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     public Action service(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
 
-        boolean webSocketEnabled = false;
-        if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
-            String[] e = request.getHeaders("Connection").nextElement().toString().split(",");
-            for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
-        if (!webSocketEnabled) {
+        if (!Utils.webSocketEnabled(request)) {
             return super.service(request, response);
         } else {
             Action action = suspended(request, response);
