@@ -1,7 +1,5 @@
  <config>
     <UDP
-         mcast_addr="${jgroups.udp.mcast_addr:228.10.10.10}"
-         mcast_port="${jgroups.udp.mcast_port:45588}"
          discard_incompatible_packets="true"
          max_bundle_size="60000"
          max_bundle_timeout="30"
@@ -40,6 +38,6 @@
                 view_bundling="true"/>
     <FC max_credits="20000000"
                     min_threshold="0.10"/>
-    <FRAG2 frag_size="60000"  />
+    <FRAG2 frag_size="59000"  />
     <pbcast.STATE_TRANSFER  />
 </config>
