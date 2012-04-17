@@ -52,6 +52,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,6 +73,7 @@ import java.util.concurrent.TimeUnit;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.AtmosphereFramework.Action;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
@@ -131,8 +134,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
 
-
-
     /**
      * Is {@link HttpSession} supported
      *
@@ -176,18 +177,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
-        boolean webSocketEnabled = false;
-        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
-            for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase("Upgrade")) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
-
-        if (webSocketEnabled && !supportWebSocket()) {
+        if (Utils.webSocketEnabled(req) && !supportWebSocket()) {
             res.setStatus(501);
             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
             res.flushBuffer();
@@ -559,7 +549,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         public void closed() {
             try {
-                ((AsynchronousProcessor)r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
+                ((AsynchronousProcessor) r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
@@ -569,7 +559,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         public void timedOut() {
             try {
-                ((AsynchronousProcessor)r.asyncSupport).timedout(r.getRequest(false), r.getResponse(false));
+                ((AsynchronousProcessor) r.asyncSupport).timedout(r.getRequest(false), r.getResponse(false));
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
@@ -578,7 +568,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         public void resume() {
-            ((AsynchronousProcessor)r.asyncSupport).action(r);
+            ((AsynchronousProcessor) r.asyncSupport).action(r);
         }
     }
 }

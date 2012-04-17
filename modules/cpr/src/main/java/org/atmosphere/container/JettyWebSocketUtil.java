@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
@@ -41,21 +42,11 @@ public class JettyWebSocketUtil {
                                                            AtmosphereRequest req,
                                                            AtmosphereResponse res,
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
-        boolean webSocketEnabled = false;
-        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
-            for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
 
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
-        if (!webSocketEnabled && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
+        if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
             return null;
         } else {
             if (webSocketFactory != null && !b) {
