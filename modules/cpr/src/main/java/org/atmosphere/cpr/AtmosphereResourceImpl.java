@@ -57,6 +57,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -356,8 +358,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (!event.isResumedOnTimeout()) {
 
-            if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-                String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
+            Enumeration<String> connection = req.getHeaders("Connection");
+            if (connection == null) {
+                connection = req.getHeaders("connection");
+            }
+
+            if (connection != null && connection.hasMoreElements()) {
+                String[] e = connection.nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                         if (writeHeaders && !asyncSupport.supportWebSocket()) {
