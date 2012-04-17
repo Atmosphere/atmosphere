@@ -803,6 +803,16 @@ jQuery.atmosphere = function() {
                             try {
                                 _response.status = ajaxRequest.status;
                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
+
+                                // HOTFIX for firefox bug: https://bugzilla.mozilla.org/show_bug.cgi?id=608735
+                                if (_request.headers) {
+                                    jQuery.each(_request.headers, function(name) {
+                                        var v = ajaxRequest.getResponseHeader(name);
+                                        if (v) {
+                                            _response.headers[name] = v;
+                                        }
+                                    });
+                                }
                             } catch(e) {
                                 _response.status = 404;
                             }
