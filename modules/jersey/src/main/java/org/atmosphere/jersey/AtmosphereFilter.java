@@ -71,7 +71,6 @@ import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereEventLifecycle;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -83,10 +82,8 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -226,12 +223,21 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         boolean outputJunk(boolean outputJunk) {
+            boolean webSocketEnabled = false;
+            if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
+                for (String upgrade : e) {
+                    if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
+                        webSocketEnabled = true;
+                        break;
+                    }
+                }
+            }
+
             String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
-            if (Utils.webSocketEnabled(AtmosphereRequest.class.cast(servletReq))) {
+            if (webSocketEnabled) {
                 return false;
             } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
-                return false;
-            } else if (transport == HeaderConfig.WEBSOCKET_TRANSPORT) {
                 return false;
             }
 
@@ -605,9 +611,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         Response.ResponseBuilder configureHeaders(Response.ResponseBuilder b) throws IOException {
             boolean webSocketSupported = servletReq.getAttribute(WebSocket.WEBSOCKET_SUSPEND) != null;
 
-            if (!Utils.webSocketEnabled(AtmosphereRequest.class.cast(servletReq))) {
-                b = b.header(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+            if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
+                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
+                for (String upgrade : e) {
+                    if (upgrade != null && upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
+                        if (!webSocketSupported) {
+                            b = b.header(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                        }
+                    }
+                }
             }
+
             boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(ApplicationConfig.NO_CACHE_HEADERS);
             boolean enableAccessControl = (Boolean) servletReq.getAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
 
@@ -630,7 +644,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         void configureResumeOnBroadcast(Broadcaster b) {
             Iterator<AtmosphereResource> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
-                HttpServletRequest r = i.next().getRequest();
+                HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
                 r.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true);
             }
         }
@@ -1075,4 +1089,3 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     }
 
 }
-
