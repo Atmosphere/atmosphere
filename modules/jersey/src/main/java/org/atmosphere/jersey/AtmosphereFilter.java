@@ -82,6 +82,7 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Trackable;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
@@ -238,6 +239,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if (webSocketEnabled) {
                 return false;
             } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
+                return false;
+            } else if (transport == HeaderConfig.WEBSOCKET_TRANSPORT) {
                 return false;
             }
 
