@@ -3,7 +3,7 @@ The Atmosphere Framework contains client and server side components. The majorit
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
-### Getting Started with WebSocket
+### Getting Started with WebSocket and Long-Polling
 This [tutorial](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-The-Atmosphere-Framework-and-WebSocket) quickly demonstrates how to write a WebSocket application.
 
 ### To use Atmosphere, add the following dependency:
