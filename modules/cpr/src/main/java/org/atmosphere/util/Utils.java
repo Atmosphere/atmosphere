@@ -38,7 +38,7 @@ public final class Utils {
         if (connection != null && connection.hasMoreElements()) {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
+                if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     webSocketEnabled = true;
                     break;
                 }
