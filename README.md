@@ -16,7 +16,7 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
       </dependency>
 ```
       
-Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
+Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere). Atmosphere supports the majority of [Servers and Browsers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
 [IMPORTANT: Migrating 0.x to the new 0.9 API](https://github.com/Atmosphere/atmosphere/wiki/Migrating-your-Atmosphere-0.x-to-0.9-new-API)
 
