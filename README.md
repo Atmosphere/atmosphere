@@ -3,8 +3,9 @@ The Atmosphere Framework contains client and server side components. The majorit
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
-### Getting Started with WebSocket and Long-Polling
-This [tutorial](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-The-Atmosphere-Framework-and-WebSocket) quickly demonstrates how to write a WebSocket application.
+### Official Documentation
+Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started. You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
+
 
 ### To use Atmosphere, add the following dependency:
 ```xml
@@ -37,8 +38,6 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 [Comet/WebSocket? Introducing the Atmosphere framework](http://www.ncolomer.net/2012/03/comewebsocket-introducing-the-atmosphere-framework/)
 
 [Latest Presentation - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
-
-Browse [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
 
 To quickly see what Atmosphere can do with WebSocket and Comet, and If you want to play with Redis, Hazelcast, ActiveMQ(JMS) or XMPP(Gmail), [download](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/samples/atmosphere-jquery-pubsub/0.8.6/atmosphere-jquery-pubsub-0.8.6.war) the [JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L51) sample,  uncomments the appropriate technology in the [pom.xml](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/pom.xml#L2), re-war the file or manually drop the atmosphere-{technology-name}.jar under your WEB-INF/lib to enabled it automatically
 
