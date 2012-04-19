@@ -26,8 +26,6 @@ import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -101,7 +99,7 @@ public class TwitterFeed {
                     return null;
                 }
 
-            }, 1, TimeUnit.SECONDS);
+            }, 5, TimeUnit.SECONDS);
 
             futures.put(tagid, future);
         }
@@ -111,7 +109,7 @@ public class TwitterFeed {
 
                     @Override
                     public void onSuspend(
-                            final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+                            final AtmosphereResourceEvent event) {
                         super.onSuspend(event);
 
                         // OK, we can start polling Twitter!
@@ -125,7 +123,9 @@ public class TwitterFeed {
     public String stopSearch(final @PathParam("tagid") Broadcaster feed,
                              final @PathParam("tagid") String tagid) {
         feed.resumeAll();
-        futures.get(tagid).cancel(true);
+        if (futures.get(tagid) != null) {
+            futures.get(tagid).cancel(true);
+        }
         logger.info("Stopping real time update for {}", tagid);
         return "DONE";
     }

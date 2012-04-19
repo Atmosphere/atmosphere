@@ -19,14 +19,15 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
 public class BroadcastFilterTest {
@@ -37,18 +38,71 @@ public class BroadcastFilterTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = mock(AtmosphereConfig.class);
+        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(HttpServletRequest.class),
-                mock(HttpServletResponse.class),
+                mock(AtmosphereRequest.class),
+                mock(AtmosphereResponse.class),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
         broadcaster.addAtmosphereResource(ar);
+    }
+
+    @Test
+    public void testProgrammaticBroadcastFilter() throws ExecutionException, InterruptedException, ServletException {
+        broadcaster.getBroadcasterConfig().addFilter(new Filter());
+        broadcaster.broadcast("0").get();
+
+        assertEquals(atmosphereHandler.value.get().toString(), "0foo");
+    }
+
+    @Test
+    public void testInitBroadcastFilter() throws ExecutionException, InterruptedException, ServletException {
+        AtmosphereConfig config = new AtmosphereFramework()
+                .addInitParameter(ApplicationConfig.BROADCAST_FILTER_CLASSES, Filter.class.getName())
+                .setAsyncSupport(mock(BlockingIOCometSupport.class))
+                .init(new ServletConfig() {
+                    @Override
+                    public String getServletName() {
+                        return "void";
+                    }
+
+                    @Override
+                    public ServletContext getServletContext() {
+                        return mock(ServletContext.class);
+                    }
+
+                    @Override
+                    public String getInitParameter(String name) {
+                        return null;
+                    }
+
+                    @Override
+                    public Enumeration<String> getInitParameterNames() {
+                        return null;
+                    }
+                })
+                .getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        broadcaster = factory.get(DefaultBroadcaster.class, "test");
+        atmosphereHandler = new AR();
+        ar = new AtmosphereResourceImpl(config,
+                broadcaster,
+                mock(AtmosphereRequest.class),
+                mock(AtmosphereResponse.class),
+                mock(BlockingIOCometSupport.class),
+                atmosphereHandler);
+
+        broadcaster.addAtmosphereResource(ar);
+
+        broadcaster.broadcast("0").get();
+
+        assertEquals(atmosphereHandler.value.get().toString(), "0foo");
     }
 
     @Test
@@ -134,7 +188,7 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource<?, ?> atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
         }
     }
@@ -153,7 +207,7 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource<?, ?> atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
         }
     }
@@ -162,10 +216,13 @@ public class BroadcastFilterTest {
 
         final String msg;
 
+        public Filter() {
+            this.msg = "foo";
+        }
+
         public Filter(String msg) {
             this.msg = msg;
         }
-
 
         @Override
         public BroadcastAction filter(Object originalMessage, Object message) {
@@ -173,16 +230,16 @@ public class BroadcastFilterTest {
         }
     }
 
-    public final static class AR implements AtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+    public final static class AR implements AtmosphereHandler {
 
         public AtomicReference<StringBuffer> value = new AtomicReference<StringBuffer>(new StringBuffer());
 
         @Override
-        public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> e) throws IOException {
+        public void onRequest(AtmosphereResource e) throws IOException {
         }
 
         @Override
-        public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) throws IOException {
+        public void onStateChange(AtmosphereResourceEvent e) throws IOException {
             value.get().append(e.getMessage());
         }
 

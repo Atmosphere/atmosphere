@@ -21,9 +21,6 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 /**
  * @author Mathieu Carbou
  * @since 0.7
@@ -35,7 +32,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     @Inject
     private Service service;
 
-    public void onSuspend(final AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onSuspend(final AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();
         }
@@ -44,7 +41,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
                         event.getResource().getRequest().getRemotePort()});
     }
 
-    public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onResume(AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();
         }
@@ -53,7 +50,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
                         event.getResource().getRequest().getRemotePort()});
     }
 
-    public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onDisconnect(AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();
         }
@@ -62,7 +59,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
                         event.getResource().getRequest().getRemotePort()});
     }
 
-    public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onBroadcast(AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();
         }
@@ -71,7 +68,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
                         event.getResource().getRequest().getRemotePort()});
     }
 
-    public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+    public void onThrowable(AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();
         }

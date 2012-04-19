@@ -1,125 +1,102 @@
 /*
+ * Copyright 2012 Jean-Francois Arcand
  *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
  *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
- * and Distribution License("CDDL") (collectively, the "License").  You
- * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
- * language governing permissions and limitations under the License.
- *
- * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
- * Sun designates this particular file as subject to the "Classpath" exception
- * as provided by Sun in the GPL Version 2 section of the License file that
- * accompanied this code.  If applicable, add the following below the License
- * Header, with the fields enclosed by brackets [] replaced by your own
- * identifying information: "Portions Copyrighted [year]
- * [name of copyright owner]"
- *
- * Contributor(s):
- *
- * If you wish your version of this file to be governed by only the CDDL or
- * only the GPL Version 2, indicate your decision by adding "[Contributor]
- * elects to include this software in this distribution under the [CDDL or GPL
- * Version 2] license."  If you don't indicate a single choice of license, a
- * recipient has the option to distribute your version of this file under
- * either the CDDL, the GPL Version 2 or to extend the choice of license to
- * its licensees as provided above.  However, if you add GPL Version 2 code
- * and therefore, elected the GPL Version 2 license, then the option applies
- * only if the new code is made subject to such option by the copyright
- * holder.
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.atmosphere.plugin.jgroups;
 
+
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
-import org.atmosphere.cpr.DefaultBroadcaster;
-import org.jgroups.ChannelException;
-import org.jgroups.JChannel;
-import org.jgroups.Message;
-import org.jgroups.ReceiverAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 /**
- * Clustering support based on JGroupsFilter (http://jgroups.org)
+ * This is attached to a Broadcaster you want to have in a clustered situation.
+ * <p/>
+ * Each clustered broadcaster should have its own instance of a JGroupsFilter and
+ * likewise, each JGroupsFilter should have a circular reference back to that broadcaster.
+ * <p/>
+ * Therefore, when the JGroupsFilter is added to the Broadcaster config,
+ * remember to make the reference circular by calling JGroupsFilter.setBroadcaster(bc)
+ * or simply using the constructor with the Broadcaster to begin with.
+ * <p/>
+ * Uri is not currently used because the 'cluster name' is driven from the
+ * JGroupsChannel itself.  I suppose it could be used to 'look up' the JGroupsChannel
+ * if there is a registry of them implemented somehow, but its easier to just
+ * inject the JGroupsChannel into the filter.
  *
- * @author Hubert Iwaniuk
+ * @author Jean-Francois Arcand (original version)
+ * @author westraj
  */
-public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFilter {
+public class JGroupsFilter implements ClusterBroadcastFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(JGroupsFilter.class);
+    private static final Logger logger = LoggerFactory
+            .getLogger(JGroupsFilter.class);
 
-    private JChannel jchannel;
+    private JGroupsChannel jchannel;
     private Broadcaster bc;
-    private final ConcurrentLinkedQueue<Object> receivedMessages = new ConcurrentLinkedQueue<Object>();
 
-    public JGroupsFilter() {
-        this(BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "JGroupFilter"));
+    public JGroupsFilter(){
+        jchannel = DefaultJGroupsChannelFactory.getDefaultJGroupsChannel();
+    }
+
+    public JGroupsFilter(String jGroupsFilterLocation){
+        jchannel = DefaultJGroupsChannelFactory.getDefaultJGroupsChannel(jGroupsFilterLocation);
     }
 
     /**
-     * Create a JGroupsFilter based filter.
+     * Constructor
      *
-     * @param bc the Broadcaster to use when receiving update from the cluster.
+     * @param jchannel
      */
-    public JGroupsFilter(Broadcaster bc) {
-        this.bc = bc;
+    public JGroupsFilter(JGroupsChannel jchannel) {
+        // no default broadcaster is created. Must set a specific one now with setBroadcaster()
+        this.jchannel = jchannel;
     }
 
     /**
-     * Prepare the cluster.
+     * Constructor with broadcaster
+     *
+     * @param jchannel
+     * @param bc
      */
-    public void init() {
-        try {
-            logger.info("Starting Atmosphere JGroups Clustering support with group name {}", bc.getID());
-
-            //initialize jgroups channel
-            jchannel = new JChannel();
-            //register for Group Events
-            jchannel.setReceiver(this);
-            //join group
-            jchannel.connect(bc.getID());
-        } catch (Throwable t) {
-            logger.warn("failed to connect to cluser", t);
-        }
+    public JGroupsFilter(JGroupsChannel jchannel, Broadcaster bc) {
+        this(jchannel);
+        this.setBroadcaster(bc);
     }
 
-    /**
-     * Shutdown the cluster.
-     */
-    public void destroy() {
-        jchannel.shutdown();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
+    /*
+      * (non-Javadoc)
+      *
+      * @see org.atmosphere.cpr.BroadcastFilterLifecycle#destroy()
+      */
     @Override
-    public void receive(final Message message) {
-        final Object msg = message.getObject();
-        if (message.getSrc() != jchannel.getLocalAddress()) {
-            if (msg != null) {
-                if (msg != null && JGroupsBroadcaster.BroadcastMessage.class.isAssignableFrom(msg.getClass())) {
-                    receivedMessages.offer(msg);
-                    JGroupsBroadcaster.BroadcastMessage b = JGroupsBroadcaster.BroadcastMessage.class.cast(msg);
-                    if (b.getTopicId().equalsIgnoreCase(bc.getID())) {
-                        bc.broadcast(b.getMessage());
-                    }
-                }
-            }
-        }
+    public void destroy() {
+        jchannel.removeBroadcaster(bc);
+        this.bc = null;
     }
+
+    /*
+      * (non-Javadoc)
+      *
+      * @see org.atmosphere.cpr.BroadcastFilterLifecycle#init()
+      */
+    @Override
+    public void init() {
+
+    }
+
 
     /**
      * Every time a message gets broadcasted, make sure we update the cluster.
@@ -128,35 +105,47 @@ public class JGroupsFilter extends ReceiverAdapter implements ClusterBroadcastFi
      * @return The same message.
      */
     public BroadcastAction filter(Object originalMessage, Object message) {
-        // Avoid re-broadcasting
-        if (!receivedMessages.remove(message)) {
-            try {
-                jchannel.send(new Message(null, null, new JGroupsBroadcaster.BroadcastMessage(bc.getID(), message)));
-            } catch (ChannelException e) {
-                logger.warn("failed to send message", e);
-            }
+        if (bc != null) {
+            this.jchannel.send(this.bc.getID(), message);
         }
+
         return new BroadcastAction(message);
     }
 
-    /**
-     * Return the current {@link Broadcaster}
-     */
+    /*
+      * (non-Javadoc)
+      *
+      * @see org.atmosphere.cpr.ClusterBroadcastFilter#getBroadcaster()
+      */
+    @Override
     public Broadcaster getBroadcaster() {
         return bc;
     }
 
+    /*
+      * (non-Javadoc)
+      *
+      * @see
+      * org.atmosphere.cpr.ClusterBroadcastFilter#setBroadcaster(org.atmosphere
+      * .cpr.Broadcaster)
+      */
     @Override
-    public void setUri(String name) {
-        bc.setID(name);
-    }
-
-    /**
-     * Set the current {@link Broadcaster} to use when a cluster event happens.
-     *
-     * @param bc
-     */
     public void setBroadcaster(Broadcaster bc) {
         this.bc = bc;
+
+        // register this filter's broadcaster with the JGroupsChannel
+        if (bc != null) jchannel.addBroadcaster(bc);
     }
+
+    /*
+      * (non-Javadoc)
+      *
+      * @see org.atmosphere.cpr.ClusterBroadcastFilter#setUri(java.lang.String)
+      */
+    @Override
+    public void setUri(String clusterUri) {
+        // NO OPS
+    }
+
+
 }

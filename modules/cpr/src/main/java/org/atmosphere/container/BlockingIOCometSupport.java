@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -38,30 +53,28 @@
 package org.atmosphere.container;
 
 import org.apache.catalina.CometEvent;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.CometSupport;
 import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class gets used when the {@link AtmosphereServlet} fails to autodetect
+ * This class gets used when the {@link org.atmosphere.cpr.AtmosphereFramework} fails to autodetect
  * the Servlet Container we are running on.
  * <p/>
- * This {@link CometSupport} implementation uses a blocking approach, meaning
+ * This {@link org.atmosphere.cpr.AsyncSupport} implementation uses a blocking approach, meaning
  * the request thread will be blocked until another Thread invoke the
  * {@link Broadcaster#broadcast}
  *
@@ -80,7 +93,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     /**
      * {@inheritDoc}
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         Action action = null;
@@ -93,7 +106,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 logger.debug("Resuming response: {}", res);
                 CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
 
-                if (latch == null && req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
+                if (latch == null || req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
                     logger.debug("response wasn't suspended: {}", res);
                     return action;
                 }
@@ -123,13 +136,13 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     /**
      * Suspend the connection by blocking the current {@link Thread}
      *
-     * @param action The {@link org.atmosphere.cpr.AtmosphereServlet.Action}
-     * @param req    the {@link HttpServletRequest}
-     * @param res    the {@link HttpServletResponse}
+     * @param action The {@link Action}
+     * @param req    the {@link AtmosphereRequest}
+     * @param res    the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    protected void suspend(Action action, HttpServletRequest req, HttpServletResponse res)
+    protected void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -142,14 +155,14 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 latch.await();
             }
         } catch (InterruptedException ex) {
-            logger.debug("", ex);
+            logger.trace("", ex);
         } finally {
             timedout(req, res);
         }
     }
 
     @Override
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         Action a = super.cancelled(req, res);
@@ -168,7 +181,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         try {
             super.action(r);
             if (r.action().type == Action.TYPE.RESUME) {
-                HttpServletRequest req = r.getRequest(false);
+                AtmosphereRequest req = r.getRequest(false);
                 CountDownLatch latch = null;
 
                 if (req.getAttribute(LATCH) != null) {

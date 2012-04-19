@@ -29,10 +29,16 @@ public class FakeHttpSession implements HttpSession {
     private final ServletContext servletContext;
     private int maxInactiveInterval;
 
-    public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime) {
+    public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime, int maxInactiveInterval) {
         this.sessionId = sessionId;
         this.servletContext = servletContext;
         this.creationTime = creationTime;
+        this.maxInactiveInterval = maxInactiveInterval;
+    }
+
+    public FakeHttpSession(HttpSession session) {
+        this(session.getId(), session.getServletContext(), session.getLastAccessedTime(), session.getMaxInactiveInterval());
+        copyAttributes(session);
     }
 
     public void destroy() {
@@ -113,6 +119,21 @@ public class FakeHttpSession implements HttpSession {
     @Override
     public void removeValue(String name) {
         attributes.remove(name);
+    }
+
+    public FakeHttpSession copyAttributes(HttpSession httpSession){
+        Enumeration<String> e = httpSession.getAttributeNames();
+        String k;
+        while(e.hasMoreElements()) {
+            k = e.nextElement();
+            if (k == null) continue;
+
+            Object o = getAttribute(k);
+            if (o == null) continue;
+
+            attributes.put(k, o);
+        }
+        return this;
     }
 
     // TODO: Not supported for now.

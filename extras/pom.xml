@@ -3,12 +3,12 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-extras</artifactId>
-    <version>0.9-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-extras</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
@@ -16,12 +16,14 @@
         <module>gwt</module>
         <module>guice</module>
         <module>spring</module>
-        <module>grizzly-adapter</module>
         <module>jgroups</module>
         <module>jms</module>
         <module>redis</module>
         <module>xmpp</module>
         <module>hazelcast</module>
         <module>socketio</module>
+	<module>weblogic</module>
+        <module>jetty-websocketdraft8</module>
+        <module>jaxrs2</module>
     </modules>
 </project>

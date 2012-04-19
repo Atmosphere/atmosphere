@@ -22,17 +22,17 @@ import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.tomcat.util.http.mapper.MappingData;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
@@ -63,12 +63,12 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     /**
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
-     * @param req the {@link javax.servlet.http.HttpServletRequest}
-     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
@@ -207,7 +207,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {

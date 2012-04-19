@@ -16,10 +16,13 @@
 package org.atmosphere.container;
 
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
-import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
@@ -27,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -36,37 +38,28 @@ public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
-    public final static AtmosphereServlet.Action doService(AsynchronousProcessor cometSupport,
-                                                           HttpServletRequest req,
-                                                           HttpServletResponse res,
+    public final static AtmosphereFramework.Action doService(AsynchronousProcessor cometSupport,
+                                                           AtmosphereRequest req,
+                                                           AtmosphereResponse res,
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
-        boolean webSocketEnabled = false;
-        if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-            String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
-            for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
 
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
-        if (!webSocketEnabled) {
+        if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
             return null;
         } else {
             if (webSocketFactory != null && !b) {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
-                return new AtmosphereServlet.Action();
+                req.setAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE, true);
+                return new AtmosphereFramework.Action();
             }
 
-            AtmosphereServlet.Action action = cometSupport.suspended(req, res);
-            if (action.type == AtmosphereServlet.Action.TYPE.SUSPEND) {
+            AtmosphereFramework.Action action = cometSupport.suspended(req, res);
+            if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
-            } else if (action.type == AtmosphereServlet.Action.TYPE.RESUME) {
+            } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", res);
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
@@ -85,7 +78,7 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(request, config.getServlet(), config.getServlet().getWebSocketProtocol());
+                return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request, false), config.framework(), config.framework().getWebSocketProtocol());
             }
         });
 
@@ -94,15 +87,29 @@ public class JettyWebSocketUtil {
             bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
         }
         logger.info("WebSocket Buffer side {}", bufferSize);
-
         webSocketFactory.setBufferSize(bufferSize);
+
         int timeOut = 5 * 60000;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME) != null) {
             timeOut = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
         }
         logger.info("WebSocket idle timeout {}", timeOut);
-
         webSocketFactory.setMaxIdleTime(timeOut);
+
+        int maxTextBufferSize = 8192;
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE) != null) {
+            maxTextBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE));
+        }
+        logger.info("WebSocket maxTextBufferSize {}", maxTextBufferSize);
+        webSocketFactory.setMaxTextMessageSize(maxTextBufferSize);
+
+        int maxBinaryBufferSize = 8192;
+        if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE) != null) {
+            maxBinaryBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE));
+        }
+        logger.info("WebSocket maxBinaryBufferSize {}", maxBinaryBufferSize);
+        webSocketFactory.setMaxBinaryMessageSize(maxBinaryBufferSize);
+
         return webSocketFactory;
     }
 }

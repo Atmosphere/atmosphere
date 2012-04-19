@@ -15,8 +15,8 @@
 */
 package org.atmosphere.websocket.protocol;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -50,6 +50,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String contentType;
     private String methodType;
     private String delimiter;
+    private boolean destroyable;
 
     /**
      * {@inheritDoc}
@@ -73,6 +74,13 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             delimiter = "@@";
         }
         this.delimiter = delimiter;
+
+        String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            destroyable = true;
+        } else {
+            destroyable = false;
+        }
     }
 
     /**
@@ -93,9 +101,12 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
         Map<String,Object> m = new HashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+        // Propagate the original attribute to WebSocket message.
+        m.putAll(resource.getRequest().attributes());
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
+        // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
         list.add(new AtmosphereRequest.Builder()
                 .request(resource.getRequest())
                 .method(methodType)
@@ -103,7 +114,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .body(d)
                 .attributes(m)
                 .pathInfo(pathInfo)
-                .headers(WebSocketProcessor.configureHeader(resource.getRequest()))
+                .destroyable(destroyable)
+                .headers(resource.getRequest().headersMap())
                 .build());
 
         return list;

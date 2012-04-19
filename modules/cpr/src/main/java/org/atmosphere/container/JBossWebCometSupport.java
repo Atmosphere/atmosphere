@@ -37,20 +37,21 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
@@ -76,12 +77,12 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     /**
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
+    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
 
@@ -146,7 +147,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {

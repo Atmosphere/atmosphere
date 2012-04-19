@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -40,13 +55,12 @@ package org.atmosphere.cpr;
 import org.atmosphere.handler.ReflectorServletProcessor;
 
 import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
-import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
-import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
+import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
 
 /**
  * Simple Servlet to use when Atmosphere {@link Meteor} are used. This Servlet will look
@@ -59,18 +73,25 @@ import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
  */
 public class MeteorServlet extends AtmosphereServlet {
 
-    /**
-     * Initialize a configured instance of {@link ReflectorServletProcessor} and
-     * follow the normal AtmosphereServlet processing.
-     *
-     * @param sc the {@link ServletContext}
-     */
+    public MeteorServlet() {
+        this(false);
+    }
+
+    public MeteorServlet(boolean isFilter) {
+        super(isFilter, false);
+    }
+
     @Override
-    protected void loadConfiguration(ServletConfig sc) throws ServletException {
-        String servletClass = sc.getInitParameter(SERVLET_CLASS);
-        String mapping = sc.getInitParameter(MAPPING);
-        String filterClass = sc.getInitParameter(FILTER_CLASS);
-        String filterName = sc.getInitParameter(FILTER_NAME);
+    public void init(final ServletConfig sc) throws ServletException {
+        super.init(sc);
+
+        String servletClass = framework().getAtmosphereConfig().getInitParameter(SERVLET_CLASS);
+        String mapping = framework().getAtmosphereConfig().getInitParameter(MAPPING);
+        String filterClass = framework().getAtmosphereConfig().getInitParameter(FILTER_CLASS);
+        String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
+
+        logger.info("Installing Servlet/Meteor {} mapped to {}", servletClass, mapping);
+        logger.info("Installing Filter/Meteor {} mapped to /*", filterClass, mapping);
 
         ReflectorServletProcessor r = new ReflectorServletProcessor();
         r.setServletClassName(servletClass);
@@ -79,8 +100,9 @@ public class MeteorServlet extends AtmosphereServlet {
 
         if (mapping == null) {
             mapping = "/*";
+            BroadcasterFactory.getDefault().remove("/*");
         }
-        addAtmosphereHandler(mapping, r);
+        framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
     }
 
     @Override

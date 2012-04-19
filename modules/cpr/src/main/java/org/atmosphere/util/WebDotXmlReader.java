@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -38,6 +53,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -60,8 +76,6 @@ import java.util.ArrayList;
 public class WebDotXmlReader {
 
     private static final Logger logger = LoggerFactory.getLogger(WebDotXmlReader.class);
-
-    private static final String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
 
     private final ArrayList<String> mappings = new ArrayList<String>();
 
@@ -105,7 +119,7 @@ public class WebDotXmlReader {
                 }
 
                 if (n.getNodeName().equals("servlet-class")) {
-                    if (n.getFirstChild().getNodeValue().equals(ATMOSPHERE_SERVLET)) {
+                    if (n.getFirstChild().getNodeValue().equals(FrameworkConfig.ATMOSPHERE_SERVLET)) {
                         break;
                     }
                 }

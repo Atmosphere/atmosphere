@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -66,10 +81,14 @@ public class BroadcasterFuture<E> implements Future {
     }
 
     public BroadcasterFuture(Future<?> innerFuture, E msg) {
+        this(innerFuture, msg, 1);
+    }
+
+    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
         this.msg = msg;
         this.innerFuture = innerFuture;
         if (innerFuture == null) {
-            latch = new CountDownLatch(1);
+            latch = new CountDownLatch(latchCount);
         } else {
             latch = null;
         }
@@ -122,11 +141,12 @@ public class BroadcasterFuture<E> implements Future {
     /**
      * Invoked when a {@link Broadcaster} completed it broadcast operation.
      */
-    public void done() {
+    public BroadcasterFuture<E> done() {
         isDone = true;
         if (latch != null) {
             latch.countDown();
         }
+        return this;
     }
 
     /**

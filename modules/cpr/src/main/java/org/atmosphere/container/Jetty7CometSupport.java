@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -37,13 +52,14 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationListener;
@@ -53,8 +69,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -73,7 +87,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     /**
      * {@inheritDoc}
      */
-    public Action service(final HttpServletRequest req, final HttpServletResponse res) throws IOException, ServletException {
+    public Action service(final AtmosphereRequest req, final AtmosphereResponse res) throws IOException, ServletException {
         Action action = null;
 
         Continuation c = (Continuation) req.getAttribute(Continuation.class.getName());
@@ -153,13 +167,13 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public Action resumed(HttpServletRequest request, HttpServletResponse response)
+    public Action resumed(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
         AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-        AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
-                (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
-                        request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        AtmosphereHandler atmosphereHandler =
+                (AtmosphereHandler)
+                        req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
         synchronized (r) {
             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
@@ -167,7 +181,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return new Action(Action.TYPE.RESUME);
     }
 
-     /**
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -190,11 +204,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 request.removeAttribute(Continuation.class.getName());
                 return;
             } else {
-                if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
-                    request = AtmosphereRequest.class.cast(request).getRequest();
-                } else {
-                    return;
-                }
+                return;
             }
         }
     }

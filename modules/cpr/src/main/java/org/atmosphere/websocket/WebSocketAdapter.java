@@ -26,14 +26,15 @@ import java.io.IOException;
  */
 public abstract class WebSocketAdapter implements WebSocket{
 
-    private AtmosphereResource<?, ?> r;
+    private AtmosphereResource r;
+    protected long lastWrite = 0;
 
     /**
      * Configure the {@link AtmosphereResource}
      *
      * @param r the {@link AtmosphereResource}
      */
-    public WebSocketAdapter setAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public WebSocketAdapter setAtmosphereResource(AtmosphereResource r) {
         this.r = r;
         return this;
     }
@@ -43,7 +44,11 @@ public abstract class WebSocketAdapter implements WebSocket{
     }
 
     @Override
-    public AtmosphereResource<?, ?> resource() {
+    public AtmosphereResource resource() {
         return r;
+    }
+
+    public long lastTick() {
+        return lastWrite == -1 ? System.currentTimeMillis() : lastWrite;
     }
 }

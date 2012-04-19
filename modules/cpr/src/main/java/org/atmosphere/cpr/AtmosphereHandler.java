@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import java.io.IOException;
@@ -59,10 +73,10 @@ import java.io.IOException;
  public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
 
     @Override
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> r) throws IOException {
+    public void onRequest(AtmosphereResource r) throws IOException {
 
-        HttpServletRequest req = r.getRequest();
-        HttpServletResponse res = r.getResponse();
+        AtmosphereRequest req = r.getRequest();
+        AtmosphereResponse res = r.getResponse();
         String method = req.getMethod();
 
         // Suspend the response.
@@ -107,7 +121,7 @@ import java.io.IOException;
  * </pre></blockquote>
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereHandler<F, G> {
+public interface AtmosphereHandler {
 
     /**
      * When a client send a request to its associated {@link AtmosphereHandler}, it can decide
@@ -121,7 +135,7 @@ public interface AtmosphereHandler<F, G> {
      * @param resource an {@link AtmosphereResource}
      * @throws java.io.IOException
      */
-    void onRequest(AtmosphereResource<F, G> resource) throws IOException;
+    void onRequest(AtmosphereResource resource) throws IOException;
 
 
     /**
@@ -139,7 +153,7 @@ public interface AtmosphereHandler<F, G> {
      * @param event an {@link AtmosphereResourceEvent}
      * @throws java.io.IOException
      */
-    void onStateChange(AtmosphereResourceEvent<F, G> event) throws IOException;
+    void onStateChange(AtmosphereResourceEvent event) throws IOException;
 
 
     /**

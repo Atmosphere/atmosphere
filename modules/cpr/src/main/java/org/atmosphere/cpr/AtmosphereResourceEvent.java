@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -35,7 +50,6 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
 import java.io.IOException;
@@ -44,14 +58,14 @@ import java.io.OutputStream;
 /**
  * An AtmosphereResourceEvent is created every time an event occurs like when a
  * {@link Broadcaster#broadcast(java.lang.Object)} is executed, when a Browser close
- * remotly close the connection or when a suspended times out or gets resumed. When
- * such events occcurs, an instance of that class will be created and its associated
+ * remotely close the connection or when a suspended times out or gets resumed. When
+ * such events occurs, an instance of that class will be created and its associated
  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}
  * will be invoked.
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResourceEvent<E, F> {
+public interface AtmosphereResourceEvent {
 
     /**
      * Return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
@@ -66,7 +80,7 @@ public interface AtmosphereResourceEvent<E, F> {
      *
      * @param o an Object that can be retrieved with {@link #getMessage()}.
      */
-    public void setMessage(Object o);
+    public AtmosphereResourceEvent setMessage(Object o);
 
     /**
      * Return true is the response gets resumed after a timeout.
@@ -105,18 +119,19 @@ public interface AtmosphereResourceEvent<E, F> {
      *
      * @return {@link AtmosphereResource}
      */
-    public AtmosphereResource<E, F> getResource();
+    public AtmosphereResource getResource();
 
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
      * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
-     * will be directly written using the {
+     * will be directly written using the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
      *
      * @param os {@link OutputStream}
      * @param o  {@link Object}
+     *
      * @throws java.io.IOException
      */
-    public void write(OutputStream os, Object o) throws IOException;
+    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException;
 
     /**
      * Return a {@link Throwable} if an unexpected exception occured.
@@ -124,4 +139,17 @@ public interface AtmosphereResourceEvent<E, F> {
      * @return {@link Throwable} if an unexpected exception occured.
      */
     public Throwable throwable();
+
+    /**
+     * Write the {@link byte} using the underlying {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
+     *
+     * @param o  {@link byte}
+     * @throws java.io.IOException
+     */
+    public AtmosphereResourceEvent write(byte[] o) throws IOException ;
+
+    /**
+     * Return the broadcaster associated with the {@link AtmosphereResource} this object contains.
+     */
+    public Broadcaster broadcaster();
 }

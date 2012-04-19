@@ -16,8 +16,6 @@
 
 package org.atmosphere.gwt.client.extra;
 
-import com.google.gwt.dom.client.Document;
-import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.logical.shared.CloseEvent;
 import com.google.gwt.event.logical.shared.CloseHandler;
 import com.google.gwt.event.shared.EventHandler;
@@ -29,7 +27,11 @@ import com.google.gwt.user.client.Window.ClosingEvent;
 
 /**
  * @author p.havelaar
+ * @deprecated LoadRegister is deprecated for GWT 2.4.0 and above. Use the GWT 
+ * provided Window class methods addCloseHandler and addWindowClosingHandler to
+ * register unload event handlers.
  */
+@Deprecated
 public class LoadRegister {
 
     public static class BeforeUnloadEvent extends GwtEvent<BeforeUnloadHandler> {
@@ -87,23 +89,19 @@ public class LoadRegister {
         public void onUnload(UnloadEvent event);
     }
 
-    public static HandlerRegistration addBeforeUnloadHandler(BeforeUnloadHandler handler) {
+    public static HandlerRegistration addBeforeUnloadHandler(final BeforeUnloadHandler handler) {
         maybeInit();
         return eventBus.addHandler(BeforeUnloadEvent.getType(), handler);
     }
 
-    public static HandlerRegistration addUnloadHandler(UnloadHandler handler) {
+    public static HandlerRegistration addUnloadHandler(final UnloadHandler handler) {
         maybeInit();
         return eventBus.addHandler(UnloadEvent.getType(), handler);
     }
 
     private static void maybeInit() {
         if (!initialized) {
-            if (isFirefox()) {
-                initWindowHandlers();
-            } else {
-                initRootHandlers(Document.get().getBody());
-            }
+            initWindowHandlers();
             initialized = true;
         }
     }
@@ -116,22 +114,7 @@ public class LoadRegister {
     static void onUnload() {
         eventBus.fireEvent(unloadEvent);
     }
-
-    private static boolean isFirefox() {
-        String ua = userAgent();
-        return ua.indexOf("gecko") != -1 && ua.indexOf("webkit") == -1;
-    }
-
-    ;
-
-    private static native String userAgent() /*-{
-        return $wnd.navigator.userAgent.toLowerCase();
-    }-*/;
-
-    private static native Element getWindow() /*-{
-        return $wnd;
-    }-*/;
-
+    
     private static void initWindowHandlers() {
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             @Override
@@ -146,40 +129,6 @@ public class LoadRegister {
             }
         });
     }
-
-    private static native void initRootHandlers(Element element) /*-{
-        var ref = element;
-        var oldBeforeUnload = ref.onbeforeunload;
-        var oldUnload = ref.onunload;
-
-        ref.onbeforeunload = function(evt) {
-            var ret,oldRet;
-            try {
-                ret = $entry(@org.atmosphere.gwt.client.extra.LoadRegister::onBeforeUnload())();
-            } finally {
-                oldRet = oldBeforeUnload && oldBeforeUnload(evt);
-            }
-            // Avoid returning null as IE6 will coerce it into a string.
-            // Ensure that "" gets returned properly.
-            if (ret != null) {
-                return ret;
-            }
-            if (oldRet != null) {
-                return oldRet;
-            }
-            // returns undefined.
-        };
-
-        ref.onunload = $entry(function(evt) {
-            try {
-                @org.atmosphere.gwt.client.extra.LoadRegister::onUnload()();
-            } finally {
-                oldUnload && oldUnload(evt);
-                ref.onbeforeunload = null;
-                ref.onunload = null;
-            }
-        });
-    }-*/;
 
     private static SimpleEventBus eventBus = new SimpleEventBus();
     private static boolean initialized = false;

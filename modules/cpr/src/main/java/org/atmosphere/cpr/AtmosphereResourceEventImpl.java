@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -37,8 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,8 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<HttpServletRequest,
-        HttpServletResponse> {
+public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     // Was the remote connection closed.
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
@@ -86,14 +98,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
      * {@inheritDoc}
      */
     public boolean isResuming() {
-        return resource.action().type == AtmosphereServlet.Action.TYPE.RESUME;
+        return resource.action().type == AtmosphereFramework.Action.TYPE.RESUME;
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isSuspended() {
-        return resource.action().type == AtmosphereServlet.Action.TYPE.SUSPEND;
+        return resource.action().type == AtmosphereFramework.Action.TYPE.SUSPEND;
     }
 
     /**
@@ -110,8 +122,9 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
      *
      * @param message The message broadcasted using {@link Broadcaster#broadcast(java.lang.Object)}
      */
-    public void setMessage(Object message) {
+    public AtmosphereResourceEvent setMessage(Object message) {
         this.message = message;
+        return this;
     }
 
     /**
@@ -128,12 +141,18 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
         return isCancelled.get();
     }
 
-    protected void setCancelled(boolean isCancelled) {
+    protected AtmosphereResourceEvent setCancelled(boolean isCancelled) {
+        check();
+        resource.action().type = AtmosphereFramework.Action.TYPE.CANCELLED;
         this.isCancelled.set(isCancelled);
+        return this;
     }
 
-    protected void setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+    protected AtmosphereResourceEvent setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+        check();
+        resource.action().type = AtmosphereFramework.Action.TYPE.TIMEOUT;
         this.isResumedOnTimeout.set(isResumedOnTimeout);
+        return this;
     }
 
     @Override
@@ -165,7 +184,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
 
     /**
      * {@inheritDoc}
-
      */
     public Throwable throwable() {
         return throwable;
@@ -174,24 +192,50 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent<Http
     /**
      * {@inheritDoc}
      */
-    public AtmosphereResource<HttpServletRequest, HttpServletResponse> getResource() {
+    @Override
+    public AtmosphereResourceEvent write(byte[] o) throws IOException {
+        check();
+        resource.getResponse().getOutputStream().write(o);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Broadcaster broadcaster() {
+        return resource.getBroadcaster();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AtmosphereResource getResource() {
         return resource;
     }
 
     /**
      * {@inheritDoc}
      */
-    public void write(OutputStream os, Object o) throws IOException {
+    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException {
+        check();
         resource.write(os, o);
+        return this;
     }
 
-    public void setThrowable(Throwable t) {
+    private void check() {
+        if (resource == null) throw new IllegalStateException("Recycled");
+    }
+
+    public AtmosphereResourceEvent setThrowable(Throwable t) {
         this.throwable = t;
+        return this;
     }
 
-    public void destroy(){
+    public AtmosphereResourceEvent destroy() {
         resource = null;
         message = null;
+        return this;
     }
 
     @Override

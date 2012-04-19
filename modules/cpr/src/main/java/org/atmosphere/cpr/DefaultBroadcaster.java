@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -43,8 +58,6 @@ import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -89,8 +102,8 @@ public class DefaultBroadcaster implements Broadcaster {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
 
-    protected final ConcurrentLinkedQueue<AtmosphereResource<?, ?>> resources =
-            new ConcurrentLinkedQueue<AtmosphereResource<?, ?>>();
+    protected final ConcurrentLinkedQueue<AtmosphereResource> resources =
+            new ConcurrentLinkedQueue<AtmosphereResource>();
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
     protected final BlockingQueue<AsyncWriteToken> asyncWriteQueue = new LinkedBlockingQueue<AsyncWriteToken>();
@@ -149,7 +162,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @return an instance of {@link BroadcasterConfig}
      */
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
-        return new BroadcasterConfig(AtmosphereServlet.broadcasterFilters, config);
+        return new BroadcasterConfig(config.framework().broadcasterFilters, config);
     }
 
     /**
@@ -201,7 +214,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public Collection<AtmosphereResource<?, ?>> getAtmosphereResources() {
+    public Collection<AtmosphereResource> getAtmosphereResources() {
         return Collections.unmodifiableCollection(resources);
     }
 
@@ -223,7 +236,7 @@ public class DefaultBroadcaster implements Broadcaster {
         synchronized (resources) {
             try {
                 // Next, we need to create a new broadcaster per resource.
-                for (AtmosphereResource<?, ?> resource : resources) {
+                for (AtmosphereResource resource : resources) {
                     Broadcaster b = BroadcasterFactory.getDefault()
                             .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
@@ -295,7 +308,7 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     public void resumeAll() {
         synchronized (resources) {
-            for (AtmosphereResource<?, ?> r : resources) {
+            for (AtmosphereResource r : resources) {
                 try {
                     r.resume();
                 } catch (Throwable t) {
@@ -519,6 +532,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void push(Entry entry) {
+        push(entry, true);
+    }
+
+    protected void push(Entry entry, boolean rec) {
 
         if (destroyed.get()) {
             return;
@@ -529,7 +546,7 @@ public class DefaultBroadcaster implements Broadcaster {
             recentActivity.set(true);
 
             String prevMessage = entry.message.toString();
-            if (!delayedBroadcast.isEmpty()) {
+            if (rec && !delayedBroadcast.isEmpty()) {
                 Iterator<Entry> i = delayedBroadcast.iterator();
                 StringBuilder b = new StringBuilder();
                 while (i.hasNext()) {
@@ -541,7 +558,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                 && entry.message instanceof String) {
                             b.append(e.message);
                         } else {
-                            push(e);
+                            push(e, false);
                         }
                     } finally {
                         i.remove();
@@ -573,7 +590,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (resources.isEmpty()) {
                 logger.debug("Broadcaster {} doesn't have any associated resource", getID());
 
-                AtmosphereResource<?, ?> r = null;
+                AtmosphereResource r = null;
                 if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
                     r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
                 }
@@ -587,7 +604,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             try {
                 if (entry.multipleAtmoResources == null) {
-                    for (AtmosphereResource<?, ?> r : resources) {
+                    for (AtmosphereResource r : resources) {
                         finalMsg = perRequestFilter(r, entry);
 
                         if (finalMsg == null) {
@@ -599,8 +616,8 @@ public class DefaultBroadcaster implements Broadcaster {
                             queueWriteIO(r, finalMsg, entry);
                         }
                     }
-                } else if (entry.multipleAtmoResources instanceof AtmosphereResource<?, ?>) {
-                    finalMsg = perRequestFilter((AtmosphereResource<?, ?>) entry.multipleAtmoResources, entry);
+                } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
+                    finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry);
 
                     if (finalMsg == null) {
                         logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
@@ -608,11 +625,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (entry.writeLocally) {
-                        queueWriteIO((AtmosphereResource<?, ?>) entry.multipleAtmoResources, finalMsg, entry);
+                        queueWriteIO((AtmosphereResource) entry.multipleAtmoResources, finalMsg, entry);
                     }
                 } else if (entry.multipleAtmoResources instanceof Set) {
-                    Set<AtmosphereResource<?, ?>> sub = (Set<AtmosphereResource<?, ?>>) entry.multipleAtmoResources;
-                    for (AtmosphereResource<?, ?> r : sub) {
+                    Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
+                    for (AtmosphereResource r : sub) {
                         finalMsg = perRequestFilter(r, entry);
 
                         if (finalMsg == null) {
@@ -632,17 +649,17 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void queueWriteIO(AtmosphereResource<?, ?> r, Object finalMsg, Entry entry) throws InterruptedException {
+    protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
         asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
     }
 
-    protected Object perRequestFilter(AtmosphereResource<?, ?> r, Entry msg) {
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg) {
         Object finalMsg = msg.message;
 
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
             synchronized (r) {
                 if (isAtmosphereResourceValid(r)) {
-                    if (r.getRequest() instanceof HttpServletRequest && bc.hasPerRequestFilters()) {
+                    if (bc.hasPerRequestFilters()) {
                         BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
                         if (a.action() == BroadcastAction.ACTION.ABORT) {
                             return null;
@@ -694,8 +711,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             try {
-                HttpServletRequest.class.cast(r.getRequest())
-                        .setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             } catch (Throwable t) {
                 logger.error("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and will be added to the configured BroadcasterCache for later retrieval", event);
@@ -766,10 +782,10 @@ public class DefaultBroadcaster implements Broadcaster {
         };
     }
 
-    protected void checkCachedAndPush(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
+    protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
-            HttpServletRequest.class.cast(r.getRequest()).setAttribute(CACHED, "true");
+            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 broadcast(r, e);
@@ -777,7 +793,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean retrieveTrackedBroadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
+    protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         List<?> missedMsg = broadcasterCache.retrieveFromCache(r);
         if (missedMsg!=null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
@@ -786,7 +802,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    protected void trackBroadcastMessage(final AtmosphereResource<?, ?> r, Object msg) {
+    protected void trackBroadcastMessage(final AtmosphereResource r, Object msg) {
         if (destroyed.get() || broadcasterCache == null) return;
         try {
             broadcasterCache.addToCache(r, msg);
@@ -795,7 +811,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void broadcast(final AtmosphereResource<?, ?> r, final AtmosphereResourceEvent e) {
+    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
@@ -803,7 +819,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    public void onException(Throwable t, final AtmosphereResource<?, ?> ar) {
+    public void onException(Throwable t, final AtmosphereResource ar) {
         logger.debug("onException()", t);
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
@@ -834,7 +850,7 @@ public class DefaultBroadcaster implements Broadcaster {
         } else {
             r.resume();
         }
-        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(r.getRequest(false)).getAttribute(ASYNC_TOKEN));
+        cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
     }
 
     /**
@@ -842,10 +858,10 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param r
      */
-    public void cacheLostMessage(AtmosphereResource<?, ?> r) {
+    public void cacheLostMessage(AtmosphereResource r) {
         // Quite ugly cast that need to be fixed all over the place
-        cacheLostMessage(r, (AsyncWriteToken) HttpServletRequest.class.cast(
-                AtmosphereResourceImpl.class.cast(r).getRequest(false)).getAttribute(ASYNC_TOKEN));
+        cacheLostMessage(r, (AsyncWriteToken)
+                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN));
     }
 
 
@@ -854,7 +870,7 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param r
      */
-    public void cacheLostMessage(AtmosphereResource<?, ?> r, AsyncWriteToken token) {
+    public void cacheLostMessage(AtmosphereResource r, AsyncWriteToken token) {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
@@ -880,12 +896,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         messages.offer(new Entry(newMsg, null, f, msg));
@@ -910,16 +926,16 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> r) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource<?, ?> r");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         messages.offer(new Entry(newMsg, r, f, msg));
@@ -934,19 +950,19 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcastOnResume(T msg)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         broadcastOnResume.offer(new Entry(newMsg, null, f, msg));
         return f;
     }
 
-    protected void broadcastOnResume(AtmosphereResource<?, ?> r) {
+    protected void broadcastOnResume(AtmosphereResource r) {
         Iterator<Entry> i = broadcastOnResume.iterator();
         while (i.hasNext()) {
             Entry e = i.next();
@@ -963,18 +979,18 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource<?, ?>> subset)");
-            return null;
+            return (new BroadcasterFuture<Object>(msg)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return null;
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size());
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -983,12 +999,12 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereResource<?, ?> addAtmosphereResource(AtmosphereResource<?, ?> r) {
+    public Broadcaster addAtmosphereResource(AtmosphereResource r) {
 
         try {
             if (destroyed.get()) {
                 logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource<?, ?> r");
-                return r;
+                return this;
             }
 
             start();
@@ -1002,7 +1018,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 // Resume the first in.
                 if (policy == POLICY.FIFO) {
                     // TODO handle null return from poll()
-                    AtmosphereResource<?, ?> resource = resources.poll();
+                    AtmosphereResource resource = resources.poll();
                     try {
                         logger.warn("Too many resource. Forcing resume of {} ", resource);
                         resource.resume();
@@ -1015,7 +1031,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (resources.contains(r)) {
-                return r;
+                return this;
             }
 
             // We need to synchronize here to let the push method cache message.
@@ -1039,10 +1055,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
         }
-        return r;
+        return this;
     }
 
-    private boolean isAtmosphereResourceValid(AtmosphereResource<?, ?> r) {
+    private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !AtmosphereResourceImpl.class.cast(r).isResumed()
                 && !AtmosphereResourceImpl.class.cast(r).isCancelled()
                 && AtmosphereResourceImpl.class.cast(r).isInScope();
@@ -1052,15 +1068,15 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereResource<?, ?> removeAtmosphereResource(AtmosphereResource r) {
+    public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "removeAtmosphereResource(AtmosphereResource r)");
-            return r;
+            return this;
         }
 
         if (!resources.contains(r)) {
-            return null;
+            return this;
         }
         // Prevent two thread to mix operation
         boolean removed = resources.remove(r);
@@ -1077,7 +1093,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
         }
-        return r;
+        return this;
     }
 
     private void notifyIdleListener() {
@@ -1231,12 +1247,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected final static class AsyncWriteToken {
 
-        AtmosphereResource<?, ?> resource;
+        AtmosphereResource resource;
         Object msg;
         BroadcasterFuture future;
         Object originalMessage;
 
-        public AsyncWriteToken(AtmosphereResource<?, ?> resource, Object msg, BroadcasterFuture future, Object originalMessage) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;

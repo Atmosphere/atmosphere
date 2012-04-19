@@ -58,9 +58,9 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
     /**
-     * Tell Atmosphere which {@link org.atmosphere.cpr.CometSupport} implementation to use.
+     * Tell Atmosphere which {@link AsyncSupport} implementation to use.
      */
-    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".cometSupport";
+    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".asyncSupport";
     /**
      * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.
      */
@@ -90,11 +90,11 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_PROTOCOL = WebSocketProtocol.class.getName();
     /**
-     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an HTTPServletRequest
+     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest
      */
     String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.messageContentType";
     /**
-     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an HTTPServletRequest
+     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest
      */
     String WEBSOCKET_METHOD = "org.atmosphere.websocket.messageMethod";
     /**
@@ -111,6 +111,14 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_PATH_DELIMITER = "org.atmosphere.websocket.pathDelimiter";
     /**
+     * Set the WebSocket mas text size: size<0 No aggregation of frames to messages, >=0 max size of text frame aggregation buffer in characters
+     */
+    String WEBSOCKET_MAXTEXTSIZE = "org.atmosphere.websocket.maxTextMessageSize";
+    /**
+     * Set the WebSocket mas text size: size<0 No aggregation of frames to messages, >=0 max size of text frame aggregation buffer in characters
+     */
+    String WEBSOCKET_MAXBINARYSIZE = "org.atmosphere.websocket.maxBinaryMessageSize";
+    /**
      * The Atmosphere resource to use.
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
@@ -119,11 +127,11 @@ public interface ApplicationConfig {
      */
     String BROADCAST_FILTER_CLASSES = ApplicationConfig.class.getPackage().getName() + ".broadcastFilterClasses";
     /**
-     * A request attribute used to tell {@link org.atmosphere.cpr.CometSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
+     * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
      */
     String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
     /**
-     * A request attribute telling a {@link org.atmosphere.cpr.CometSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
+     * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
      */
     String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
     /**
@@ -133,19 +141,19 @@ public interface ApplicationConfig {
     /**
      * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)
      */
-    String MAX_INACTIVE = CometSupport.class.getName() + ".maxInactiveActivity";
+    String MAX_INACTIVE = "org.atmosphere.cpr.CometSupport.maxInactiveActivity";
     /**
      * Support {@link Trackable} by default and create instance of those objects on the fly
      */
     String SUPPORT_TRACKABLE = ApplicationConfig.class.getPackage().getName() + ".Trackable";
     /**
-     * Allow query string as set as request's header. 
+     * Allow query string as set as request's header.
      */
-    String ALLOW_QUERYSTRING_AS_REQUEST =  ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
+    String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
     /**
      * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
      */
-    String STREAMING_PADDING_MODE =  ApplicationConfig.class.getPackage().getName() + ".padding";
+    String STREAMING_PADDING_MODE = ApplicationConfig.class.getPackage().getName() + ".padding";
     /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} instead among them. Default is false.
      */
@@ -186,7 +194,7 @@ public interface ApplicationConfig {
      * The Servlet's mapping value to the SERVLET_CLASS
      */
     String MAPPING = "org.atmosphere.mapping";
-     /**
+    /**
      * The Servlet's mapping value to the FILTER_CLASS
      */
     String FILTER_NAME = "org.atmosphere.filter.name";
@@ -216,17 +224,24 @@ public interface ApplicationConfig {
      * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
      * a Container
      */
-    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE =  ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
+    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
 	
     String PROPERTY_CUSTOM_COMET_SUPPORT = "org.atmosphere.cpr.customCometSupport";
 
     /**
      * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
-      */
+     */
     String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.class.getPackage().getName() + ".atmosphereHandlerPath";
     /**
      * Jersey's ContainerResponseWriter.
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
-
+    /**
+     *  Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
+     */
+    String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
+    /**
+     * The default content-type value used when Atmosphere requires one. Default is text/plain.
+     */
+    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContextType";
 }

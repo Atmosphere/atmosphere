@@ -4,7 +4,7 @@
 <jboss-web>
     <class-loading java2ClassLoadingCompliance="true">
         <loader-repository>
-            org.atmosphere:loader=atmosphere-pubsub.war
+            org.atmosphere:loader=atmosphere-jquery-pubsub.war
         </loader-repository>
     </class-loading>
 </jboss-web> 

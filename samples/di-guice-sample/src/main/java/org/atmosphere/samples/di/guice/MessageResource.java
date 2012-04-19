@@ -23,6 +23,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.jersey.Broadcastable;
+import org.atmosphere.jersey.JerseyBroadcaster;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class MessageResource {
     @Path("{name}")
     @Suspend(outputComments = true, resumeOnBroadcast = false, listeners = EventsLogger.class)
     public Broadcastable listen(@PathParam("name") String topic) throws JSONException {
-        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
+        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class, topic, true);
         logger.info("thread: {} LISTENING to '{}'", Thread.currentThread().getName(), broadcaster.getID());
         if (service == null) {
             throw new AssertionError();
@@ -66,7 +67,7 @@ public class MessageResource {
     @Broadcast
     public Broadcastable publish(@PathParam("name") String topic, @FormParam("from") String from,
                                  @FormParam("msg") String message) throws JSONException {
-        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, topic, true);
+        Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(JerseyBroadcaster.class, topic, true);
         logger.info("thread: {} PUBLISH to '{}' from {}: {}",
                 new Object[]{Thread.currentThread().getName(), broadcaster.getID(), from, message});
         if (service == null) {

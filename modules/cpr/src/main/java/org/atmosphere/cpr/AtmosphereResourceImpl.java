@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,22 +50,21 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.AtmosphereFramework.Action;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
@@ -58,33 +72,27 @@ import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
- * {@link AtmosphereResource} implementation for supporting {@link HttpServletRequest}
- * and {@link HttpServletResponse}.
+ * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
+ * and {@link AtmosphereRequest}.
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResourceImpl implements
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> {
+public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceImpl.class);
 
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
     public static final String METEOR = Meteor.class.getName();
-
-    // The {@link HttpServletRequest}
-    private final HttpServletRequest req;
-    // The {@link HttpServletResponse}
-    private final HttpServletResponse response;
-    // The upcoming Action.
-    protected final AtmosphereServlet.Action action = new AtmosphereServlet.Action();
-    // The Broadcaster
+    private final AtmosphereRequest req;
+    private final AtmosphereResponse response;
+    protected final Action action = new Action();
     protected Broadcaster broadcaster;
-    // ServletContext
     private final AtmosphereConfig config;
-    protected final CometSupport cometSupport;
+    protected final AsyncSupport asyncSupport;
     private Serializer serializer;
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
@@ -92,7 +100,8 @@ public class AtmosphereResourceImpl implements
     private boolean useWriter = true;
     private boolean isResumed = false;
     private boolean isCancelled = false;
-
+    private boolean resumeOnBroadcast = false;
+    private Object writeOnTimeout = null;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -102,25 +111,26 @@ public class AtmosphereResourceImpl implements
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
     private final AtmosphereHandler atmosphereHandler;
     private final boolean writeHeaders;
+    private final String padding;
 
     /**
      * Create an {@link AtmosphereResource}.
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
-     * @param req               The {@link javax.servlet.http.HttpServletRequest}
-     * @param response          The {@link javax.servlet.http.HttpServletResponse}
-     * @param cometSupport      The {@link org.atmosphere.cpr.CometSupport}
+     * @param req               The {@link AtmosphereRequest}
+     * @param response          The {@link AtmosphereResource}
+     * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
      */
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
-                                  HttpServletRequest req, HttpServletResponse response,
-                                  CometSupport cometSupport, AtmosphereHandler atmosphereHandler) {
+                                  AtmosphereRequest req, AtmosphereResponse response,
+                                  AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
         this.broadcaster = broadcaster;
         this.config = config;
-        this.cometSupport = cometSupport;
+        this.asyncSupport = asyncSupport;
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
@@ -136,9 +146,7 @@ public class AtmosphereResourceImpl implements
         req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
-        String padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
-        beginCompatibleData = createStreamingPadding(padding);
-
+        padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
     }
 
@@ -160,12 +168,82 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public synchronized void resume() {
+    @Override
+    public AtmosphereResource writeOnTimeout(Object o) {
+        writeOnTimeout = o;
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object writeOnTimeout() {
+        return writeOnTimeout;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TRANSPORT transport() {
+        if (req == null) return TRANSPORT.UNDEFINED;
+
+        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (s == null) return TRANSPORT.UNDEFINED;
+
+        s = s.replace("-", "_").toUpperCase();
+        if (TRANSPORT.POLLING.name().equals(s)) {
+            return TRANSPORT.POLLING;
+        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
+            return TRANSPORT.LONG_POLLING;
+        } else if (TRANSPORT.STREAMING.name().equals(s)) {
+            return TRANSPORT.STREAMING;
+        } else if (TRANSPORT.JSONP.name().equals(s)) {
+            return TRANSPORT.JSONP;
+        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
+            return TRANSPORT.WEBSOCKET;
+        } else {
+            return TRANSPORT.UNDEFINED;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast) {
+        this.resumeOnBroadcast = resumeOnBroadcast;
+        // For legacy reason
+        req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, resumeOnBroadcast);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isSuspended() {
+        return event.isSuspended();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean resumeOnBroadcast() {
+        return resumeOnBroadcast;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public synchronized AtmosphereResource resume() {
         // We need to synchronize the method because the resume may occurs at the same time a message is published
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
             if (!isResumed && isInScope) {
-                action.type = AtmosphereServlet.Action.TYPE.RESUME;
+                action.type = Action.TYPE.RESUME;
                 isResumed = true;
 
                 try {
@@ -174,7 +252,7 @@ public class AtmosphereResourceImpl implements
                     // Jetty NPE toString()
                     // Ignore
                     // Stop here as the request object as becomes invalid.
-                    return;
+                    return this;
                 }
 
                 // We need it as Jetty doesn't support timeout
@@ -216,60 +294,53 @@ public class AtmosphereResourceImpl implements
                 }
 
                 if (req.getAttribute(PRE_SUSPEND) == null) {
-                    cometSupport.action(this);
+                    asyncSupport.action(this);
                 }
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
             }
-
-            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                AtmosphereResponse.class.cast(response).destroy();
-            }
-
-            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                AtmosphereRequest.class.cast(req).destroy();
-            }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend() {
-        suspend(-1);
+    public AtmosphereResource suspend() {
+        return suspend(-1);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout) {
-        suspend(timeout, true);
+    public AtmosphereResource suspend(long timeout) {
+        return suspend(timeout, true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout, TimeUnit timeunit) {
-        suspend(timeout, timeunit, true);
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit) {
+        return suspend(timeout, timeunit, true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public void suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
+    public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
         long timeoutms = -1;
         if (timeunit != null) {
             timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
         }
 
-        suspend(timeoutms, true);
+        return suspend(timeoutms, true);
     }
 
-    public void suspend(long timeout, boolean flushComment) {
+    public AtmosphereResource suspend(long timeout, boolean flushComment) {
 
-        if (event.isSuspended()) return;
+        if (event.isSuspended()) return this;
 
         if (config.isSupportSession()
                 && req.getSession(false) != null
@@ -282,16 +353,21 @@ public class AtmosphereResourceImpl implements
         if (req.getAttribute(DefaultBroadcaster.CACHED) != null) {
             // Do nothing because we have found cached message which was written already, and the handler resumed.
             req.removeAttribute(DefaultBroadcaster.CACHED);
-            return;
+            return this;
         }
 
         if (!event.isResumedOnTimeout()) {
 
-            if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-                String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
+            Enumeration<String> connection = req.getHeaders("Connection");
+            if (connection == null) {
+                connection = req.getHeaders("connection");
+            }
+
+            if (connection != null && connection.hasMoreElements()) {
+                String[] e = connection.nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                        if (writeHeaders && !cometSupport.supportWebSocket()) {
+                        if (writeHeaders && !asyncSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
                             req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
@@ -301,9 +377,13 @@ public class AtmosphereResourceImpl implements
                 }
             }
 
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) != null && !req.getHeader(X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase("streaming")) {
+                flushComment = false;
+            }
+
             if (flushComment) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
-            } else {
+            } else if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
             }
 
@@ -317,7 +397,7 @@ public class AtmosphereResourceImpl implements
             }
 
             if (writeHeaders && enableAccessControl) {
-                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
                 response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
@@ -325,7 +405,7 @@ public class AtmosphereResourceImpl implements
                 write();
             }
             req.setAttribute(PRE_SUSPEND, "true");
-            action.type = AtmosphereServlet.Action.TYPE.SUSPEND;
+            action.type = Action.TYPE.SUSPEND;
             action.timeout = timeout;
 
             // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
@@ -352,9 +432,15 @@ public class AtmosphereResourceImpl implements
             req.removeAttribute(PRE_SUSPEND);
             notifyListeners();
         }
+        return this;
     }
 
     void write() {
+
+        if (beginCompatibleData == null) {
+            beginCompatibleData = createStreamingPadding(padding);
+        }
+
         try {
             if (useWriter && !((Boolean) req.getAttribute(ApplicationConfig.PROPERTY_USE_STREAM))) {
                 try {
@@ -384,7 +470,7 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletRequest getRequest(boolean enforceScope) {
+    public AtmosphereRequest getRequest(boolean enforceScope) {
         if (enforceScope && !isInScope) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
@@ -394,7 +480,7 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletResponse getResponse(boolean enforceScope) {
+    public AtmosphereResponse getResponse(boolean enforceScope) {
         if (enforceScope && !isInScope) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
@@ -404,14 +490,14 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public HttpServletRequest getRequest() {
+    public AtmosphereRequest getRequest() {
         return getRequest(true);
     }
 
     /**
      * {@inheritDoc}
      */
-    public HttpServletResponse getResponse() {
+    public AtmosphereResponse getResponse() {
         return getResponse(true);
     }
 
@@ -452,8 +538,9 @@ public class AtmosphereResourceImpl implements
     /**
      * {@inheritDoc}
      */
-    public void setBroadcaster(Broadcaster broadcaster) {
+    public AtmosphereResource setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
+        return this;
     }
 
     /**
@@ -483,9 +570,9 @@ public class AtmosphereResourceImpl implements
     }
 
     /**
-     * Is the {@link HttpServletRequest} still valid.
+     * Is the {@link AtmosphereRequest} still valid.
      *
-     * @return true if the {@link HttpServletRequest} still valid
+     * @return true if the {@link AtmosphereRequest} still valid
      */
     public boolean isInScope() {
         return isInScope;
@@ -496,15 +583,22 @@ public class AtmosphereResourceImpl implements
      *
      * @param s
      */
-    public void setSerializer(Serializer s) {
+    public AtmosphereResource setSerializer(Serializer s) {
         serializer = s;
+        return this;
     }
 
-    public boolean isResumed(){
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isResumed() {
         return isResumed;
     }
 
-    protected boolean isCancelled(){
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isCancelled() {
         return isCancelled;
     }
 
@@ -518,7 +612,7 @@ public class AtmosphereResourceImpl implements
      * @param o  an Object
      * @throws IOException
      */
-    public void write(OutputStream os, Object o) throws IOException {
+    public AtmosphereResource write(OutputStream os, Object o) throws IOException {
         if (o == null) throw new IllegalStateException("Object cannot be null");
 
         if (serializer != null) {
@@ -526,6 +620,7 @@ public class AtmosphereResourceImpl implements
         } else {
             response.getOutputStream().write(o.toString().getBytes());
         }
+        return this;
     }
 
     /**
@@ -569,9 +664,10 @@ public class AtmosphereResourceImpl implements
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
-    public void addEventListener(AtmosphereResourceEventListener e) {
-        if (listeners.contains(e)) return;
+    public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
+        if (listeners.contains(e)) return this;
         listeners.add(e);
+        return this;
     }
 
     /**
@@ -579,32 +675,35 @@ public class AtmosphereResourceImpl implements
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
-    public void removeEventListener(AtmosphereResourceEventListener e) {
+    public AtmosphereResource removeEventListener(AtmosphereResourceEventListener e) {
         listeners.remove(e);
+        return this;
     }
 
     /**
      * Remove all {@link AtmosphereResourceEventListener}.
      */
-    public void removeEventListeners() {
+    public AtmosphereResource removeEventListeners() {
         listeners.clear();
+        return this;
     }
 
     /**
      * Notify {@link AtmosphereResourceEventListener}.
      */
-    public void notifyListeners() {
+    public AtmosphereResource notifyListeners() {
         notifyListeners(event);
+        return this;
     }
 
     /**
      * Notify {@link AtmosphereResourceEventListener}.
      */
-    public void notifyListeners(AtmosphereResourceEvent event) {
+    public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.size() > 0) {
             logger.trace("Invoking listener with {}", event);
         } else {
-            return;
+            return this;
         }
 
         Action oldAction = action;
@@ -633,6 +732,7 @@ public class AtmosphereResourceImpl implements
                 logger.warn("Listener error {}", t2);
             }
         }
+        return this;
     }
 
     /**
@@ -645,33 +745,33 @@ public class AtmosphereResourceImpl implements
     }
 
     void onThrowable(AtmosphereResourceEvent e) {
-        AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
-                (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+        AtmosphereHandler atmosphereHandler =
+                (AtmosphereHandler)
                         req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
         }
     }
 
-    void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onSuspend(e);
         }
     }
 
-    void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onResume(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onResume(e);
         }
     }
 
-    void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onDisconnect(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onDisconnect(e);
         }
     }
 
-    void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> e) {
+    void onBroadcast(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onBroadcast(e);
         }
@@ -684,7 +784,7 @@ public class AtmosphereResourceImpl implements
     public synchronized void cancel() throws IOException {
         action.type = Action.TYPE.RESUME;
         isCancelled = true;
-        cometSupport.action(this);
+        asyncSupport.action(this);
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
             AtmosphereResponse.class.cast(response).close();
@@ -745,10 +845,10 @@ public class AtmosphereResourceImpl implements
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
-                ", hasCode" + hashCode() +
+                "\n hasCode" + hashCode() +
                 ",\n action=" + action +
                 ",\n broadcaster=" + broadcaster.getClass().getName() +
-                ",\n cometSupport=" + cometSupport +
+                ",\n asyncSupport=" + asyncSupport +
                 ",\n serializer=" + serializer +
                 ",\n isInScope=" + isInScope +
                 ",\n useWriter=" + useWriter +

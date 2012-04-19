@@ -16,12 +16,10 @@
 package org.atmosphere.plugin.hazelcast;
 
 
-import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Hazelcast;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.core.MessageListener;
-
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

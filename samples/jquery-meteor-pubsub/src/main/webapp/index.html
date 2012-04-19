@@ -6,10 +6,9 @@
 
     <script type="text/javascript">
         $(document).ready(function() {
-            var connectedEndpoint;
-            var callbackAdded = false;
             var detectedTransport = null;
-            var baseUrl = document.location.toString()  + 'pubsub/'
+            var socket = $.atmosphere;
+            var subSocket;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -35,34 +34,24 @@
             }
 
             function subscribe() {
-                // jquery.atmosphere.response
-                function callback(response) {
-                    // Websocket events.
-                    $.atmosphere.log('info', ["response.state: " + response.state]);
-                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
-                    $.atmosphere.log('info', ["response.status: " + response.status]);
+                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                    transport: getElementByIdValue('transport')};
 
+                request.onMessage = function (response) {
                     detectedTransport = response.transport;
-                    if (response.transport != 'polling' && response.state == 'messageReceived') {
-                        $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
-                        if (response.status == 200) {
-                            var data = response.responseBody;
-                            if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
-                            }
+                    if (response.status == 200) {
+                        var data = response.responseBody;
+                        if (data.length > 0) {
+                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
                         }
                     }
-                }
+                };
 
-                var location = baseUrl + getElementByIdValue('topic');
-                connectedEndpoint = $.atmosphere.subscribe(location, !callbackAdded ? callback : null,
-                        $.atmosphere.request = { attachHeadersAsQueryString : true,
-                                                transport: getElementByIdValue('transport') });
-                callbackAdded = true;
+                subSocket = socket.subscribe(request);
             }
 
             function unsubscribe(){
-                $.atmosphere.unsubscribe();
+                socket.unsubscribe();
             }
 
             function connect() {
@@ -102,7 +91,7 @@
                         m = " sent trying to use " + detectedTransport;
                     }
 
-                    connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                    subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -122,7 +111,7 @@
                     m = " sent trying to use " + detectedTransport;
                 }
 
-                connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                 getElementById('phrase').value = '';
                 return false;
@@ -160,7 +149,8 @@
     </style>
 </head>
 <body>
-<h1>Meteor PubSub Sample using Atmosphere's JQuery Plug In</h1>
+<h1>PubSub Sample using Atmosphere's JQuery Plug In. By default the sample use the DefaultBroadcaster.</h1>
+<h2>To enable Redis, XMPP, Hazelcast of ActiveMQ (JMS), uncomments in pom.xml the associated dependency or put atmosphere-{hazelcast|jms|xmpp|redis}.jar under WEB-INF/lib</h2>
 
 <h2>Select PubSub topic to subscribe</h2>
 
@@ -174,6 +164,7 @@
 <div id='select_transport'>
     <select id="transport">
         <option id="autodetect" value="websocket">autodetect</option>
+        <option id="jsonp" value="jsonp">jsonp</option>
         <option id="long-polling" value="long-polling">long-polling</option>
         <option id="streaming" value="streaming">http streaming</option>
         <option id="websocket" value="websocket">websocket</option>

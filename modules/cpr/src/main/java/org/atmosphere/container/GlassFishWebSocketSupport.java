@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -44,16 +59,18 @@ import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
@@ -88,20 +105,10 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
      * {@inheritDoc}
      */
     @Override
-    public Action service(HttpServletRequest request, HttpServletResponse response)
+    public Action service(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
 
-        boolean webSocketEnabled = false;
-        if (request.getHeaders("Connection") != null && request.getHeaders("Connection").hasMoreElements()) {
-            String[] e = request.getHeaders("Connection").nextElement().toString().split(",");
-            for (String upgrade : e) {
-                if (upgrade.equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                    webSocketEnabled = true;
-                    break;
-                }
-            }
-        }
-        if (!webSocketEnabled) {
+        if (!Utils.webSocketEnabled(request)) {
             return super.service(request, response);
         } else {
             Action action = suspended(request, response);
@@ -143,8 +150,8 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
-                webSocketProcessor = new WebSocketProcessor(config.getServlet(), new GrizzlyWebSocket(webSocket), config.getServlet().getWebSocketProtocol());
-                webSocketProcessor.dispatch(webSocket.getRequest());
+                webSocketProcessor = new WebSocketProcessor(config.framework(), new GrizzlyWebSocket(webSocket), config.framework().getWebSocketProtocol());
+                webSocketProcessor.dispatch(AtmosphereRequest.wrap(webSocket.getRequest()));
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
             }
@@ -159,7 +166,8 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         public void onClose(com.sun.grizzly.websockets.WebSocket w, DataFrame df) {
             super.onClose(w, df);
             logger.debug("onClose {} ", w);
-            webSocketProcessor.close();
+            // TODO: Need to talk to Ryan about that one.
+            webSocketProcessor.close(1000);
         }
 
         @Override

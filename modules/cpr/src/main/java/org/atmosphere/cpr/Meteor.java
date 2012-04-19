@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
@@ -71,11 +86,11 @@ public class Meteor {
 
     protected final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
             new ConcurrentHashMap<AtmosphereResource, Meteor>();
-    private final AtmosphereResource<HttpServletRequest, HttpServletResponse> r;
+    private final AtmosphereResource r;
     private Object o;
     private AtomicBoolean isDestroyed = new AtomicBoolean(false);
 
-    private Meteor(AtmosphereResource<HttpServletRequest, HttpServletResponse> r,
+    private Meteor(AtmosphereResource r,
                    List<BroadcastFilter> l, Serializer s) {
 
         this.r = r;
@@ -149,8 +164,8 @@ public class Meteor {
      */
     public final static Meteor build(HttpServletRequest req, Broadcaster.SCOPE scope,
                                      List<BroadcastFilter> l, Serializer s) {
-        AtmosphereResource<HttpServletRequest, HttpServletResponse> r =
-                (AtmosphereResource<HttpServletRequest, HttpServletResponse>)
+        AtmosphereResource r =
+                (AtmosphereResource)
                         req.getAttribute(ATMOSPHERE_RESOURCE);
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
@@ -183,6 +198,26 @@ public class Meteor {
         if (destroyed()) return null;
         r.suspend(l);
         return this;
+    }
+
+    /**
+     * Resume the Meteor after the first broadcast operation. This is useful when long-polling is used.
+     * @param resumeOnBroadcast
+     * @return this
+     */
+    public Meteor resumeOnBroadcast(boolean resumeOnBroadcast) {
+        r.resumeOnBroadcast(resumeOnBroadcast);
+        return this;
+    }
+
+    /**
+     * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be
+     * explicitly set by the client by adding the appropriate {@link HeaderConfig.X_ATMOSPHERE_TRANSPORT} value,
+     * which can be long-polling, streaming, websocket or jsonp.
+     * @return
+     */
+    public AtmosphereResource.TRANSPORT transport() {
+        return r.transport();
     }
 
     /**
@@ -325,9 +360,11 @@ public class Meteor {
      *
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
-    public void addListener(AtmosphereResourceEventListener e) {
-        if (destroyed()) return;
-        r.addEventListener(e);
+    public Meteor addListener(AtmosphereResourceEventListener e) {
+        if (!destroyed()) {
+            r.addEventListener(e);
+        }
+        return this;
     }
 
     /**
@@ -337,9 +374,11 @@ public class Meteor {
      *
      * @param e an inatance of {@link AtmosphereResourceEventListener}
      */
-    public void removeListener(AtmosphereResourceEventListener e) {
-        if (destroyed()) return;
-        r.removeEventListener(e);
+    public Meteor removeListener(AtmosphereResourceEventListener e) {
+        if (!destroyed()){
+            r.removeEventListener(e);
+        }
+        return this;
     }
 
     /**
@@ -363,7 +402,7 @@ public class Meteor {
      *
      * @return the underlying {@link AtmosphereResource}
      */
-    public AtmosphereResource<HttpServletRequest, HttpServletResponse> getAtmosphereResource() {
+    public AtmosphereResource getAtmosphereResource() {
         return r;
     }
 

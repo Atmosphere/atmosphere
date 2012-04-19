@@ -105,7 +105,7 @@
         <dependency>
             <groupId>org.timepedia.exporter</groupId>
             <artifactId>gwtexporter</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

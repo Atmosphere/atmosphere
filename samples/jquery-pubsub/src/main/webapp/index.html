@@ -6,9 +6,9 @@
 
     <script type="text/javascript">
         $(document).ready(function() {
-            var connectedEndpoint;
-            var callbackAdded = false;
             var detectedTransport = null;
+            var socket = $.atmosphere;
+            var subSocket;
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -34,35 +34,25 @@
             }
 
             function subscribe() {
-                // jquery.atmosphere.response
-                function callback(response) {
-                    // Websocket events.
-                    $.atmosphere.log('info', ["response.state: " + response.state]);
-                    $.atmosphere.log('info', ["response.transport: " + response.transport]);
-                    $.atmosphere.log('info', ["response.status: " + response.status]);
+                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                    transport: getElementByIdValue('transport')};
 
+                request.onMessage = function (response) {
                     detectedTransport = response.transport;
-                    if (response.transport != 'polling' && response.state == 'messageReceived') {
-                        $.atmosphere.log('info', ["response.responseBody: " + response.responseBody]);
-                        if (response.status == 200) {
-                            var data = response.responseBody;
-                            if (data.length > 0) {
-                                $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
-                            }
+                    if (response.status == 200) {
+                        var data = response.responseBody;
+                        if (data.length > 0) {
+                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
                         }
                     }
-                }
+                };
 
-                var location = document.location.toString() + 'pubsub/' + getElementByIdValue('topic');
-                connectedEndpoint = $.atmosphere.subscribe(location,
-                        !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: getElementByIdValue('transport') /*, Uncomments for IE CORS support attachHeadersAsQueryString : true, enableXDR : true */ });
-                callbackAdded = true;
+                subSocket = socket.subscribe(request);
             }
 
             function unsubscribe(){
                 callbackAdded = false;
-                $.atmosphere.unsubscribe();
+                socket.unsubscribe();
             }
 
             function connect() {
@@ -102,7 +92,7 @@
                         m = " sent trying to use " + detectedTransport;
                     }
 
-                    connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                    subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                     getElementById('phrase').value = '';
                     return false;
@@ -122,7 +112,7 @@
                     m = " sent trying to use " + detectedTransport;
                 }
 
-                connectedEndpoint.push({data: 'message=' + getElementByIdValue('phrase') + m});
+                subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
 
                 getElementById('phrase').value = '';
                 return false;

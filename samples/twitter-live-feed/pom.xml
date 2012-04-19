@@ -3,19 +3,19 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-twitter-live-feed</artifactId>
     <packaging>war</packaging>
-    <version>0.9-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>atmosphere-twitter-live-feed</name>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jersey</artifactId>
-            <version>${pom.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.ning</groupId>
@@ -30,12 +30,23 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jquery</artifactId>
-            <version>${pom.version}</version>
+            <version>${project.version}</version>
             <type>war</type>
         </dependency>
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-version}</version>
         </dependency>
     </dependencies>
 </project>

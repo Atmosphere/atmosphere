@@ -1,4 +1,19 @@
 /*
+ * Copyright 2012 Jeanfrancois Arcand
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+/*
  * 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
@@ -35,23 +50,19 @@
  * holder.
  *
  */
-
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.uri.UriTemplate;
-import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,29 +71,26 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+import static org.atmosphere.cpr.AtmosphereFramework.Action;
+import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * Base class which implement the semantics of suspending and resuming of a
- * Comet Request.
+ * Comet/WebSocket Request.
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsynchronousProcessor implements IProcessor, CometSupport<AtmosphereResourceImpl> {
+public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
-
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
-    public static final int DEFAULT_SESSION_TIMEOUT = 1800;
-
     protected final AtmosphereConfig config;
-
-    protected final ConcurrentHashMap<HttpServletRequest, AtmosphereResource<HttpServletRequest, HttpServletResponse>>
-            aliveRequests = new ConcurrentHashMap<HttpServletRequest, AtmosphereResource<HttpServletRequest, HttpServletResponse>>();
-
+    protected final ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>
+            aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
-
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
 
     private IProcessor actionProcessor = null;
@@ -105,6 +113,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
         String maxInactive = sc.getInitParameter(MAX_INACTIVE) != null ? sc.getInitParameter(MAX_INACTIVE) :
                 config.getInitParameter(MAX_INACTIVE);
+
         if (maxInactive != null) {
             trackActiveRequest = true;
             final long maxInactiveTime = Long.parseLong(maxInactive);
@@ -112,7 +121,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
             closedDetector.scheduleAtFixedRate(new Runnable() {
                 public void run() {
-                    for (HttpServletRequest req : aliveRequests.keySet()) {
+                    for (AtmosphereRequest req : aliveRequests.keySet()) {
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
                         if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
                             try {
@@ -135,6 +144,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
     }
 
+
     /**
      * Is {@link HttpSession} supported
      *
@@ -154,17 +164,16 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
     /**
      * All proprietary Comet based {@link Servlet} must invoke the suspended
      * method when the first request comes in. The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to suspended or not the current {@link HttpServletResponse}.
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
+     * to suspended or not the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action suspended(HttpServletRequest request, HttpServletResponse response)
-            throws IOException, ServletException {
+    public Action suspended(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
         return action(request, response);
     }
     
@@ -182,70 +191,54 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
              }
          }
 
-         if (webSocketEnabled && !supportWebSocket()) {
-             res.setStatus(501);
-             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-             res.flushBuffer();
-             return new Action();
-         }
+        if (Utils.webSocketEnabled(req) && !supportWebSocket()) {
+            res.setStatus(501);
+            res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+            res.flushBuffer();
+            return new Action();
+        }
 
-         if (config.handlers().isEmpty()) {
-             logger.error("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-             throw new ServletException("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
-         }
+        if (config.handlers().isEmpty()) {
+            logger.error("No AtmosphereHandler found. Make sure you define it inside META-INF/atmosphere.xml");
+            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it insides META-INF/atmosphere.xml");
+        }
 
-         if (supportSession()) {
-             // Create the session needed to support the Resume
-             // operation from disparate requests.
-             HttpSession session = req.getSession(true);
-             // Do not allow times out.
-             if (session.getMaxInactiveInterval() == DEFAULT_SESSION_TIMEOUT) {
-                 session.setMaxInactiveInterval(-1);
-             }
-         }
-         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
+        if (supportSession()) {
+            // Create the session needed to support the Resume
+            // operation from disparate requests.
+            HttpSession session = req.getSession(true);
+            // Do not allow times out.
+            SessionTimeoutSupport.setupTimeout(session);
+        }
 
-         AtmosphereHandlerWrapper handlerWrapper = map(req);
-         // Check Broadcaster state. If destroyed, replace it.
-         Broadcaster b = handlerWrapper.broadcaster;
-         if (b.isDestroyed()) {
-             synchronized (handlerWrapper) {
-                 config.getBroadcasterFactory().remove(b, b.getID());
-                 handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
-             }
-         }
-         AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
- 		handlerWrapper.broadcaster.getBroadcasterConfig().setAtmosphereConfig(config);
+        req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
-         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
-         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+        AtmosphereHandlerWrapper handlerWrapper = map(req);
+        // Check Broadcaster state. If destroyed, replace it.
+        Broadcaster b = handlerWrapper.broadcaster;
+        if (b.isDestroyed()) {
+            synchronized (handlerWrapper) {
+                config.getBroadcasterFactory().remove(b, b.getID());
+                handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
+            }
+        }
+        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
 
-         try {
-             handlerWrapper.atmosphereHandler.onRequest(resource);
-         } catch (IOException t) {
-             resource.onThrowable(t);
-             throw t;
-         }
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
-         if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
-             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-             aliveRequests.put(req, resource);
-         }
-         return resource.action();
-     }
+        try {
+            handlerWrapper.atmosphereHandler.onRequest(resource);
+        } catch (IOException t) {
+            resource.onThrowable(t);
+            throw t;
+        }
 
-    /**
-     * Invoke the {@link AtmosphereHandler#onRequest} method.
-     *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
-     * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    Action action(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-    	
-    	return actionProcessor.processAction(this, req, res);
+        if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
+            req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+            aliveRequests.put(req, resource);
+        }
+        return resource.action();
     }
 
     /**
@@ -273,16 +266,18 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
         
 		// DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
-        if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
+        /*
+		if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
         	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];
         }
+		*/
         return atmosphereHandlerWrapper;
     }
 
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
-     * @param req the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereResponse}
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
@@ -293,13 +288,23 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         } else {
             path = req.getServletPath();
         }
-        if (path == null || path.length() <= 1) {
-            path = "/all";
+
+        if (path.isEmpty()) {
+            path = "/";
         }
 
+        // (1) First, try exact match
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
         if (atmosphereHandlerWrapper == null) {
-            atmosphereHandlerWrapper = map("/all");
+            // (2) Try with a trailing /
+            if (!path.endsWith("/")) {
+                atmosphereHandlerWrapper = map(path + "/");
+            }
+
+            // (3) Try wildcard
+            if (atmosphereHandlerWrapper == null) {
+                atmosphereHandlerWrapper = map("/all");
+            }
         }
 
         if (atmosphereHandlerWrapper == null) {
@@ -312,40 +317,44 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the resume
-     * method when the Atmosphere's application decide to resume the {@link HttpServletResponse}.
+     * method when the Atmosphere's application decide to resume the {@link AtmosphereResponse}.
      * The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to resume (again), suspended or do nothing with the current {@link HttpServletResponse}.
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
+     * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action resumed(HttpServletRequest request, HttpServletResponse response)
+    public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
+        SessionTimeoutSupport.restoreTimeout(request);
+
         return action(request, response);
     }
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the timedout
-     * method when the underlying WebServer time out the {@link HttpServletResponse}.
+     * method when the underlying WebServer time out the {@link AtmosphereResponse}.
      * The returned value, of type
-     * {@link AtmosphereServlet.Action}, tells the proprietary Comet {@link Servlet}
-     * to resume (again), suspended or do nothing with the current {@link HttpServletResponse}.
+     * {@link Action}, tells the proprietary Comet {@link Servlet}
+     * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link HttpServletRequest}
-     * @param response the {@link HttpServletResponse}
+     * @param request  the {@link AtmosphereRequest}
+     * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action timedout(HttpServletRequest request, HttpServletResponse response)
+    public Action timedout(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r = null;
         try {
+            SessionTimeoutSupport.restoreTimeout(request);
+
             if (trackActiveRequest) {
                 long l = (Long) request.getAttribute(MAX_INACTIVE);
                 if (l == -1) {
@@ -414,13 +423,13 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
     void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         if (!r.isInScope()) return;
 
-        HttpServletRequest req = r.getRequest(false);
+        AtmosphereRequest req = r.getRequest(false);
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
-
+        r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
         try {
             if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler =
-                        (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)
+                AtmosphereHandler atmosphereHandler =
+                        (AtmosphereHandler)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
                 synchronized (r) {
@@ -442,7 +451,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
         }
     }
 
-    public static void destroyResource(AtmosphereResource<?, ?> r) {
+    public static void destroyResource(AtmosphereResource r) {
         if (r == null) return;
 
         try {
@@ -465,16 +474,18 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
      * method when the underlying WebServer detect that the client closed
      * the connection.
      *
-     * @param req the {@link HttpServletRequest}
-     * @param res the {@link HttpServletResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action cancelled(HttpServletRequest req, HttpServletResponse res)
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         synchronized (req) {
+            SessionTimeoutSupport.restoreTimeout(req);
+
             AtmosphereResourceImpl r = null;
             try {
                 if (trackActiveRequest) {
@@ -494,7 +505,6 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
                     invokeAtmosphereHandler(r);
 
                     try {
-                        r.getResponse().sendError(503);
                         r.getResponse().getOutputStream().close();
                     } catch (Throwable t) {
                         try {
@@ -528,7 +538,7 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
     protected void shutdown() {
         closedDetector.shutdownNow();
-        for (AtmosphereResource<HttpServletRequest, HttpServletResponse> resource : aliveRequests.values()) {
+        for (AtmosphereResource resource : aliveRequests.values()) {
             try {
                 resource.resume();
             } catch (Throwable t) {
@@ -540,6 +550,47 @@ public abstract class AsynchronousProcessor implements IProcessor, CometSupport<
 
     public boolean supportWebSocket() {
         return false;
+    }
+	
+	 /**
+     * An Callback class that can be used by Framework integrator to handle the close/timedout/resume life cycle
+     * of an {@link AtmosphereResource}. This class support only support {@link AsyncSupport} implementation that
+     * extends {@link AsynchronousProcessor}
+     */
+    public final static class AsynchronousProcessorHook {
+
+        private final AtmosphereResourceImpl r;
+
+        public AsynchronousProcessorHook(AtmosphereResourceImpl r) {
+            this.r = r;
+            if (!AsynchronousProcessor.class.isAssignableFrom(r.asyncSupport.getClass())) {
+                throw new IllegalStateException("AsyncSupport must extends AsynchronousProcessor");
+            }
+        }
+
+        public void closed() {
+            try {
+                ((AsynchronousProcessor) r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
+            } catch (IOException e) {
+                logger.debug("", e);
+            } catch (ServletException e) {
+                logger.debug("", e);
+            }
+        }
+
+        public void timedOut() {
+            try {
+                ((AsynchronousProcessor) r.asyncSupport).timedout(r.getRequest(false), r.getResponse(false));
+            } catch (IOException e) {
+                logger.debug("", e);
+            } catch (ServletException e) {
+                logger.debug("", e);
+            }
+        }
+
+        public void resume() {
+            ((AsynchronousProcessor) r.asyncSupport).action(r);
+        }
     }
     
     public WebSocketFactory getWebSocketFactory(){

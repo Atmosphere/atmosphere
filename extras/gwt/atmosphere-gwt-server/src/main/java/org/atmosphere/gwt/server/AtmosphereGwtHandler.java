@@ -90,12 +90,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * @param messages
      * @param cometResource
      */
-    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, 
+    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse,
             List<Serializable> messages, GwtAtmosphereResource cometResource) {
-        if (messages.size() == 1) {
-            cometResource.post(messages.get(0));
-        } else {
-            cometResource.post((List) messages);
+        if (cometResource != null) {
+            if (messages.size() == 1) {
+                cometResource.post(messages.get(0));
+            } else {
+                cometResource.post(messages);
+            }
         }
     }
 
@@ -171,7 +173,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> resource) throws IOException {
+    public void onRequest(AtmosphereResource resource) throws IOException {
 
         HttpServletRequest request = resource.getRequest();
 
@@ -208,7 +210,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
     /// --- server message handlers
 
-    protected void doServerMessage(HttpServletRequest request, HttpServletResponse response, int connectionID) 
+    protected void doServerMessage(HttpServletRequest request, HttpServletResponse response, int connectionID)
         throws IOException{
         BufferedReader data = request.getReader();
         List<Serializable> postMessages = new ArrayList<Serializable>();
@@ -285,7 +287,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             return null;
         }
     }
-//    
+//
 //    protected String serialize(Serializable message) throws SerializationException {
 //        ServerSerializationStreamWriter streamWriter = new ServerSerializationStreamWriter(RPCUtil.createSimpleSerializationPolicy());
 //        streamWriter.prepareToWrite();
@@ -293,14 +295,12 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //        return streamWriter.toString();
 //	}
 
-    final public void post(HttpServletRequest postRequest, HttpServletResponse postResponse, 
+    final public void post(HttpServletRequest postRequest, HttpServletResponse postResponse,
             List<Serializable> messages, GwtAtmosphereResource cometResource) {
         if (messages == null) {
             return;
         }
-        if (cometResource != null) {
-            doPost(postRequest, postResponse, messages, cometResource);
-        }
+        doPost(postRequest, postResponse, messages, cometResource);
     }
 
     public void broadcast(Serializable message, GwtAtmosphereResource resource) {

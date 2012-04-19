@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9-SNAPSHOT</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-wicket-clock</artifactId>
     <packaging>war</packaging>
-    <version>0.9-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>atmosphere-wicket-clock</name>
     <url>http://maven.apache.org</url>
     <build>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>${pom.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
