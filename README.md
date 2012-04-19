@@ -1,5 +1,5 @@
 ## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
-The Atmosphere Framework contains client and server side components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
+The Atmosphere Framework contains client and server side components. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
@@ -29,7 +29,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
    [Which Atmosphere API should I use for my project?](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
-#### Latest publication
+#### Latest publications
 
 [What's new in Atmosphere 0.9](http://jfarcand.wordpress.com/2012/04/12/atmosphere-9-9-9-9-released-tomcatglassfish-websocket-netty-framework-hazelcast-fluid-api-jquery-optimization/)
 
