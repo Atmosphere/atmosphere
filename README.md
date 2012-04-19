@@ -45,6 +45,8 @@ For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to 
 
 Several Samples are available [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
+#### RoadMap
+
 Atmosphere 0.9 is our official release, and our work in progress version is 1.0, targeted for end of End of May 2012
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
