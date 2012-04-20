@@ -25,6 +25,10 @@ import org.atmosphere.websocket.WebSocketProtocol;
  */
 public interface ApplicationConfig {
     /**
+     * The location of the atmosphere.xml file.
+     */
+    String PROPERTY_ATMOSPHERE_XML = "org.atmosphere.atmosphereDotXml";
+    /**
      * The path that will be used to map request to Jersey
      */
     String PROPERTY_SERVLET_MAPPING = "org.atmosphere.jersey.servlet-mapping";
@@ -233,7 +237,7 @@ public interface ApplicationConfig {
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
     /**
-     *  Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
+     * Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
      */
     String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
     /**

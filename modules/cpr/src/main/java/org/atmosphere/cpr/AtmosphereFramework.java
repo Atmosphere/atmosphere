@@ -67,6 +67,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ATMOSPHERE_XML;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_BLOCKING_COMETSUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_COMET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT;
@@ -155,8 +156,9 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereFramework implements ServletContextProvider {
-
+    public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
+
     protected final List<String> broadcasterFilters = new ArrayList<String>();
     protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
@@ -184,6 +186,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected ServletConfig servletConfig;
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
+    protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
 
     @Override
     public ServletContext getServletContext() {
@@ -449,6 +452,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     .parseBoolean(System.getProperty(PROPERTY_BLOCKING_COMETSUPPORT));
             isCometSupportSpecified = true;
         }
+        atmosphereDotXmlPath = System.getProperty(PROPERTY_ATMOSPHERE_XML, atmosphereDotXmlPath);
 
         if (System.getProperty(DISABLE_ONSTATE_EVENT) != null) {
             initParams.put(DISABLE_ONSTATE_EVENT, System.getProperty(DISABLE_ONSTATE_EVENT));
@@ -672,7 +676,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                     Thread.currentThread().getContextClassLoader());
             loadAtmosphereDotXml(sc.getServletContext().
-                    getResourceAsStream("/META-INF/atmosphere.xml"), urlC);
+                    getResourceAsStream(atmosphereDotXmlPath), urlC);
 
             if (atmosphereHandlers.size() == 0) {
                 autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
@@ -1304,5 +1308,41 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     public WebSocketProtocol getWebSocketProtocol() {
         return webSocketProtocol;
+    }
+
+    public boolean isUseNativeImplementation() {
+        return useNativeImplementation;
+    }
+
+    public AtmosphereFramework setUseNativeImplementation(boolean useNativeImplementation) {
+        this.useNativeImplementation = useNativeImplementation;
+        return this;
+    }
+
+    public boolean isUseBlockingImplementation() {
+        return useBlockingImplementation;
+    }
+
+    public AtmosphereFramework setUseBlockingImplementation(boolean useBlockingImplementation) {
+        this.useBlockingImplementation = useBlockingImplementation;
+        return this;
+    }
+
+    public String getAtmosphereDotXmlPath() {
+        return atmosphereDotXmlPath;
+    }
+
+    public AtmosphereFramework setAtmosphereDotXmlPath(String atmosphereDotXmlPath) {
+        this.atmosphereDotXmlPath = atmosphereDotXmlPath;
+        return this;
+    }
+
+    public String getHandlersPath() {
+        return handlersPath;
+    }
+
+    public AtmosphereFramework setHandlersPath(String handlersPath) {
+        this.handlersPath = handlersPath;
+        return this;
     }
 }
