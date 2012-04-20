@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -218,7 +217,7 @@ public interface ApplicationConfig {
      * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
      * the tomcat documentation
      */
-    String TOMCAT_CLOSE_STREAM = TomcatCometSupport.class.getName() + ".discardEOF";
+    String TOMCAT_CLOSE_STREAM = "org.atmosphere.container.TomcatCometSupport.discardEOF";
     /**
      * Let Jetty send blob instead of String
      */
