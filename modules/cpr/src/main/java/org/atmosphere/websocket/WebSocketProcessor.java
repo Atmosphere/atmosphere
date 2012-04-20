@@ -102,9 +102,8 @@ public class WebSocketProcessor implements Serializable {
 
         dispatch(request, wsr);
 
-        webSocketProtocol.onOpen(webSocket);
-
         if (webSocket.resource() != null) {
+            webSocketProtocol.onOpen(webSocket);
             if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
                 webSocketProtocol.onError(webSocket,
                         new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
