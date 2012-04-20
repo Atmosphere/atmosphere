@@ -52,7 +52,7 @@ public interface FrameworkConfig {
     /**
      * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrator and not recommend for normal application.
      */
-    String ATMOSPHERE_SERVLET = AtmosphereServlet.class.getName();
+    String ATMOSPHERE_SERVLET = "org.atmosphere.cpr.AtmosphereServlet";
     /**
      * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrator and not recommend for normal application.
      */
