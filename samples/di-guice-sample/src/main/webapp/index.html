@@ -35,6 +35,7 @@
         $(function() {
 
             var nickname = 'Anonymous';
+            var socket = $.atmosphere;
 
             $('#changeNickname').click(function(e) {
                 e.preventDefault();
@@ -48,14 +49,14 @@
                 if (topicName) {
                     if ($('#content fieldset#' + topicName).length == 0) {
                         var connected = false;
-                        $.atmosphere.subscribe('async/topic/' + topicName, function(response) {
+                        var subSocket = socket.subscribe('async/topic/' + topicName, function(response) {
                             console.log(response);
-                            if (response.transport != 'polling' && response.state != 'connected' && response.state != 'closed' && response.status == 200) {
+                            if (response.transport != 'polling' && response.state == 'messageReceived') {
                                 var data = jQuery.parseJSON(response.responseBody);
                                 // setup UI
                                 if (!connected) {
                                     $('<fieldset id="' + topicName + '"><legend>' + topicName + '</legend><input type="text"><button type="button" class="send">Send</button><button type="button" class="close">Disconnect</button><div class="messages"></div></fieldset>').appendTo($('#content'));
-                                    $('#content fieldset#' + topicName + ' button.send').data('endpoint', response).click(function() {
+                                    $('#content fieldset#' + topicName + ' button.send').data('endpoint', subSocket).click(function() {
                                         var message = $('#content fieldset#' + topicName + ' input').val();
                                         $('#content fieldset#' + topicName + ' input').val('');
                                         $.atmosphere.request = {
@@ -69,7 +70,7 @@
                                         };
                                         $(this).data('endpoint').push('async/topic/' + topicName);
                                     });
-                                    $('#content fieldset#' + topicName + ' button.close').data('endpoint', response).click(function() {
+                                    $('#content fieldset#' + topicName + ' button.close').data('endpoint', subSocket).click(function() {
                                         $.atmosphere.close();
                                         $('#content fieldset#' + topicName).remove();
                                     });
