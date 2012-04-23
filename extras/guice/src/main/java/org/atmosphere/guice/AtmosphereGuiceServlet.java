@@ -93,7 +93,7 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
     private boolean guiceInstalled = false;
 
     public AtmosphereGuiceServlet() {
-        this(false,true,false);
+        this(false,true);
     }
 
     /**
@@ -102,10 +102,6 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
      * @param isFilter true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
      */
     public AtmosphereGuiceServlet(boolean isFilter, boolean autoDetectHandlers) {
-        this(isFilter, autoDetectHandlers, false);
-    }
-
-    public AtmosphereGuiceServlet(boolean isFilter, boolean autoDetectHandlers,final boolean skipGuiceFilter) {
         framework = new AtmosphereFramework(isFilter, autoDetectHandlers) {
 
             /**
@@ -147,9 +143,6 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
                 }
 
                 rsp.setServlet(guiceServlet);
-                if (skipGuiceFilter) {
-                    rsp.setFilterClassName(GUICE_FILTER);
-                }
 
                 String mapping = sc.getInitParameter(ApplicationConfig.PROPERTY_SERVLET_MAPPING);
                 if (mapping == null) {
