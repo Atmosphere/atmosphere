@@ -69,7 +69,9 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
      * {@inheritDoc}
      */
     public void cache(final AtmosphereResource r, CachedMessage cm) {
-        r.getRequest().getSession(true).setAttribute(BROADCASTER_CACHE_TRACKER, cm);
+        if (r != null) {
+            r.getRequest().getSession(true).setAttribute(BROADCASTER_CACHE_TRACKER, cm);
+        }
     }
 
     /**
