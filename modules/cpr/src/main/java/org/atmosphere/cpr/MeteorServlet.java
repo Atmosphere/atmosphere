@@ -93,8 +93,11 @@ public class MeteorServlet extends AtmosphereServlet {
         String filterClass = framework().getAtmosphereConfig().getInitParameter(FILTER_CLASS);
         String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
 
-        logger.info("Installing Servlet/Meteor {} mapped to {}", servletClass, mapping);
-        logger.info("Installing Filter/Meteor {} mapped to /*", filterClass, mapping);
+        logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? "/*" : mapping);
+
+        if (filterClass != null) {
+            logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
+        }
 
         ReflectorServletProcessor r = new ReflectorServletProcessor();
         r.setServletClassName(servletClass);
