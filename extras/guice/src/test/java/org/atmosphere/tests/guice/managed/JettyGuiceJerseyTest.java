@@ -137,7 +137,7 @@ public class JettyGuiceJerseyTest {
     }
 
     public void startServer() throws Exception {
-        server = new org.eclipse.jetty.server.Server(8080);
+        server = new Server(port);
 
         ServletContextHandler sch = new ServletContextHandler(server, "/");
         sch.addEventListener(new GuiceContextListener());
