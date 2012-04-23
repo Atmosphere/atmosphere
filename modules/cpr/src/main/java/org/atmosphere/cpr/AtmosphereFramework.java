@@ -15,8 +15,10 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
+import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
@@ -855,14 +857,24 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, atmoHandler.getContextRoot());
 
+                for (ApplicationConfiguration a : atmoHandler.getApplicationConfig()) {
+                    initParams.put(a.getParamName(), a.getParamValue());
+                }
+
+                for (FrameworkConfiguration a : atmoHandler.getFrameworkConfig()) {
+                    initParams.put(a.getParamName(), a.getParamValue());
+                }
+
                 boolean isJersey = false;
                 for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
 
-                    if (handlerProperty.getName() != null && handlerProperty.getName().indexOf("jersey") != -1) {
+                    if (handlerProperty.getValue() != null && handlerProperty.getValue().indexOf("jersey") != -1) {
                         isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType();
+                        broadcasterFactory = null;
+                        configureBroadcaster(servletConfig.getServletContext());
                     }
 
                     IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
