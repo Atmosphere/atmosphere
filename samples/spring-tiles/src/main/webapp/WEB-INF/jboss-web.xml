@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE jboss-web PUBLIC
+        "-//JBoss//DTD Web Application 5.0//EN"
+        "http://www.jboss.org/j2ee/dtd/jboss-web_5_0.dtd">
+
+<jboss-web>
+	
+  <!-- ========================================================= 
+  	  This by-passes the JEE specifications class loader standard.
+  	  This allows use of Spring global ApplicationContext references
+	  without ClassLoader LinkageErrors.  The LinkageErrors occur when
+	  you have a different class loader (e.g., MBean service) loading a
+	  class AND the Web App loading a duplicate class. 
+	  ========================================================= -->
+  <class-loading java2ClassLoadingCompliance="true"/>
+  
+</jboss-web>

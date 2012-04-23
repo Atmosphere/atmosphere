@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+       "-//Apache Software Foundation//DTD Tiles Configuration 2.0//EN"
+       "http://tiles.apache.org/dtds/tiles-config_2_0.dtd">
+<tiles-definitions>
+	
+	<definition name="pubsub.page" template="/pages/template.jsp">
+		<put-attribute name="header" value="/pages/pubsubHeader.jsp" />
+		<put-attribute name="contents" value="/pages/pubsubContents.jsp" />
+		<put-attribute name="footer" value="/pages/pubsubFooter.jsp" />
+	</definition>
+		 
+</tiles-definitions>
