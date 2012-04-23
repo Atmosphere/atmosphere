@@ -12,7 +12,7 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>0.9</version>
+         <version>0.9.1</version>
       </dependency>
 ```
       
