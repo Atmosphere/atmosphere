@@ -1,6 +1,18 @@
-/**
- * 
- */
+/*
+* Copyright 2012 Jeanfrancois Arcand
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* use this file except in compliance with the License. You may obtain a copy of
+* the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations under
+* the License.
+*/
 package org.atmosphere.samples.pubsub.spring;
 
 import java.io.IOException;
@@ -23,12 +35,10 @@ import org.springframework.web.servlet.ModelAndView;
 /**
  * Example shows a simple Spring Controller that replicates the logic
  * from AtmosphereHandlerPubSub.java
- * 
- * It uses the 0.9-SNAPSHOT APIs, which no longer use generics on AtmosphereResource.
- * 
+ *
  * URL to access is:
  * 
- * http://localhost:8080/Atmosphere-pubsub-spring-tiles-0.9-SNAPSHOT/pubsub/
+ * http://localhost:8080/Atmosphere-pubsub-spring-tiles/pubsub/
  * 
  * @author westraj
  * 
