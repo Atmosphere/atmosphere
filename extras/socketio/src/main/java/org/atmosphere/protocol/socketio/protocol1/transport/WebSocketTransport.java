@@ -25,13 +25,13 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
-import org.atmosphere.protocol.socketio.SocketIOPacket;
-import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
-import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOCometSupport;
 import org.atmosphere.protocol.socketio.SocketIOException;
+import org.atmosphere.protocol.socketio.SocketIOPacket;
 import org.atmosphere.protocol.socketio.SocketIOSession;
+import org.atmosphere.protocol.socketio.SocketIOSessionFactory;
+import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ public class WebSocketTransport extends AbstractTransport {
 	}
 
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();

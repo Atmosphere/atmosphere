@@ -38,15 +38,16 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import java.awt.event.ActionEvent;
+import java.io.IOException;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.awt.event.ActionEvent;
-import java.io.IOException;
+
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 
 /**
  * Atmosphere's supported WebServer must implement this interface in order
@@ -90,7 +91,7 @@ public interface CometSupport<E extends AtmosphereResource> {
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(HttpServletRequest req, HttpServletResponse res)
+    public AtmosphereFramework.Action service(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException;
 
     /**

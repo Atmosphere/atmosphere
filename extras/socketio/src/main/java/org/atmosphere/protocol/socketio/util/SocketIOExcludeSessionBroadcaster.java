@@ -57,7 +57,7 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
      * @return
      */
     @Override 
-    public <T> Future<T> broadcast(T msg, AtmosphereResource<?, ?> resource) {
+    public <T> Future<T> broadcast(T msg, AtmosphereResource resource) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -65,7 +65,7 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
         
         logger.info("To broadcast from : " + ((HttpServletRequest) resource.getRequest()).getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to broadcast : " + msg);
 
-        Set<AtmosphereResource<?, ?>> sub = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> sub = new HashSet<AtmosphereResource>();
         sub.addAll(resources);
         sub.remove(resource);
         start();
@@ -89,7 +89,7 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
      * @return
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource<?, ?>> subset) {
+    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -120,9 +120,9 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
-        Set<AtmosphereResource<?, ?>> subset = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
         subset.addAll(resources);
-        for (AtmosphereResource<?, ?> r : resources) {
+        for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
                     sessions.contains(((HttpServletRequest) r.getRequest()).getSession())) {
                 subset.remove(r);
@@ -153,10 +153,10 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
 
-        Set<AtmosphereResource<?, ?>> subset = new HashSet<AtmosphereResource<?, ?>>();
+        Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
         subset.addAll(resources);
 
-        for (AtmosphereResource<?, ?> r : resources) {
+        for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
                     s.equals(((HttpServletRequest) r.getRequest()).getSession())) {
                 subset.remove(r);

@@ -104,7 +104,7 @@ public class JSONPPollingTransport extends XHRTransport {
 	}
 
 	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 		
 		if(session==null){
 			session = sessionFactory.createSession(resource, atmosphereHandler);
@@ -120,7 +120,7 @@ public class JSONPPollingTransport extends XHRTransport {
 	}
 	
 	@Override
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 		return connect(null, resource, atmosphereHandler, sessionFactory);
 	}
 }

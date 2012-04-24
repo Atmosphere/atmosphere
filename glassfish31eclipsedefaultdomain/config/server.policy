@@ -1,0 +1,146 @@
+/*
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ *
+ * Copyright (c) 2004-2011 Oracle and/or its affiliates. All rights reserved.
+ *
+ * The contents of this file are subject to the terms of either the GNU
+ * General Public License Version 2 only ("GPL") or the Common Development
+ * and Distribution License("CDDL") (collectively, the "License").  You
+ * may not use this file except in compliance with the License.  You can
+ * obtain a copy of the License at
+ * https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+ * or packager/legal/LICENSE.txt.  See the License for the specific
+ * language governing permissions and limitations under the License.
+ *
+ * When distributing the software, include this License Header Notice in each
+ * file and include the License file at packager/legal/LICENSE.txt.
+ *
+ * GPL Classpath Exception:
+ * Oracle designates this particular file as subject to the "Classpath"
+ * exception as provided by Oracle in the GPL Version 2 section of the License
+ * file that accompanied this code.
+ *
+ * Modifications:
+ * If applicable, add the following below the License Header, with the fields
+ * enclosed by brackets [] replaced by your own identifying information:
+ * "Portions Copyright [year] [name of copyright owner]"
+ *
+ * Contributor(s):
+ * If you wish your version of this file to be governed by only the CDDL or
+ * only the GPL Version 2, indicate your decision by adding "[Contributor]
+ * elects to include this software in this distribution under the [CDDL or GPL
+ * Version 2] license."  If you don't indicate a single choice of license, a
+ * recipient has the option to distribute your version of this file under
+ * either the CDDL, the GPL Version 2 or to extend the choice of license to
+ * its licensees as provided above.  However, if you add GPL Version 2 code
+ * and therefore, elected the GPL Version 2 license, then the option applies
+ * only if the new code is made subject to such option by the copyright
+ * holder.
+ */
+
+// classes in lib get all permissions by default
+grant codeBase "file:${com.sun.aas.installRoot}/lib/-" {
+    permission java.security.AllPermission;
+};
+
+// Core server classes get all permissions by default
+grant codeBase "file:${com.sun.aas.installRoot}/modules/-" {
+    permission java.security.AllPermission;
+};
+
+// Felix classes get all permissions by default
+grant codeBase "file:${com.sun.aas.installRoot}/osgi/felix/bin/-" {
+    permission java.security.AllPermission;
+};
+
+// iMQ classes get all permissions by default
+grant codeBase "file:${com.sun.aas.imqLib}/-" {
+    permission java.security.AllPermission;
+};
+
+// Derby driver classes get all permissions by default
+grant codeBase "file:${com.sun.aas.derbyRoot}/lib/-" {
+    permission java.security.AllPermission;
+}; 
+
+
+// permission for JDK's tools.jar to enable webservice annotation processing
+// at runtime by wsgen tool: 
+//       permission java.lang.RuntimePermission "createClassLoader";
+//
+// permission for JDK's tools.jar to sign JARs at runtime for 
+// Java Web Start support:
+//       permissions java.security.AllPermission;
+// on the advice of the JDK tools folks.  Should be refined later.
+grant codeBase "file:${com.sun.aas.javaRoot}/lib/tools.jar" {
+    permission java.security.AllPermission;
+};
+
+//Loading MBeans from anywhere, to take care of side effects of 6235678.
+grant {
+    permission javax.management.MBeanTrustPermission "register" ;
+};
+//Loading MBeans from anywhere, to take care of side effects of 6235678.
+
+
+// Basic set of required permissions granted to all remaining code
+// The permission FilePermission "<<ALL FILES>>", "read,write"
+// allows all applications to read and write any file in the filesystem.
+// It should be changed based on real deployment needs. If you know your
+// applications just need to read/write a few directories consider removing
+// this permission and adding grants indicating those specific directories.
+// against the codebase of your application(s).
+grant {
+    //Workaround for bugs #6484935, 6513799
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission com.sun.corba.ee.impl.presentation.rmi.DynamicAccessPermission "access";
+    permission java.util.PropertyPermission "*", "read,write";
+
+    permission java.lang.RuntimePermission  "loadLibrary.*";
+    permission java.lang.RuntimePermission  "queuePrintJob";
+    permission java.net.SocketPermission    "*", "connect";
+    permission java.io.FilePermission       "<<ALL FILES>>", "read,write";
+
+        // work-around for pointbase bug 4864405      
+        permission java.io.FilePermission "${com.sun.aas.instanceRoot}${/}lib${/}databases${/}-", "delete";
+        permission java.io.FilePermission "${java.io.tmpdir}${/}-", "delete";
+
+    permission java.util.PropertyPermission "*", "read";
+
+    permission java.lang.RuntimePermission    "modifyThreadGroup";
+    permission java.lang.RuntimePermission    "getClassLoader";
+    permission java.lang.RuntimePermission    "setContextClassLoader";
+        permission javax.management.MBeanPermission "[com.sun.messaging.jms.*:*]", "*"; 
+};
+
+
+// Following grant block is only required by Connectors. If Connectors
+// are not in use the recommendation is to remove this grant.
+grant {
+        permission javax.security.auth.PrivateCredentialPermission "javax.resource.spi.security.PasswordCredential * \"*\"","read";
+};
+
+// Following grant block is only required for Reflection. If Reflection
+// is not in use the recommendation is to remove this section.
+grant {
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+// Permissions to invoke CORBA objects in server
+grant {
+    permission com.sun.enterprise.security.CORBAObjectPermission "*", "*";
+};
+
+//JRuby security permissions
+grant  codeBase "file:${com.sun.aas.installRoot}/jruby/lib/-"{
+    permission java.io.FilePermission       "<<ALL FILES>>", "read";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";         
+    permission java.util.PropertyPermission "jruby.*", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "defineClassInPackage.*";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "getenv.*";
+};
+

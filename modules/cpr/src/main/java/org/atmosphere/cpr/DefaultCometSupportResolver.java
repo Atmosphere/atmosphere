@@ -51,7 +51,6 @@ import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Servlet30CometSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.container.WebLogicCometSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

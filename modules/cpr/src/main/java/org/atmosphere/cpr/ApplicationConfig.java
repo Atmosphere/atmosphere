@@ -15,8 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -25,6 +23,10 @@ import org.atmosphere.websocket.WebSocketProtocol;
  * @author Jeanfrancois Arcand
  */
 public interface ApplicationConfig {
+    /**
+     * The location of the atmosphere.xml file.
+     */
+    String PROPERTY_ATMOSPHERE_XML = "org.atmosphere.atmosphereDotXml";
     /**
      * The path that will be used to map request to Jersey
      */
@@ -129,11 +131,11 @@ public interface ApplicationConfig {
     /**
      * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
      */
-    String RESUME_AND_KEEPALIVE = AtmosphereServlet.class.getName() + ".resumeAndKeepAlive";
+    String RESUME_AND_KEEPALIVE = "org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive";
     /**
      * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
      */
-    String RESUMED_ON_TIMEOUT = AtmosphereServlet.class.getName() + ".resumedOnTimeout";
+    String RESUMED_ON_TIMEOUT = "org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout";
     /**
      * Disable invoking {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} when the connection times out or get cancelled
      */
@@ -215,7 +217,7 @@ public interface ApplicationConfig {
      * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
      * the tomcat documentation
      */
-    String TOMCAT_CLOSE_STREAM = TomcatCometSupport.class.getName() + ".discardEOF";
+    String TOMCAT_CLOSE_STREAM = "org.atmosphere.container.TomcatCometSupport.discardEOF";
     /**
      * Let Jetty send blob instead of String
      */
@@ -225,9 +227,6 @@ public interface ApplicationConfig {
      * a Container
      */
     String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
-	
-    String PROPERTY_CUSTOM_COMET_SUPPORT = "org.atmosphere.cpr.customCometSupport";
-
     /**
      * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
      */
@@ -237,7 +236,7 @@ public interface ApplicationConfig {
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
     /**
-     *  Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
+     * Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}
      */
     String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
     /**

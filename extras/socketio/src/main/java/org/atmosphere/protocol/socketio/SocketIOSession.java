@@ -15,9 +15,6 @@
  */
 package org.atmosphere.protocol.socketio;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 
@@ -33,7 +30,7 @@ public interface SocketIOSession {
 
 	ConnectionState getConnectionState();
 	
-	SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> getSocketIOAtmosphereHandler();
+	SocketIOAtmosphereHandler getSocketIOAtmosphereHandler();
 	
 	AtmosphereResourceImpl getAtmosphereResourceImpl();
 	

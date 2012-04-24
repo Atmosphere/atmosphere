@@ -15,9 +15,9 @@
  */
 package org.atmosphere.protocol.socketio;
 
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.websocket.WebSocketProcessor;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +31,8 @@ public class SocketIOWebSocketProcessor extends WebSocketProcessor {
 	private static final long serialVersionUID = 1565529569653072539L;
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProcessor.class);
 
-    public SocketIOWebSocketProcessor(AtmosphereServlet atmosphereServlet, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
-        super(atmosphereServlet, webSocket, webSocketProtocol);
+    public SocketIOWebSocketProcessor(AtmosphereFramework framework, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
+        super(framework, webSocket, webSocketProtocol);
     }
 
     public void parseMessage(String data) {

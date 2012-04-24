@@ -1,10 +1,11 @@
 ## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
-The Atmosphere Framework contains client and server side components. The majority of popular frameworks are either supporting Atmosphere or supported natively by the framework(**). Atmosphere can be deployed in any Servlet Container or on top of the [Netty Framework](https://github.com/Atmosphere/nettosphere)
+The Atmosphere Framework contains client and server side components. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
    Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)
 
-### Getting Started with WebSocket and Long-Polling
-This [tutorial](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-The-Atmosphere-Framework-and-WebSocket) quickly demonstrates how to write a WebSocket application.
+### Official Documentation
+Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started. You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
+
 
 ### To use Atmosphere, add the following dependency:
 ```xml
@@ -15,11 +16,11 @@ This [tutorial](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-wi
       </dependency>
 ```
       
-Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
+Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere). Atmosphere supports the majority of [Servers and Browsers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
-[Getting Ready! Migrating 0.x to the new 0.9 API](https://github.com/Atmosphere/atmosphere/wiki/Migrating-your-Atmosphere-0.x-to-0.9-new-API)
+[IMPORTANT: Migrating 0.x to the new 0.9 API](https://github.com/Atmosphere/atmosphere/wiki/Migrating-your-Atmosphere-0.x-to-0.9-new-API)
 
-#### Getting started
+#### Jump directly inside the code: WebSocket, Long-Polling, JSONP and Http Streaming!
 Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/webapp/index.html#L7)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/webapp/jquery/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/ChatAtmosphereHandler.java#L32) to realize how simple Atmosphere is!
 
 #### Must read
@@ -28,9 +29,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
    [Which Atmosphere API should I use for my project?](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
-   [White Paper PDF (a little bit old)](https://github.com/Atmosphere/atmosphere/blob/master/docs/atmosphere_whitepaper.pdf)
-
-#### Latest publication
+#### Latest Publications
 
 [What's new in Atmosphere 0.9](http://jfarcand.wordpress.com/2012/04/12/atmosphere-9-9-9-9-released-tomcatglassfish-websocket-netty-framework-hazelcast-fluid-api-jquery-optimization/)
 
@@ -38,20 +37,19 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 [Latest Presentation - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
 
-Browse [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/)
+#### Quick Start
 
 To quickly see what Atmosphere can do with WebSocket and Comet, and If you want to play with Redis, Hazelcast, ActiveMQ(JMS) or XMPP(Gmail), [download](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/samples/atmosphere-jquery-pubsub/0.8.6/atmosphere-jquery-pubsub-0.8.6.war) the [JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L51) sample,  uncomments the appropriate technology in the [pom.xml](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/pom.xml#L2), re-war the file or manually drop the atmosphere-{technology-name}.jar under your WEB-INF/lib to enabled it automatically
-
 
 For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds [Browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
 
 Several Samples are available [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
+#### RoadMap
+
 Atmosphere 0.9 is our official release, and our work in progress version is 1.0, targeted for end of End of May 2012
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
-
-(**) The list include Jersey, GWT, Wicket, Vaadin, JSF, Scalatra, Play!, Grails and more. All JVM based languages are supported. Massive scalability in natively build in and supported by JGroups, Hazelcast, ActiveMQ, Redis and XMPP based server.
 
 #### Browse sample's code
 
@@ -77,16 +75,4 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 #### Changes logs
 
-[0.9.0](https://github.com/Atmosphere/atmosphere/issues?sort=created&labels=0.9.0&direction=desc&state=closed)
-
-[0.8.6](http://is.gd/Pi4ZPo)
-
-[0.8.5](http://is.gd/yVgcaj)
-
-[0.8.4](http://is.gd/Pi4ZPo)
-
-[0.8.3](http://is.gd/znZBKZ)
-
-[0.8.2](http://is.gd/9BesxI)
-
-[0.8.0](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt#L1)
+[0.9.0](https://github.com/Atmosphere/atmosphere/issues?sort=created&labels=0.9.0&direction=desc&state=closed) [0.8.6](http://is.gd/Pi4ZPo) [0.8.5](http://is.gd/yVgcaj) [0.8.4](http://is.gd/Pi4ZPo) [0.8.3](http://is.gd/znZBKZ) [0.8.2](http://is.gd/9BesxI) [0.8.0](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt#L1)

@@ -199,15 +199,15 @@ public abstract class XHRTransport extends AbstractTransport {
 								resource.addEventListener(new AtmosphereResourceEventListener() {
 									
 									@Override
-									public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									public void onThrowable(AtmosphereResourceEvent event) {
 									}
 									
 									@Override
-									public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									public void onSuspend(AtmosphereResourceEvent event) {
 									}
 									
 									@Override
-									public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									public void onResume(AtmosphereResourceEvent event) {
 										if(event.isResumedOnTimeout()){
 											try {
 												event.getResource().write(response.getOutputStream(), new SocketIOPacketImpl(PacketType.NOOP).toString());
@@ -218,11 +218,11 @@ public abstract class XHRTransport extends AbstractTransport {
 									}
 									
 									@Override
-									public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									public void onDisconnect(AtmosphereResourceEvent event) {
 									}
 									
 									@Override
-									public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+									public void onBroadcast(AtmosphereResourceEvent event) {
 									}
 								});
 								
@@ -235,7 +235,7 @@ public abstract class XHRTransport extends AbstractTransport {
 								if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
 									
 									@SuppressWarnings("unchecked")
-									List<String> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
+									List<Object> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
 									
 									if(cachedMessages!=null){
 										if (cachedMessages.size()> 1) {
@@ -364,7 +364,7 @@ public abstract class XHRTransport extends AbstractTransport {
 
 		protected abstract void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException;
 
-		public void connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler) throws IOException {
+		public void connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler) throws IOException {
 			
 			HttpServletRequest request = resource.getRequest();
 			HttpServletResponse response = resource.getResponse();
@@ -405,7 +405,7 @@ public abstract class XHRTransport extends AbstractTransport {
 	protected abstract XHRSessionHelper createHelper(SocketIOSession session);
 
 	
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 		
 		if(session==null){
 			session = sessionFactory.createSession(resource, atmosphereHandler);
@@ -420,12 +420,12 @@ public abstract class XHRTransport extends AbstractTransport {
 		return session;
 	}
 	
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 		return connect(null, resource, atmosphereHandler, sessionFactory);
 	}
 	
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();

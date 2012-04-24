@@ -38,13 +38,13 @@ import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+ 
 /**
  * Simple SocketIOAtmosphereHandler that implements the logic to build a SocketIO Chat application.
  *
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
  */ 
-public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> {
+public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
 
@@ -63,7 +63,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
      * @throws java.io.IOException
      */
     @SuppressWarnings("unused")
-    public void onRequest(AtmosphereResource<HttpServletRequest, HttpServletResponse> event) throws IOException {
+    public void onRequest(AtmosphereResource event) throws IOException {
     	logger.error("onRequest");
     }
     
@@ -77,7 +77,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
      * @throws java.io.IOException
      */
     @SuppressWarnings("unused")
-    public void onStateChange(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) throws IOException {
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
     	//logger.error("onStateChange event = " + event);
     	
     	if(event.isResuming() || event.isResumedOnTimeout()){
@@ -132,7 +132,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
     }
     
 	@SuppressWarnings("unused")
-	public void onConnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound outbound) throws IOException {
+	public void onConnect(AtmosphereResource event, SocketIOSessionOutbound outbound) throws IOException {
 		logger.error("onConnect");
 	}
 	
@@ -167,7 +167,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 	}
 
 	@SuppressWarnings("unused")
-	public void onMessage(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound outbound, String message) {
+	public void onMessage(AtmosphereResource event, SocketIOSessionOutbound outbound, String message) {
 		
         if(outbound==null || message==null || message.length()==0){
         	return;
@@ -264,7 +264,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler<HttpServ
 		
 	}
 	
-	public void onDisconnect(AtmosphereResource<HttpServletRequest, HttpServletResponse> event, SocketIOSessionOutbound outbound, DisconnectReason reason) {
+	public void onDisconnect(AtmosphereResource event, SocketIOSessionOutbound outbound, DisconnectReason reason) {
 		logger.error("onDisconnect");
 		
 		String username = (String)event.getRequest().getSession().getAttribute("LOGINNAME");

@@ -29,13 +29,15 @@ import javax.servlet.http.HttpSession;
 
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
+import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereServlet.Action;
-import org.atmosphere.cpr.AtmosphereServlet.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.SessionTimeoutSupport;
 import org.atmosphere.protocol.socketio.transport.Transport;
-import org.atmosphere.websocket.AtmosphereWebSocketFactory;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +55,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	private AsynchronousProcessor containerWrapper = null;
 	private SocketIOSessionManager sessionManager1 = null;
 	
-	private AtmosphereWebSocketFactory webSocketFactory = null;
+	//private AtmosphereWebSocketFactory webSocketFactory = null;
 	
 	private Map<String, Transport> transports = new HashMap<String, Transport>();
 	
@@ -83,7 +85,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		containerWrapper.setIProcessor(this);
 		this.config = config;
 		
-		config.getServlet().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
+		config.framework().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
 		
 		String transportsWebXML = config.getInitParameter(SOCKETIO_TRANSPORT);
 		
@@ -111,11 +113,11 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		sessionManager1.setHeartbeatInterval(heartbeatInterval);
 		sessionManager1.setRequestSuspendTime(suspendTime);
 		
-		webSocketFactory = new AtmosphereWebSocketFactory(config);
+		//webSocketFactory = new AtmosphereWebSocketFactory(config);
 	}
 	
 	@Override
-	public Action service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public Action service(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		
 		return containerWrapper.service(request, response);
 	}
@@ -123,11 +125,11 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	
 	@SuppressWarnings("unchecked")
 	@Override
-	public Action processAction(AsynchronousProcessor processor, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public Action processAction(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		
 		AtmosphereHandlerWrapper handlerWrapper = map(request);
         
-		AtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler = (AtmosphereHandler<HttpServletRequest, HttpServletResponse>)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+		AtmosphereHandler atmosphereHandler = (AtmosphereHandler)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
 		if (supportSession() && resource==null) {
@@ -135,9 +137,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
             // operation from disparate requests.
             HttpSession session = request.getSession(true);
             // Do not allow times out.
-            if (session.getMaxInactiveInterval() == AsynchronousProcessor.DEFAULT_SESSION_TIMEOUT) {
-                session.setMaxInactiveInterval(-1);
-            }
+            SessionTimeoutSupport.setupTimeout(session);
         }
 		
         request.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
@@ -216,7 +216,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         		response.setStatus(200);
         		
         		
-        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse>)atmosphereHandler);
+        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
         		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
         		
         		return resource.action();
@@ -227,7 +227,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
         	Transport transport = transports.get(protocol + "-" + version);
         	
         	if(transport!=null){
-        		transport.handle(processor, resource, (SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse>)atmosphereHandler, getSessionManager(version));
+        		transport.handle(containerWrapper, resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
         	} else {
         		logger.error("Protocol not supported : " + protocol);
         	}
@@ -297,7 +297,7 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	}
 
 	@Override
-	public Action suspended(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public Action suspended(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		return containerWrapper.suspended(request, response);
 	}
 
@@ -307,23 +307,23 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	}
 
 	@Override
-	public AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
-		return containerWrapper.map(req);
+	public AtmosphereHandlerWrapper map(AtmosphereRequest request) throws ServletException {
+		return containerWrapper.map(request);
 	}
 
 	@Override
-	public Action resumed(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public Action resumed(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		return containerWrapper.resumed(request, response);
 	}
 
 	@Override
-	public Action timedout(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+	public Action timedout(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		return containerWrapper.timedout(request, response);
 	}
 
 	@Override
-	public Action cancelled(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-		return containerWrapper.cancelled(req, res);
+	public Action cancelled(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
+		return containerWrapper.cancelled(request, response);
 	}
 
 	@Override
@@ -332,7 +332,8 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	}
 	
 	public WebSocketFactory getWebSocketFactory(){
-    	return webSocketFactory.getFactory();
+    	//return webSocketFactory.getFactory();
+		return null;
     }
 	
 }

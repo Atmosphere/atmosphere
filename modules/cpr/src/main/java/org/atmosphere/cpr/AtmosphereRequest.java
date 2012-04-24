@@ -208,7 +208,13 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public Enumeration getHeaders(String name) {
-        ArrayList list = Collections.list(b.request.getHeaders(name));
+
+        ArrayList list = new ArrayList<String>();
+        // Never override the parent Request
+        if (!name.equalsIgnoreCase("content-type")) {
+            list = Collections.list(b.request.getHeaders(name));
+        }
+
         if (name.equalsIgnoreCase("content-type")) {
             String s = getContentType();
             if (s != null) {

@@ -16,18 +16,12 @@
 package org.atmosphere.protocol.socketio;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -43,7 +37,7 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializabl
 	private static final long serialVersionUID = 4015694886940858031L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketProtocol.class);
-    private AtmosphereResource<HttpServletRequest, HttpServletResponse> resource;
+    private AtmosphereResource resource;
     
     /**
      * {@inheritDoc}

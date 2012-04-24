@@ -102,9 +102,8 @@ public class WebSocketProcessor implements Serializable {
 
         dispatch(request, wsr);
 
-        webSocketProtocol.onOpen(webSocket);
-
         if (webSocket.resource() != null) {
+            webSocketProtocol.onOpen(webSocket);
             if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
                 webSocketProtocol.onError(webSocket,
                         new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
@@ -188,12 +187,12 @@ public class WebSocketProcessor implements Serializable {
 
         AtmosphereResource resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-        if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
-            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
-        }
-
         if (r.getStatus() >= 400) {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
+        }
+
+        if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
+            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
         }
     }
 

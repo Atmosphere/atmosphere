@@ -23,9 +23,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.HeartBeatSessionMonitor;
@@ -75,7 +72,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	}
 
 	@Override
-	public SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> inbound) {
+	public SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler inbound) {
 		SessionImpl impl = new SessionImpl(generateSessionId(), resource, inbound, getTimeout(), getHeartbeatInterval(), getRequestSuspendTime());
 		socketIOSessions.put(impl.getSessionId(), impl);
 		return impl;
@@ -120,7 +117,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		private final String sessionId;
 		
 		private AtmosphereResourceImpl resource = null;
-		private SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler;
+		private SocketIOAtmosphereHandler atmosphereHandler;
 		private SocketIOSessionOutbound handler = null;
 		private ConnectionState state = ConnectionState.CONNECTING;
 		private long heartBeatInterval = 0;
@@ -132,7 +129,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		private AtomicLong messageId = new AtomicLong(0);
 		private String closeId = null;
 
-		SessionImpl(String sessionId, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> atmosphereHandler, long timeout, long heartBeatInterval, long requestSuspendTime) {
+		SessionImpl(String sessionId, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, long timeout, long heartBeatInterval, long requestSuspendTime) {
 			this.sessionId = sessionId;
 			this.atmosphereHandler = atmosphereHandler;
 			this.resource = resource;
@@ -160,7 +157,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		}
 
 		@Override
-		public SocketIOAtmosphereHandler<HttpServletRequest, HttpServletResponse> getSocketIOAtmosphereHandler() {
+		public SocketIOAtmosphereHandler getSocketIOAtmosphereHandler() {
 			return atmosphereHandler;
 		}
 

@@ -18,9 +18,6 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 import java.io.IOException;
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOSession;
@@ -54,31 +51,31 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	}
 	
 	@Override
-	public void onThrowable(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+	public void onThrowable(AtmosphereResourceEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onThrowable event = " + event);
 		
 	}
 	
 	@Override
-	public void onSuspend(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+	public void onSuspend(AtmosphereResourceEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend event = " + event);
 		
 	}
 	
 	@Override
-	public void onResume(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+	public void onResume(AtmosphereResourceEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onResume event = " + event);
 		
 	}
 	
 	@Override
-	public void onDisconnect(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+	public void onDisconnect(AtmosphereResourceEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect event = " + event);
 		sessionWrapper.onDisconnect();
 	}
 	
 	@Override
-	public void onBroadcast(AtmosphereResourceEvent<HttpServletRequest, HttpServletResponse> event) {
+	public void onBroadcast(AtmosphereResourceEvent event) {
 		logger.error("calling from " + this.getClass().getName() + " : " + "onBroadcast event = " + event);
 		
 	}

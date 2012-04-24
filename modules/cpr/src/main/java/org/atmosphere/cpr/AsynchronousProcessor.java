@@ -92,12 +92,11 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
-
-    private IProcessor actionProcessor = null;
     
+    private IProcessor actionProcessor = null;
+
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
-        actionProcessor = this;
     }
     
     public void setIProcessor(IProcessor actionProcessor){
@@ -107,6 +106,7 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
     public IProcessor getIProcessor(){
     	return actionProcessor;
     }
+
 
     @Override
     public void init(ServletConfig sc) throws ServletException {
@@ -177,19 +177,29 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
         return action(request, response);
     }
     
-    @Override
-	public Action processAction(AsynchronousProcessor processor, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-    	
-    	 boolean webSocketEnabled = false;
-         if (req.getHeaders("Connection") != null && req.getHeaders("Connection").hasMoreElements()) {
-              String[] e = req.getHeaders("Connection").nextElement().toString().split(",");
-             for (String upgrade : e) {
-                 if (upgrade.equalsIgnoreCase("Upgrade")) {
-                     webSocketEnabled = true;
-                     break;
-                 }
-             }
-         }
+    /**
+     * Invoke the {@link AtmosphereHandler#onRequest} method.
+     *
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
+     * @return action the Action operation.
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+    	return actionProcessor.processAction(req, res);
+    }
+
+    /**
+     * Invoke the {@link AtmosphereHandler#onRequest} method.
+     *
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
+     * @return action the Action operation.
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    public Action processAction(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         if (Utils.webSocketEnabled(req) && !supportWebSocket()) {
             res.setStatus(501);
@@ -264,13 +274,6 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
                 }
             }
         }
-        
-		// DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
-        /*
-		if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
-        	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];
-        }
-		*/
         return atmosphereHandlerWrapper;
     }
 
@@ -281,7 +284,7 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    public AtmosphereHandlerWrapper map(HttpServletRequest req) throws ServletException {
+    public AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();
@@ -551,8 +554,8 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
     public boolean supportWebSocket() {
         return false;
     }
-	
-	 /**
+
+    /**
      * An Callback class that can be used by Framework integrator to handle the close/timedout/resume life cycle
      * of an {@link AtmosphereResource}. This class support only support {@link AsyncSupport} implementation that
      * extends {@link AsynchronousProcessor}
@@ -593,7 +596,4 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
         }
     }
     
-    public WebSocketFactory getWebSocketFactory(){
-    	return null;
-    }
 }

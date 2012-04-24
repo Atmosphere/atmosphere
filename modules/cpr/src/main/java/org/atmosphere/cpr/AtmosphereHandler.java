@@ -69,10 +69,9 @@ import java.io.IOException;
  * <p/>
  * For example, a simple pubsub based AtmosphereHandler will take the form of
  * <p/>
- * <blockquote><pre>
+<blockquote><pre>
  public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
 
-    @Override
     public void onRequest(AtmosphereResource r) throws IOException {
 
         AtmosphereRequest req = r.getRequest();
@@ -106,10 +105,8 @@ import java.io.IOException;
         }
     }
 
-    @Override
     public void destroy() {
     }
-
 
     Broadcaster lookupBroadcaster(String pathInfo) {
         String[] decodedPath = pathInfo.split("/");
@@ -117,8 +114,8 @@ import java.io.IOException;
         return b;
     }
 
-}
- * </pre></blockquote>
+}</pre></blockquote>
+ *
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereHandler {

@@ -15,7 +15,7 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereServlet.Action;
+import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;

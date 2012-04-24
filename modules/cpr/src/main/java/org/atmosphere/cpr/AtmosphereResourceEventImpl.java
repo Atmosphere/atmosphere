@@ -105,7 +105,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     public boolean isSuspended() {
-        return resource.action().type == AtmosphereFramework.Action.TYPE.SUSPEND;
+        return resource == null ? false : resource.action().type == AtmosphereFramework.Action.TYPE.SUSPEND;
     }
 
     /**

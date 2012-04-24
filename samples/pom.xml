@@ -43,6 +43,7 @@
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
+        <module>socketio-chat</module>
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>
