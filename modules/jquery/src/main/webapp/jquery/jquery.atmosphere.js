@@ -423,7 +423,7 @@ jQuery.atmosphere = function() {
                 }
                 _sse = new EventSource(location, {withCredentials: _request.withCredentials});
 
-                if (_request.connectTimeout > 0) {
+                if (_request.connectTimeout > 0 && !sseOpened) {
                     _request.id = setTimeout(function() {
                         if (!sseOpened) {
                             _sse.close();
@@ -468,6 +468,7 @@ jQuery.atmosphere = function() {
                     _response.status = 200;
                     _invokeCallback();
 
+                    sseOpened = false;
                     if (_abordingConnection) {
                         _abordingConnection = false;
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
