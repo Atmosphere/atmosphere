@@ -1138,6 +1138,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
+        if (res.request() == null) {
+            res.request(req);
+        }
+
         Action a = null;
         try {
             boolean skip = true;
