@@ -435,7 +435,7 @@ jQuery.atmosphere = function() {
                 }
                 _sse = new EventSource(location, {withCredentials: _request.withCredentials});
 
-                if (_request.connectTimeout > 0 && !sseOpened) {
+                if (_request.connectTimeout > 0) {
                     _request.id = setTimeout(function() {
                         if (!sseOpened) {
                             _sse.close();
@@ -523,7 +523,7 @@ jQuery.atmosphere = function() {
 
                 _websocket = _getWebSocket(location);
 
-                if (_request.connectTimeout > 0 && !webSocketOpened) {
+                if (_request.connectTimeout > 0) {
                     _request.id = setTimeout(function() {
                         if (!webSocketOpened) {
                             var _message = {
