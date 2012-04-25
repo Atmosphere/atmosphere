@@ -96,6 +96,10 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_CONTENT_TYPE = "org.atmosphere.websocket.messageContentType";
     /**
+     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest
+     */
+    String SSE_CONTENT_TYPE = "org.atmosphere.sse.contentType";
+    /**
      * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest
      */
     String WEBSOCKET_METHOD = "org.atmosphere.websocket.messageMethod";

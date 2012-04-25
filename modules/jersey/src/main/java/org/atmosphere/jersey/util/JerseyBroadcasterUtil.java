@@ -70,7 +70,13 @@ public final class JerseyBroadcasterUtil {
             String m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
 
             if (m.toString().equalsIgnoreCase("text/event-stream")) {
-                m = "application/json";
+                m = request.getHeader(FrameworkConfig.EXPECTED_CONTENT_TYPE);
+                if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
+                    m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
+                    if (m == null) {
+                        m = "text/plain";
+                    }
+                }
             }
 
             if (e.getMessage() instanceof Response) {
