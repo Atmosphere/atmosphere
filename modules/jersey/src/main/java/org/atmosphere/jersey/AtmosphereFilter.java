@@ -240,7 +240,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 return false;
             } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
                 return false;
-            } else if (transport == HeaderConfig.WEBSOCKET_TRANSPORT) {
+            } else if (transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
+                return false;
+            } else if (transport.equalsIgnoreCase(HeaderConfig.SSE_TRANSPORT)) {
                 return false;
             }
 

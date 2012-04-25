@@ -127,6 +127,13 @@ jQuery.atmosphere = function() {
             var _websocket = null;
 
             /**
+             * {SSE} Opened SSE.
+             *
+             * @private
+             */
+            var _sse = null;
+
+            /**
              * {XMLHttpRequest, ActiveXObject} Opened ajax request (in case of
              * http-streaming or long-polling)
              *
@@ -184,6 +191,7 @@ jQuery.atmosphere = function() {
                 _requestCount = 0;
 
                 _websocket = null;
+                _sse = null;
                 _activeRequest = null;
                 _ieStream = null;
             }
@@ -227,6 +235,18 @@ jQuery.atmosphere = function() {
             }
 
             /**
+             * Check if server side events (SSE) is supported (check for custom implementation
+             * provided by request object or browser implementation).
+             *
+             * @returns {boolean} True if web socket is supported, false
+             *          otherwise.
+             * @private
+             */
+            function _supportSSE() {
+                return window.EventSource;
+            }
+
+            /**
              * Open request using request transport. <br>
              * If request transport is 'websocket' but websocket can't be
              * opened, request will automatically reconnect using fallback
@@ -235,7 +255,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _execute() {
-                if (_request.transport != 'websocket') {
+                if (_request.transport != 'websocket' && _request.transport != 'sse') {
                     _open('opening',_request.transport);
                     _executeRequest();
 
@@ -246,6 +266,14 @@ jQuery.atmosphere = function() {
                         _reconnectWithFallbackTransport();
                     } else {
                         _executeWebSocket(false);
+                    }
+                } else if (_request.transport == 'sse') {
+                    if (!_supportSSE()) {
+                        jQuery.atmosphere.log(_request.logLevel, ["Server Side Events(SSE) is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")"]);
+                        _open('opening', _request.fallbackTransport);
+                        _reconnectWithFallbackTransport();
+                    } else {
+                        _executeSSE(false);
                     }
                 }
             }
@@ -365,6 +393,103 @@ jQuery.atmosphere = function() {
             }
 
             /**
+             * Build SSE url from request url.
+             *
+             * @return a url with Atmosphere's headers
+             * @private
+             */
+            function _buildSSEUrl() {
+                var url = _request.url;
+                url = _attachHeaders();
+                return url;
+            }
+
+            /**
+             * Open SSE. <br>
+             * Automatically use fallback transport if SSE can't be
+             * opened.
+             *
+             * @private
+             */
+            function _executeSSE(sseOpened) {
+
+                _response.transport = "sse";
+
+                var location = _buildSSEUrl(_request.url);
+
+                jQuery.atmosphere.log(_request.logLevel, ["Invoking executeSSE"]);
+                if (_request.logLevel == 'debug') {
+                    jQuery.atmosphere.debug("Using URL: " + location);
+                }
+                _sse = new EventSource(location, {withCredentials: _request.withCredentials});
+
+                if (_request.connectTimeout > 0) {
+                    _request.id = setTimeout(function() {
+                        if (!sseOpened) {
+                            _sse.close();
+                        }
+                    }, _request.connectTimeout);
+                }
+
+                _sse.onopen = function(event) {
+                    if (_request.logLevel == 'debug') {
+                        jQuery.atmosphere.debug("SSE successfully opened");
+                    }
+
+                    _subscribed = true;
+                    _open(sseOpened ? 're-opening' : 'opening', "sse");
+
+                    sseOpened = true;
+
+                    if (_request.method == 'POST') {
+                        _response.state = "messageReceived";
+                        _sse.send(_request.data);
+                    }
+                };
+
+                _sse.onmessage = function(message) {
+                    _response.state = 'messageReceived';
+                    _response.status = 200;
+
+                    var message = message.data;
+                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
+
+                    if (!skipCallbackInvocation) {
+                        _invokeCallback();
+                        _response.responseBody = '';
+                    }
+                };
+
+                _sse.onerror = function(message) {
+
+                    clearTimeout(_request.id)
+                    _response.state = 'closed';
+                    _response.responseBody = "";
+                    _response.status = 200;
+                    _invokeCallback();
+
+                    if (_abordingConnection) {
+                        _abordingConnection = false;
+                        jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
+
+                    } else if (!sseOpened) {
+                        jQuery.atmosphere.log(_request.logLevel, ["SSE failed. Downgrading to fallback transport and resending"]);
+                        _open('opening', _request.fallbackTransport);
+                        _reconnectWithFallbackTransport();
+
+                    } else if ((_subscribed) && (_response.transport == 'sse')) {
+                        if (_requestCount++ < _request.maxRequest) {
+                            _request.requestCount = _requestCount;
+                            _response.responseBody = "";
+                            _executeSSE(true);
+                        } else {
+                            jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _request.requestCount]);
+                        }
+                    }
+                };
+            }
+
+            /**
              * Open web socket. <br>
              * Automatically use fallback transport if web socket can't be
              * opened.
@@ -431,6 +556,7 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onerror = function(message) {
+                    clearTimeout(_request.id)
                     jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
 
                     _response.state = 'error';
@@ -478,6 +604,7 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = 200;
                     _invokeCallback();
+                    clearTimeout(_request.id)
 
                     if (_abordingConnection) {
                         _abordingConnection = false;
@@ -1173,7 +1300,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _push(message) {
-                if (_activeRequest != null) {
+                if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
                 } else if (_ieStream != null) {
                     _pushIE(message);
@@ -1413,6 +1540,11 @@ jQuery.atmosphere = function() {
                     _closingWebSocket = true;
                     _websocket.close();
                     _websocket = null;
+                }
+                if (_sse != null) {
+                    _closingSSE = true;
+                    _sse.close();
+                    _sse = null;
                 }
             }
 

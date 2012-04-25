@@ -203,6 +203,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.JSONP;
         } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
             return TRANSPORT.WEBSOCKET;
+        } else if (TRANSPORT.SSE.name().equals(s)) {
+            return TRANSPORT.SSE;
         } else {
             return TRANSPORT.UNDEFINED;
         }
@@ -401,8 +403,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
+            if (transport().equals(TRANSPORT.SSE)) {
+                String contentType = response.getContentType();
+                response.setContentType("text/event-stream");
+                response.setCharacterEncoding("utf-8");
+                write(false);
+                response.setContentType(contentType);
+            }
+
             if (flushComment) {
-                write();
+                write(true);
             }
             req.setAttribute(PRE_SUSPEND, "true");
             action.type = Action.TYPE.SUSPEND;
@@ -435,7 +445,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    void write() {
+    void write(boolean flushPadding) {
 
         if (beginCompatibleData == null) {
             beginCompatibleData = createStreamingPadding(padding);
@@ -449,7 +459,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     return;
                 }
 
-                response.getWriter().write(beginCompatibleData);
+                if (flushPadding) response.getWriter().write(beginCompatibleData);
                 response.getWriter().flush();
             } else {
                 try {
@@ -458,7 +468,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     return;
                 }
 
-                response.getOutputStream().write(beginCompatibleData.getBytes());
+                if (flushPadding) response.getOutputStream().write(beginCompatibleData.getBytes());
                 response.getOutputStream().flush();
             }
 

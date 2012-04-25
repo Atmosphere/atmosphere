@@ -34,6 +34,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+
 /**
  * An Atmosphere's response representation. An AtmosphereResponse can be used to construct bi-directional asynchronous
  * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
@@ -66,6 +68,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     private final boolean delegateToNativeResponse;
     private final boolean destroyable;
     private final HttpServletResponse response;
+    private boolean forceAsyncIOWriter = false;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         response = dsr;
@@ -475,7 +478,7 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             return new ServletOutputStream() {
 
                 @Override
@@ -525,7 +528,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     }
 
     private void writeStatusAndHeaders() throws java.io.IOException {
-        if (writeStatusAndHeader.getAndSet(false)) {
+        if (writeStatusAndHeader.getAndSet(false) && !forceAsyncIOWriter) {
             asyncIOWriter.write(constructStatusAndHeaders());
         }
     }
@@ -558,7 +561,7 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     @Override
     public PrintWriter getWriter() throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             return new PrintWriter(getOutputStream()) {
                 public void write(char[] chars, int offset, int lenght) {
                     try {
@@ -712,18 +715,85 @@ public class AtmosphereResponse implements HttpServletResponse {
         return asyncIOWriter;
     }
 
+    public AtmosphereResponse asyncIOWriter(AsyncIOWriter asyncIOWriter) {
+        this.asyncIOWriter = asyncIOWriter;
+        forceAsyncIOWriter = true;
+        return this;
+    }
+
     /**
      * Return the associated {@link AtmosphereRequest}
      *
      * @return the associated {@link AtmosphereRequest}
      */
-    public AtmosphereRequest getRequest() {
+    public AtmosphereRequest request() {
         return atmosphereRequest;
+    }
+
+    public AtmosphereResponse request(AtmosphereRequest atmosphereRequest) {
+        this.atmosphereRequest = atmosphereRequest;
+        return this;
     }
 
     public void close() throws IOException {
         if (asyncIOWriter != null) {
             asyncIOWriter.close();
+        }
+    }
+
+    public void closeStreamOrWriter() {
+        try {
+            boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+            if (isUsingStream) {
+                response.getOutputStream().close();
+            } else {
+                response.getWriter().close();
+            }
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+    }
+
+
+    public void write(String data) {
+        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+        try {
+            if (isUsingStream) {
+                response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
+
+            } else {
+                response.getWriter().write(data);
+            }
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+    }
+
+    public void write(byte[] data) {
+        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+        try {
+            if (isUsingStream) {
+                response.getOutputStream().write(data);
+
+            } else {
+                response.getWriter().write(new String(data, getCharacterEncoding()));
+            }
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+    }
+
+    public void write(byte[] data, int offset, int length) {
+        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+        try {
+            if (isUsingStream) {
+                response.getOutputStream().write(data, offset, length);
+
+            } else {
+                response.getWriter().write(new String(data,  offset, length, getCharacterEncoding()));
+            }
+        } catch (IOException e) {
+            logger.trace("", e);
         }
     }
 

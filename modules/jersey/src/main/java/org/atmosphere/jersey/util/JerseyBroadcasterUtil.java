@@ -68,6 +68,11 @@ public final class JerseyBroadcasterUtil {
 
             // This is required when you change the response's type
             String m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
+
+            if (m.toString().equalsIgnoreCase("text/event-stream")) {
+                m = "application/json";
+            }
+
             if (e.getMessage() instanceof Response) {
                 cr.setResponse((Response) e.getMessage());
                 cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
