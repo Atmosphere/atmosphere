@@ -307,16 +307,23 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         HttpServletResponse res = cometEvent.getHttpServletResponse();
         req.setAttribute(TomcatCometSupport.COMET_EVENT, cometEvent);
 
-        if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.asyncSupport) {
-                if (!framework.asyncSupport.getClass().equals(TomcatCometSupport.class)) {
-                    logger.warn("TomcatCometSupport is enabled, switching to it");
-                    framework.asyncSupport = new TomcatCometSupport(framework.config);
+        if (!framework.getAsyncSupport().supportWebSocket()) {
+            if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
+                synchronized (framework.asyncSupport) {
+                    if (!framework.asyncSupport.getClass().equals(TomcatCometSupport.class)) {
+                        logger.warn("TomcatCometSupport is enabled, switching to it");
+                        framework.asyncSupport = new TomcatCometSupport(framework.config);
+                    }
                 }
             }
         }
 
         framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+
+        String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
+            cometEvent.close();
+        }
     }
 
     /**
@@ -327,16 +334,23 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         HttpServletResponse res = cometEvent.getHttpServletResponse();
         req.setAttribute(Tomcat7CometSupport.COMET_EVENT, cometEvent);
 
-        if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.asyncSupport) {
-                if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
-                    logger.warn("TomcatCometSupport is enabled, switching to it");
-                    framework.asyncSupport = new Tomcat7CometSupport(framework.config);
+        if (!framework.getAsyncSupport().supportWebSocket()) {
+            if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
+                synchronized (framework.asyncSupport) {
+                    if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
+                        logger.warn("TomcatCometSupport is enabled, switching to it");
+                        framework.asyncSupport = new Tomcat7CometSupport(framework.config);
+                    }
                 }
             }
         }
 
         framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+
+        String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
+            cometEvent.close();
+        }
     }
 
     /**
