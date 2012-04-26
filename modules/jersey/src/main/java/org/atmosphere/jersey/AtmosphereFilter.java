@@ -224,8 +224,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         boolean outputJunk(AtmosphereResource r, boolean outputJunk) {
-            if (r.transport().equals(AtmosphereResource.TRANSPORT.STREAMING)) {
-                return true;
+            if (!r.transport().equals(AtmosphereResource.TRANSPORT.STREAMING)) {
+                return false;
             }
 
             return outputJunk;
