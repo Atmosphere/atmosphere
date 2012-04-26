@@ -54,16 +54,12 @@ public class ServerSideEventsFilter implements PerRequestBroadcastFilter {
 
                 @Override
                 public void write(byte[] data) throws IOException {
-                    response.write("data:");
-                    response.write(data);
-                    response.write("\n\n");
+                    response.write("data:").write(data).write("\n\n");
                 }
 
                 @Override
                 public void write(byte[] data, int offset, int length) throws IOException {
-                    response.write("data:");
-                    response.write(data, offset, length);
-                    response.write("\n\n");
+                    response.write("data:").write(data, offset, length).write("\n\n");
                 }
 
                 @Override
