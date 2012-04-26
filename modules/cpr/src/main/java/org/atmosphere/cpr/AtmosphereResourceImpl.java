@@ -408,7 +408,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String contentType = response.getContentType();
                 response.setContentType("text/event-stream");
                 response.setCharacterEncoding("utf-8");
-                write(false);
+                padding = "whitespace";
+                write(true);
                 response.setContentType(contentType);
             }
 
