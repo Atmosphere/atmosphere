@@ -111,7 +111,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
     private final AtmosphereHandler atmosphereHandler;
     private final boolean writeHeaders;
-    private final String padding;
+    private String padding;
 
     /**
      * Create an {@link AtmosphereResource}.
