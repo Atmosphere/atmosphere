@@ -148,6 +148,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
+
     }
 
     /**

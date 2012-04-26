@@ -15,10 +15,6 @@
             <param-value>org.atmosphere.samples.chat.jersey</param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
-            <param-value>org.atmosphere.client.ServerSideEventsFilter</param-value>
-        </init-param>
-        <init-param>
             <param-name>org.atmosphere.sse.contentType</param-name>
             <param-value>application/json</param-value>
         </init-param>

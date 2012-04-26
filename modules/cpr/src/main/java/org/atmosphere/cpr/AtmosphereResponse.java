@@ -514,6 +514,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
                 @Override
                 public void flush() throws IOException {
+                    writeStatusAndHeaders();
                     asyncIOWriter.flush();
                 }
 
@@ -774,7 +775,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     /**
      * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
-     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
      * @param data the String to write
      */
     public AtmosphereResponse write(String data) {
@@ -794,7 +795,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
      /**
      * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
-     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
      * @param data the bytes to write
      */
     public AtmosphereResponse write(byte[] data) {
@@ -814,7 +815,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     /**
      * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
-     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
      * @param data the bytes to write
      * @param offset the first byte position to write
      * @param length the data length

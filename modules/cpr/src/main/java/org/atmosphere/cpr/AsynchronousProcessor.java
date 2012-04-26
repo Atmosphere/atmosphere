@@ -64,6 +64,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -212,6 +214,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+
+        LinkedList<AtmosphereResourceConfig> c = config.framework().resourcesConfig();
+        for (AtmosphereResourceConfig arc : c) {
+            arc.configure(resource);
+        }
 
         try {
             handlerWrapper.atmosphereHandler.onRequest(resource);
