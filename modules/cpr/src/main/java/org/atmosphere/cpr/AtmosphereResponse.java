@@ -707,7 +707,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         }
     }
 
-
     /**
      * Return the underlying {@link AsyncIOWriter}
      */
@@ -715,6 +714,13 @@ public class AtmosphereResponse implements HttpServletResponse {
         return asyncIOWriter;
     }
 
+    /**
+     * Set an implementation of {@link AsyncIOWriter} that will be invoked every time a write operation is ready to be
+     * processed.
+     *
+     * @param asyncIOWriter  of {@link AsyncIOWriter}
+     * @return this
+     */
     public AtmosphereResponse asyncIOWriter(AsyncIOWriter asyncIOWriter) {
         this.asyncIOWriter = asyncIOWriter;
         forceAsyncIOWriter = true;
@@ -730,17 +736,29 @@ public class AtmosphereResponse implements HttpServletResponse {
         return atmosphereRequest;
     }
 
+    /**
+     * Set the associated {@link AtmosphereRequest}
+     * @param atmosphereRequest a {@link AtmosphereRequest}
+     * @return this
+     */
     public AtmosphereResponse request(AtmosphereRequest atmosphereRequest) {
         this.atmosphereRequest = atmosphereRequest;
         return this;
     }
 
+    /**
+     * Close the associated {@link AsyncIOWriter}
+     * @throws IOException
+     */
     public void close() throws IOException {
         if (asyncIOWriter != null) {
             asyncIOWriter.close();
         }
     }
 
+    /**
+     * Close the associated {@link PrintWriter} or {@link java.io.OutputStream}
+     */
     public void closeStreamOrWriter() {
         try {
             boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
@@ -754,8 +772,12 @@ public class AtmosphereResponse implements HttpServletResponse {
         }
     }
 
-
-    public void write(String data) {
+    /**
+     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * @param data the String to write
+     */
+    public AtmosphereResponse write(String data) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -767,9 +789,15 @@ public class AtmosphereResponse implements HttpServletResponse {
         } catch (IOException e) {
             logger.trace("", e);
         }
+        return this;
     }
 
-    public void write(byte[] data) {
+     /**
+     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * @param data the bytes to write
+     */
+    public AtmosphereResponse write(byte[] data) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -781,9 +809,17 @@ public class AtmosphereResponse implements HttpServletResponse {
         } catch (IOException e) {
             logger.trace("", e);
         }
+        return this;
     }
 
-    public void write(byte[] data, int offset, int length) {
+    /**
+     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig.PROPERTY_USE_STREAM}
+     * @param data the bytes to write
+     * @param offset the first byte position to write
+     * @param length the data length
+     */
+    public AtmosphereResponse write(byte[] data, int offset, int length) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -795,6 +831,7 @@ public class AtmosphereResponse implements HttpServletResponse {
         } catch (IOException e) {
             logger.trace("", e);
         }
+        return this;
     }
 
     private final static class DummyHttpServletResponse implements HttpServletResponse {
