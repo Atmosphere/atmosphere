@@ -25,6 +25,7 @@ import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.transport.JSONPAtmosphereResourceConfig;import org.atmosphere.transport.SSEAtmosphereResourceConfig;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
@@ -52,6 +53,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -189,6 +191,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
+    private final LinkedList<AtmosphereResourceConfig>
+            configMap = new LinkedList<AtmosphereResourceConfig>();
 
     @Override
     public ServletContext getServletContext() {
@@ -510,6 +514,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             initWebSocketProtocol();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
+            configureAtmosphereConfig(sc);
 
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
@@ -523,6 +528,35 @@ public class AtmosphereFramework implements ServletContextProvider {
             throw new ServletException(t);
         }
         return this;
+    }
+
+    /**
+     * Configure the list of {@link AtmosphereResourceConfig}.
+     * @param sc a ServletConfig
+     */
+    protected void configureAtmosphereConfig(ServletConfig sc){
+        String s = sc.getInitParameter(FrameworkConfig.ATMOSPHERE_RESOURCES_CONFIG);
+        if (s != null) {
+             String[] list = s.split(",");
+            for(String a: list) {
+                try {
+                    configMap.add((AtmosphereResourceConfig) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a).newInstance());
+                } catch (InstantiationException e) {
+                    logger.warn("", e);
+                } catch (IllegalAccessException e) {
+                    logger.warn("", e);
+                } catch (ClassNotFoundException e) {
+                    logger.warn("", e);
+                }
+            }
+        }
+
+        // Add SSE support
+        configMap.addLast(new SSEAtmosphereResourceConfig());
+        // ADD JSONP support
+        configMap.addLast(new JSONPAtmosphereResourceConfig());
+        logger.debug("Installed AtmosphereResourceConfig {}", configMap);
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -1360,5 +1394,21 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework setHandlersPath(String handlersPath) {
         this.handlersPath = handlersPath;
         return this;
+    }
+
+    /**
+     * Add an {@link AtmosphereResourceConfig} implementation. The adding order or AtmosphereResourceConfig will be used, e.g
+     * the first added AtmosphereResourceConfig will always be called first.
+     *
+     * @param c {@link AtmosphereResourceConfig}
+     * @return this
+     */
+    public AtmosphereFramework atmosphereResourceConfig(AtmosphereResourceConfig c) {
+        configMap.addLast(c);
+        return this;
+    }
+
+    public LinkedList<AtmosphereResourceConfig> resourcesConfig(){
+        return configMap;
     }
 }

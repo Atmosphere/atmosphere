@@ -15,40 +15,24 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link org.atmosphere.cpr.BroadcastFilter} that add support for jQuery.atmosphere.js JSONP_TRANSPORT support.
  *
+ * @deprecated JSONP is now built in supported.
  * @author Jeanfrancois Arcand
  */
 public class JSONPTransportFilter implements PerRequestBroadcastFilter {
+
+    private final Logger logger = LoggerFactory.getLogger(JSONPTransportFilter.class);
+
     @Override
     public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-
-        AtmosphereRequest request = r.getRequest();
-        AtmosphereResponse response = r.getResponse();
-        String s = request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
-        if (s != null) {
-            String contentType = response.getContentType();
-            if (contentType == null) {
-                contentType = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-            }
-
-            if (contentType != null && !contentType.contains("json")) {
-                String jsonPMessage = s + "({\"message\" : \"" + message + "\"})";
-                return new BroadcastAction(jsonPMessage);
-            } else {
-                String jsonPMessage = s + "({\"message\" :" + message + "})";
-                return new BroadcastAction(jsonPMessage);
-            }
-        }
-
+        logger.warn(getClass().getName() + " is deprecated and not required anymore");
         return new BroadcastAction(message);
     }
 
