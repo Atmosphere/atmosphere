@@ -42,6 +42,8 @@ public interface HeaderConfig {
 
     String WEBSOCKET_TRANSPORT = "websocket";
 
+    String SSE_TRANSPORT = "sse";
+
     /**
      * When a unexpected error occurs.
      */
@@ -78,5 +80,4 @@ public interface HeaderConfig {
     String WEBSOCKET_UPGRADE = "Upgrade";
 
     String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
-
 }

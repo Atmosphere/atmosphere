@@ -53,6 +53,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -72,6 +74,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
  * @author Jean-Francois Arcand
  */
 public class MeteorServlet extends AtmosphereServlet {
+    protected static final Logger logger = LoggerFactory.getLogger(MeteorServlet.class);
 
     public MeteorServlet() {
         this(false);
@@ -90,8 +93,11 @@ public class MeteorServlet extends AtmosphereServlet {
         String filterClass = framework().getAtmosphereConfig().getInitParameter(FILTER_CLASS);
         String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
 
-        logger.info("Installing Servlet/Meteor {} mapped to {}", servletClass, mapping);
-        logger.info("Installing Filter/Meteor {} mapped to /*", filterClass, mapping);
+        logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? "/*" : mapping);
+
+        if (filterClass != null) {
+            logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
+        }
 
         ReflectorServletProcessor r = new ReflectorServletProcessor();
         r.setServletClassName(servletClass);

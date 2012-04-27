@@ -52,12 +52,21 @@
 
 package org.atmosphere.samples.guice;
 
+import com.google.inject.TypeLiteral;
+import com.google.inject.name.Names;
 import com.google.inject.servlet.ServletModule;
+import org.atmosphere.guice.AtmosphereGuiceServlet;
+
+import java.util.Collections;
+import java.util.Map;
 
 public class GuiceChatModule extends ServletModule {
 
     @Override
     protected void configureServlets() {
         bind(ResourceChat.class);
+        bind(new TypeLiteral<Map<String, String>>() {
+        }).annotatedWith(Names.named(AtmosphereGuiceServlet.JERSEY_PROPERTIES)).toInstance(
+                Collections.<String, String>emptyMap());
     }
 }

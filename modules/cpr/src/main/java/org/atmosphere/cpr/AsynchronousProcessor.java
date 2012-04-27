@@ -64,6 +64,8 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -176,7 +178,7 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
     public Action suspended(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
         return action(request, response);
     }
-    
+
     /**
      * Invoke the {@link AtmosphereHandler#onRequest} method.
      *
@@ -237,6 +239,11 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
+        LinkedList<AtmosphereResourceConfig> c = config.framework().resourcesConfig();
+        for (AtmosphereResourceConfig arc : c) {
+            arc.configure(resource);
+        }
+
         try {
             handlerWrapper.atmosphereHandler.onRequest(resource);
         } catch (IOException t) {
@@ -274,6 +281,12 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
                 }
             }
         }
+        
+     // DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
+        if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
+        	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];
+        }
+        
         return atmosphereHandlerWrapper;
     }
 
@@ -595,5 +608,4 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
             ((AsynchronousProcessor) r.asyncSupport).action(r);
         }
     }
-    
 }

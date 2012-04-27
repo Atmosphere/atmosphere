@@ -223,24 +223,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             return resumeOnBroadcast;
         }
 
-        boolean outputJunk(boolean outputJunk) {
-            boolean webSocketEnabled = false;
-            if (servletReq.getHeaders("Connection") != null && servletReq.getHeaders("Connection").hasMoreElements()) {
-                String[] e = ((Enumeration<String>) servletReq.getHeaders("Connection")).nextElement().toString().split(",");
-                for (String upgrade : e) {
-                    if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                        webSocketEnabled = true;
-                        break;
-                    }
-                }
-            }
-
-            String transport = servletReq.getHeader(X_ATMOSPHERE_TRANSPORT);
-            if (webSocketEnabled) {
-                return false;
-            } else if (transport != null && (transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT))) {
-                return false;
-            } else if (transport == HeaderConfig.WEBSOCKET_TRANSPORT) {
+        boolean outputJunk(AtmosphereResource r, boolean outputJunk) {
+            if (outputJunk && !r.transport().equals(AtmosphereResource.TRANSPORT.STREAMING)
+                    && !r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) {
                 return false;
             }
 
@@ -389,7 +374,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
 
-                    boolean outputJunk = outputJunk(s.outputComments());
+                    boolean outputJunk = outputJunk(r, s.outputComments());
                     boolean resumeOnBroadcast = resumeOnBroadcast(s.resumeOnBroadcast());
 
                     for (AtmosphereResourceEventListener el : s.listeners()) {
@@ -426,7 +411,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case SUSPEND:
                 case SUSPEND_TRACKABLE:
                 case SUSPEND_RESUME:
-                    outputJunk = outputJunk(outputComments);
+                    outputJunk = outputJunk(r, outputComments);
                     resumeOnBroadcast = resumeOnBroadcast((action == Action.SUSPEND_RESUME));
 
                     if (listeners != null) {

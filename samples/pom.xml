@@ -20,6 +20,8 @@
         <module>scala-chat</module>
         <module>meteor-chat</module>
         <module>chat-guice</module>
+        <module>sse-chat</module>
+        <module>sse-rest-chat</module>
 
         <!-- Using Javascript -->
         <module>tictactoe</module>
@@ -43,6 +45,7 @@
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
+	<module>spring-tiles</module>
         <module>socketio-chat</module>
     </modules>
     <build>

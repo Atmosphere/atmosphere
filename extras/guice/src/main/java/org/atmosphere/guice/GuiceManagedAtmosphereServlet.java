@@ -28,8 +28,12 @@ import javax.servlet.ServletException;
 @Singleton
 public class GuiceManagedAtmosphereServlet extends AtmosphereGuiceServlet {
 
+    public GuiceManagedAtmosphereServlet() {
+        this(false, true);
+    }
+
     public GuiceManagedAtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
-        super(isFilter, autoDetectHandlers, true);
+        super(isFilter, autoDetectHandlers);
     }
 }
 

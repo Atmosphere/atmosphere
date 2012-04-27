@@ -18,6 +18,7 @@ package org.atmosphere.samples.chat.jersey;
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -29,7 +30,6 @@ import javax.ws.rs.Produces;
  * @author Jeanfrancois Arcand
  */
 @Path("/")
-@Produces("application/json")
 public class ResourceChat {
 
     /**
@@ -49,6 +49,7 @@ public class ResourceChat {
      */
     @Broadcast(writeEntity = false)
     @POST
+    @Produces("application/json")
     public Response broadcast(Message message) {
         return new Response(message.author, message.message);
     }

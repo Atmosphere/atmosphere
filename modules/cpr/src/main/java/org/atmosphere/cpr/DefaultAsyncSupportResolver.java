@@ -127,9 +127,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public List<Class<? extends AsyncSupport>> detectContainersPresent() {
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (testClassExists(NETTY))
-                    add(NettyCometSupport.class);
-
                 if (testClassExists(GLASSFISH_V2))
                     add(GlassFishv2CometSupport.class);
 
@@ -153,6 +150,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(GRIZZLY))
                     add(GrizzlyCometSupport.class);
+
+                if (testClassExists(NETTY))
+                    add(NettyCometSupport.class);
             }
         };
     }

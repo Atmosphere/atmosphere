@@ -15,14 +15,18 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
+import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.transport.JSONPAtmosphereResourceConfig;
+import org.atmosphere.transport.SSEAtmosphereResourceConfig;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
@@ -50,6 +54,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -187,6 +192,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
+    private final LinkedList<AtmosphereResourceConfig>
+            configMap = new LinkedList<AtmosphereResourceConfig>();
 
     @Override
     public ServletContext getServletContext() {
@@ -506,8 +513,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
             initWebSocketProtocol();
+            
+            doInitCustomProtocolHandler(scFacade);
+            
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
+            configureAtmosphereConfig(sc);
 
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
@@ -521,6 +532,49 @@ public class AtmosphereFramework implements ServletContextProvider {
             throw new ServletException(t);
         }
         return this;
+    }
+     /**
+     * Configure the list of {@link AtmosphereResourceConfig}.
+     * @param sc a ServletConfig
+     */
+    protected void configureAtmosphereConfig(ServletConfig sc){
+        String s = sc.getInitParameter(FrameworkConfig.ATMOSPHERE_RESOURCES_CONFIG);
+        if (s != null) {
+             String[] list = s.split(",");
+            for(String a: list) {
+                try {
+                    configMap.add((AtmosphereResourceConfig) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a).newInstance());
+                } catch (InstantiationException e) {
+                    logger.warn("", e);
+                } catch (IllegalAccessException e) {
+                    logger.warn("", e);
+                } catch (ClassNotFoundException e) {
+                    logger.warn("", e);
+                }
+            }
+        }
+
+        // Add SSE support
+        configMap.addLast(new SSEAtmosphereResourceConfig());
+        // ADD JSONP support
+        configMap.addLast(new JSONPAtmosphereResourceConfig());
+        logger.debug("Installed AtmosphereResourceConfig {}", configMap);
+    }
+	
+    protected void doInitCustomProtocolHandler(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.PROPERTY_CUSTOM_COMET_SUPPORT);
+        
+        if(s!=null){
+        	ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        	//cometSupport = new SocketIOCometSupport(config, (AsynchronousProcessor)cometSupport);
+        	try {
+        		asyncSupport = (AsyncSupport) cl.loadClass(s).getDeclaredConstructor(config.getClass(), AsynchronousProcessor.class).newInstance(config, asyncSupport);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+        }
+        
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -855,14 +909,24 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, atmoHandler.getContextRoot());
 
+                for (ApplicationConfiguration a : atmoHandler.getApplicationConfig()) {
+                    initParams.put(a.getParamName(), a.getParamValue());
+                }
+
+                for (FrameworkConfiguration a : atmoHandler.getFrameworkConfig()) {
+                    initParams.put(a.getParamName(), a.getParamValue());
+                }
+
                 boolean isJersey = false;
                 for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
 
-                    if (handlerProperty.getName() != null && handlerProperty.getName().indexOf("jersey") != -1) {
+                    if (handlerProperty.getValue() != null && handlerProperty.getValue().indexOf("jersey") != -1) {
                         isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType();
+                        broadcasterFactory = null;
+                        configureBroadcaster(servletConfig.getServletContext());
                     }
 
                     IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
@@ -1126,6 +1190,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
+        if (res.request() == null) {
+            res.request(req);
+        }
+
         Action a = null;
         try {
             boolean skip = true;
@@ -1158,6 +1226,13 @@ public class AtmosphereFramework implements ServletContextProvider {
                 logger.trace(ex.getMessage(), ex);
 
                 asyncSupport = new BlockingIOCometSupport(config);
+                
+              //HACK TEMPORAIRE :) @TODO 
+                doInitCustomProtocolHandler(config.getServletConfig());
+                if(asyncSupport!=null){
+                	asyncSupport.init(config.getServletConfig());
+                }
+                
                 a = doCometSupport(req, res);
             } else {
                 logger.error("AtmosphereFramework exception", ex);
@@ -1344,5 +1419,21 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework setHandlersPath(String handlersPath) {
         this.handlersPath = handlersPath;
         return this;
+    }
+
+    /**
+     * Add an {@link AtmosphereResourceConfig} implementation. The adding order or AtmosphereResourceConfig will be used, e.g
+     * the first added AtmosphereResourceConfig will always be called first.
+     *
+     * @param c {@link AtmosphereResourceConfig}
+     * @return this
+     */
+    public AtmosphereFramework atmosphereResourceConfig(AtmosphereResourceConfig c) {
+        configMap.addLast(c);
+        return this;
+    }
+
+    public LinkedList<AtmosphereResourceConfig> resourcesConfig(){
+        return configMap;
     }
 }
