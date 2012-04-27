@@ -882,10 +882,15 @@ jQuery.atmosphere = function() {
 
                         if (update) {
 
-                            var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
-                            if (tempDate != null || tempDate != undefined) {
-                                _request.lastTimestamp = tempDate.split(" ").pop();
-                            }
+                            // Do not fail on trying to retrieve headers. Chrome migth fail with
+                            // Refused to get unsafe header
+                            // Let the failure happens later with a better error message
+                            try {
+                                var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                                if (tempDate != null || tempDate != undefined) {
+                                    _request.lastTimestamp = tempDate.split(" ").pop();
+                                }
+                            } catch (e) {}
 
                             var responseText = ajaxRequest.responseText;
                             this.previousLastIndex = rq.lastIndex;
