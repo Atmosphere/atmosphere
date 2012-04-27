@@ -583,7 +583,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         if (create) {
             return getSession();
         }
-        return session != null && isNotNoOps() ? b.request.getSession(false) : session;
+        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
     }
 
     /**
