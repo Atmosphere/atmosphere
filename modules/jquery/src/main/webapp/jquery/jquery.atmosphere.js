@@ -516,6 +516,7 @@ jQuery.atmosphere = function() {
                 _response.transport = "websocket";
 
                 var location = _buildWebSocketUrl(_request.url);
+                var closed = false;
 
                 jQuery.atmosphere.log(_request.logLevel, ["Invoking executeWebSocket"]);
                 if (_request.logLevel == 'debug') {
@@ -532,7 +533,11 @@ jQuery.atmosphere = function() {
                                 reason : "",
                                 wasClean : false
                             };
-                            _websocket.close();
+                            _websocket.onclose(_message);
+                            // Close it anyway
+                            try {
+                                _websocket.close();
+                            } catch (e) {}
                         }
                     }, _request.connectTimeout);
                 }
@@ -545,7 +550,7 @@ jQuery.atmosphere = function() {
                     _subscribed = true;
                     _open(webSocketOpened ? 're-opening' : 'opening', "websocket", _request);
 
-                    //webSocketOpened = true;
+                    webSocketOpened = true;
 
                     if (_request.method == 'POST') {
                         _response.state = "messageReceived";
@@ -575,6 +580,8 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onclose = function(message) {
+                    if (closed) return
+
                     var reason = message.reason;
                     if (reason === "") {
                         switch (message.code) {
@@ -614,6 +621,8 @@ jQuery.atmosphere = function() {
                     _response.status = 200;
                     _invokeCallback();
                     clearTimeout(_request.id)
+
+                    closed = true;
 
                     if (_abordingConnection) {
                         _abordingConnection = false;
