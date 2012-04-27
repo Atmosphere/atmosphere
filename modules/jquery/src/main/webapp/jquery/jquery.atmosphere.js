@@ -299,7 +299,6 @@ jQuery.atmosphere = function() {
                 _response.status = 200;
                 var prevTransport = _response.transport;
                 _response.transport = transport;
-                _response.responseBody = "";
                 _invokeCallback();
                 _response.state = prevState;
                 _response.transport = prevTransport;
