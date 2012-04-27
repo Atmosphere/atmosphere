@@ -969,7 +969,7 @@ jQuery.atmosphere = function() {
                             }
 
                             if (!rq.executeCallbackBeforeReconnect) {
-                                _invokeCallback();
+                                _open('re-opening', rq.transport);
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
@@ -977,9 +977,10 @@ jQuery.atmosphere = function() {
                             if (_response.responseBody.indexOf("parent.callback") != -1) {
                                 jQuery.atmosphere.log(rq.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                             }
+                            _invokeCallback();
 
                             if (rq.executeCallbackBeforeReconnect) {
-                                _invokeCallback();
+                                _open('re-opening', rq.transport);
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
@@ -987,8 +988,6 @@ jQuery.atmosphere = function() {
                                 // Close and reopen connection on large data received
                                 ajaxRequest.abort();
                                 _doRequest(ajaxRequest, rq, true);
-                            } else {
-                                _open('re-opening', rq.transport);
                             }
                         }
                     };
