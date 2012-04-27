@@ -6,6 +6,14 @@
 
     <description>Atmosphere Chat</description>
     <display-name>Atmosphere Chat</display-name>
+    <filter>
+        <filter-name>WebSocketHandshakeFilter</filter-name>
+        <filter-class>org.atmosphere.websocket.WebSocketHandshakeFilter</filter-class>
+        <init-param>
+            <param-name>org.atmosphere.websocket.bannedVersion</param-name>
+            <param-value>-1</param-value>
+        </init-param>
+    </filter>
     <servlet>
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
@@ -17,5 +25,10 @@
         <servlet-name>AtmosphereServlet</servlet-name>
         <url-pattern>/chat/*</url-pattern>
     </servlet-mapping>
+    <filter-mapping>
+        <filter-name>WebSocketHandshakeFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
 </web-app>
 
