@@ -15,8 +15,7 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-
+import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -28,10 +27,10 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  */
 public final class Utils {
 
-    public static boolean webSocketEnabled(AtmosphereRequest request) {
+    public static boolean webSocketEnabled(HttpServletRequest request) {
         boolean webSocketEnabled = false;
         Enumeration<String> connection = request.getHeaders("Connection");
-        if (connection == null) {
+        if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
         }
 
