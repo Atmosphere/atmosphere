@@ -463,6 +463,10 @@ jQuery.atmosphere = function() {
                     var message = message.data;
                     var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
 
+                    if (jQuery.trim(message).length == 0) {
+                        skipCallbackInvocation = true;
+                    }
+
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
@@ -876,6 +880,10 @@ jQuery.atmosphere = function() {
                             clearTimeout(rq.id);
                         }
 
+                        if (jQuery.trim(ajaxRequest.responseText).length == 0) {
+                            update = false;
+                        }
+
                         if (update) {
 
                             // Do not fail on trying to retrieve headers. Chrome migth fail with
@@ -888,7 +896,6 @@ jQuery.atmosphere = function() {
                                 }
                             } catch (e) {}
 
-                            var responseText = ajaxRequest.responseText;
                             this.previousLastIndex = rq.lastIndex;
                             if (rq.transport == 'streaming') {
                                 var text = responseText.substring(rq.lastIndex, responseText.length);
