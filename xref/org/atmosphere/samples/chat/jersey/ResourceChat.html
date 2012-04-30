@@ -28,18 +28,18 @@
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.annotation.Broadcast;
 <a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.annotation.Suspend;
 <a class="jxr_linenumber" name="20" href="#20">20</a>  
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.GET;
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.POST;
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.Path;
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.Produces;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment"> * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.</em>
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="31" href="#31">31</a>  @Path(<span class="jxr_string">"/"</span>)
-<a class="jxr_linenumber" name="32" href="#32">32</a>  @Produces(<span class="jxr_string">"application/json"</span>)
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.Consumes;
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.GET;
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.POST;
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.Path;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> javax.ws.rs.Produces;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment"> * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.</em>
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  @Path(<span class="jxr_string">"/"</span>)
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../../org/atmosphere/samples/chat/jersey/ResourceChat.html">ResourceChat</a> {
 <a class="jxr_linenumber" name="34" href="#34">34</a>  
 <a class="jxr_linenumber" name="35" href="#35">35</a>      <em class="jxr_javadoccomment">/**</em>
@@ -59,11 +59,12 @@
 <a class="jxr_linenumber" name="49" href="#49">49</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="50" href="#50">50</a>      @Broadcast(writeEntity = false)
 <a class="jxr_linenumber" name="51" href="#51">51</a>      @POST
-<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../org/atmosphere/samples/chat/jersey/Response.html">Response</a> broadcast(<a href="../../../../../org/atmosphere/samples/chat/jersey/Message.html">Message</a> message) {
-<a class="jxr_linenumber" name="53" href="#53">53</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/samples/chat/jersey/Response.html">Response</a>(message.author, message.message);
-<a class="jxr_linenumber" name="54" href="#54">54</a>      }
-<a class="jxr_linenumber" name="55" href="#55">55</a>  
-<a class="jxr_linenumber" name="56" href="#56">56</a>  }
+<a class="jxr_linenumber" name="52" href="#52">52</a>      @Produces(<span class="jxr_string">"application/json"</span>)
+<a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../../org/atmosphere/samples/chat/jersey/Response.html">Response</a> broadcast(<a href="../../../../../org/atmosphere/samples/chat/jersey/Message.html">Message</a> message) {
+<a class="jxr_linenumber" name="54" href="#54">54</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/samples/chat/jersey/Response.html">Response</a>(message.author, message.message);
+<a class="jxr_linenumber" name="55" href="#55">55</a>      }
+<a class="jxr_linenumber" name="56" href="#56">56</a>  
+<a class="jxr_linenumber" name="57" href="#57">57</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

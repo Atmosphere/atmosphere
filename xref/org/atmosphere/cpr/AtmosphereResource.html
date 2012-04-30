@@ -78,7 +78,7 @@
 <a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="69" href="#69">69</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> <strong class="jxr_keyword">extends</strong> Trackable, <a href="../../../org/atmosphere/cpr/AtmosphereEventLifecycle.html">AtmosphereEventLifecycle</a> {
 <a class="jxr_linenumber" name="70" href="#70">70</a>  
-<a class="jxr_linenumber" name="71" href="#71">71</a>      enum <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">TRANSPORT</a> {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED}
+<a class="jxr_linenumber" name="71" href="#71">71</a>      enum <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">TRANSPORT</a> {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED, SSE}
 <a class="jxr_linenumber" name="72" href="#72">72</a>  
 <a class="jxr_linenumber" name="73" href="#73">73</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="74" href="#74">74</a>  <em class="jxr_javadoccomment">     * Return the current {@link TRANSPORT}. The transport value is retrieved using the {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT}</em>

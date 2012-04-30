@@ -44,12 +44,14 @@ org.atmosphere.samples.pubsub.config.resolvers
 org.atmosphere.samples.pubsub.controllers
 org.atmosphere.samples.pubsub.dto
 org.atmosphere.samples.pubsub.services
+org.atmosphere.samples.pubsub.spring
 org.atmosphere.samples.pubsub.utils
 org.atmosphere.samples.server
 org.atmosphere.samples.tictactoe
 org.atmosphere.samples.twitter
 org.atmosphere.samples.wicket
 org.atmosphere.spring
+org.atmosphere.transport
 org.atmosphere.util
 org.atmosphere.util.uri
 org.atmosphere.weblogic
