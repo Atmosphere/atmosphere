@@ -1142,13 +1142,16 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param f the real path {@link File}
      */
     private void getFiles(File f) {
+        getFiles(f, true);
+    }
 
-        if (possibleComponentsCandidate.size() > 0) return; // We already scanned.
+    private void getFiles(File f, boolean check) {
+        if (check) return; // We already scanned.
 
         File[] files = f.listFiles();
         for (File test : files) {
             if (test.isDirectory()) {
-                getFiles(test);
+                getFiles(test, false);
             } else {
                 String clazz = test.getAbsolutePath();
                 if (clazz.endsWith(".class")) {
