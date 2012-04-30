@@ -64,14 +64,15 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     private static final Logger logger = LoggerFactory.getLogger(JBossWebCometSupport.class);
 
     public static final String HTTP_EVENT = "HttpEvent";
+    private final static String SUSPENDED = JBossWebCometSupport.class.getName() + ".suspended";
 
     private static final IllegalStateException unableToDetectComet = new IllegalStateException(unableToDetectComet());
-
-    // Client disconnection is broken on Tomcat.
-    private final ConcurrentLinkedQueue<HttpEvent> resumed = new ConcurrentLinkedQueue<HttpEvent>();
+    private final Boolean closeConnectionOnInputStream;
 
     public JBossWebCometSupport(AtmosphereConfig config) {
         super(config);
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
     }
 
     /**
@@ -120,8 +121,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         } else if (event.getType() == HttpEvent.EventType.EOF) {
             logger.debug("Client closed connection: response: {}", res);
 
-            if (!resumed.remove(event)) {
-                logger.debug("Client closed connection: response: {}", res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
@@ -131,13 +132,13 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         } else if (event.getType() == HttpEvent.EventType.ERROR) {
             event.close();
         } else if (event.getType() == HttpEvent.EventType.END) {
-            if (!resumed.remove(event)) {
-                logger.debug("Client closed connection response: {}", res);
+            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+                req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                logger.debug("Cancelling response: {}", res);
+                logger.trace("Cancelling response: {}", res);
+                event.close();
             }
-            event.close();
         } else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
             logger.debug("Timing out {}", res);
             action = timedout(req, res);
@@ -155,7 +156,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
             if (event == null) {
                 return action;
             }
-            resumed.offer(event);
             event.close();
         }
         return action;
@@ -170,7 +170,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
             try {
                 HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
-                resumed.offer(event);
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null ||
                         config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
