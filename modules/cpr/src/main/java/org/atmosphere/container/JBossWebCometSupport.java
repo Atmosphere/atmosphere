@@ -127,9 +127,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 action = cancelled(req, res);
             } else {
                 logger.debug("Cancelling response: {}", res);
+                event.close();
             }
-
-            event.close();
         } else if (event.getType() == HttpEvent.EventType.ERROR) {
             event.close();
         } else if (event.getType() == HttpEvent.EventType.END) {
