@@ -106,6 +106,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
+                    req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
