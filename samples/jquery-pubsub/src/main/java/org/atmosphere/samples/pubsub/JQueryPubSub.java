@@ -34,7 +34,6 @@ import javax.ws.rs.Produces;
  * @author Jeanfrancois Arcand
  */
 @Path("/pubsub/{topic}")
-@Produces("text/html;charset=ISO-8859-1")
 public class JQueryPubSub {
 
     private
@@ -52,6 +51,7 @@ public class JQueryPubSub {
 
     @POST
     @Broadcast
+    @Produces("text/html;charset=ISO-8859-1")
     public Broadcastable publish(@FormParam("message") String message) {
         return new Broadcastable(message, "", topic);
     }
