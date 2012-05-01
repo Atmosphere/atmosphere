@@ -14,10 +14,6 @@
             <param-name>com.sun.jersey.config.property.packages</param-name>
             <param-value>org.atmosphere.samples.chat.jersey</param-value>
         </init-param>
-        <init-param>
-            <param-name>org.atmosphere.sse.contentType</param-name>
-            <param-value>application/json</param-value>
-        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

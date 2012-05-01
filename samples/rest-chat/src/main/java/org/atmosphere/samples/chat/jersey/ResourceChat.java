@@ -36,7 +36,7 @@ public class ResourceChat {
      * Suspend the response without writing anything back to the client.
      * @return a white space
      */
-    @Suspend
+    @Suspend(contentType = "application/json")
     @GET
     public String suspend() {
         return "";
