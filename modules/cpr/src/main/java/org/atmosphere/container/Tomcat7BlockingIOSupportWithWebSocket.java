@@ -44,11 +44,11 @@ import java.io.IOException;
 /**
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
  */
-public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implements TomcatWebSocketUtil.Delegate {
-    private static final Logger logger = LoggerFactory.getLogger(Tomcat7AsyncSupportWithWebSocket.class);
+public class Tomcat7BlockingIOSupportWithWebSocket extends Servlet30CometSupport implements TomcatWebSocketUtil.Delegate {
+    private static final Logger logger = LoggerFactory.getLogger(Tomcat7BlockingIOSupportWithWebSocket.class);
     private static final long serialVersionUID = 1L;
 
-    public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
+    public Tomcat7BlockingIOSupportWithWebSocket(AtmosphereConfig config) {
         super(config);
     }
 
