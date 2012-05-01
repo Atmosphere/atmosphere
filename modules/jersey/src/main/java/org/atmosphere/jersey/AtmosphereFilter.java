@@ -161,7 +161,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             new ConcurrentHashMap<String, AtmosphereResource>();
 
     /**
-     * TODO: Fix that messy class.
+     * TODO: Fix that messy class.  Instead must cache the annotation object itself.
      */
     public class Filter implements ResourceFilter, ContainerResponseFilter {
 
@@ -175,6 +175,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         private final ArrayList<ClusterBroadcastFilter> clusters = new ArrayList<ClusterBroadcastFilter>();
         private final String topic;
         private final boolean writeEntity;
+        private final String defaultContentType;
 
         protected Filter(Action action) {
             this(action, -1);
@@ -196,7 +197,27 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this(action, timeout, waitFor, scope, outputComments, null, null, true);
         }
 
-        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments, Class<BroadcastFilter>[] filters, String topic, boolean writeEntity) {
+        protected Filter(Action action,
+                         long timeout,
+                         int waitFor,
+                         Suspend.SCOPE scope,
+                         boolean outputComments,
+                         Class<BroadcastFilter>[] filters,
+                         String topic,
+                         boolean writeEntity) {
+           this(action, timeout, waitFor, scope, outputComments, filters, topic, writeEntity, null);
+        }
+
+        protected Filter(Action action,
+                         long timeout,
+                         int waitFor,
+                         Suspend.SCOPE scope,
+                         boolean outputComments,
+                         Class<BroadcastFilter>[] filters,
+                         String topic,
+                         boolean writeEntity,
+                         String contentType) {
+
             this.action = action;
             this.timeout = timeout;
             this.scope = scope;
@@ -205,6 +226,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.filters = filters;
             this.topic = topic;
             this.writeEntity = writeEntity;
+            this.defaultContentType = contentType;
         }
 
         public ContainerRequestFilter getRequestFilter() {
@@ -851,12 +873,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 b = configureHeaders(b);
 
                 AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+
                 String defaultCT = config.getInitParameter(ApplicationConfig.DEFAULT_CONTENT_TYPE);
                 if (defaultCT == null) {
                     defaultCT = "text/plain; charset=ISO-8859-1";
                 }
 
                 String ct = contentType == null ? defaultCT : contentType.toString();
+
+                if (defaultContentType != null) {
+                    ct = defaultContentType;
+                }
 
                 if (entity != null) {
                     b = b.header("Content-Type", ct);
@@ -1001,9 +1028,25 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             if (am.getAnnotation(Suspend.class).resumeOnBroadcast()) {
-                f = new Filter(trackable ? Action.SUSPEND_TRACKABLE : Action.SUSPEND_RESUME, suspendTimeout, 0, scope, outputComments);
+                f = new Filter(trackable ? Action.SUSPEND_TRACKABLE : Action.SUSPEND_RESUME,
+                        suspendTimeout,
+                        0,
+                        scope,
+                        outputComments,
+                        null,
+                        null,
+                        true,
+                        am.getAnnotation(Suspend.class).contentType());
             } else {
-                f = new Filter(trackable ? Action.SUSPEND_TRACKABLE : Action.SUSPEND, suspendTimeout, 0, scope, outputComments);
+                f = new Filter(trackable ? Action.SUSPEND_TRACKABLE : Action.SUSPEND,
+                        suspendTimeout,
+                        0,
+                        scope,
+                        outputComments,
+                        null,
+                        null,
+                        true,
+                        am.getAnnotation(Suspend.class).contentType());
             }
             f.setListeners(am.getAnnotation(Suspend.class).listeners());
 
