@@ -192,8 +192,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
-    private final LinkedList<AtmosphereResourceConfig>
-            configMap = new LinkedList<AtmosphereResourceConfig>();
+    protected final LinkedList<AtmosphereResourceConfig> configMap = new LinkedList<AtmosphereResourceConfig>();
+    protected boolean scanDone = false;
 
     @Override
     public ServletContext getServletContext() {
@@ -1062,6 +1062,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (file.isDirectory()) {
             getFiles(file);
+            scanDone = true;
 
             for (String className : possibleComponentsCandidate) {
                 try {
@@ -1116,6 +1117,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (file.isDirectory()) {
             getFiles(file);
+            scanDone = true;
 
             for (String className : possibleComponentsCandidate) {
                 try {
@@ -1142,16 +1144,12 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param f the real path {@link File}
      */
     private void getFiles(File f) {
-        getFiles(f, true);
-    }
-
-    private void getFiles(File f, boolean check) {
-        if (check) return; // We already scanned.
+        if (scanDone) return;
 
         File[] files = f.listFiles();
         for (File test : files) {
             if (test.isDirectory()) {
-                getFiles(test, false);
+                getFiles(test);
             } else {
                 String clazz = test.getAbsolutePath();
                 if (clazz.endsWith(".class")) {
