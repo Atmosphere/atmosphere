@@ -887,6 +887,7 @@ jQuery.atmosphere = function() {
                             update = false;
                         }
 
+                        var responseText = ajaxRequest.responseText;
                         if (update) {
 
                             // Do not fail on trying to retrieve headers. Chrome migth fail with
