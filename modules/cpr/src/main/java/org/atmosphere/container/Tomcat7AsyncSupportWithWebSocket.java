@@ -96,7 +96,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Servlet30CometSupport {
 
             if (!headerContainsToken(req, "sec-websocket-version", "13")) {
                 logger.debug("WebSocket version not supported. Downgrading to Comet");
-                res.sendError(202, "Websocket protocol not supported");
+                res.sendError(501, "Websocket protocol not supported");
                 return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CANCELLED);
             }
 
