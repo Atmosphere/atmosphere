@@ -85,7 +85,7 @@ public class UrlMappingTest {
         r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        r = new AtmosphereRequest.Builder().pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
         r = new AtmosphereRequest.Builder().pathInfo("/ab/").build();
