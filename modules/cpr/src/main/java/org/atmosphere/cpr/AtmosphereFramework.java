@@ -535,14 +535,14 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Configure the list of {@link AtmosphereResourceConfig}.
      * @param sc a ServletConfig
      */
-    protected void configureAtmosphereConfig(ServletConfig sc){
+    protected void configureAtmosphereConfig(ServletConfig sc) {
         String s = sc.getInitParameter(FrameworkConfig.ATMOSPHERE_RESOURCES_CONFIG);
         if (s != null) {
-             String[] list = s.split(",");
-            for(String a: list) {
+            String[] list = s.split(",");
+            for (String a : list) {
                 try {
                     configMap.add((AtmosphereResourceConfig) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a).newInstance());
+                            .loadClass(a.trim()).newInstance());
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
