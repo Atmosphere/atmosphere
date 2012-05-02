@@ -35,6 +35,7 @@ $(function () {
 
         socket.subscribe(req)
     });
+    <!-- Below is code that can be re-used -->
 
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
