@@ -40,6 +40,7 @@ $(function () {
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
+
         logLevel : 'debug',
         transport : 'websocket' ,
         fallbackTransport: 'long-polling'};
