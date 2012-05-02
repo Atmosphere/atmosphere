@@ -887,19 +887,18 @@ jQuery.atmosphere = function() {
                                 update = true;
                                 clearTimeout(rq.id);
                             }
-
                         } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200 && rq.transport != 'long-polling') {
                             update = true;
                         } else {
                             clearTimeout(rq.id);
                         }
 
-                        if (jQuery.trim(ajaxRequest.responseText).length == 0) {
+                        if (!jQuery.browser.msie && jQuery.trim(ajaxRequest.responseText).length == 0) {
                             update = false;
                         }
 
-                        var responseText = ajaxRequest.responseText;
                         if (update) {
+                            var responseText = ajaxRequest.responseText;
 
                             // Do not fail on trying to retrieve headers. Chrome migth fail with
                             // Refused to get unsafe header
