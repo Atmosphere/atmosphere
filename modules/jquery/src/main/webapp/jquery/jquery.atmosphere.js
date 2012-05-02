@@ -1607,11 +1607,11 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
             };
 
-            this.close() = function() {
+            this.close = function() {
                 _close();
             };
 
-            this.getUrl() = function() {
+            this.getUrl = function() {
                 return _request.url;
             };
 
