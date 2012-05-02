@@ -19,16 +19,18 @@ $(function () {
     transports[4] = "streaming";
 
     $.each(transports, function (index, transport) {
-        var req = { url: document.location.toString() + 'chat',
-            contentType : "application/json",
-            logLevel : 'debug',
-            transport : transport ,
-            maxRequest : 0,
-            fallbackTransport : 'none',
-            headers : { "negotiating" : "true" }};
+        var req = new $.atmosphere.AtmosphereRequest();
+
+        req.url = document.location.toString() + 'chat';
+        req.contentType = "application/json";
+        req.transport = transport;
+        req.maxRequest = 0;
+        req.fallbackTransport = 'none';
+        req.headers = { "negotiating" : "true" };
 
         req.onOpen = function(response) {
             detect.append('<p><span style="color:blue">' + transport + ' supported: '  + '</span>' + (response.transport == transport));
+            req.close;
         }
 
         socket.subscribe(req)
