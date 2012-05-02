@@ -150,8 +150,21 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
             DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
             try {
+
+                AtmosphereRequest r = AtmosphereRequest.wrap(webSocket.getRequest());
+                try {
+                    // GlassFish http://java.net/jira/browse/GLASSFISH-18681
+                    if (r.getPathInfo().startsWith(r.getContextPath())) {
+                        r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
+                        r.pathInfo(null);
+                    }
+                } catch (Exception e) {
+                    // Whatever exception occurs skip it
+                    logger.trace("", e);
+                }
+
                 webSocketProcessor = new WebSocketProcessor(config.framework(), new GrizzlyWebSocket(webSocket), config.framework().getWebSocketProtocol());
-                webSocketProcessor.dispatch(AtmosphereRequest.wrap(webSocket.getRequest()));
+                webSocketProcessor.dispatch(r);
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
             }
