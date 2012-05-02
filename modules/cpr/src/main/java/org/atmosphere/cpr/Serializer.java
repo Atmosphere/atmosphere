@@ -57,7 +57,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Serialize the {@link Object} the result of invoking {@link Broadcaster#broadcast}
+ * Serialize the {@link Object} the result of invoking {@link Broadcaster#broadcast}.
+ *
+ * IMPORTANT: This class isn't supported by the link Atmosphere-Jersey extension.
  *
  * @author Paul Sandoz
  * @author Jeanfrancois Arcand
