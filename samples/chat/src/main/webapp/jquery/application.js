@@ -18,8 +18,7 @@ $(function () {
     transports[3] = "long-polling";
     transports[4] = "streaming";
 
-    transports.forEach(function (transport) {
-        var socket = $.atmosphere;
+    $.each(transports, function (index, transport) {
         var req = { url: document.location.toString() + 'chat',
             contentType : "application/json",
             logLevel : 'debug',
