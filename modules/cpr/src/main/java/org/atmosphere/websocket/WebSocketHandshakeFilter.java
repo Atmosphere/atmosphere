@@ -65,7 +65,7 @@ public class WebSocketHandshakeFilter implements Filter {
             if (bannedVersion != null) {
                 for (String s : bannedVersion) {
                     if (Integer.parseInt(s) == draft) {
-                        logger.error("Invalid WebSocket Specification {} with {} ",
+                        logger.trace("Invalid WebSocket Specification {} with {} ",
                                 r.getHeader("Connection"), r.getIntHeader("Sec-WebSocket-Version"));
                         HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         HttpServletResponse.class.cast(response).sendError(501, "Websocket protocol not supported");
