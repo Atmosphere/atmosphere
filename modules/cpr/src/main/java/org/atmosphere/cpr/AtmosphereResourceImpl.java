@@ -102,7 +102,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean isCancelled = false;
     private boolean resumeOnBroadcast = false;
     private Object writeOnTimeout = null;
-    private boolean sseWritten = false;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -406,7 +405,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             if (transport().equals(TRANSPORT.SSE)) {
-                writeSSE(true);
+                String contentType = response.getContentType();
+                response.setContentType("text/event-stream");
+                response.setCharacterEncoding("utf-8");
+                padding = "whitespace";
+                write(true);
+                response.setContentType(contentType);
             }
 
             if (flushComment) {
@@ -441,18 +445,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             notifyListeners();
         }
         return this;
-    }
-
-    public void writeSSE(boolean write){
-        if (!sseWritten) {
-            String contentType = response.getContentType();
-            response.setContentType("text/event-stream");
-        response.setCharacterEncoding("utf-8");
-            padding = "whitespace";
-            write(write);
-            response.setContentType(contentType);
-            sseWritten = true;
-        }
     }
 
     void write(boolean flushPadding) {

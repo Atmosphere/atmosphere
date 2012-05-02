@@ -38,12 +38,8 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
 
         // First, tell Atmosphere to allow bi-directional communication by suspending.
         if (req.getMethod().equalsIgnoreCase("GET")) {
-            if (req.getHeader("negotiating") == null) {
-                // We are using HTTP long-polling with an invite timeout
-                r.suspend();
-            } else {
-                r.getResponse().getWriter().write("OK");
-            }
+            // We are using HTTP long-polling with an invite timeout
+            r.suspend();
         // Second, broadcast message to all connected users.
         } else if (req.getMethod().equalsIgnoreCase("POST")) {
             r.getBroadcaster().broadcast(req.getReader().readLine().trim());

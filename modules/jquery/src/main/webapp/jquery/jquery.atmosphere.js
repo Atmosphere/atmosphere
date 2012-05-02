@@ -334,7 +334,7 @@ jQuery.atmosphere = function() {
                     type : rq.method,
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
-                        if (jqXHR.status < 300 && rq.requestCount++ < rq.maxRequest) {
+                        if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
@@ -342,29 +342,23 @@ jQuery.atmosphere = function() {
                     },
                     jsonp : "jsonpTransport",
                     success: function(json) {
+                        if (rq.executeCallbackBeforeReconnect) {
+                            _reconnect(_jqxhr, rq);
+                        }
 
-                        if (rq.requestCount++ < rq.maxRequest) {
-                            if (rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
+                        var msg = json.message;
+                        if (msg != null && typeof msg != 'string') {
+                            try {
+                                msg = jQuery.stringifyJSON(msg);
+                            } catch (err) {
+                                // The message was partial
                             }
+                        }
 
-                            var msg = json.message;
-                            if (msg != null && typeof msg != 'string') {
-                                try {
-                                    msg = jQuery.stringifyJSON(msg);
-                                } catch (err) {
-                                    // The message was partial
-                                }
-                            }
+                        _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
-                            _prepareCallback(msg, "messageReceived", 200, rq.transport);
-
-                            if (!rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
-                            }
-                        } else {
-                            jQuery.atmosphere.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
-                            _onError();
+                        if (!rq.executeCallbackBeforeReconnect) {
+                            _reconnect(_jqxhr, rq);
                         }
                     },
                     data : rq.data,
@@ -490,6 +484,7 @@ jQuery.atmosphere = function() {
                     _response.status = 200;
                     _invokeCallback();
 
+                    sseOpened = false;
                     if (_abordingConnection) {
                         _abordingConnection = false;
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
@@ -505,12 +500,10 @@ jQuery.atmosphere = function() {
                             _response.responseBody = "";
                             _executeSSE(true);
                         } else {
-                            _sse.close();
                             jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _request.requestCount]);
                             _onError();
                         }
                     }
-                    sseOpened = false;
                 };
             }
 
@@ -547,8 +540,7 @@ jQuery.atmosphere = function() {
                             // Close it anyway
                             try {
                                 _websocket.close();
-                            } catch (e) {
-                            }
+                            } catch (e) {}
                         }
                     }, _request.connectTimeout);
                 }
@@ -708,12 +700,9 @@ jQuery.atmosphere = function() {
              */
             function _reconnectWithFallbackTransport() {
                 _request.transport = _request.fallbackTransport;
-
-                if (_request.transport != 'none' || _request.transport == null) {
-                    _request.method = _request.fallbackMethod;
-                    _response.transport = _request.fallbackTransport;
-                    _executeRequest();
-                }
+                _request.method = _request.fallbackMethod;
+                _response.transport = _request.fallbackTransport;
+                _executeRequest();
             }
 
             /**
@@ -909,8 +898,7 @@ jQuery.atmosphere = function() {
                                 if (tempDate != null || tempDate != undefined) {
                                     _request.lastTimestamp = tempDate.split(" ").pop();
                                 }
-                            } catch (e) {
-                            }
+                            } catch (e) {}
 
                             this.previousLastIndex = rq.lastIndex;
                             if (rq.transport == 'streaming') {

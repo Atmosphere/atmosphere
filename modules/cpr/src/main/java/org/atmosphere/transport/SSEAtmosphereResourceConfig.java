@@ -18,7 +18,6 @@ package org.atmosphere.transport;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceConfig;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
@@ -30,7 +29,7 @@ import java.io.IOException;
 public class SSEAtmosphereResourceConfig implements AtmosphereResourceConfig{
 
     @Override
-    public void configure(final AtmosphereResource r) {
+    public void configure(AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
@@ -47,20 +46,17 @@ public class SSEAtmosphereResourceConfig implements AtmosphereResourceConfig{
 
                 @Override
                 public void write(String data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:" + data + "\n\n");
                 }
 
                 // TODO: Performance: execute a single write
                 @Override
                 public void write(byte[] data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:").write(data).write("\n\n");
                 }
 
                 @Override
                 public void write(byte[] data, int offset, int length) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:").write(data, offset, length).write("\n\n");
                 }
 
