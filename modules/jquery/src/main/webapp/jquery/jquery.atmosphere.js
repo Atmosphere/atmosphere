@@ -230,8 +230,6 @@ jQuery.atmosphere = function() {
 
                 _request = jQuery.extend(_request, options);
                 _uuid = jQuery.atmosphere.guid();
-
-                _execute();
             }
 
             /**
@@ -1029,6 +1027,7 @@ jQuery.atmosphere = function() {
                             if (_subscribed) {
                                 ajaxRequest.abort();
                                 _subscribe(rq);
+                                _execute();
                             }
                         }, rq.timeout);
                     }
@@ -1597,6 +1596,7 @@ jQuery.atmosphere = function() {
 
             this.subscribe = function(options) {
                 _subscribe(options);
+                _execute();
             };
 
             this.execute = function() {
@@ -1634,6 +1634,8 @@ jQuery.atmosphere = function() {
             }
 
             var rq = new jQuery.atmosphere.AtmosphereRequest(request);
+            rq.execute();
+
             jQuery.atmosphere.requests[jQuery.atmosphere.requests.length] = rq;
             return rq;
         },
