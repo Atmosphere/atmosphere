@@ -950,6 +950,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Return the current {@link AsyncSupport}
      *
+     * @deprecated Use getAsyncSupport
      * @return the current {@link AsyncSupport}
      */
     public AsyncSupport getCometSupport() {
