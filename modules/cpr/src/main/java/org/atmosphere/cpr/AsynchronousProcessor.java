@@ -277,7 +277,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = req.getServletPath();
         }
 
-        if (path.isEmpty()) {
+        if (path == null || path.isEmpty()) {
             path = "/";
         }
 
