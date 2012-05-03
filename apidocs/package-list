@@ -21,6 +21,7 @@ org.atmosphere.gwt.server.deflate
 org.atmosphere.gwt.server.impl
 org.atmosphere.gwt.shared
 org.atmosphere.handler
+org.atmosphere.interceptor
 org.atmosphere.jersey
 org.atmosphere.jersey.util
 org.atmosphere.jetty
@@ -51,7 +52,6 @@ org.atmosphere.samples.tictactoe
 org.atmosphere.samples.twitter
 org.atmosphere.samples.wicket
 org.atmosphere.spring
-org.atmosphere.transport
 org.atmosphere.util
 org.atmosphere.util.uri
 org.atmosphere.weblogic

@@ -46,7 +46,7 @@
 <a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment">     * Suspend the response without writing anything back to the client.</em>
 <a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment">     * @return a white space</em>
 <a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>      @Suspend
+<a class="jxr_linenumber" name="39" href="#39">39</a>      @Suspend(contentType = <span class="jxr_string">"application/json"</span>)
 <a class="jxr_linenumber" name="40" href="#40">40</a>      @GET
 <a class="jxr_linenumber" name="41" href="#41">41</a>      <strong class="jxr_keyword">public</strong> String suspend() {
 <a class="jxr_linenumber" name="42" href="#42">42</a>          <strong class="jxr_keyword">return</strong> <span class="jxr_string">""</span>;

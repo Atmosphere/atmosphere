@@ -75,10 +75,10 @@
 <a class="jxr_linenumber" name="65" href="#65">65</a>              <strong class="jxr_keyword">if</strong> (bannedVersion != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="66" href="#66">66</a>                  <strong class="jxr_keyword">for</strong> (String s : bannedVersion) {
 <a class="jxr_linenumber" name="67" href="#67">67</a>                      <strong class="jxr_keyword">if</strong> (Integer.parseInt(s) == draft) {
-<a class="jxr_linenumber" name="68" href="#68">68</a>                          logger.error(<span class="jxr_string">"Invalid WebSocket Specification {} with {} "</span>,
+<a class="jxr_linenumber" name="68" href="#68">68</a>                          logger.trace(<span class="jxr_string">"Invalid WebSocket Specification {} with {} "</span>,
 <a class="jxr_linenumber" name="69" href="#69">69</a>                                  r.getHeader(<span class="jxr_string">"Connection"</span>), r.getIntHeader(<span class="jxr_string">"Sec-WebSocket-Version"</span>));
 <a class="jxr_linenumber" name="70" href="#70">70</a>                          HttpServletResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).addHeader(X_ATMOSPHERE_ERROR, <span class="jxr_string">"Websocket protocol not supported"</span>);
-<a class="jxr_linenumber" name="71" href="#71">71</a>                          HttpServletResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).sendError(202, <span class="jxr_string">"Websocket protocol not supported"</span>);
+<a class="jxr_linenumber" name="71" href="#71">71</a>                          HttpServletResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).sendError(501, <span class="jxr_string">"Websocket protocol not supported"</span>);
 <a class="jxr_linenumber" name="72" href="#72">72</a>                          <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="73" href="#73">73</a>                      }
 <a class="jxr_linenumber" name="74" href="#74">74</a>                  }

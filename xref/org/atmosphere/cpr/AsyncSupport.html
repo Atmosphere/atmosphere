@@ -103,21 +103,21 @@
 <a class="jxr_linenumber" name="93" href="#93">93</a>  
 <a class="jxr_linenumber" name="94" href="#94">94</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="95" href="#95">95</a>  <em class="jxr_javadoccomment">     * Serve the {@link AtmosphereRequest} and the {@link AtmosphereResponse} and return</em>
-<a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">     * the appropriate {@link org.atmosphere.cpr.AtmosphereFramework.Action}.</em>
+<a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">     * the appropriate {@link Action}.</em>
 <a class="jxr_linenumber" name="97" href="#97">97</a>  <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="98" href="#98">98</a>  <em class="jxr_javadoccomment">     * @param req the {@link AtmosphereRequest}</em>
 <a class="jxr_linenumber" name="99" href="#99">99</a>  <em class="jxr_javadoccomment">     * @param res the {@link AtmosphereResponse}</em>
-<a class="jxr_linenumber" name="100" href="#100">100</a> <em class="jxr_javadoccomment">     * @return the {@link org.atmosphere.cpr.AtmosphereFramework.Action} that was manipulated by the {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="100" href="#100">100</a> <em class="jxr_javadoccomment">     * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}</em>
 <a class="jxr_linenumber" name="101" href="#101">101</a> <em class="jxr_javadoccomment">     * @throws java.io.IOException</em>
 <a class="jxr_linenumber" name="102" href="#102">102</a> <em class="jxr_javadoccomment">     * @throws javax.servlet.ServletException</em>
 <a class="jxr_linenumber" name="103" href="#103">103</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="104" href="#104">104</a>     <strong class="jxr_keyword">public</strong> AtmosphereFramework.Action service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
+<a class="jxr_linenumber" name="104" href="#104">104</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
 <a class="jxr_linenumber" name="105" href="#105">105</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException;
 <a class="jxr_linenumber" name="106" href="#106">106</a> 
 <a class="jxr_linenumber" name="107" href="#107">107</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="108" href="#108">108</a> <em class="jxr_javadoccomment">     * Process an {@link org.atmosphere.cpr.AtmosphereFramework.Action} from an {@link ActionEvent} operation like suspend, resume or timed out.</em>
+<a class="jxr_linenumber" name="108" href="#108">108</a> <em class="jxr_javadoccomment">     * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.</em>
 <a class="jxr_linenumber" name="109" href="#109">109</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="110" href="#110">110</a> <em class="jxr_javadoccomment">     * @param actionEvent An instance of {@link org.atmosphere.cpr.AtmosphereFramework.Action}</em>
+<a class="jxr_linenumber" name="110" href="#110">110</a> <em class="jxr_javadoccomment">     * @param actionEvent An instance of {@link Action}</em>
 <a class="jxr_linenumber" name="111" href="#111">111</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="112" href="#112">112</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> action(E actionEvent);
 <a class="jxr_linenumber" name="113" href="#113">113</a> 

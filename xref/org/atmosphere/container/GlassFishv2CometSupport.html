@@ -66,10 +66,10 @@
 <a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
 <a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 <a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
-<a class="jxr_linenumber" name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
-<a class="jxr_linenumber" name="60" href="#60">60</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
-<a class="jxr_linenumber" name="61" href="#61">61</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
-<a class="jxr_linenumber" name="62" href="#62">62</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework.Action;
+<a class="jxr_linenumber" name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Action;
+<a class="jxr_linenumber" name="60" href="#60">60</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
+<a class="jxr_linenumber" name="61" href="#61">61</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
+<a class="jxr_linenumber" name="62" href="#62">62</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
 <a class="jxr_linenumber" name="63" href="#63">63</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
 <a class="jxr_linenumber" name="64" href="#64">64</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
 <a class="jxr_linenumber" name="65" href="#65">65</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -123,14 +123,14 @@
 <a class="jxr_linenumber" name="113" href="#113">113</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="114" href="#114">114</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="115" href="#115">115</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
+<a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
 <a class="jxr_linenumber" name="117" href="#117">117</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="118" href="#118">118</a>         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
-<a class="jxr_linenumber" name="119" href="#119">119</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> action = suspended(req, res);
-<a class="jxr_linenumber" name="120" href="#120">120</a>         <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.SUSPEND) {
+<a class="jxr_linenumber" name="119" href="#119">119</a>         <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = suspended(req, res);
+<a class="jxr_linenumber" name="120" href="#120">120</a>         <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.SUSPEND) {
 <a class="jxr_linenumber" name="121" href="#121">121</a>             logger.debug(<span class="jxr_string">"Suspending response: {}"</span>, res);
 <a class="jxr_linenumber" name="122" href="#122">122</a>             suspend(ctx, action, req, res);
-<a class="jxr_linenumber" name="123" href="#123">123</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.RESUME) {
+<a class="jxr_linenumber" name="123" href="#123">123</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.RESUME) {
 <a class="jxr_linenumber" name="124" href="#124">124</a>             logger.debug(<span class="jxr_string">"Resuming response: {}"</span>, res);
 <a class="jxr_linenumber" name="125" href="#125">125</a>             resume(req, ctx);
 <a class="jxr_linenumber" name="126" href="#126">126</a>         }
@@ -145,9 +145,9 @@
 <a class="jxr_linenumber" name="135" href="#135">135</a> <em class="jxr_javadoccomment">     * @param req</em>
 <a class="jxr_linenumber" name="136" href="#136">136</a> <em class="jxr_javadoccomment">     * @param res</em>
 <a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="138" href="#138">138</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> suspend(CometContext ctx, <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> action, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) {
+<a class="jxr_linenumber" name="138" href="#138">138</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> suspend(CometContext ctx, <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) {
 <a class="jxr_linenumber" name="139" href="#139">139</a>         <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a> c = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a>(req, res);
-<a class="jxr_linenumber" name="140" href="#140">140</a>         ctx.setExpirationDelay(action.timeout);
+<a class="jxr_linenumber" name="140" href="#140">140</a>         ctx.setExpirationDelay(action.timeout());
 <a class="jxr_linenumber" name="141" href="#141">141</a>         ctx.addCometHandler(c);
 <a class="jxr_linenumber" name="142" href="#142">142</a>         ctx.addAttribute(<span class="jxr_string">"Time"</span>, System.currentTimeMillis());
 <a class="jxr_linenumber" name="143" href="#143">143</a>         req.setAttribute(ATMOSPHERE, c.hashCode());
@@ -191,17 +191,17 @@
 <a class="jxr_linenumber" name="181" href="#181">181</a>     @Override
 <a class="jxr_linenumber" name="182" href="#182">182</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> action(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> actionEvent) {
 <a class="jxr_linenumber" name="183" href="#183">183</a>         <strong class="jxr_keyword">super</strong>.action(actionEvent);
-<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">if</strong> (actionEvent.action().type == Action.TYPE.RESUME &amp;&amp; actionEvent.isInScope()) {
+<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">if</strong> (actionEvent.action().type() == Action.TYPE.RESUME &amp;&amp; actionEvent.isInScope()) {
 <a class="jxr_linenumber" name="185" href="#185">185</a>             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
 <a class="jxr_linenumber" name="186" href="#186">186</a>             resume(actionEvent.getRequest(), ctx);
 <a class="jxr_linenumber" name="187" href="#187">187</a>         }
 <a class="jxr_linenumber" name="188" href="#188">188</a>     }
 <a class="jxr_linenumber" name="189" href="#189">189</a> 
 <a class="jxr_linenumber" name="190" href="#190">190</a>     @Override
-<a class="jxr_linenumber" name="191" href="#191">191</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> cancelled(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
+<a class="jxr_linenumber" name="191" href="#191">191</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> cancelled(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
 <a class="jxr_linenumber" name="192" href="#192">192</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="193" href="#193">193</a> 
-<a class="jxr_linenumber" name="194" href="#194">194</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> action = <strong class="jxr_keyword">super</strong>.cancelled(req, res);
+<a class="jxr_linenumber" name="194" href="#194">194</a>         <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = <strong class="jxr_keyword">super</strong>.cancelled(req, res);
 <a class="jxr_linenumber" name="195" href="#195">195</a>         <strong class="jxr_keyword">if</strong> (req.getAttribute(MAX_INACTIVE) != <strong class="jxr_keyword">null</strong> &amp;&amp; Long.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req.getAttribute(MAX_INACTIVE)) == -1) {
 <a class="jxr_linenumber" name="196" href="#196">196</a>             resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
 <a class="jxr_linenumber" name="197" href="#197">197</a>         }

@@ -62,10 +62,10 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_comment"> */</em>
 <a class="jxr_linenumber" name="53" href="#53">53</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.container;
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
-<a class="jxr_linenumber" name="55" href="#55">55</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
-<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
-<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
-<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework.Action;
+<a class="jxr_linenumber" name="55" href="#55">55</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Action;
+<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
+<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
+<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
 <a class="jxr_linenumber" name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereHandler;
 <a class="jxr_linenumber" name="60" href="#60">60</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
 <a class="jxr_linenumber" name="61" href="#61">61</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -97,19 +97,19 @@
 <a class="jxr_linenumber" name="87" href="#87">87</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="88" href="#88">88</a>  <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="89" href="#89">89</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> service(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
-<a class="jxr_linenumber" name="91" href="#91">91</a>          <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> action = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> service(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
+<a class="jxr_linenumber" name="91" href="#91">91</a>          <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="92" href="#92">92</a>  
 <a class="jxr_linenumber" name="93" href="#93">93</a>          Continuation c = (Continuation) req.getAttribute(Continuation.<strong class="jxr_keyword">class</strong>.getName());
 <a class="jxr_linenumber" name="94" href="#94">94</a>  
 <a class="jxr_linenumber" name="95" href="#95">95</a>          <strong class="jxr_keyword">if</strong> (c == <strong class="jxr_keyword">null</strong> || c.isInitial()) {
 <a class="jxr_linenumber" name="96" href="#96">96</a>              action = suspended(req, res);
-<a class="jxr_linenumber" name="97" href="#97">97</a>              <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.SUSPEND &amp;&amp; req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="97" href="#97">97</a>              <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.SUSPEND &amp;&amp; req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="98" href="#98">98</a>                  c = ContinuationSupport.getContinuation(req);
 <a class="jxr_linenumber" name="99" href="#99">99</a>                  req.setAttribute(Continuation.<strong class="jxr_keyword">class</strong>.getName(), c);
 <a class="jxr_linenumber" name="100" href="#100">100</a> 
-<a class="jxr_linenumber" name="101" href="#101">101</a>                 <strong class="jxr_keyword">if</strong> (action.timeout != -1) {
-<a class="jxr_linenumber" name="102" href="#102">102</a>                     c.setTimeout(action.timeout);
+<a class="jxr_linenumber" name="101" href="#101">101</a>                 <strong class="jxr_keyword">if</strong> (action.timeout() != -1) {
+<a class="jxr_linenumber" name="102" href="#102">102</a>                     c.setTimeout(action.timeout());
 <a class="jxr_linenumber" name="103" href="#103">103</a>                 } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="104" href="#104">104</a>                     <em class="jxr_comment">// Jetty 7 does something really weird if you set it to</em>
 <a class="jxr_linenumber" name="105" href="#105">105</a>                     <em class="jxr_comment">// Long.MAX_VALUE, which is to resume automatically.</em>
@@ -152,7 +152,7 @@
 <a class="jxr_linenumber" name="142" href="#142">142</a>                 <strong class="jxr_keyword">if</strong> (req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="143" href="#143">143</a>                     c.suspend(res);
 <a class="jxr_linenumber" name="144" href="#144">144</a>                 }
-<a class="jxr_linenumber" name="145" href="#145">145</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.RESUME) {
+<a class="jxr_linenumber" name="145" href="#145">145</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.RESUME) {
 <a class="jxr_linenumber" name="146" href="#146">146</a>                 <em class="jxr_comment">// If resume occurs during a suspend operation, stop processing.</em>
 <a class="jxr_linenumber" name="147" href="#147">147</a>                 Boolean resumeOnBroadcast = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
 <a class="jxr_linenumber" name="148" href="#148">148</a>                 <strong class="jxr_keyword">if</strong> (resumeOnBroadcast != <strong class="jxr_keyword">null</strong> &amp;&amp; resumeOnBroadcast) {
@@ -177,7 +177,7 @@
 <a class="jxr_linenumber" name="167" href="#167">167</a>     }
 <a class="jxr_linenumber" name="168" href="#168">168</a> 
 <a class="jxr_linenumber" name="169" href="#169">169</a>     @Override
-<a class="jxr_linenumber" name="170" href="#170">170</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> resumed(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
+<a class="jxr_linenumber" name="170" href="#170">170</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> resumed(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
 <a class="jxr_linenumber" name="171" href="#171">171</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="172" href="#172">172</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> r =
 <a class="jxr_linenumber" name="173" href="#173">173</a>                 (<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a>) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
@@ -188,7 +188,7 @@
 <a class="jxr_linenumber" name="178" href="#178">178</a>         <strong class="jxr_keyword">synchronized</strong> (r) {
 <a class="jxr_linenumber" name="179" href="#179">179</a>             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
 <a class="jxr_linenumber" name="180" href="#180">180</a>         }
-<a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a>(Action.TYPE.RESUME);
+<a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a>(Action.TYPE.RESUME);
 <a class="jxr_linenumber" name="182" href="#182">182</a>     }
 <a class="jxr_linenumber" name="183" href="#183">183</a> 
 <a class="jxr_linenumber" name="184" href="#184">184</a>     <em class="jxr_javadoccomment">/**</em>

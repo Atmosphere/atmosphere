@@ -62,10 +62,10 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_comment"> */</em>
 <a class="jxr_linenumber" name="53" href="#53">53</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.weblogic;
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
-<a class="jxr_linenumber" name="55" href="#55">55</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
-<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
-<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
-<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework.Action;
+<a class="jxr_linenumber" name="55" href="#55">55</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Action;
+<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
+<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsynchronousProcessor;
+<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
 <a class="jxr_linenumber" name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
 <a class="jxr_linenumber" name="60" href="#60">60</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
 <a class="jxr_linenumber" name="61" href="#61">61</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponse;
@@ -95,16 +95,16 @@
 <a class="jxr_linenumber" name="85" href="#85">85</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="86" href="#86">86</a>  <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="87" href="#87">87</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="88" href="#88">88</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
+<a class="jxr_linenumber" name="88" href="#88">88</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> service(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res)
 <a class="jxr_linenumber" name="89" href="#89">89</a>              <strong class="jxr_keyword">throws</strong> IOException, ServletException {
-<a class="jxr_linenumber" name="90" href="#90">90</a>          <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> action = suspended(req, res);
-<a class="jxr_linenumber" name="91" href="#91">91</a>          <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.SUSPEND) {
+<a class="jxr_linenumber" name="90" href="#90">90</a>          <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = suspended(req, res);
+<a class="jxr_linenumber" name="91" href="#91">91</a>          <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.SUSPEND) {
 <a class="jxr_linenumber" name="92" href="#92">92</a>              logger.debug(<span class="jxr_string">"Suspending response: {}"</span>, res);
-<a class="jxr_linenumber" name="93" href="#93">93</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type == Action.TYPE.RESUME) {
+<a class="jxr_linenumber" name="93" href="#93">93</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.RESUME) {
 <a class="jxr_linenumber" name="94" href="#94">94</a>              logger.debug(<span class="jxr_string">"Resuming response: {}"</span>, res);
 <a class="jxr_linenumber" name="95" href="#95">95</a>  
-<a class="jxr_linenumber" name="96" href="#96">96</a>              <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">Action</a> nextAction = resumed(req, res);
-<a class="jxr_linenumber" name="97" href="#97">97</a>              <strong class="jxr_keyword">if</strong> (nextAction.type == Action.TYPE.SUSPEND) {
+<a class="jxr_linenumber" name="96" href="#96">96</a>              <a href="../../../org/atmosphere/cpr/Action.html">Action</a> nextAction = resumed(req, res);
+<a class="jxr_linenumber" name="97" href="#97">97</a>              <strong class="jxr_keyword">if</strong> (nextAction.type() == Action.TYPE.SUSPEND) {
 <a class="jxr_linenumber" name="98" href="#98">98</a>                  logger.debug(<span class="jxr_string">"Suspending after resuming response: {}"</span>, res);
 <a class="jxr_linenumber" name="99" href="#99">99</a>              }
 <a class="jxr_linenumber" name="100" href="#100">100</a>         }
@@ -117,7 +117,7 @@
 <a class="jxr_linenumber" name="107" href="#107">107</a>     @Override
 <a class="jxr_linenumber" name="108" href="#108">108</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> action(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> actionEvent) {
 <a class="jxr_linenumber" name="109" href="#109">109</a>         <strong class="jxr_keyword">super</strong>.action(actionEvent);
-<a class="jxr_linenumber" name="110" href="#110">110</a>         <strong class="jxr_keyword">if</strong> (actionEvent.isInScope() &amp;&amp; actionEvent.action().type == Action.TYPE.RESUME &amp;&amp;
+<a class="jxr_linenumber" name="110" href="#110">110</a>         <strong class="jxr_keyword">if</strong> (actionEvent.isInScope() &amp;&amp; actionEvent.action().type() == Action.TYPE.RESUME &amp;&amp;
 <a class="jxr_linenumber" name="111" href="#111">111</a>                 (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == <strong class="jxr_keyword">null</strong>
 <a class="jxr_linenumber" name="112" href="#112">112</a>                         || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase(<span class="jxr_string">"false"</span>))) {
 <a class="jxr_linenumber" name="113" href="#113">113</a>             <strong class="jxr_keyword">try</strong> {
