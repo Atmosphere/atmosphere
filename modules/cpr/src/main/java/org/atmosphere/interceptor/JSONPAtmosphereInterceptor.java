@@ -13,25 +13,28 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.transport;
+package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceConfig;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * JSONP Transport Support.
+ *
+ * @author Jeanfrancois Arcand
  */
-public class JSONPAtmosphereResourceConfig implements AtmosphereResourceConfig {
+public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
+
     @Override
-    public void configure(AtmosphereResource r) {
+    public AtmosphereFramework.Action inspect(AtmosphereResource r) {
 
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
@@ -108,6 +111,7 @@ public class JSONPAtmosphereResourceConfig implements AtmosphereResourceConfig {
                 }
             });
         }
+        return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CONTINUE);
     }
 
     @Override

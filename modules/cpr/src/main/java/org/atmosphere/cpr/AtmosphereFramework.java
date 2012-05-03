@@ -26,8 +26,8 @@ import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.transport.JSONPAtmosphereResourceConfig;
-import org.atmosphere.transport.SSEAtmosphereResourceConfig;
+import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
+import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
@@ -193,7 +193,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
-    protected final LinkedList<AtmosphereResourceConfig> configMap = new LinkedList<AtmosphereResourceConfig>();
+    protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
 
     @Override
@@ -255,7 +255,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     public final static class Action {
 
         public enum TYPE {
-            SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED, CREATED
+            SUSPEND, RESUME, TIMEOUT, CANCELLED, CONTINUE, CREATED
         }
 
         public long timeout = -1L;
@@ -539,16 +539,16 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Configure the list of {@link AtmosphereResourceConfig}.
+     * Configure the list of {@link AtmosphereInterceptor}.
      * @param sc a ServletConfig
      */
     protected void configureAtmosphereConfig(ServletConfig sc) {
-        String s = sc.getInitParameter(FrameworkConfig.ATMOSPHERE_RESOURCES_CONFIG);
+        String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
         if (s != null) {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    configMap.add((AtmosphereResourceConfig) Thread.currentThread().getContextClassLoader()
+                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
                             .loadClass(a.trim()).newInstance());
                 } catch (InstantiationException e) {
                     logger.warn("", e);
@@ -561,10 +561,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         // Add SSE support
-        configMap.addLast(new SSEAtmosphereResourceConfig());
+        interceptors.addLast(new SSEAtmosphereInterceptor());
         // ADD JSONP support
-        configMap.addLast(new JSONPAtmosphereResourceConfig());
-        logger.debug("Installed AtmosphereResourceConfig {}", configMap);
+        interceptors.addLast(new JSONPAtmosphereInterceptor());
+        logger.debug("Installed AtmosphereResourceConfig {}", interceptors);
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -1407,18 +1407,22 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereResourceConfig} implementation. The adding order or AtmosphereResourceConfig will be used, e.g
-     * the first added AtmosphereResourceConfig will always be called first.
+     * Add an {@link AtmosphereInterceptor} implementation. The adding order or {@link AtmosphereInterceptor} will be used, e.g
+     * the first added {@link AtmosphereInterceptor} will always be called first.
      *
-     * @param c {@link AtmosphereResourceConfig}
+     * @param c {@link AtmosphereInterceptor}
      * @return this
      */
-    public AtmosphereFramework atmosphereResourceConfig(AtmosphereResourceConfig c) {
-        configMap.addLast(c);
+    public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
+        interceptors.addLast(c);
         return this;
     }
 
-    public LinkedList<AtmosphereResourceConfig> resourcesConfig(){
-        return configMap;
+    /**
+     * Return the list of {@link AtmosphereInterceptor}
+     * @return the list of {@link AtmosphereInterceptor}
+     */
+    public LinkedList<AtmosphereInterceptor> interceptors(){
+        return interceptors;
     }
 }
