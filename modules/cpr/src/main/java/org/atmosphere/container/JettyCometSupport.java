@@ -52,10 +52,10 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -97,16 +97,16 @@ public class JettyCometSupport extends AsynchronousProcessor {
         if (!c.isResumed() && !c.isPending() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
             // This will throw an exception
             action = suspended(req, response);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", response);
 
                 // Do nothing except setting the times out
-                if (action.timeout != -1) {
-                    c.suspend(action.timeout);
+                if (action.timeout() != -1) {
+                    c.suspend(action.timeout());
                 } else {
                     c.suspend(0);
                 }
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", response);
 
                 if (!resumed.remove(c)) {
@@ -141,7 +141,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.action().type == Action.TYPE.RESUME && r.isInScope()) {
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
             Continuation c = ContinuationSupport.getContinuation(r.getRequest(), null);
             resumed.offer(c);
             if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null

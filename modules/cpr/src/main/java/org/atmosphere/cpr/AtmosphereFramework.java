@@ -250,61 +250,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Simple class/struck that hold the current state.
-     */
-    public final static class Action {
-
-        public enum TYPE {
-            SUSPEND, RESUME, TIMEOUT, CANCELLED, CONTINUE, CREATED
-        }
-
-        public long timeout = -1L;
-
-        public TYPE type;
-
-        public Action() {
-            type = TYPE.CREATED;
-        }
-
-        public Action(TYPE type) {
-            this.type = type;
-        }
-
-        public Action(TYPE type, long timeout) {
-            this.timeout = timeout;
-            this.type = type;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Action action = (Action) o;
-
-            if (timeout != action.timeout) return false;
-            if (type != action.type) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = (int) (timeout ^ (timeout >>> 32));
-            result = 31 * result + (type != null ? type.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Action{" +
-                    "timeout=" + timeout +
-                    ", type=" + type +
-                    '}';
-        }
-    }
-
-    /**
      * Create an AtmosphereFramework.
      */
     public AtmosphereFramework() {
@@ -1224,7 +1169,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw ex;
             }
         } finally {
-            if (req != null && a != null && a.type != Action.TYPE.SUSPEND) {
+            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
                 req.destroy();
                 res.destroy();
             }

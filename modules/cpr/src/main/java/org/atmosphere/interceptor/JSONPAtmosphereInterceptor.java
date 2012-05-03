@@ -15,8 +15,8 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereInterceptor;
@@ -34,7 +34,7 @@ import java.io.IOException;
 public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
-    public AtmosphereFramework.Action inspect(AtmosphereResource r) {
+    public Action inspect(AtmosphereResource r) {
 
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
@@ -111,7 +111,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
             });
         }
-        return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CONTINUE);
+        return Action.CONTINUE;
     }
 
     @Override

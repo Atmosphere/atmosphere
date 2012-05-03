@@ -62,8 +62,8 @@ public class UrlMappingTest {
         config = framework.getAtmosphereConfig();
         processor = new AsynchronousProcessor(config) {
             @Override
-            public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CREATED);
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return new Action(Action.TYPE.CREATED);
             }
         };
     }

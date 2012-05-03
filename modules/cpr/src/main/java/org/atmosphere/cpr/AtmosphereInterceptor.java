@@ -28,9 +28,9 @@ public interface AtmosphereInterceptor {
     /**
      * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}
      * @param r a {@link AtmosphereResource}
-     * @return {@link org.atmosphere.cpr.AtmosphereFramework.Action.CONTINUE}
+     * @return {@link Action.CONTINUE}
      * to dispatch the {@link AtmosphereResource} to other {@link }AtmosphereInterceptor} or {@link AtmosphereHandler}.
-     * Return {@link org.atmosphere.cpr.AtmosphereFramework.Action.TYPE.CANCELLED} to stop the processing.
+     * Return {@link Action.TYPE.CANCELLED} to stop the processing.
      */
-    AtmosphereFramework.Action inspect(AtmosphereResource r);
+    Action inspect(AtmosphereResource r);
 }

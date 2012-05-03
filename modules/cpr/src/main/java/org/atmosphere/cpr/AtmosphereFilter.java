@@ -126,9 +126,9 @@ public class AtmosphereFilter implements Filter {
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        AtmosphereFramework.Action a = as.framework().doCometSupport(AtmosphereRequest.wrap((HttpServletRequest) request),
+        Action a = as.framework().doCometSupport(AtmosphereRequest.wrap((HttpServletRequest) request),
                 AtmosphereResponse.wrap((HttpServletResponse) response));
-        if (a == null || a.type != AtmosphereFramework.Action.TYPE.SUSPEND) {
+        if (a == null || a.type() != Action.TYPE.SUSPEND) {
             chain.doFilter(request, response);
         }
     }

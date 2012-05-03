@@ -58,13 +58,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.atmosphere.cpr.AtmosphereFramework.Action;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
@@ -247,7 +245,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
             if (!isResumed && isInScope) {
-                action.type = Action.TYPE.RESUME;
+                action.type(Action.TYPE.RESUME);
                 isResumed = true;
 
                 try {
@@ -413,8 +411,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 write(true);
             }
             req.setAttribute(PRE_SUSPEND, "true");
-            action.type = Action.TYPE.SUSPEND;
-            action.timeout = timeout;
+            action.type(Action.TYPE.SUSPEND);
+            action.timeout(timeout);
 
             // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
             // is unique.
@@ -740,8 +738,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 onBroadcast(event);
             }
 
-            if (oldAction.type != action.type) {
-                action().type = Action.TYPE.CREATED;
+            if (oldAction.type() != action.type()) {
+                action().type(Action.TYPE.CREATED);
             }
         } catch (Throwable t) {
             logger.trace("Listener error {}", t);
@@ -802,7 +800,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public synchronized void cancel() throws IOException {
-        action.type = Action.TYPE.RESUME;
+        action.type(Action.TYPE.RESUME);
         isCancelled = true;
         asyncSupport.action(this);
         // We must close the underlying WebSocket as well.

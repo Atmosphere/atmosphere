@@ -15,11 +15,11 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -51,16 +51,16 @@ public class NettyCometSupport extends AsynchronousProcessor {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res)
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        AtmosphereFramework.Action action = null;
+        Action action = null;
         action = suspended(req, res);
-        if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             req.setAttribute(SUSPEND, action);
             req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook( (AtmosphereResourceImpl)req.getAttribute(ATMOSPHERE_RESOURCE)));
-        } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             req.setAttribute(SUSPEND, action);
 
             // If resume occurs during a suspend operation, stop processing.
@@ -70,8 +70,8 @@ public class NettyCometSupport extends AsynchronousProcessor {
             }
             logger.debug("Resuming response: {}", res);
 
-            AtmosphereFramework.Action nextAction = resumed(req, res);
-            if (nextAction.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
+            Action nextAction = resumed(req, res);
+            if (nextAction.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending after resuming response: {}", res);
                 req.setAttribute(SUSPEND, action);
             }

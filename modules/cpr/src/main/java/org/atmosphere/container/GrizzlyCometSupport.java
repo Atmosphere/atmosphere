@@ -56,10 +56,10 @@ import com.sun.grizzly.comet.CometContext;
 import com.sun.grizzly.comet.CometEngine;
 import com.sun.grizzly.comet.CometEvent;
 import com.sun.grizzly.comet.CometHandler;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -117,10 +117,10 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
 
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         Action action = suspended(req, res);
-        if (action.type == Action.TYPE.SUSPEND) {
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
-        } else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
 
             resume(req, ctx);
@@ -138,7 +138,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
      */
     private void suspend(CometContext ctx, Action action, AtmosphereRequest req, AtmosphereResponse res) {
         VoidCometHandler c = new VoidCometHandler(req, res);
-        ctx.setExpirationDelay(action.timeout);
+        ctx.setExpirationDelay(action.timeout());
         ctx.addCometHandler(c);
         req.setAttribute(ATMOSPHERE, c.hashCode());
         ctx.addAttribute("Time", System.currentTimeMillis());
@@ -182,7 +182,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.action().type == Action.TYPE.RESUME && r.isInScope()) {
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
             resume(r.getRequest(), ctx);
         }

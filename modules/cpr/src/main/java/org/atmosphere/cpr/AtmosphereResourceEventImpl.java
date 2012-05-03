@@ -98,14 +98,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     public boolean isResuming() {
-        return resource.action().type == AtmosphereFramework.Action.TYPE.RESUME;
+        return resource.action().type() == Action.TYPE.RESUME;
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean isSuspended() {
-        return resource == null ? false : resource.action().type == AtmosphereFramework.Action.TYPE.SUSPEND;
+        return resource == null ? false : resource.action().type() == Action.TYPE.SUSPEND;
     }
 
     /**
@@ -143,14 +143,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     protected AtmosphereResourceEvent setCancelled(boolean isCancelled) {
         check();
-        resource.action().type = AtmosphereFramework.Action.TYPE.CANCELLED;
+        resource.action().type(Action.TYPE.CANCELLED);
         this.isCancelled.set(isCancelled);
         return this;
     }
 
     protected AtmosphereResourceEvent setIsResumedOnTimeout(boolean isResumedOnTimeout) {
         check();
-        resource.action().type = AtmosphereFramework.Action.TYPE.TIMEOUT;
+        resource.action().type(Action.TYPE.TIMEOUT);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         return this;
     }
