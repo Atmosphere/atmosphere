@@ -101,28 +101,4 @@ public abstract class WebSocketHandler implements WebSocketProtocol {
         onByteMessage(webSocket, data, offset, length);
         return null;
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public final boolean inspectResponse() {
-        return false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public final String handleResponse(AtmosphereResponse res, String message) {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public final byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
-        return new byte[0];
-    }
 }

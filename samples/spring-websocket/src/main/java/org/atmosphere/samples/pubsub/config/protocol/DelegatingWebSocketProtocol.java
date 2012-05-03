@@ -91,20 +91,4 @@ public class DelegatingWebSocketProtocol implements WebSocketProtocol {
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException e) {
         LOG.error("error on websocket connection {}", e);
     }
-
-    @Override
-    public boolean inspectResponse() {
-        return false;
-    }
-
-    @Override
-    public String handleResponse(AtmosphereResponse atmosphereResponse, String message) {
-        return message;
-    }
-
-    @Override
-    public byte[] handleResponse(AtmosphereResponse atmosphereResponse, byte[] message, int offset,
-                                 int length) {
-        return message;
-    }
 }

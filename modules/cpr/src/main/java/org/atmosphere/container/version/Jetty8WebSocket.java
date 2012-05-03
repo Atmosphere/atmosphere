@@ -85,9 +85,9 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         logger.trace("WebSocket.write()");
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
         if (s != null && Boolean.parseBoolean(s)) {
-            connection.sendMessage(data, 0, data.length);
+            connection.sendMessage(webSocketResponseFilter.filter(data), 0, data.length);
         } else {
-            connection.sendMessage(new String(data, 0, data.length, "UTF-8"));
+            connection.sendMessage(webSocketResponseFilter.filter(new String(data, 0, data.length, "UTF-8")));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -102,9 +102,9 @@ public class Jetty8WebSocket extends WebSocketAdapter {
         logger.trace("WebSocket.write()");
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
         if (s != null && Boolean.parseBoolean(s)) {
-            connection.sendMessage(data, offset, length);
+            connection.sendMessage(webSocketResponseFilter.filter(data), offset, length);
         } else {
-            connection.sendMessage(new String(data, offset, length, "UTF-8"));
+            connection.sendMessage(webSocketResponseFilter.filter(new String(data, offset, length, "UTF-8")));
         }
         lastWrite = System.currentTimeMillis();
     }

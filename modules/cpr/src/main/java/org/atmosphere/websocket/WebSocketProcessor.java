@@ -95,7 +95,7 @@ public class WebSocketProcessor implements Serializable {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request, destroyable);
+        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
 
         request.headers(configureHeader(request));
 
@@ -148,7 +148,7 @@ public class WebSocketProcessor implements Serializable {
                 s.execute(new Runnable() {
                     @Override
                     public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r, destroyable);
+                        AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
                         try {
                             dispatch(r, w);
                         } finally {

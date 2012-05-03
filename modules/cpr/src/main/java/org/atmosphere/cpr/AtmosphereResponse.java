@@ -41,11 +41,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
  * suspended, this object can be used to write message back tp the client at any moment.
  * <br/>
- * This object can delegates the write operation to {@link AsyncIOWriter}. An {@link AsyncProtocol} can also be
- * consulted before the bytes/string write process gets delegated to an {@link AsyncIOWriter}. If {@link org.atmosphere.cpr.AsyncProtocol#inspectResponse()}
- * return true, the {@link org.atmosphere.cpr.AsyncProtocol#handleResponse(AtmosphereResponse, String)} will have a chance to
- * manipulate the bytes and return a new representation. That new representation will then be delegated to an
- * {@link AsyncIOWriter}.
+ * This object can delegates the write operation to {@link AsyncIOWriter}.
  */
 public class AtmosphereResponse implements HttpServletResponse {
 
@@ -60,7 +56,6 @@ public class AtmosphereResponse implements HttpServletResponse {
     private String contentType = "text/html";
     private boolean isCommited = false;
     private Locale locale;
-    private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
     private boolean headerHandled = false;
     private AtmosphereRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
@@ -70,10 +65,9 @@ public class AtmosphereResponse implements HttpServletResponse {
     private final HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
 
-    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         response = dsr;
         this.asyncIOWriter = asyncIOWriter;
-        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
@@ -81,10 +75,9 @@ public class AtmosphereResponse implements HttpServletResponse {
         this.destroyable = destroyable;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         response = r;
         this.asyncIOWriter = asyncIOWriter;
-        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
@@ -95,7 +88,6 @@ public class AtmosphereResponse implements HttpServletResponse {
     private AtmosphereResponse(Builder b) {
         response = b.atmosphereResponse;
         this.asyncIOWriter = b.asyncIOWriter;
-        this.asyncProtocol = b.asyncProtocol;
         this.atmosphereRequest = b.atmosphereRequest;
         this.status = b.status;
         this.statusMessage = b.statusMessage;
@@ -109,7 +101,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         private AsyncIOWriter asyncIOWriter;
         private int status = 200;
         private String statusMessage = "OK";
-        private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
@@ -136,11 +127,6 @@ public class AtmosphereResponse implements HttpServletResponse {
 
         public Builder statusMessage(String statusMessage) {
             this.statusMessage = statusMessage;
-            return this;
-        }
-
-        public Builder asyncProtocol(AsyncProtocol asyncProtocol) {
-            this.asyncProtocol = asyncProtocol;
             return this;
         }
 
@@ -179,7 +165,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         headers.clear();
         atmosphereRequest = null;
         asyncIOWriter = null;
-        asyncProtocol = null;
     }
 
     /**
@@ -484,32 +469,19 @@ public class AtmosphereResponse implements HttpServletResponse {
                 @Override
                 public void write(int i) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new byte[]{(byte) i}, 0, 1));
-                    } else {
-                        asyncIOWriter.write(new byte[]{(byte) i});
-                    }
+                    asyncIOWriter.write(new byte[]{(byte) i});
                 }
 
                 @Override
                 public void write(byte[] bytes) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, 0, bytes.length));
-                    } else {
-                        asyncIOWriter.write(bytes);
-                    }
+                    asyncIOWriter.write(bytes);
                 }
 
                 @Override
                 public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        byte[] b = asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, start, offset);
-                        asyncIOWriter.write(b, 0, b.length);
-                    } else {
-                        asyncIOWriter.write(bytes, start, offset);
-                    }
+                    asyncIOWriter.write(bytes, start, offset);
                 }
 
                 @Override
@@ -567,11 +539,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars, offset, lenght)));
-                        } else {
-                            asyncIOWriter.write(new String(chars, offset, lenght));
-                        }
+                        asyncIOWriter.write(new String(chars, offset, lenght));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -580,11 +548,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars)));
-                        } else {
-                            asyncIOWriter.write(new String(chars));
-                        }
+                        asyncIOWriter.write(new String(chars));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -593,11 +557,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(String s, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s.substring(offset, lenght))));
-                        } else {
-                            asyncIOWriter.write(new String(s.substring(offset, lenght)));
-                        }
+                        asyncIOWriter.write(new String(s.substring(offset, lenght)));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -606,11 +566,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(java.lang.String s) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s)));
-                        } else {
-                            asyncIOWriter.write(new String(s));
-                        }
+                        asyncIOWriter.write(new String(s));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -997,24 +953,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         }
     }
 
-    private final static class FakeAsyncProtocol implements AsyncProtocol {
-
-        @Override
-        public boolean inspectResponse() {
-            return false;
-        }
-
-        @Override
-        public String handleResponse(AtmosphereResponse res, String message) {
-            return null;
-        }
-
-        @Override
-        public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
-            return new byte[0];
-        }
-    }
-
     private final static class NoOpsOutputStream extends ServletOutputStream {
         @Override
         public void write(int i) throws IOException {
@@ -1060,8 +998,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         if (status != that.status) return false;
         if (asyncIOWriter != null ? !asyncIOWriter.equals(that.asyncIOWriter) : that.asyncIOWriter != null)
             return false;
-        if (asyncProtocol != null ? !asyncProtocol.equals(that.asyncProtocol) : that.asyncProtocol != null)
-            return false;
         if (atmosphereRequest != null ? !atmosphereRequest.equals(that.atmosphereRequest) : that.atmosphereRequest != null)
             return false;
         if (charSet != null ? !charSet.equals(that.charSet) : that.charSet != null) return false;
@@ -1090,7 +1026,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         result = 31 * result + (contentType != null ? contentType.hashCode() : 0);
         result = 31 * result + (isCommited ? 1 : 0);
         result = 31 * result + (locale != null ? locale.hashCode() : 0);
-        result = 31 * result + (asyncProtocol != null ? asyncProtocol.hashCode() : 0);
         result = 31 * result + (headerHandled ? 1 : 0);
         result = 31 * result + (atmosphereRequest != null ? atmosphereRequest.hashCode() : 0);
         result = 31 * result + (writeStatusAndHeader != null ? writeStatusAndHeader.hashCode() : 0);
@@ -1113,7 +1048,6 @@ public class AtmosphereResponse implements HttpServletResponse {
                 ", contentType='" + contentType + '\'' +
                 ", isCommited=" + isCommited +
                 ", locale=" + locale +
-                ", asyncProtocol=" + asyncProtocol +
                 ", headerHandled=" + headerHandled +
                 ", atmosphereRequest=" + atmosphereRequest +
                 ", writeStatusAndHeader=" + writeStatusAndHeader +

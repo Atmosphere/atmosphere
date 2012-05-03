@@ -39,4 +39,12 @@ public interface WebSocket extends AsyncIOWriter {
      * @return the current {@link AtmosphereResource}
      */
     AtmosphereResource resource();
+
+    /**
+     * Add a {@link WebSocketResponseFilter} to be used when writing the response.
+     * @param w {@link WebSocketResponseFilter}
+     * @return this
+     */
+    WebSocket webSocketResponseWriter(WebSocketResponseFilter w);
+
 }

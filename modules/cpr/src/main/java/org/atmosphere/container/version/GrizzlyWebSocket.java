@@ -58,7 +58,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(String data) throws IOException {
-        webSocket.send(data);
+        webSocket.send(webSocketResponseFilter.filter(data));
         lastWrite = System.currentTimeMillis();
     }
 
@@ -67,7 +67,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data) throws IOException {
-        webSocket.send(new String(data));
+        webSocket.send(webSocketResponseFilter.filter(new String(data)));
         lastWrite = System.currentTimeMillis();
     }
 
@@ -76,7 +76,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data, int offset, int length) throws IOException {
-        webSocket.send(new String(data, offset, length));
+        webSocket.send(webSocketResponseFilter.filter(new String(data, offset, length)));
         lastWrite = System.currentTimeMillis();
     }
 
