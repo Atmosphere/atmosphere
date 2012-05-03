@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.transport;
+package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceConfig;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 
@@ -25,12 +26,13 @@ import java.io.IOException;
 
 /**
  * HTML 5 Server Side Events implementation.
+ *
  * @author Jeanfrancois Arcand
  */
-public class SSEAtmosphereResourceConfig implements AtmosphereResourceConfig{
+public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
-    public void configure(final AtmosphereResource r) {
+    public AtmosphereFramework.Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
@@ -75,6 +77,7 @@ public class SSEAtmosphereResourceConfig implements AtmosphereResourceConfig{
                 }
             });
         }
+        return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CONTINUE);
     }
 
     @Override

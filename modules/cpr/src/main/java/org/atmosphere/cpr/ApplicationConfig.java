@@ -252,4 +252,9 @@ public interface ApplicationConfig {
      * {@link javax.servlet.http.HttpServletResponse}
      */
     String USE_SERVLET_WRAPPER = ApplicationConfig.class.getPackage().getName() + ".useWrappers";
+    /**
+     * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}
+     * gets delivered to an application or framework
+     */
+    String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.class.getName();
 }
