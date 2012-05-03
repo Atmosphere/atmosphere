@@ -95,9 +95,9 @@
 <a class="jxr_linenumber" name="85" href="#85">85</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
 <a class="jxr_linenumber" name="86" href="#86">86</a>          String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
 <a class="jxr_linenumber" name="87" href="#87">87</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong> &amp;&amp; Boolean.parseBoolean(s)) {
-<a class="jxr_linenumber" name="88" href="#88">88</a>              connection.sendMessage(data, 0, data.length);
+<a class="jxr_linenumber" name="88" href="#88">88</a>              connection.sendMessage(webSocketResponseFilter.filter(data), 0, data.length);
 <a class="jxr_linenumber" name="89" href="#89">89</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="90" href="#90">90</a>              connection.sendMessage(<strong class="jxr_keyword">new</strong> String(data, 0, data.length, <span class="jxr_string">"UTF-8"</span>));
+<a class="jxr_linenumber" name="90" href="#90">90</a>              connection.sendMessage(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data, 0, data.length, <span class="jxr_string">"UTF-8"</span>)));
 <a class="jxr_linenumber" name="91" href="#91">91</a>          }
 <a class="jxr_linenumber" name="92" href="#92">92</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="93" href="#93">93</a>      }
@@ -112,9 +112,9 @@
 <a class="jxr_linenumber" name="102" href="#102">102</a>         logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
 <a class="jxr_linenumber" name="103" href="#103">103</a>         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
 <a class="jxr_linenumber" name="104" href="#104">104</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong> &amp;&amp; Boolean.parseBoolean(s)) {
-<a class="jxr_linenumber" name="105" href="#105">105</a>             connection.sendMessage(data, offset, length);
+<a class="jxr_linenumber" name="105" href="#105">105</a>             connection.sendMessage(webSocketResponseFilter.filter(data), offset, length);
 <a class="jxr_linenumber" name="106" href="#106">106</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="107" href="#107">107</a>             connection.sendMessage(<strong class="jxr_keyword">new</strong> String(data, offset, length, <span class="jxr_string">"UTF-8"</span>));
+<a class="jxr_linenumber" name="107" href="#107">107</a>             connection.sendMessage(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data, offset, length, <span class="jxr_string">"UTF-8"</span>)));
 <a class="jxr_linenumber" name="108" href="#108">108</a>         }
 <a class="jxr_linenumber" name="109" href="#109">109</a>         lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="110" href="#110">110</a>     }

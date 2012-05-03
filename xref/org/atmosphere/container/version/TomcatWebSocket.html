@@ -72,7 +72,7 @@
 <a class="jxr_linenumber" name="62" href="#62">62</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(String data) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="63" href="#63">63</a>          firstWrite.set(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="64" href="#64">64</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
-<a class="jxr_linenumber" name="65" href="#65">65</a>          outbound.writeTextMessage(CharBuffer.wrap(data));
+<a class="jxr_linenumber" name="65" href="#65">65</a>          outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(data)));
 <a class="jxr_linenumber" name="66" href="#66">66</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="67" href="#67">67</a>      }
 <a class="jxr_linenumber" name="68" href="#68">68</a>  
@@ -83,7 +83,7 @@
 <a class="jxr_linenumber" name="73" href="#73">73</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(byte[] data) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="74" href="#74">74</a>          firstWrite.set(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="75" href="#75">75</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
-<a class="jxr_linenumber" name="76" href="#76">76</a>          outbound.writeTextMessage(CharBuffer.wrap(<strong class="jxr_keyword">new</strong> String(data)));
+<a class="jxr_linenumber" name="76" href="#76">76</a>          outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data, <span class="jxr_string">"ISO-8859-1"</span>))));
 <a class="jxr_linenumber" name="77" href="#77">77</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="78" href="#78">78</a>      }
 <a class="jxr_linenumber" name="79" href="#79">79</a>  
@@ -94,7 +94,7 @@
 <a class="jxr_linenumber" name="84" href="#84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="85" href="#85">85</a>          firstWrite.set(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="86" href="#86">86</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
-<a class="jxr_linenumber" name="87" href="#87">87</a>          outbound.writeTextMessage(CharBuffer.wrap(<strong class="jxr_keyword">new</strong> String(data, offset, length)));
+<a class="jxr_linenumber" name="87" href="#87">87</a>          outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data, offset, length, <span class="jxr_string">"ISO-8859-1"</span>))));
 <a class="jxr_linenumber" name="88" href="#88">88</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="89" href="#89">89</a>      }
 <a class="jxr_linenumber" name="90" href="#90">90</a>  

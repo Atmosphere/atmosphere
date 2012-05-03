@@ -68,7 +68,7 @@
 <a class="jxr_linenumber" name="58" href="#58">58</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="59" href="#59">59</a>      @Override
 <a class="jxr_linenumber" name="60" href="#60">60</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(String data) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="61" href="#61">61</a>          webSocket.send(data);
+<a class="jxr_linenumber" name="61" href="#61">61</a>          webSocket.send(webSocketResponseFilter.filter(data));
 <a class="jxr_linenumber" name="62" href="#62">62</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="63" href="#63">63</a>      }
 <a class="jxr_linenumber" name="64" href="#64">64</a>  
@@ -77,7 +77,7 @@
 <a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="68" href="#68">68</a>      @Override
 <a class="jxr_linenumber" name="69" href="#69">69</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(byte[] data) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="70" href="#70">70</a>          webSocket.send(<strong class="jxr_keyword">new</strong> String(data));
+<a class="jxr_linenumber" name="70" href="#70">70</a>          webSocket.send(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data)));
 <a class="jxr_linenumber" name="71" href="#71">71</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="72" href="#72">72</a>      }
 <a class="jxr_linenumber" name="73" href="#73">73</a>  
@@ -86,7 +86,7 @@
 <a class="jxr_linenumber" name="76" href="#76">76</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="77" href="#77">77</a>      @Override
 <a class="jxr_linenumber" name="78" href="#78">78</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="79" href="#79">79</a>          webSocket.send(<strong class="jxr_keyword">new</strong> String(data, offset, length));
+<a class="jxr_linenumber" name="79" href="#79">79</a>          webSocket.send(webSocketResponseFilter.filter(<strong class="jxr_keyword">new</strong> String(data, offset, length)));
 <a class="jxr_linenumber" name="80" href="#80">80</a>          lastWrite = System.currentTimeMillis();
 <a class="jxr_linenumber" name="81" href="#81">81</a>      }
 <a class="jxr_linenumber" name="82" href="#82">82</a>  

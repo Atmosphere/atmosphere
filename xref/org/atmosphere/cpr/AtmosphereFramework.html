@@ -519,7 +519,7 @@
 <a class="jxr_linenumber" name="509" href="#509">509</a>         interceptors.addLast(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/SSEAtmosphereInterceptor.html">SSEAtmosphereInterceptor</a>());
 <a class="jxr_linenumber" name="510" href="#510">510</a>         <em class="jxr_comment">// ADD JSONP support</em>
 <a class="jxr_linenumber" name="511" href="#511">511</a>         interceptors.addLast(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/JSONPAtmosphereInterceptor.html">JSONPAtmosphereInterceptor</a>());
-<a class="jxr_linenumber" name="512" href="#512">512</a>         logger.debug(<span class="jxr_string">"Installed AtmosphereResourceConfig {}"</span>, interceptors);
+<a class="jxr_linenumber" name="512" href="#512">512</a>         logger.debug(<span class="jxr_string">"Installed AtmosphereInterceptor {}"</span>, interceptors);
 <a class="jxr_linenumber" name="513" href="#513">513</a>     }
 <a class="jxr_linenumber" name="514" href="#514">514</a> 
 <a class="jxr_linenumber" name="515" href="#515">515</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
