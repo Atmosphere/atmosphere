@@ -485,7 +485,7 @@ jQuery.atmosphere = function() {
                     clearTimeout(_request.id)
                     _response.state = 'closed';
                     _response.responseBody = "";
-                    _response.status = 200;
+                    _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
 
                     if (_abordingConnection) {
@@ -627,7 +627,7 @@ jQuery.atmosphere = function() {
 
                     _response.state = 'closed';
                     _response.responseBody = "";
-                    _response.status = 200;
+                    _response.status = !webSocketOpened ? 501 : 200;
                     _invokeCallback();
                     clearTimeout(_request.id)
 
