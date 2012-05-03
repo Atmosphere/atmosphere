@@ -82,6 +82,6 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
     public String toString() {
-        return "SSE-Support";
+        return "SSE Interceptor Support";
     }
 }

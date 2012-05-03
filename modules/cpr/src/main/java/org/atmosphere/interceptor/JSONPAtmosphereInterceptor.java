@@ -116,7 +116,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
     public String toString() {
-        return "JSONP-Support";
+        return "JSONP Interceptor Support";
     }
 }
 
