@@ -62,7 +62,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(String data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(data));
+        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(data)));
         lastWrite = System.currentTimeMillis();
     }
 
@@ -73,7 +73,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(byte[] data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(new String(data)));
+        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(new String(data, "ISO-8859-1"))));
         lastWrite = System.currentTimeMillis();
     }
 
@@ -84,7 +84,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(new String(data, offset, length)));
+        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(new String(data, offset, length, "ISO-8859-1"))));
         lastWrite = System.currentTimeMillis();
     }
 

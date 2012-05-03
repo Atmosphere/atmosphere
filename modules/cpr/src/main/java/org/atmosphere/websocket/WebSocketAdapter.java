@@ -28,6 +28,7 @@ public abstract class WebSocketAdapter implements WebSocket{
 
     private AtmosphereResource r;
     protected long lastWrite = 0;
+    protected WebSocketResponseFilter webSocketResponseFilter = WebSocketResponseFilter.NOOPS_WebSocketResponseFilter;
 
     /**
      * Configure the {@link AtmosphereResource}
@@ -50,5 +51,10 @@ public abstract class WebSocketAdapter implements WebSocket{
 
     public long lastTick() {
         return lastWrite == -1 ? System.currentTimeMillis() : lastWrite;
+    }
+
+    public WebSocket webSocketResponseWriter(WebSocketResponseFilter w) {
+        this.webSocketResponseFilter = w;
+        return this;
     }
 }
