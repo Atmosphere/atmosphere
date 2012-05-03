@@ -37,10 +37,10 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
@@ -96,13 +95,13 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         // For now, we are just interested in HttpEvent.REA
         if (event.getType() == HttpEvent.EventType.BEGIN) {
             action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
 
                 // Do nothing except setting the times out
                 try {
-                    if (action.timeout != -1) {
-                        event.setTimeout((int) action.timeout);
+                    if (action.timeout() != -1) {
+                        event.setTimeout((int) action.timeout());
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
@@ -111,7 +110,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
                 }
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
                 event.close();
             } else {
@@ -167,7 +166,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
+        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
             try {
                 HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
                 // Resume without closing the underlying suspended connection.

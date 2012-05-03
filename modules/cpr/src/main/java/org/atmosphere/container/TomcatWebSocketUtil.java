@@ -33,9 +33,8 @@ package org.atmosphere.container;
 
 import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.websocket.StreamInbound;
-import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
@@ -69,7 +68,7 @@ public class TomcatWebSocketUtil {
     }
 
 
-    public static AtmosphereFramework.Action doService(AtmosphereRequest req, AtmosphereResponse res,
+    public static Action doService(AtmosphereRequest req, AtmosphereResponse res,
                                                        Delegate delegate,
                                                        AtmosphereConfig config) throws IOException, ServletException {
         // First, handshake
@@ -89,7 +88,7 @@ public class TomcatWebSocketUtil {
             if (!headerContainsToken(req, "sec-websocket-version", "13")) {
                 logger.debug("WebSocket version not supported. Downgrading to Comet");
                 res.sendError(501, "Websocket protocol not supported");
-                return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CANCELLED);
+                return new Action(Action.TYPE.CANCELLED);
             }
 
             key = req.getHeader("Sec-WebSocket-Key");
@@ -114,13 +113,13 @@ public class TomcatWebSocketUtil {
             StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true),
                     config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
-            return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CREATED);
+            return new Action(Action.TYPE.CREATED);
         }
 
-        AtmosphereFramework.Action action = delegate.suspended(req, res);
-        if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
+        Action action = delegate.suspended(req, res);
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending resonse: {}", res);
-        } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             logger.debug("Resume resonse: {}", res);
             req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
         }
@@ -192,10 +191,10 @@ public class TomcatWebSocketUtil {
     }
 
     public static interface Delegate {
-        public AtmosphereFramework.Action doService(AtmosphereRequest req, AtmosphereResponse res)
+        public Action doService(AtmosphereRequest req, AtmosphereResponse res)
                 throws IOException, ServletException;
 
-        public AtmosphereFramework.Action suspended(AtmosphereRequest request, AtmosphereResponse response)
+        public Action suspended(AtmosphereRequest request, AtmosphereResponse response)
                 throws IOException, ServletException;
 
     }

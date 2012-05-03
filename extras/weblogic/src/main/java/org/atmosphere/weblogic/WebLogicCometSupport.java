@@ -52,10 +52,10 @@
  */
 package org.atmosphere.weblogic;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -88,13 +88,13 @@ public class WebLogicCometSupport extends AsynchronousProcessor {
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
         Action action = suspended(req, res);
-        if (action.type == Action.TYPE.SUSPEND) {
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
-        } else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
 
             Action nextAction = resumed(req, res);
-            if (nextAction.type == Action.TYPE.SUSPEND) {
+            if (nextAction.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending after resuming response: {}", res);
             }
         }
@@ -107,7 +107,7 @@ public class WebLogicCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.isInScope() && actionEvent.action().type == Action.TYPE.RESUME &&
+        if (actionEvent.isInScope() && actionEvent.action().type() == Action.TYPE.RESUME &&
                 (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
             try {

@@ -58,8 +58,8 @@ import com.sun.grizzly.websockets.DefaultWebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import com.sun.grizzly.websockets.WebSocketEngine;
 import org.atmosphere.container.version.GrizzlyWebSocket;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
@@ -70,9 +70,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.Enumeration;
-
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
@@ -112,9 +109,9 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             return super.service(request, response);
         } else {
             Action action = suspended(request, response);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", response);
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", response);
             }
             return action;

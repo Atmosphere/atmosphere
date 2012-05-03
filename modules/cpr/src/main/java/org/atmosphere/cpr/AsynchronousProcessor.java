@@ -71,7 +71,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-import static org.atmosphere.cpr.AtmosphereFramework.Action;
+
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
@@ -216,7 +216,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Action a;
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(resource);
-            if (a.type != Action.TYPE.CONTINUE) {
+            if (a.type() != Action.TYPE.CONTINUE) {
                 logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
                 return a;
             }

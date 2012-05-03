@@ -53,10 +53,10 @@
 package org.atmosphere.container;
 
 import org.apache.catalina.CometEvent;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -99,10 +99,10 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         Action action = null;
         try {
             action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
                 suspend(action, req, res);
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
                 CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
 
@@ -114,7 +114,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 latch.countDown();
 
                 Action nextAction = resumed(req, res);
-                if (nextAction.type == Action.TYPE.SUSPEND) {
+                if (nextAction.type() == Action.TYPE.SUSPEND) {
                     logger.debug("Suspending after resuming response: {}", res);
                     suspend(action, req, res);
                 }
@@ -149,8 +149,8 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         req.setAttribute(LATCH, latch);
 
         try {
-            if (action.timeout != -1) {
-                latch.await(action.timeout, TimeUnit.MILLISECONDS);
+            if (action.timeout() != -1) {
+                latch.await(action.timeout(), TimeUnit.MILLISECONDS);
             } else {
                 latch.await();
             }
@@ -180,7 +180,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         try {
             super.action(r);
-            if (r.action().type == Action.TYPE.RESUME) {
+            if (r.action().type() == Action.TYPE.RESUME) {
                 AtmosphereRequest req = r.getRequest(false);
                 CountDownLatch latch = null;
 

@@ -93,21 +93,21 @@ public interface AsyncSupport<E extends AtmosphereResource> {
 
     /**
      * Serve the {@link AtmosphereRequest} and the {@link AtmosphereResponse} and return
-     * the appropriate {@link org.atmosphere.cpr.AtmosphereFramework.Action}.
+     * the appropriate {@link Action}.
      *
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
-     * @return the {@link org.atmosphere.cpr.AtmosphereFramework.Action} that was manipulated by the {@link AtmosphereHandler}
+     * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res)
+    public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException;
 
     /**
-     * Process an {@link org.atmosphere.cpr.AtmosphereFramework.Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
+     * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
      *
-     * @param actionEvent An instance of {@link org.atmosphere.cpr.AtmosphereFramework.Action}
+     * @param actionEvent An instance of {@link Action}
      */
     public void action(E actionEvent);
 

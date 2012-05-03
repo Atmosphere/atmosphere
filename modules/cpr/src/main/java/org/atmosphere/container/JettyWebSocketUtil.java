@@ -16,10 +16,10 @@
 package org.atmosphere.container;
 
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
@@ -32,13 +32,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
-
 public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
-    public final static AtmosphereFramework.Action doService(AsynchronousProcessor cometSupport,
+    public final static Action doService(AsynchronousProcessor cometSupport,
                                                            AtmosphereRequest req,
                                                            AtmosphereResponse res,
                                                            WebSocketFactory webSocketFactory) throws IOException, ServletException {
@@ -53,13 +51,13 @@ public class JettyWebSocketUtil {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
                 webSocketFactory.acceptWebSocket(req, res);
                 req.setAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE, true);
-                return new AtmosphereFramework.Action();
+                return new Action();
             }
 
-            AtmosphereFramework.Action action = cometSupport.suspended(req, res);
-            if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
+            Action action = cometSupport.suspended(req, res);
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
-            } else if (action.type == AtmosphereFramework.Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resume response: {}", res);
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }

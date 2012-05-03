@@ -54,10 +54,10 @@ package org.atmosphere.container;
 
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometEvent.EventType;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -113,13 +113,13 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         // For now, we are just interested in CometEvent.READ
         if (event.getEventType() == EventType.BEGIN) {
             action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending response: {}", res);
 
                 // Do nothing except setting the times out
                 try {
-                    if (action.timeout != -1) {
-                        event.setTimeout((int) action.timeout);
+                    if (action.timeout() != -1) {
+                        event.setTimeout((int) action.timeout());
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
@@ -128,7 +128,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                     // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
                 }
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 logger.debug("Resuming response: {}", res);
                 event.close();
             } else {
@@ -172,7 +172,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl resource) {
         super.action(resource);
-        if (resource.action().type == Action.TYPE.RESUME && resource.isInScope()) {
+        if (resource.action().type() == Action.TYPE.RESUME && resource.isInScope()) {
             try {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;

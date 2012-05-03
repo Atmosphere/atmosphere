@@ -52,10 +52,10 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -99,10 +99,10 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = suspended(request, response);
-        if (action.type == Action.TYPE.SUSPEND) {
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", response);
             suspend(action, request, response);
-        } else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", response);
 
             if (supportSession()) {
@@ -115,7 +115,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             }
 
             Action nextAction = resumed(request, response);
-            if (nextAction.type == Action.TYPE.SUSPEND) {
+            if (nextAction.type() == Action.TYPE.SUSPEND) {
                 logger.debug("Suspending after resuming response: {}", response);
                 suspend(action, request, response);
             }
@@ -127,7 +127,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     /**
      * Suspend the connection by invoking {@link AtmosphereRequest#startAsync()}
      *
-     * @param action The {@link org.atmosphere.cpr.AtmosphereFramework.Action}
+     * @param action The {@link org.atmosphere.cpr.Action}
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
      * @throws java.io.IOException
@@ -140,8 +140,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             AsyncContext asyncContext = req.startAsync();
             asyncContext.addListener(new CometListener(this));
             // Do nothing except setting the times out
-            if (action.timeout != -1) {
-                asyncContext.setTimeout(action.timeout);
+            if (action.timeout() != -1) {
+                asyncContext.setTimeout(action.timeout());
             } else {
                 // Jetty 8 does something really weird if you set it to
                 // Long.MAX_VALUE, which is to resume automatically.
@@ -163,7 +163,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
+        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
             AsyncContext asyncContext =
                     (AsyncContext) actionEvent.getRequest().getAttribute("org.atmosphere.container.asyncContext");
 

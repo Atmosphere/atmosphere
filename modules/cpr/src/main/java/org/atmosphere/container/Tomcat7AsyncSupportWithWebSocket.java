@@ -31,8 +31,8 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
@@ -53,11 +53,11 @@ public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implem
     }
 
     @Override
-    public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
         return TomcatWebSocketUtil.doService(req, res, this, config);
     }
 
-    public AtmosphereFramework.Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+    public Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
         return super.service(req, res);
     }
 

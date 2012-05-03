@@ -52,10 +52,10 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -94,12 +94,12 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         if (c == null || c.isInitial()) {
             action = suspended(req, res);
-            if (action.type == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
+            if (action.type() == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 c = ContinuationSupport.getContinuation(req);
                 req.setAttribute(Continuation.class.getName(), c);
 
-                if (action.timeout != -1) {
-                    c.setTimeout(action.timeout);
+                if (action.timeout() != -1) {
+                    c.setTimeout(action.timeout());
                 } else {
                     // Jetty 7 does something really weird if you set it to
                     // Long.MAX_VALUE, which is to resume automatically.
@@ -142,7 +142,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                 if (req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE) != null) {
                     c.suspend(res);
                 }
-            } else if (action.type == Action.TYPE.RESUME) {
+            } else if (action.type() == Action.TYPE.RESUME) {
                 // If resume occurs during a suspend operation, stop processing.
                 Boolean resumeOnBroadcast = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
                 if (resumeOnBroadcast != null && resumeOnBroadcast) {

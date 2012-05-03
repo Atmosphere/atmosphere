@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -112,19 +113,19 @@ public class WebSocketProcessor implements Serializable {
                         new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource());
                 request.setAttribute(ASYNCHRONOUS_HOOK, hook);
 
-                final AtmosphereFramework.Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
-                if (action.timeout != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
+                final Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
+                if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
                     final AtomicReference<Future<?>> f = new AtomicReference();
                     f.set(scheduler.scheduleAtFixedRate(new Runnable() {
                         @Override
                         public void run() {
                             if (WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())
-                                    && System.currentTimeMillis() - WebSocketAdapter.class.cast(webSocket).lastTick() > action.timeout) {
+                                    && System.currentTimeMillis() - WebSocketAdapter.class.cast(webSocket).lastTick() > action.timeout()) {
                                 hook.timedOut();
                                 f.get().cancel(true);
                             }
                         }
-                    }, action.timeout, action.timeout, TimeUnit.MILLISECONDS));
+                    }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
                 }
             }
         }

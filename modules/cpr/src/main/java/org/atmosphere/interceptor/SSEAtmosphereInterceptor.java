@@ -15,8 +15,8 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -32,7 +32,7 @@ import java.io.IOException;
 public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
-    public AtmosphereFramework.Action inspect(final AtmosphereResource r) {
+    public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
@@ -77,7 +77,7 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
             });
         }
-        return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CONTINUE);
+        return Action.CONTINUE;
     }
 
     @Override

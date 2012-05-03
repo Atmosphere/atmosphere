@@ -56,10 +56,10 @@ import com.sun.enterprise.web.connector.grizzly.comet.CometContext;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -117,10 +117,10 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         Action action = suspended(req, res);
-        if (action.type == Action.TYPE.SUSPEND) {
+        if (action.type() == Action.TYPE.SUSPEND) {
             logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
-        } else if (action.type == Action.TYPE.RESUME) {
+        } else if (action.type() == Action.TYPE.RESUME) {
             logger.debug("Resuming response: {}", res);
             resume(req, ctx);
         }
@@ -137,7 +137,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
      */
     private void suspend(CometContext ctx, Action action, AtmosphereRequest req, AtmosphereResponse res) {
         VoidCometHandler c = new VoidCometHandler(req, res);
-        ctx.setExpirationDelay(action.timeout);
+        ctx.setExpirationDelay(action.timeout());
         ctx.addCometHandler(c);
         ctx.addAttribute("Time", System.currentTimeMillis());
         req.setAttribute(ATMOSPHERE, c.hashCode());
@@ -181,7 +181,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
-        if (actionEvent.action().type == Action.TYPE.RESUME && actionEvent.isInScope()) {
+        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
             CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
             resume(actionEvent.getRequest(), ctx);
         }
