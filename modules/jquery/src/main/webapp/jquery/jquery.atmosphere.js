@@ -523,7 +523,6 @@ jQuery.atmosphere = function() {
                             _onError();
                         }
                     }
-                    sseOpened = false;
                 };
             }
 
