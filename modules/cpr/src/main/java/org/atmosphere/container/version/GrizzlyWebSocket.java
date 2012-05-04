@@ -16,6 +16,7 @@
 package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
@@ -41,7 +42,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void writeError(int errorCode, String message) throws IOException {
+    public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
@@ -54,7 +55,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void redirect(String location) throws IOException {
+    public void redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("redirect not supported");
     }
 
@@ -62,11 +63,11 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(String data) throws IOException {
+    public void write(AtmosphereResponse r, String data) throws IOException {
         if (binaryWrite) {
-            webSocket.send(webSocketResponseFilter.filter(data).getBytes(resource().getResponse().getCharacterEncoding()));
+            webSocket.send(webSocketResponseFilter.filter(r, data).getBytes(resource().getResponse().getCharacterEncoding()));
         } else {
-            webSocket.send(webSocketResponseFilter.filter(data));
+            webSocket.send(webSocketResponseFilter.filter(r, data));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -75,11 +76,11 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data) throws IOException {
         if (binaryWrite) {
-            webSocket.send(webSocketResponseFilter.filter(data));
+            webSocket.send(webSocketResponseFilter.filter(r, data));
         } else {
-            webSocket.send(webSocketResponseFilter.filter(new String(data)));
+            webSocket.send(webSocketResponseFilter.filter(r, new String(data)));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -88,16 +89,16 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
-                byte[] b = webSocketResponseFilter.filter(data, offset, length);
+                byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
                 webSocket.send(b);
             } else {
                 webSocket.send(Arrays.copyOfRange(data, offset, length));
             }
         } else {
-            webSocket.send(webSocketResponseFilter.filter(new String(data, offset, length)));
+            webSocket.send(webSocketResponseFilter.filter(r, new String(data, offset, length)));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -106,7 +107,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void close() throws IOException {
+    public void close(AtmosphereResponse r) throws IOException {
         webSocket.close();
     }
 
@@ -114,7 +115,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void flush() throws IOException {
+    public void flush(AtmosphereResponse r) throws IOException {
     }
 
 }

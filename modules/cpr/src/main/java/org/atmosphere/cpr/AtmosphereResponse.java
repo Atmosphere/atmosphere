@@ -226,7 +226,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     public void sendError(int sc, String msg) throws IOException {
         if (!delegateToNativeResponse) {
             setStatus(sc, msg);
-            asyncIOWriter.writeError(sc, msg);
+            asyncIOWriter.writeError(this, sc, msg);
         } else {
             _r().sendError(sc, msg);
         }
@@ -239,7 +239,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     public void sendError(int sc) throws IOException {
         if (!delegateToNativeResponse) {
             setStatus(sc);
-            asyncIOWriter.writeError(sc, "");
+            asyncIOWriter.writeError(this, sc, "");
         } else {
             _r().sendError(sc);
         }
@@ -251,7 +251,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     @Override
     public void sendRedirect(String location) throws IOException {
         if (!delegateToNativeResponse) {
-            asyncIOWriter.redirect(location);
+            asyncIOWriter.redirect(this, location);
         } else {
             _r().sendRedirect(location);
         }
@@ -469,30 +469,30 @@ public class AtmosphereResponse implements HttpServletResponse {
                 @Override
                 public void write(int i) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    asyncIOWriter.write(new byte[]{(byte) i});
+                    asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
                 }
 
                 @Override
                 public void write(byte[] bytes) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    asyncIOWriter.write(bytes);
+                    asyncIOWriter.write(AtmosphereResponse.this, bytes);
                 }
 
                 @Override
                 public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    asyncIOWriter.write(bytes, start, offset);
+                    asyncIOWriter.write(AtmosphereResponse.this, bytes, start, offset);
                 }
 
                 @Override
                 public void flush() throws IOException {
                     writeStatusAndHeaders();
-                    asyncIOWriter.flush();
+                    asyncIOWriter.flush(AtmosphereResponse.this);
                 }
 
                 @Override
                 public void close() throws java.io.IOException {
-                    asyncIOWriter.close();
+                    asyncIOWriter.close(AtmosphereResponse.this);
                 }
             };
         } else {
@@ -502,7 +502,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     private void writeStatusAndHeaders() throws java.io.IOException {
         if (writeStatusAndHeader.getAndSet(false) && !forceAsyncIOWriter) {
-            asyncIOWriter.write(constructStatusAndHeaders());
+            asyncIOWriter.write(this, constructStatusAndHeaders());
         }
     }
 
@@ -539,7 +539,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        asyncIOWriter.write(new String(chars, offset, lenght));
+                        asyncIOWriter.write(AtmosphereResponse.this,new String(chars, offset, lenght));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -548,7 +548,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars) {
                     try {
                         writeStatusAndHeaders();
-                        asyncIOWriter.write(new String(chars));
+                        asyncIOWriter.write(AtmosphereResponse.this,new String(chars));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -557,7 +557,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(String s, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        asyncIOWriter.write(new String(s.substring(offset, lenght)));
+                        asyncIOWriter.write(AtmosphereResponse.this,new String(s.substring(offset, lenght)));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -566,7 +566,7 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(java.lang.String s) {
                     try {
                         writeStatusAndHeaders();
-                        asyncIOWriter.write(new String(s));
+                        asyncIOWriter.write(AtmosphereResponse.this,new String(s));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -709,7 +709,7 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     public void close() throws IOException {
         if (asyncIOWriter != null) {
-            asyncIOWriter.close();
+            asyncIOWriter.close(this);
         }
     }
 

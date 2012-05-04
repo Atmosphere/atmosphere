@@ -26,28 +26,28 @@ public interface AsyncIOWriter {
      * @param location
      * @throws IOException
      */
-    void redirect(String location) throws IOException;
+    void redirect(AtmosphereResponse r, String location) throws IOException;
     /**
      * Write an error code
      * @param errorCode the error code
      * @param message
      * @throws IOException
      */
-    void writeError(int errorCode, String message) throws IOException;
+    void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException;
     /**
      * Write a WebSocket message
      *
      * @param data the WebSocket message
      * @throws java.io.IOException
      */
-    void write(String data) throws IOException;
+    void write(AtmosphereResponse r, String data) throws IOException;
     /**
      * Write a WebSocket message
      *
      * @param data the WebSocket message
      * @throws IOException
      */
-    void write(byte[] data) throws IOException;
+    void write(AtmosphereResponse r, byte[] data) throws IOException;
     /**
      * Write a WebSocket message
      *
@@ -56,13 +56,13 @@ public interface AsyncIOWriter {
      * @param length length if the message
      * @throws IOException
      */
-    void write(byte[] data, int offset, int length) throws IOException;
+    void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException;
     /**
      * Close the underlying connection.
      */
-    void close() throws IOException;
+    void close(AtmosphereResponse r) throws IOException;
     /**
      * Flush the buffered content
      */
-    void flush() throws IOException;
+    void flush(AtmosphereResponse r) throws IOException;
 }

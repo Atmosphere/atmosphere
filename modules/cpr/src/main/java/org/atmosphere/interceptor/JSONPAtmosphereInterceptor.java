@@ -54,17 +54,17 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void redirect(String location) throws IOException {
+                public void redirect(AtmosphereResponse r, String location) throws IOException {
                     response.sendRedirect(location);
                 }
 
                 @Override
-                public void writeError(int errorCode, String message) throws IOException {
+                public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
                     response.sendError(errorCode);
                 }
 
                 @Override
-                public void write(String data) throws IOException {
+                public void write(AtmosphereResponse r, String data) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
                     if (contentType != null && !contentType.contains("json")) {
@@ -77,7 +77,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void write(byte[] data) throws IOException {
+                public void write(AtmosphereResponse r, byte[] data) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
 
@@ -89,7 +89,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void write(byte[] data, int offset, int length) throws IOException {
+                public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
 
@@ -101,12 +101,12 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void close() throws IOException {
+                public void close(AtmosphereResponse r) throws IOException {
                     response.closeStreamOrWriter();
                 }
 
                 @Override
-                public void flush() throws IOException {
+                public void flush(AtmosphereResponse r) throws IOException {
                     response.flushBuffer();
                 }
             });
