@@ -461,7 +461,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         interceptors.addLast(new SSEAtmosphereInterceptor());
         // ADD JSONP support
         interceptors.addLast(new JSONPAtmosphereInterceptor());
-        logger.debug("Installed AtmosphereInterceptor {}", interceptors);
+        logger.info("Installed AtmosphereInterceptor {}", interceptors);
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
