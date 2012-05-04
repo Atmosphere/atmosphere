@@ -119,8 +119,8 @@ public class WebSocketProcessor implements Serializable {
                     f.set(scheduler.scheduleAtFixedRate(new Runnable() {
                         @Override
                         public void run() {
-                            if (WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())
-                                    && System.currentTimeMillis() - WebSocketAdapter.class.cast(webSocket).lastTick() > action.timeout()) {
+                            if (WebSocket.class.isAssignableFrom(webSocket.getClass())
+                                    && System.currentTimeMillis() - WebSocket.class.cast(webSocket).lastWriteTimeStampInMilliseconds() > action.timeout()) {
                                 hook.timedOut();
                                 f.get().cancel(true);
                             }
@@ -192,8 +192,8 @@ public class WebSocketProcessor implements Serializable {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
         }
 
-        if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
-            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
+        if (webSocket.resource() == null && WebSocket.class.isAssignableFrom(webSocket.getClass())) {
+            webSocket.resource(resource);
         }
     }
 
@@ -236,7 +236,7 @@ public class WebSocketProcessor implements Serializable {
                 }
 
                 if (webSocket != null) {
-                    WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
+                    webSocket.resource(null);
                 }
             }
         }

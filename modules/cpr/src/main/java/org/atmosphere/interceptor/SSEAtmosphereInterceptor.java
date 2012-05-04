@@ -17,10 +17,12 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -32,8 +34,19 @@ import java.io.PrintWriter;
  */
 public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
+    private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
+
+    private static final StringBuffer whitespace = new StringBuffer();
+
+    static {
+        for (int i = 0; i < 2000; i++) {
+            whitespace.append(" ");
+        }
+        whitespace.append("\n");
+    }
+
     @Override
-    public Action inspect(final AtmosphereResource r) {
+    public Action inspect(AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
@@ -45,52 +58,54 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
             try {
                 writer = response.getWriter();
             } catch (IOException e) {
-                //
+                logger.trace("", e);
             }
 
-            for (int i = 0; i < 2000; i++) {
-                writer.print(' ');
-            }
-
-            writer.print("\n");
+            writer.print(whitespace);
             writer.flush();
             response.setContentType(contentType);
 
-            response.asyncIOWriter(new AsyncIOWriter() {
+            response.asyncIOWriter(new AsyncIOWriterAdapter() {
                 @Override
-                public void redirect(AtmosphereResponse r, String location) throws IOException {
-                    r.sendRedirect(location);
+                public AsyncIOWriter redirect(String location) throws IOException {
+                    response.sendRedirect(location);
+                    return this;
                 }
 
                 @Override
-                public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-                    r.sendError(errorCode);
+                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
+                    response.sendError(errorCode);
+                    return this;
                 }
 
                 @Override
-                public void write(AtmosphereResponse r, String data) throws IOException {
-                    r.write("data:" + data + "\n\n");
+                public AsyncIOWriter write(String data) throws IOException {
+                    response.write("data:" + data + "\n\n");
+                    return this;
                 }
 
                 // TODO: Performance: execute a single write
                 @Override
-                public void write(AtmosphereResponse r, byte[] data) throws IOException {
-                    r.write("data:").write(data).write("\n\n");
+                public AsyncIOWriter write(byte[] data) throws IOException {
+                    response.write("data:").write(data).write("\n\n");
+                    return this;
                 }
 
                 @Override
-                public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-                    r.write("data:").write(data, offset, length).write("\n\n");
+                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
+                    response.write("data:").write(data, offset, length).write("\n\n");
+                    return this;
                 }
 
                 @Override
-                public void close(AtmosphereResponse r) throws IOException {
-                    r.closeStreamOrWriter();
+                public void close() throws IOException {
+                    response.closeStreamOrWriter();
                 }
 
                 @Override
-                public void flush(AtmosphereResponse r) throws IOException {
-                    r.flushBuffer();
+                public AsyncIOWriter flush() throws IOException {
+                    response.flushBuffer();
+                    return this;
                 }
             });
         }

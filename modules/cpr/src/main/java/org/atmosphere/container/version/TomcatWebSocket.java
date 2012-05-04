@@ -18,16 +18,14 @@ package org.atmosphere.container.version;
 import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -35,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class TomcatWebSocket extends WebSocketAdapter {
+public class TomcatWebSocket extends WebSocket {
 
     private final WsOutbound outbound;
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocket.class);
@@ -49,22 +47,24 @@ public class TomcatWebSocket extends WebSocketAdapter {
     }
 
     @Override
-    public void redirect(AtmosphereResponse r, String location) throws IOException {
+    public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("WebSocket Redirect not supported");
+        return this;
     }
 
     @Override
-    public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+    public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
         } else {
             logger.debug("{} {}", errorCode, message);
         }
+        return this;
     }
 
     @Override
-    public void write(AtmosphereResponse r, String data) throws IOException {
+    public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
 
@@ -75,13 +75,14 @@ public class TomcatWebSocket extends WebSocketAdapter {
             outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(r, data)));
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(AtmosphereResponse r, byte[] data) throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
 
@@ -92,13 +93,14 @@ public class TomcatWebSocket extends WebSocketAdapter {
                     webSocketResponseFilter.filter(r, new String(data, resource().getResponse().getCharacterEncoding()))));
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
 
@@ -115,6 +117,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
         }
 
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
@@ -130,7 +133,8 @@ public class TomcatWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void flush(AtmosphereResponse r) throws IOException {
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        return this;
     }
 
     @Override
