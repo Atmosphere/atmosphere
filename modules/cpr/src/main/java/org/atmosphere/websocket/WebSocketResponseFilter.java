@@ -15,6 +15,8 @@
 */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereResponse;
+
 /**
  * Implementation of this interface allow the customization of the WebSocket message before it gets send.
  */
@@ -28,7 +30,7 @@ public interface WebSocketResponseFilter {
      * @param message the Websocket text message
      * @return a new message
      */
-    String filter(String message);
+    String filter(AtmosphereResponse r, String message);
 
     /**
      * Transform of filter the message, return a new one or the same
@@ -36,7 +38,7 @@ public interface WebSocketResponseFilter {
      * @param message the Websocket bytes message
      * @return a new message
      */
-    byte[] filter(byte[] message);
+    byte[] filter(AtmosphereResponse r, byte[] message);
 
     /**
      * Transform of filter the message, return a new one or the same
@@ -44,22 +46,22 @@ public interface WebSocketResponseFilter {
      * @param message the Websocket bytes message
      * @return a new message
      */
-    byte[] filter(byte[] message, int offset, int length);
+    byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length);
 
 
     public final static class NoOpsWebSocketResponseFilter implements WebSocketResponseFilter {
         @Override
-        public String filter(String message) {
+        public String filter(AtmosphereResponse r, String message) {
             return message;
         }
 
         @Override
-        public byte[] filter(byte[] message) {
+        public byte[] filter(AtmosphereResponse r, byte[] message) {
             return message;
         }
 
         @Override
-        public byte[] filter(byte[] message, int offset, int length) {
+        public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {
             // Not used anyway so don't copy bytes.
             return message;
         }

@@ -16,6 +16,7 @@
 package org.atmosphere.jetty;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void writeError(int errorCode, String message) throws IOException {
+    public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         logger.debug("{} {}", errorCode, message);
     }
 
@@ -51,7 +52,7 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void redirect(String location) throws IOException {
+    public void redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("redirect not supported");
     }
 
@@ -59,7 +60,7 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(String data) throws IOException {
+    public void write(AtmosphereResponse r, String data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data);
@@ -69,7 +70,7 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, 0, data.length);
@@ -79,7 +80,7 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
         outbound.sendMessage(frame, data, offset, length);
@@ -89,13 +90,14 @@ public class JettyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void close() throws IOException {
+    public void close(AtmosphereResponse r) throws IOException {
         outbound.disconnect();
     }
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public void flush() throws IOException {
+    public void flush(AtmosphereResponse r) throws IOException {
     }
 }

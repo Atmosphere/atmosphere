@@ -17,6 +17,7 @@ package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
@@ -49,7 +50,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void writeError(int errorCode, String message) throws IOException {
+    public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
@@ -62,7 +63,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void redirect(String location) throws IOException {
+    public void redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("WebSocket Redirect not supported");
     }
 
@@ -70,16 +71,16 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(String data) throws IOException {
+    public void write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
 
         if (binaryWrite) {
-            byte[] b = webSocketResponseFilter.filter(data.getBytes(resource().getResponse().getCharacterEncoding()));
+            byte[] b = webSocketResponseFilter.filter(r, data.getBytes(resource().getResponse().getCharacterEncoding()));
             connection.sendMessage(b, 0, b.length);
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(data));
+            connection.sendMessage(webSocketResponseFilter.filter(r, data));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -88,16 +89,16 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data) throws IOException {
         firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
         if (binaryWrite) {
-            byte[] b = webSocketResponseFilter.filter(data);
+            byte[] b = webSocketResponseFilter.filter(r, data);
             connection.sendMessage(b, 0, b.length);
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(new String(data)));
+            connection.sendMessage(webSocketResponseFilter.filter(r, new String(data)));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -106,20 +107,20 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
-                byte[] b = webSocketResponseFilter.filter(data, offset, length);
+                byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
                 connection.sendMessage(b, 0, b.length);
             } else {
                 connection.sendMessage(data, offset, length);
             }
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(new String(data, offset, length, "UTF-8")));
+            connection.sendMessage(webSocketResponseFilter.filter(r, new String(data, offset, length, "UTF-8")));
         }
         lastWrite = System.currentTimeMillis();
     }
@@ -128,7 +129,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void close() throws IOException {
+    public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
     }
@@ -137,7 +138,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void flush() throws IOException {
+    public void flush(AtmosphereResponse r) throws IOException {
     }
 
     @Override

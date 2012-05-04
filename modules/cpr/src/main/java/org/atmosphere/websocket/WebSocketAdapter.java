@@ -18,6 +18,7 @@ package org.atmosphere.websocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
 
@@ -53,7 +54,7 @@ public abstract class WebSocketAdapter implements WebSocket{
     }
 
     @Override
-    public void close() throws IOException {
+    public void close(AtmosphereResponse r) throws IOException {
     }
 
     @Override
