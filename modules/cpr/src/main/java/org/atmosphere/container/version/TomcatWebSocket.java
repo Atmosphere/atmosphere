@@ -18,12 +18,15 @@ package org.atmosphere.container.version;
 import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -39,6 +42,7 @@ public class TomcatWebSocket extends WebSocketAdapter {
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public TomcatWebSocket(WsOutbound outbound, AtmosphereConfig config) {
+        super(config);
         this.outbound = outbound;
         this.config = config;
     }
@@ -62,7 +66,13 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(String data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(data)));
+
+        if (binaryWrite) {
+            outbound.writeBinaryMessage(ByteBuffer.wrap(
+                    webSocketResponseFilter.filter(data).getBytes(resource().getResponse().getCharacterEncoding())));
+        } else {
+            outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(data)));
+        }
         lastWrite = System.currentTimeMillis();
     }
 
@@ -73,7 +83,13 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(byte[] data) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(new String(data, "ISO-8859-1"))));
+
+        if (binaryWrite) {
+            outbound.writeBinaryMessage(ByteBuffer.wrap(webSocketResponseFilter.filter(data)));
+        } else {
+            outbound.writeTextMessage(CharBuffer.wrap(
+                    webSocketResponseFilter.filter(new String(data, resource().getResponse().getCharacterEncoding()))));
+        }
         lastWrite = System.currentTimeMillis();
     }
 
@@ -84,7 +100,19 @@ public class TomcatWebSocket extends WebSocketAdapter {
     public void write(byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
         logger.trace("WebSocket.write()");
-        outbound.writeTextMessage(CharBuffer.wrap(webSocketResponseFilter.filter(new String(data, offset, length, "ISO-8859-1"))));
+
+        if (binaryWrite) {
+            if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
+                byte[] b = webSocketResponseFilter.filter(data, offset, length);
+                outbound.writeBinaryMessage(ByteBuffer.wrap(b));
+            } else {
+                outbound.writeBinaryMessage(ByteBuffer.wrap(data, offset, length));
+            }
+        } else {
+            outbound.writeTextMessage(CharBuffer.wrap(
+                    webSocketResponseFilter.filter(new String(data, offset, length, resource().getResponse().getCharacterEncoding()))));
+        }
+
         lastWrite = System.currentTimeMillis();
     }
 

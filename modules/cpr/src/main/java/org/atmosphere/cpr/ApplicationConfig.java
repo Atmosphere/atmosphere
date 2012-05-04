@@ -223,9 +223,9 @@ public interface ApplicationConfig {
      */
     String TOMCAT_CLOSE_STREAM = "org.atmosphere.container.TomcatCometSupport.discardEOF";
     /**
-     * Let Jetty send blob instead of String
+     * Write binary instead of String
      */
-    String WEBSOCKET_BLOB = "org.atmosphere.websocket.supportBlob";
+    String WEBSOCKET_BINARY_WRITE = "org.atmosphere.websocket.binaryWrite";
     /**
      * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
      * a Container

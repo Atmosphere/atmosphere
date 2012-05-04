@@ -24,6 +24,7 @@ public interface WebSocketResponseFilter {
 
     /**
      * Transform of filter the message, return a new one or the same
+     *
      * @param message the Websocket text message
      * @return a new message
      */
@@ -31,10 +32,20 @@ public interface WebSocketResponseFilter {
 
     /**
      * Transform of filter the message, return a new one or the same
+     *
      * @param message the Websocket bytes message
      * @return a new message
      */
     byte[] filter(byte[] message);
+
+    /**
+     * Transform of filter the message, return a new one or the same
+     *
+     * @param message the Websocket bytes message
+     * @return a new message
+     */
+    byte[] filter(byte[] message, int offset, int length);
+
 
     public final static class NoOpsWebSocketResponseFilter implements WebSocketResponseFilter {
         @Override
@@ -44,6 +55,12 @@ public interface WebSocketResponseFilter {
 
         @Override
         public byte[] filter(byte[] message) {
+            return message;
+        }
+
+        @Override
+        public byte[] filter(byte[] message, int offset, int length) {
+            // Not used anyway so don't copy bytes.
             return message;
         }
     }

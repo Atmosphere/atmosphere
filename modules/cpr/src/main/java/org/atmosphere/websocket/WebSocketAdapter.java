@@ -15,6 +15,8 @@
 */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 
 import java.io.IOException;
@@ -29,6 +31,16 @@ public abstract class WebSocketAdapter implements WebSocket{
     private AtmosphereResource r;
     protected long lastWrite = 0;
     protected WebSocketResponseFilter webSocketResponseFilter = WebSocketResponseFilter.NOOPS_WebSocketResponseFilter;
+    protected final boolean binaryWrite;
+
+    public WebSocketAdapter(AtmosphereConfig config) {
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
+        if (s != null && Boolean.parseBoolean(s)) {
+            binaryWrite = true;
+        } else {
+            binaryWrite = false;
+        }
+    }
 
     /**
      * Configure the {@link AtmosphereResource}
