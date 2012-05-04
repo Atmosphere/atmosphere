@@ -24,13 +24,14 @@ $(function () {
         req.url = document.location.toString() + 'chat';
         req.contentType = "application/json";
         req.transport = transport;
-        req.maxRequest = 0;
-        req.fallbackTransport = 'none';
         req.headers = { "negotiating" : "true" };
 
         req.onOpen = function(response) {
             detect.append('<p><span style="color:blue">' + transport + ' supported: '  + '</span>' + (response.transport == transport));
-            req.close;
+        }
+
+        req.onReconnect = function(request) {
+            request.close();
         }
 
         socket.subscribe(req)
@@ -40,7 +41,6 @@ $(function () {
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
-
         logLevel : 'debug',
         transport : 'websocket' ,
         fallbackTransport: 'long-polling'};
