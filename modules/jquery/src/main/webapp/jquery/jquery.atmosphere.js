@@ -380,6 +380,64 @@ jQuery.atmosphere = function() {
             }
 
             /**
+             * Execute request using ajax transport.
+             *
+             * @param request
+             *            {Object} request Request parameters, if
+             *            undefined _request object will be used.
+             * @private
+             */
+            function _ajax(request) {
+                var rq = _request;
+                if ((request != null) && (typeof(request) != 'undefined')) {
+                    rq = request;
+                }
+
+                var url = rq.url;
+                var data = rq.data;
+                if (rq.attachHeadersAsQueryString) {
+                    url = _attachHeaders(rq);
+                    if (data != '') {
+                        url += "&X-Atmosphere-Post-Body=" + data;
+                    }
+                    data = '';
+                }
+
+                _jqxhr = jQuery.ajax({
+                    url : url,
+                    type : rq.method,
+                    error : function(jqXHR, textStatus, errorThrown) {
+                        if (jqXHR.status < 300 && rq.requestCount++ < rq.maxRequest) {
+                            _reconnect(_jqxhr, rq);
+                        } else {
+                            _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
+                        }
+                    },
+                    success: function(data, textStatus, jqXHR) {
+
+                        if (rq.requestCount++ < rq.maxRequest) {
+                            if (rq.executeCallbackBeforeReconnect) {
+                                _reconnect(_jqxhr, rq);
+                            }
+
+                            _prepareCallback(data, "messageReceived", 200, rq.transport);
+
+                            if (!rq.executeCallbackBeforeReconnect) {
+                                _reconnect(_jqxhr, rq);
+                            }
+                        } else {
+                            jQuery.atmosphere.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
+                            _onError();
+                        }
+                    },
+                    data : rq.data,
+                    beforeSend : function(jqXHR) {
+                        _doRequest(jqXHR, rq, false);
+                    }
+                });
+            }
+
+            /**
              * Build websocket object.
              *
              * @param location
@@ -836,6 +894,11 @@ jQuery.atmosphere = function() {
                 // CORS fake using JSONP
                 if ((rq.transport == 'jsonp') || ((rq.enableXDR) && (jQuery.atmosphere.checkCORSSupport()))) {
                     _jsonp(rq);
+                    return;
+                }
+
+                if (rq.transport == 'ajax') {
+                    _ajax(request);
                     return;
                 }
 

@@ -17,6 +17,7 @@ $(function () {
     transports[2] = "jsonp";
     transports[3] = "long-polling";
     transports[4] = "streaming";
+    transports[5] = "ajax";
 
     $.each(transports, function (index, transport) {
         var req = new $.atmosphere.AtmosphereRequest();

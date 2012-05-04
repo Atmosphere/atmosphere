@@ -66,6 +66,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
             res.getWriter().write(new Data(author, message).toString());
             switch (r.transport()) {
                 case JSONP:
+                case AJAX:
                 case LONG_POLLING:
                     event.getResource().resume();
                     break;
