@@ -15,11 +15,15 @@
 */
 package org.atmosphere.container.version;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GrizzlyWebSocket extends WebSocketAdapter {
@@ -28,7 +32,8 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
     private final com.sun.grizzly.websockets.WebSocket webSocket;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
-    public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket) {
+    public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket, AtmosphereConfig config) {
+        super(config);
         this.webSocket = webSocket;
     }
 
@@ -58,7 +63,11 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(String data) throws IOException {
-        webSocket.send(webSocketResponseFilter.filter(data));
+        if (binaryWrite) {
+            webSocket.send(webSocketResponseFilter.filter(data).getBytes(resource().getResponse().getCharacterEncoding()));
+        } else {
+            webSocket.send(webSocketResponseFilter.filter(data));
+        }
         lastWrite = System.currentTimeMillis();
     }
 
@@ -67,7 +76,11 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data) throws IOException {
-        webSocket.send(webSocketResponseFilter.filter(new String(data)));
+        if (binaryWrite) {
+            webSocket.send(webSocketResponseFilter.filter(data));
+        } else {
+            webSocket.send(webSocketResponseFilter.filter(new String(data)));
+        }
         lastWrite = System.currentTimeMillis();
     }
 
@@ -76,7 +89,16 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      */
     @Override
     public void write(byte[] data, int offset, int length) throws IOException {
-        webSocket.send(webSocketResponseFilter.filter(new String(data, offset, length)));
+        if (binaryWrite) {
+            if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
+                byte[] b = webSocketResponseFilter.filter(data, offset, length);
+                webSocket.send(b);
+            } else {
+                webSocket.send(Arrays.copyOfRange(data, offset, length));
+            }
+        } else {
+            webSocket.send(webSocketResponseFilter.filter(new String(data, offset, length)));
+        }
         lastWrite = System.currentTimeMillis();
     }
 

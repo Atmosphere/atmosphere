@@ -15,6 +15,7 @@
  */
 package org.atmosphere.jetty;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocketAdapter;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 import org.slf4j.Logger;
@@ -33,7 +34,8 @@ public class JettyWebSocket extends WebSocketAdapter {
     private final Outbound outbound;
     private final byte frame = 0x00;
 
-    public JettyWebSocket(Outbound outbound) {
+    public JettyWebSocket(Outbound outbound, AtmosphereConfig config) {
+        super(config);
         this.outbound = outbound;
     }
 
