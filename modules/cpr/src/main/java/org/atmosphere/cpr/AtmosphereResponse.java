@@ -228,7 +228,11 @@ public class AtmosphereResponse implements HttpServletResponse {
             setStatus(sc, msg);
             asyncIOWriter.writeError(this, sc, msg);
         } else {
-            _r().sendError(sc, msg);
+            if (!_r().isCommitted()) {
+                _r().sendError(sc, msg);
+            } else {
+                logger.trace("Committed");
+            }
         }
     }
 
