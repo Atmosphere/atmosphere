@@ -16,6 +16,7 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
@@ -53,26 +55,24 @@ public class WebSocketHandshakeFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 
-        if (HttpServletRequest.class.cast(request).getHeader("Connection") != null && HttpServletRequest.class.cast(request).getHeader("Connection").equalsIgnoreCase("upgrade")) {
-            int draft = HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version");
+        HttpServletRequest r = HttpServletRequest.class.cast(request);
+        if (Utils.webSocketEnabled(r)) {
+            int draft =r.getIntHeader("Sec-WebSocket-Version");
             if (draft < 0) {
-                draft = HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Draft");
+                draft = r.getIntHeader("Sec-WebSocket-Draft");
             }
 
             if (bannedVersion != null) {
                 for (String s : bannedVersion) {
-                    if (Integer.getInteger(s) == draft) {
+                    if (Integer.parseInt(s) == draft) {
+                        logger.trace("Invalid WebSocket Specification {} with {} ",
+                                r.getHeader("Connection"), r.getIntHeader("Sec-WebSocket-Version"));
                         HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                        HttpServletResponse.class.cast(response).sendError(202, "Websocket protocol not supported");
+                        HttpServletResponse.class.cast(response).sendError(501, "Websocket protocol not supported");
                         return;
                     }
                 }
             }
-        } else if (HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version") > 0) {
-            logger.error("Invalid WebSocket Specification {} with {} ", HttpServletRequest.class.cast(request).getHeader("Connection"), HttpServletRequest.class.cast(request).getIntHeader("Sec-WebSocket-Version"));
-            HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-            HttpServletResponse.class.cast(response).sendError(202, "Websocket protocol not supported");
-            return;
         }
         chain.doFilter(request, response);
     }

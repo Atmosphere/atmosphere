@@ -62,8 +62,8 @@ public class UrlMappingTest {
         config = framework.getAtmosphereConfig();
         processor = new AsynchronousProcessor(config) {
             @Override
-            public AtmosphereFramework.Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                return new AtmosphereFramework.Action(AtmosphereFramework.Action.TYPE.CREATED);
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return new Action(Action.TYPE.CREATED);
             }
         };
     }
@@ -85,7 +85,7 @@ public class UrlMappingTest {
         r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        r = new AtmosphereRequest.Builder().pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
         r = new AtmosphereRequest.Builder().pathInfo("/ab/").build();
@@ -151,6 +151,18 @@ public class UrlMappingTest {
         assertNotNull(processor.map(r));
 
         r = new AtmosphereRequest.Builder().pathInfo("/a/b/c/d/////").build();
+        assertNotNull(processor.map(r));
+    }
+
+    @Test
+    public void mappingTestTraillingHandler() throws ServletException {
+        // servlet-mapping : /a/*
+        framework.addAtmosphereHandler("/a", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        assertNotNull(processor.map(r));
+
+        r = new AtmosphereRequest.Builder().pathInfo("/a/1").build();
         assertNotNull(processor.map(r));
     }
 }

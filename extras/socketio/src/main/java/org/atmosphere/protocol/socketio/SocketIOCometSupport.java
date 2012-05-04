@@ -28,8 +28,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.*;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.Action;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -82,7 +82,6 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	public SocketIOCometSupport(AtmosphereConfig config, AsynchronousProcessor container) {
 		super(config);
 		containerWrapper = container;
-		containerWrapper.setIProcessor(this);
 		this.config = config;
 		
 		config.framework().setWebSocketProtocolClassName("org.atmosphere.protocol.socketio.SocketIOWebSocketProtocol");
@@ -124,7 +123,6 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 	
 	
 	@SuppressWarnings("unchecked")
-	@Override
 	public Action processAction(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
 		
 		AtmosphereHandlerWrapper handlerWrapper = map(request);
@@ -285,52 +283,6 @@ public class SocketIOCometSupport extends AsynchronousProcessor {
 		
 	}
 
-	@Override
-	public boolean supportSession() {
-		//return containerWrapper.supportSession();
-		return config.isSupportSession();
-	}
-
-	@Override
-	public String getContainerName() {
-		return containerWrapper.getContainerName();
-	}
-
-	@Override
-	public Action suspended(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
-		return containerWrapper.suspended(request, response);
-	}
-
-	@Override
-	public void action(AtmosphereResourceImpl r) {
-		containerWrapper.action(r);
-	}
-
-	@Override
-	public AtmosphereHandlerWrapper map(AtmosphereRequest request) throws ServletException {
-		return containerWrapper.map(request);
-	}
-
-	@Override
-	public Action resumed(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
-		return containerWrapper.resumed(request, response);
-	}
-
-	@Override
-	public Action timedout(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
-		return containerWrapper.timedout(request, response);
-	}
-
-	@Override
-	public Action cancelled(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
-		return containerWrapper.cancelled(request, response);
-	}
-
-	@Override
-	public boolean supportWebSocket() {
-		return containerWrapper.supportWebSocket();
-	}
-	
 	public WebSocketFactory getWebSocketFactory(){
     	//return webSocketFactory.getFactory();
 		return null;

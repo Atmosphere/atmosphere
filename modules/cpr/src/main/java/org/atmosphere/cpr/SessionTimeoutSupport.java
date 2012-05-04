@@ -32,6 +32,8 @@ public final class SessionTimeoutSupport {
      * Disable HTTP session timeout.
      */
     public static void setupTimeout(HttpSession session) {
+        if (session == null) return;
+
         bind(session, createRestorer(session));
 
         session.setMaxInactiveInterval(-1);
@@ -41,6 +43,8 @@ public final class SessionTimeoutSupport {
      * Try to restore HTTP session timeout that was set before disabling it.
      */
     public static void restoreTimeout(HttpSession session) {
+        if (session == null) return;
+
         SessionTimeoutRestorer restorer = unbind(session);
 
         if (restorer != null) {

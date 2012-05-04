@@ -45,8 +45,7 @@
         <module>websocket-pubsub</module>
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
-	<module>spring-tiles</module>
-        <module>socketio-chat</module>
+        <module>spring-tiles</module>
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>

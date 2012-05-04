@@ -28,6 +28,14 @@
             margin-right: auto;
         }
 
+        #detect {
+            padding: 5px;
+            background: #ffc0cb;
+            border-radius: 5px;
+            border: 1px solid #CCC;
+            margin-top: 10px;
+        }
+
         #content {
             padding: 5px;
             background: #ddd;
@@ -36,7 +44,7 @@
             margin-top: 10px;
         }
 
-         #header {
+        #header {
             padding: 5px;
             background: #f5deb3;
             border-radius: 5px;
@@ -62,6 +70,7 @@
 </head>
 <body>
 <div id="header"><h3>Atmosphere Chat. Default transport is WebSocket, fallback is long-polling</h3></div>
+<div id="detect"><h3>Detecting what the browser and server are supporting</h3></div>
 <div id="content"></div>
 <div>
     <span id="status">Connecting...</span>

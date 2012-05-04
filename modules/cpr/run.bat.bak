@@ -1,0 +1,3 @@
+
+xcopy /S /Y /Q F:\temp\atmosphere-25avril\atmosphere\modules\cpr\target\classes\*.* F:\DEV\jetty-distribution-8.1.0.RC1\webapps\atmosphere-socketio-chat\WEB-INF\classes
+xcopy /S /Y /Q F:\temp\atmosphere-25avril\atmosphere\extras\socketio\target\classes\*.* F:\DEV\jetty-distribution-8.1.0.RC1\webapps\atmosphere-socketio-chat\WEB-INF\classes

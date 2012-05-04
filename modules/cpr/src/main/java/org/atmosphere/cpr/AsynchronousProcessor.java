@@ -62,9 +62,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,9 +71,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-import static org.atmosphere.cpr.AtmosphereFramework.Action;
+
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
@@ -84,7 +81,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<AtmosphereResourceImpl> {
+public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
@@ -94,21 +91,10 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
-    
-    private IProcessor actionProcessor = null;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
     }
-    
-    public void setIProcessor(IProcessor actionProcessor){
-    	this.actionProcessor = actionProcessor;
-    }
-    
-    public IProcessor getIProcessor(){
-    	return actionProcessor;
-    }
-
 
     @Override
     public void init(ServletConfig sc) throws ServletException {
@@ -189,19 +175,6 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
      * @throws javax.servlet.ServletException
      */
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-    	return actionProcessor.processAction(req, res);
-    }
-
-    /**
-     * Invoke the {@link AtmosphereHandler#onRequest} method.
-     *
-     * @param req the {@link AtmosphereRequest}
-     * @param res the {@link AtmosphereResponse}
-     * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
-     */
-    public Action processAction(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         if (Utils.webSocketEnabled(req) && !supportWebSocket()) {
             res.setStatus(501);
@@ -239,9 +212,14 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
-        LinkedList<AtmosphereResourceConfig> c = config.framework().resourcesConfig();
-        for (AtmosphereResourceConfig arc : c) {
-            arc.configure(resource);
+        LinkedList<AtmosphereInterceptor> c = config.framework().interceptors();
+        Action a;
+        for (AtmosphereInterceptor arc : c) {
+            a = arc.inspect(resource);
+            if (a.type() != Action.TYPE.CONTINUE) {
+                logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
+                return a;
+            }
         }
 
         try {
@@ -281,12 +259,6 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
                 }
             }
         }
-        
-     // DEBUG  @TODO : fix this.. c'etait a cause d'un issue de mapping non trouve
-        if(atmosphereHandlerWrapper == null && config.handlers().size()==1){
-        	atmosphereHandlerWrapper = (AtmosphereHandlerWrapper) config.handlers().values().toArray()[0];
-        }
-        
         return atmosphereHandlerWrapper;
     }
 
@@ -297,7 +269,7 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    public AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
+    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();
@@ -305,7 +277,7 @@ public abstract class AsynchronousProcessor implements IProcessor, AsyncSupport<
             path = req.getServletPath();
         }
 
-        if (path.isEmpty()) {
+        if (path == null || path.isEmpty()) {
             path = "/";
         }
 

@@ -106,6 +106,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      * {@inheritDoc}
      */
     @Override
+
     public String getPathInfo() {
         return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
@@ -354,7 +355,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     @Override
     public String getParameter(String s) {
-        String name = b.request == null ? null : b.request.getParameter(s);
+        String name = isNotNoOps() ? b.request.getParameter(s) : null;
         if (name == null) {
             if (b.queryStrings.get(s) != null) {
                 return b.queryStrings.get(s)[0];
@@ -477,6 +478,11 @@ public class AtmosphereRequest implements HttpServletRequest {
         return this;
     }
 
+    public AtmosphereRequest servletPath(String servletPath) {
+        b.servletPath = servletPath;
+        return this;
+    }
+
     private final static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
@@ -583,7 +589,7 @@ public class AtmosphereRequest implements HttpServletRequest {
         if (create) {
             return getSession();
         }
-        return session == null && isNotNoOps() ? b.request.getSession(false) : null;
+        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
     }
 
     /**
@@ -797,6 +803,11 @@ public class AtmosphereRequest implements HttpServletRequest {
      */
     public boolean isDestroyable() {
         return b.destroyable;
+    }
+
+    public AtmosphereRequest pathInfo(String pathInfo) {
+        b.pathInfo = pathInfo;
+        return this;
     }
 
     /**

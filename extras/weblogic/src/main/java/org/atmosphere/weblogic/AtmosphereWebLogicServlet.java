@@ -15,6 +15,7 @@
  */
  package org.atmosphere.weblogic;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -88,15 +89,15 @@ public class AtmosphereWebLogicServlet extends AbstractAsyncServlet {
     protected boolean doRequest(RequestResponseKey rrk) throws IOException, ServletException {
         try {
             rrk.getRequest().getSession().setAttribute(WebLogicCometSupport.RRK, rrk);
-            AtmosphereFramework.Action action = framework.doCometSupport(AtmosphereRequest.wrap(rrk.getRequest()), AtmosphereResponse.wrap(rrk.getResponse()));
-            if (action.type == AtmosphereFramework.Action.TYPE.SUSPEND) {
-                if (action.timeout == -1) {
+            Action action = framework.doCometSupport(AtmosphereRequest.wrap(rrk.getRequest()), AtmosphereResponse.wrap(rrk.getResponse()));
+            if (action.type() == Action.TYPE.SUSPEND) {
+                if (action.timeout() == -1) {
                     rrk.setTimeout(Integer.MAX_VALUE);
                 } else {
-                    rrk.setTimeout((int) action.timeout);
+                    rrk.setTimeout((int) action.timeout());
                 }
             }
-            return action.type == AtmosphereFramework.Action.TYPE.SUSPEND;
+            return action.type() == Action.TYPE.SUSPEND;
         } catch (IllegalStateException ex) {
             logger.error("AtmosphereServlet.doRequest exception", ex);
             throw ex;

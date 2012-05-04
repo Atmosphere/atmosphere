@@ -62,7 +62,7 @@ public class WebSocketTransport extends AbstractTransport {
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
 		
-		if(!processor.supportWebSocket()){
+		if(processor!=null && !processor.supportWebSocket()){
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
 			return;
 		}

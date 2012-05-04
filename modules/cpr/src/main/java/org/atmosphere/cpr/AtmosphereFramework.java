@@ -20,13 +20,14 @@ import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.transport.JSONPAtmosphereResourceConfig;
-import org.atmosphere.transport.SSEAtmosphereResourceConfig;
+import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
+import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
@@ -192,8 +193,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
-    private final LinkedList<AtmosphereResourceConfig>
-            configMap = new LinkedList<AtmosphereResourceConfig>();
+    protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
+    protected boolean scanDone = false;
 
     @Override
     public ServletContext getServletContext() {
@@ -246,61 +247,6 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
-    }
-
-    /**
-     * Simple class/struck that hold the current state.
-     */
-    public final static class Action {
-
-        public enum TYPE {
-            SUSPEND, RESUME, TIMEOUT, CANCELLED, KEEP_ALIVED, CREATED
-        }
-
-        public long timeout = -1L;
-
-        public TYPE type;
-
-        public Action() {
-            type = TYPE.CREATED;
-        }
-
-        public Action(TYPE type) {
-            this.type = type;
-        }
-
-        public Action(TYPE type, long timeout) {
-            this.timeout = timeout;
-            this.type = type;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Action action = (Action) o;
-
-            if (timeout != action.timeout) return false;
-            if (type != action.type) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = (int) (timeout ^ (timeout >>> 32));
-            result = 31 * result + (type != null ? type.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Action{" +
-                    "timeout=" + timeout +
-                    ", type=" + type +
-                    '}';
-        }
     }
 
     /**
@@ -367,6 +313,12 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         atmosphereHandlers.put(path, w);
+
+        if (!path.endsWith("/")) {
+            path += "[/a-zA-Z0-9-&=;\\?]+";
+            atmosphereHandlers.put(path, w);
+        }
+
         return this;
     }
 
@@ -513,9 +465,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
             initWebSocketProtocol();
-            
-            doInitCustomProtocolHandler(scFacade);
-            
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
             configureAtmosphereConfig(sc);
@@ -533,18 +482,19 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         return this;
     }
-     /**
-     * Configure the list of {@link AtmosphereResourceConfig}.
+
+    /**
+     * Configure the list of {@link AtmosphereInterceptor}.
      * @param sc a ServletConfig
      */
-    protected void configureAtmosphereConfig(ServletConfig sc){
-        String s = sc.getInitParameter(FrameworkConfig.ATMOSPHERE_RESOURCES_CONFIG);
+    protected void configureAtmosphereConfig(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
         if (s != null) {
-             String[] list = s.split(",");
-            for(String a: list) {
+            String[] list = s.split(",");
+            for (String a : list) {
                 try {
-                    configMap.add((AtmosphereResourceConfig) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a).newInstance());
+                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()).newInstance());
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
@@ -556,25 +506,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         // Add SSE support
-        configMap.addLast(new SSEAtmosphereResourceConfig());
+        interceptors.addLast(new SSEAtmosphereInterceptor());
         // ADD JSONP support
-        configMap.addLast(new JSONPAtmosphereResourceConfig());
-        logger.debug("Installed AtmosphereResourceConfig {}", configMap);
-    }
-	
-    protected void doInitCustomProtocolHandler(ServletConfig sc) {
-        String s = sc.getInitParameter(ApplicationConfig.PROPERTY_CUSTOM_COMET_SUPPORT);
-        
-        if(s!=null){
-        	ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        	//cometSupport = new SocketIOCometSupport(config, (AsynchronousProcessor)cometSupport);
-        	try {
-        		asyncSupport = (AsyncSupport) cl.loadClass(s).getDeclaredConstructor(config.getClass(), AsynchronousProcessor.class).newInstance(config, asyncSupport);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-        }
-        
+        interceptors.addLast(new JSONPAtmosphereInterceptor());
+        logger.debug("Installed AtmosphereInterceptor {}", interceptors);
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -1015,6 +950,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Return the current {@link AsyncSupport}
      *
+     * @deprecated Use getAsyncSupport
      * @return the current {@link AsyncSupport}
      */
     public AsyncSupport getCometSupport() {
@@ -1079,6 +1015,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (file.isDirectory()) {
             getFiles(file);
+            scanDone = true;
 
             for (String className : possibleComponentsCandidate) {
                 try {
@@ -1133,6 +1070,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (file.isDirectory()) {
             getFiles(file);
+            scanDone = true;
 
             for (String className : possibleComponentsCandidate) {
                 try {
@@ -1159,8 +1097,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param f the real path {@link File}
      */
     private void getFiles(File f) {
-
-        if (possibleComponentsCandidate.size() > 0) return; // We already scanned.
+        if (scanDone) return;
 
         File[] files = f.listFiles();
         for (File test : files) {
@@ -1221,25 +1158,19 @@ public class AtmosphereFramework implements ServletContextProvider {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
-                    logger.warn("Using BlockingIOCometSupport.");
                 }
                 logger.trace(ex.getMessage(), ex);
 
-                asyncSupport = new BlockingIOCometSupport(config);
-                
-              //HACK TEMPORAIRE :) @TODO 
-                doInitCustomProtocolHandler(config.getServletConfig());
-                if(asyncSupport!=null){
-                	asyncSupport.init(config.getServletConfig());
-                }
-                
+                asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7Servlet30SupportWithWebSocket(config) : new BlockingIOCometSupport(config);
+                logger.warn("Using " + asyncSupport.getClass().getName());
+
                 a = doCometSupport(req, res);
             } else {
                 logger.error("AtmosphereFramework exception", ex);
                 throw ex;
             }
         } finally {
-            if (req != null && a != null && a.type != Action.TYPE.SUSPEND) {
+            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
                 req.destroy();
                 res.destroy();
             }
@@ -1422,18 +1353,22 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereResourceConfig} implementation. The adding order or AtmosphereResourceConfig will be used, e.g
-     * the first added AtmosphereResourceConfig will always be called first.
+     * Add an {@link AtmosphereInterceptor} implementation. The adding order or {@link AtmosphereInterceptor} will be used, e.g
+     * the first added {@link AtmosphereInterceptor} will always be called first.
      *
-     * @param c {@link AtmosphereResourceConfig}
+     * @param c {@link AtmosphereInterceptor}
      * @return this
      */
-    public AtmosphereFramework atmosphereResourceConfig(AtmosphereResourceConfig c) {
-        configMap.addLast(c);
+    public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
+        interceptors.addLast(c);
         return this;
     }
 
-    public LinkedList<AtmosphereResourceConfig> resourcesConfig(){
-        return configMap;
+    /**
+     * Return the list of {@link AtmosphereInterceptor}
+     * @return the list of {@link AtmosphereInterceptor}
+     */
+    public LinkedList<AtmosphereInterceptor> interceptors(){
+        return interceptors;
     }
 }
