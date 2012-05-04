@@ -415,6 +415,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             initAtmosphereHandler(scFacade);
             configureAtmosphereConfig(sc);
 
+            if (broadcasterCacheClassName == null) {
+                logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
+                        "It is recommended to configure the HeaderBroadcasterCache.");
+            }
+
+            logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
@@ -486,9 +492,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             Class<? extends Broadcaster> bc =
                     (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                             .loadClass(broadcasterClassName);
-
-            logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
-
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         }
 
@@ -517,8 +520,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                             .loadClass(broadcasterCacheClassName).newInstance();
                     InjectorProvider.getInjector().inject(cache);
                     broadcasterConfig.setBroadcasterCache(cache);
-                } else {
-                    logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. It is recommended to configure the HeaderBroadcasterCache.");
                 }
             }
         }
@@ -674,7 +675,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
         broadcasterFactory.destroy();
-        logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
