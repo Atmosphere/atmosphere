@@ -17,17 +17,16 @@ package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class GrizzlyWebSocket extends WebSocketAdapter {
+public final class GrizzlyWebSocket extends WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final com.sun.grizzly.websockets.WebSocket webSocket;
@@ -42,54 +41,58 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+    public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
         } else {
             logger.debug("{} {}", errorCode, message);
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void redirect(AtmosphereResponse r, String location) throws IOException {
+    public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("redirect not supported");
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(AtmosphereResponse r, String data) throws IOException {
+    public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         if (binaryWrite) {
             webSocket.send(webSocketResponseFilter.filter(r, data).getBytes(resource().getResponse().getCharacterEncoding()));
         } else {
             webSocket.send(webSocketResponseFilter.filter(r, data));
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(AtmosphereResponse r, byte[] data) throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         if (binaryWrite) {
             webSocket.send(webSocketResponseFilter.filter(r, data));
         } else {
             webSocket.send(webSocketResponseFilter.filter(r, new String(data)));
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
                 byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
@@ -101,6 +104,7 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
             webSocket.send(webSocketResponseFilter.filter(r, new String(data, offset, length)));
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
@@ -115,7 +119,8 @@ public final class GrizzlyWebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void flush(AtmosphereResponse r) throws IOException {
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        return this;
     }
 
 }
