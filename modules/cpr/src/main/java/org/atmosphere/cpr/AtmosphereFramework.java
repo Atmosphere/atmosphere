@@ -95,69 +95,15 @@ import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 
 /**
- * The {@link AtmosphereFramework} acts as a dispatcher for {@link AtmosphereHandler}
- * defined in META-INF/atmosphere.xml, or if atmosphere.xml is missing, all classes
- * that implements {@link AtmosphereHandler} will be discovered and mapped using
- * the class's name.
- * <p/>
- * </pre></blockquote>
- * You can force the framework to use native API of the Web Server instead of
- * the Servlet 3.0 Async API you are deploying on by adding
+ * The {@link AtmosphereFramework} is the entry point for the framework. This class can be used to from Servlet/filter
+ * to dispatch {@link AtmosphereRequest} and {@link AtmosphereResponse}. The framework can also be configured using
+ * the setXXX method. The life cycle of this class is
  * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useNative&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
+ * AtmosphereFramework f = new AtmosphereFramework();
+ * f.init();
+ * f.doCometSupport(AtmosphereRequest, AtmosphereResource);
+ * f.destroy();
  * </pre></blockquote>
- * You can force this framework to use one Thread per connection instead of
- * native API of the Web Server you are deploying on by adding
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useBlocking&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also define {@link Broadcaster}by adding:
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
- *      &lt;param-value&gt;class-name&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
- *      &lt;param-value&gt;class-name&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure Atmosphere to use http session or not
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport&lt;/param-name&gt;
- *      &lt;param-value&gt;false&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure {@link BroadcastFilter} that will be applied at all newly created {@link Broadcaster}
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcastFilterClasses&lt;/param-name&gt;
- *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * All the property available are defined in {@link ApplicationConfig}
- * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
- * <p/>
- * If you are planning to use JSP, Servlet or JSF, you can instead use the
- * {@link MeteorServlet}, which allow the use of {@link Meteor} inside those
- * components.
  *
  * @author Jeanfrancois Arcand
  */
@@ -571,6 +517,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                             .loadClass(broadcasterCacheClassName).newInstance();
                     InjectorProvider.getInjector().inject(cache);
                     broadcasterConfig.setBroadcasterCache(cache);
+                } else {
+                    logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. It is recommended to configure the HeaderBroadcasterCache.");
                 }
             }
         }
