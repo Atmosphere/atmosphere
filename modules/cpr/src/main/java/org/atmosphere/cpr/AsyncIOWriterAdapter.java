@@ -18,7 +18,8 @@ package org.atmosphere.cpr;
 import java.io.IOException;
 
 /**
- * Adapter class for {@link AsyncIOWriter}
+ * Adapter class for {@link AsyncIOWriter}. Implementation of this class must implements one of each method to prevent
+ * a StackOverflow.
  */
 public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
 
@@ -93,8 +94,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException {
-        redirect(location);
-        return this;
+        return redirect(location);
     }
 
     /**
@@ -102,8 +102,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-        writeError(errorCode,message);
-        return this;
+        return writeError(errorCode,message);
     }
 
     /**
@@ -111,8 +110,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
-        write(data);
-        return this;
+        return write(data);
     }
 
     /**
@@ -129,8 +127,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-        write(data,offset,length);
-        return this;
+        return write(data,offset,length);
     }
 
     /**
@@ -146,7 +143,6 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
-        flush();
-        return this;
+        return flush();
     }
 }
