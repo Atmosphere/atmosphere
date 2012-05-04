@@ -40,7 +40,6 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
         if (req.getMethod().equalsIgnoreCase("GET")) {
             // The negotiation header is just needed by the sample to list all the supported transport.
             if (req.getHeader("negotiating") == null) {
-                // We are using HTTP long-polling with an invite timeout
                 r.suspend();
             } else {
                 r.getResponse().getWriter().write("OK");
