@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 
 /**
  * HTML 5 Server Side Events implementation.
@@ -36,6 +37,25 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
+
+            String contentType = response.getContentType();
+            response.setContentType("text/event-stream");
+            response.setCharacterEncoding("utf-8");
+            PrintWriter writer = null;
+            try {
+                writer = response.getWriter();
+            } catch (IOException e) {
+                //
+            }
+
+            for (int i = 0; i < 2000; i++) {
+                writer.print(' ');
+            }
+
+            writer.print("\n");
+            writer.flush();
+            response.setContentType(contentType);
+
             response.asyncIOWriter(new AsyncIOWriter() {
                 @Override
                 public void redirect(String location) throws IOException {
@@ -49,20 +69,17 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
                 @Override
                 public void write(String data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:" + data + "\n\n");
                 }
 
                 // TODO: Performance: execute a single write
                 @Override
                 public void write(byte[] data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:").write(data).write("\n\n");
                 }
 
                 @Override
                 public void write(byte[] data, int offset, int length) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
                     response.write("data:").write(data, offset, length).write("\n\n");
                 }
 

@@ -403,10 +403,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
-            if (transport().equals(TRANSPORT.SSE)) {
-                writeSSE(true);
-            }
-
             if (flushComment) {
                 write(true);
             }
@@ -439,18 +435,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             notifyListeners();
         }
         return this;
-    }
-
-    public void writeSSE(boolean write){
-        if (!sseWritten) {
-            String contentType = response.getContentType();
-            response.setContentType("text/event-stream");
-        response.setCharacterEncoding("utf-8");
-            padding = "whitespace";
-            write(write);
-            response.setContentType(contentType);
-            sseWritten = true;
-        }
     }
 
     void write(boolean flushPadding) {
