@@ -205,6 +205,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.WEBSOCKET;
         } else if (TRANSPORT.SSE.name().equals(s)) {
             return TRANSPORT.SSE;
+        } else if (TRANSPORT.AJAX.name().equals(s)) {
+            return TRANSPORT.AJAX;
         } else {
             return TRANSPORT.UNDEFINED;
         }
