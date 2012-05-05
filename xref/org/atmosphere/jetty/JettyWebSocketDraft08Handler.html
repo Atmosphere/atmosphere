@@ -62,7 +62,7 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>  
 <a class="jxr_linenumber" name="53" href="#53">53</a>          logger.debug(<span class="jxr_string">"WebSocket.onConnect (outbound)"</span>);
 <a class="jxr_linenumber" name="54" href="#54">54</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="55" href="#55">55</a>              webSocketProcessor = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a>(framework, <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/jetty/JettyWebSocket.html">JettyWebSocket</a>(outbound), webSocketProtocol);
+<a class="jxr_linenumber" name="55" href="#55">55</a>              webSocketProcessor = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a>(framework, <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/jetty/JettyWebSocket.html">JettyWebSocket</a>(outbound, framework.getAtmosphereConfig()), webSocketProtocol);
 <a class="jxr_linenumber" name="56" href="#56">56</a>              webSocketProcessor.dispatch(request);
 <a class="jxr_linenumber" name="57" href="#57">57</a>          } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="58" href="#58">58</a>              logger.warn(<span class="jxr_string">"failed to connect to web socket"</span>, e);

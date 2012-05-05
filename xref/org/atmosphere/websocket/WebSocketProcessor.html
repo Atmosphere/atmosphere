@@ -129,8 +129,8 @@
 <a class="jxr_linenumber" name="119" href="#119">119</a>                     f.set(scheduler.scheduleAtFixedRate(<strong class="jxr_keyword">new</strong> Runnable() {
 <a class="jxr_linenumber" name="120" href="#120">120</a>                         @Override
 <a class="jxr_linenumber" name="121" href="#121">121</a>                         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
-<a class="jxr_linenumber" name="122" href="#122">122</a>                             <strong class="jxr_keyword">if</strong> (WebSocketAdapter.<strong class="jxr_keyword">class</strong>.isAssignableFrom(webSocket.getClass())
-<a class="jxr_linenumber" name="123" href="#123">123</a>                                     &amp;&amp; System.currentTimeMillis() - WebSocketAdapter.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(webSocket).lastTick() &gt; action.timeout()) {
+<a class="jxr_linenumber" name="122" href="#122">122</a>                             <strong class="jxr_keyword">if</strong> (WebSocket.<strong class="jxr_keyword">class</strong>.isAssignableFrom(webSocket.getClass())
+<a class="jxr_linenumber" name="123" href="#123">123</a>                                     &amp;&amp; System.currentTimeMillis() - WebSocket.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(webSocket).lastWriteTimeStampInMilliseconds() &gt; action.timeout()) {
 <a class="jxr_linenumber" name="124" href="#124">124</a>                                 hook.timedOut();
 <a class="jxr_linenumber" name="125" href="#125">125</a>                                 f.get().cancel(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="126" href="#126">126</a>                             }
@@ -202,8 +202,8 @@
 <a class="jxr_linenumber" name="192" href="#192">192</a>             webSocketProtocol.onError(webSocket, <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketException</a>(<span class="jxr_string">"Status code higher than 400"</span>, r));
 <a class="jxr_linenumber" name="193" href="#193">193</a>         }
 <a class="jxr_linenumber" name="194" href="#194">194</a> 
-<a class="jxr_linenumber" name="195" href="#195">195</a>         <strong class="jxr_keyword">if</strong> (webSocket.resource() == <strong class="jxr_keyword">null</strong> &amp;&amp; WebSocketAdapter.<strong class="jxr_keyword">class</strong>.isAssignableFrom(webSocket.getClass())) {
-<a class="jxr_linenumber" name="196" href="#196">196</a>             WebSocketAdapter.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(webSocket).setAtmosphereResource(resource);
+<a class="jxr_linenumber" name="195" href="#195">195</a>         <strong class="jxr_keyword">if</strong> (webSocket.resource() == <strong class="jxr_keyword">null</strong> &amp;&amp; WebSocket.<strong class="jxr_keyword">class</strong>.isAssignableFrom(webSocket.getClass())) {
+<a class="jxr_linenumber" name="196" href="#196">196</a>             webSocket.resource(resource);
 <a class="jxr_linenumber" name="197" href="#197">197</a>         }
 <a class="jxr_linenumber" name="198" href="#198">198</a>     }
 <a class="jxr_linenumber" name="199" href="#199">199</a> 
@@ -246,7 +246,7 @@
 <a class="jxr_linenumber" name="236" href="#236">236</a>                 }
 <a class="jxr_linenumber" name="237" href="#237">237</a> 
 <a class="jxr_linenumber" name="238" href="#238">238</a>                 <strong class="jxr_keyword">if</strong> (webSocket != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="239" href="#239">239</a>                     WebSocketAdapter.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(webSocket).setAtmosphereResource(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="239" href="#239">239</a>                     webSocket.resource(<strong class="jxr_keyword">null</strong>);
 <a class="jxr_linenumber" name="240" href="#240">240</a>                 }
 <a class="jxr_linenumber" name="241" href="#241">241</a>             }
 <a class="jxr_linenumber" name="242" href="#242">242</a>         }
