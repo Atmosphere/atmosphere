@@ -75,6 +75,8 @@ public interface AtmosphereListener {
      * The connection should be refreshed by the client
      */
     public void onRefresh();
+    
+    public void onAfterRefresh();
 
     /**
      * A batch of messages has been received

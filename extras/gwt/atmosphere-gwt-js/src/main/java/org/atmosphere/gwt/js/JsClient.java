@@ -36,6 +36,8 @@ public class JsClient implements EntryPoint {
         GWT.create(OnError.class);
         GWT.create(OnMessage.class);
         GWT.create(OnHeartbeat.class);
+        GWT.create(OnRefresh.class);
+        GWT.create(OnAfterRefresh.class);
 
         include(GWT.getModuleBaseURL() + "JSON.js");
 
