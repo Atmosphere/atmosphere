@@ -259,12 +259,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         atmosphereHandlers.put(path, w);
-
-        if (!path.endsWith("/")) {
-            path += "[/a-zA-Z0-9-&=;\\?]+";
-            atmosphereHandlers.put(path, w);
-        }
-
         return this;
     }
 
