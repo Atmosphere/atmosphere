@@ -528,11 +528,18 @@ jQuery.atmosphere = function() {
             return {
                 open: function() {
                     var iframe = doc.createElement("iframe");
+                    /*
                     if (request.method == 'POST') {
                         url = jQuery.atmosphere.attachHeaders(request);
                         if (jQuery.atmosphere.request.data != '') {
                             url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
                         }
+                    }
+                    */
+                    jQuery.atmosphere.request.attachHeadersAsQueryString = true;
+                    url = jQuery.atmosphere.attachHeaders(jQuery.atmosphere.request);
+                    if (jQuery.atmosphere.request.data != '') {
+                        url += "&X-Atmosphere-Post-Body=" + jQuery.atmosphere.request.data;
                     }
 
                     // Finally attach a timestamp to prevent Android and IE caching.
