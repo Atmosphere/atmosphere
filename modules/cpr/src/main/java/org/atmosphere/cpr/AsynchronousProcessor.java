@@ -216,7 +216,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Action a;
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(resource);
-            if (a.type() != Action.TYPE.CONTINUE) {
+            if (a == null || a.type() != Action.TYPE.CONTINUE) {
                 logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
                 return a;
             }
