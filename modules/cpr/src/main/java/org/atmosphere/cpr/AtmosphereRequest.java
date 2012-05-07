@@ -27,6 +27,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
@@ -62,7 +63,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereRequest implements HttpServletRequest {
+public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream bis;
     private BufferedReader br;
@@ -72,6 +73,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private boolean queryComputed = false;
 
     private AtmosphereRequest(Builder b) {
+        super(b.request == null ? new NoOpsRequest() : b.request);
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
