@@ -51,16 +51,16 @@ abstract public class ServerTransportProtocol implements ServerTransport {
 
     @Override
     public void disconnect() {
-        send("c\nd\n\n", defaultCallback);
+        send(pack(MessageType.CONNECTION, ActionType.DISCONNECT), defaultCallback);
     }
 
     @Override
     public void broadcast(Serializable message) {
         if (message instanceof String) {
-            send("s\nb" + message + "\n\n", defaultCallback);
+            send(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()), defaultCallback);
         } else {
             try {
-                send("o\nb" + serialize(message) + "\n\n", defaultCallback);
+                send(pack(MessageType.OBJECT, ActionType.BROADCAST, serialize(message)), defaultCallback);
             } catch (SerializationException ex) {
                 logger.log(Level.SEVERE, "Failed to serialize message", ex);
             }
@@ -72,10 +72,10 @@ abstract public class ServerTransportProtocol implements ServerTransport {
         StringBuilder packet = new StringBuilder();
         for (Serializable message : messages) {
             if (message instanceof String) {
-                packet.append("s\nb").append(message).append("\n\n");
+                packet.append(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()));
             } else {
                 try {
-                    packet.append("o\nb").append(serialize(message)).append("\n\n");
+                    packet.append(pack(MessageType.OBJECT, ActionType.BROADCAST, serialize(message)));
                 } catch (SerializationException ex) {
                     logger.log(Level.SEVERE, "Failed to serialize message", ex);
                 }
@@ -89,10 +89,10 @@ abstract public class ServerTransportProtocol implements ServerTransport {
     @Override
     public void post(Serializable message, AsyncCallback<Void> callback) {
         if (message instanceof String) {
-            send("s\np" + message + "\n\n", callback);
+            send(pack(MessageType.STRING, ActionType.POST, message.toString()), callback);
         } else {
             try {
-                send("o\np" + serialize(message) + "\n\n", callback);
+                send(pack(MessageType.OBJECT, ActionType.POST, serialize(message)), callback);
             } catch (SerializationException ex) {
                 logger.log(Level.SEVERE, "Failed to serialize message", ex);
             }
@@ -104,10 +104,10 @@ abstract public class ServerTransportProtocol implements ServerTransport {
         StringBuilder packet = new StringBuilder();
         for (Serializable message : messages) {
             if (message instanceof String) {
-                packet.append("s\np").append(message).append("\n\n");
+                packet.append(pack(MessageType.STRING, ActionType.POST, message.toString()));
             } else {
                 try {
-                    packet.append("o\np").append(serialize(message)).append("\n\n");
+                    packet.append(pack(MessageType.OBJECT, ActionType.POST, serialize(message)));
                 } catch (SerializationException ex) {
                     logger.log(Level.SEVERE, "Failed to serialize message", ex);
                 }
@@ -116,5 +116,32 @@ abstract public class ServerTransportProtocol implements ServerTransport {
         if (packet.length() > 0) {
             send(packet.toString(), callback);
         }
+    }
+    
+    private enum MessageType {
+        STRING("s"),
+        OBJECT("o"),
+        CONNECTION("c");
+        
+        String type;
+        MessageType(String str) {
+            type = str;
+        }
+    }
+    private enum ActionType {
+        BROADCAST("b"),
+        POST("p"),
+        DISCONNECT("d");
+        
+        String type;
+        ActionType(String act) {
+            type = act;
+        }
+    }
+    protected String pack(MessageType msgType, ActionType actType) {
+        return msgType.type + "\n" + actType.type + "\n";
+    }
+    protected String pack(MessageType msgType, ActionType actType, String message) {
+        return msgType.type + "\n" + actType.type + "\n" + message.length() + "\n" + message;
     }
 }
