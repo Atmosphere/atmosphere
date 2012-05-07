@@ -359,6 +359,13 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Path specific container using their own property.
+     */
+    public void patchContainer(){
+        System.setProperty("org.apache.catalina.STRICT_SERVLET_COMPLIANCE", "false");
+    }
+
+    /**
      * Load the {@link AtmosphereHandler} associated with this AtmosphereServlet.
      *
      * @param sc the {@link ServletContext}
@@ -397,6 +404,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             };
             this.servletConfig = scFacade;
+            patchContainer();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
             configureBroadcaster(sc.getServletContext());
