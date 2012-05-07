@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.8.7</version>
+        <version>0.8.8-SNAPSHOT</version>
 
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-chat</artifactId>
     <packaging>war</packaging>
-    <version>0.8.7</version>
+    <version>0.8.8-SNAPSHOT</version>
     <name>atmosphere-chat</name>
     <url>http://maven.apache.org</url>
     <dependencies>
