@@ -345,6 +345,8 @@ public class AtmosphereClient {
         CometClientTransportWrapper temp = primaryTransport;
         primaryTransport = refreshTransport;
         refreshTransport = temp;
+        
+        listener.onAfterRefresh();
 
         if (refreshQueue != null) {
             if (refreshQueue.size() > 0) {
@@ -385,7 +387,7 @@ public class AtmosphereClient {
             throw new IllegalStateException("Unexpected refresh from primaryTransport");
         }
     }
-
+    
     private void refreshEnqueue(Object message) {
         if (refreshQueue == null) {
             refreshQueue = new ArrayList<Object>();
@@ -515,6 +517,11 @@ public class AtmosphereClient {
         public void onRefresh() {
             lastReceivedTime = Duration.currentTimeMillis();
             doOnRefresh(this);
+        }
+
+        @Override
+        public void onAfterRefresh() {
+            lastReceivedTime = Duration.currentTimeMillis();
         }
 
         @Override

@@ -186,6 +186,11 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
+        public void onAfterRefresh() {
+            GWT.log("comet.afterRefresh [" + client.getConnectionID() + "]");
+        }
+
+        @Override
         public void onMessage(List<? extends Serializable> messages) {
             StringBuilder result = new StringBuilder();
             for (Serializable obj : messages) {

@@ -1,0 +1,21 @@
+syntax: glob
+*.class
+*~
+.*.swp
+.*.swo
+.loadpath
+.buildpath
+.project
+.settings
+.classpath
+.metadata
+.idea
+*.iml
+*.ipr
+*.iws
+nbproject
+.DS_Store
+target
+test-output
+nbactions.xml
+samples/gwt-demo/src/main/webapp/WEB-INF/classes/
