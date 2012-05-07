@@ -73,6 +73,9 @@
                         </fileset>
                         <fileset>
                             <directory>${war.target}/WEB-INF/lib</directory>
+                            <includes>
+                                <include>*.jar</include>
+                            </includes>
                         </fileset>
                         <fileset>
                             <directory>${war.target}/WEB-INF/deploy</directory>
