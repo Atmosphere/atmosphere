@@ -51,12 +51,8 @@
  */
 package org.atmosphere.handler;
 
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereRequestWrapper;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseWrapper;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.AtmosphereFilterChain;
@@ -102,7 +98,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
     private String filterName;
-    private boolean wrapRequest = false;
 
     public ReflectorServletProcessor() {
     }
@@ -154,12 +149,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             filterChain.addFilter(fc);
             logger.info("Installing Filter {}", filterName);
         }
-
-
-        String s = sc.getInitParameter(ApplicationConfig.USE_SERVLET_WRAPPER);
-        if (s != null && Boolean.parseBoolean(s)) {
-            wrapRequest = true;
-        }
     }
 
     /**
@@ -176,11 +165,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, this);
         try {
-            if (!wrapRequest) {
-                wrapper.service(r.getRequest(), r.getResponse());
-            } else {
-                wrapper.service(new AtmosphereRequestWrapper(r.getRequest()), new AtmosphereResponseWrapper(r.getResponse()));
-            }
+            wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {
             logger.error("onRequest()", ex);
             throw new RuntimeException(ex);

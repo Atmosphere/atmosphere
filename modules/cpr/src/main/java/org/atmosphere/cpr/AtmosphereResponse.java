@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
@@ -43,7 +44,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  * <br/>
  * This object can delegates the write operation to {@link AsyncIOWriter}.
  */
-public class AtmosphereResponse implements HttpServletResponse {
+public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponse.class);
     private final List<Cookie> cookies = new ArrayList<Cookie>();
@@ -66,6 +67,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     private boolean forceAsyncIOWriter = false;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+        super(dsr);
         response = dsr;
         this.asyncIOWriter = asyncIOWriter;
         this.atmosphereRequest = atmosphereRequest;
@@ -76,6 +78,7 @@ public class AtmosphereResponse implements HttpServletResponse {
     }
 
     public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+        super(r);
         response = r;
         this.asyncIOWriter = asyncIOWriter;
         this.atmosphereRequest = atmosphereRequest;
@@ -86,6 +89,8 @@ public class AtmosphereResponse implements HttpServletResponse {
     }
 
     private AtmosphereResponse(Builder b) {
+        super(b.atmosphereResponse);
+
         response = b.atmosphereResponse;
         this.asyncIOWriter = b.asyncIOWriter;
         this.atmosphereRequest = b.atmosphereRequest;
