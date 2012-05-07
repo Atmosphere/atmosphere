@@ -62,7 +62,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
-    private final boolean destroyable;
+    private boolean destroyable;
     private final HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
 
@@ -229,7 +229,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             setStatus(sc, msg);
             asyncIOWriter.writeError(this, sc, msg);
         } else {
@@ -246,7 +246,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc) throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             setStatus(sc);
             asyncIOWriter.writeError(this, sc, "");
         } else {
@@ -259,7 +259,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             asyncIOWriter.redirect(this, location);
         } else {
             _r().sendRedirect(location);
@@ -465,6 +465,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public boolean isDestroyable() {
         return destroyable;
+    }
+
+    public AtmosphereResponse destroyable(boolean destroyable) {
+        this.destroyable = destroyable;
+        return this;
     }
 
     /**
