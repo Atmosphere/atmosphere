@@ -407,7 +407,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             patchContainer();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
-            configureBroadcaster(sc.getServletContext());
+            configureBroadcaster();
             loadConfiguration(scFacade);
 
             autoDetectContainer();
@@ -420,6 +420,11 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                         "It is recommended to configure the HeaderBroadcasterCache.");
+            }
+
+            // http://java.net/jira/browse/ATMOSPHERE-157
+            if (sc.getServletContext() != null) {
+                sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
 
             logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
@@ -483,47 +488,46 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureBroadcaster(ServletContext sc) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    protected void configureBroadcaster() {
 
-        if (broadcasterFactoryClassName != null) {
-            broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
-                    .loadClass(broadcasterFactoryClassName).newInstance();
-        }
+        try {
+            if (broadcasterFactoryClassName != null) {
+                broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
+                        .loadClass(broadcasterFactoryClassName).newInstance();
+            }
 
-        if (broadcasterFactory == null) {
-            Class<? extends Broadcaster> bc =
-                    (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
-                            .loadClass(broadcasterClassName);
-            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-        }
+            if (broadcasterFactory == null) {
+                Class<? extends Broadcaster> bc =
+                        (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterClassName);
+                broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            }
 
-        // http://java.net/jira/browse/ATMOSPHERE-157
-        if (sc != null) {
-            sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
-        }
+            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+            InjectorProvider.getInjector().inject(broadcasterFactory);
 
-        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-        InjectorProvider.getInjector().inject(broadcasterFactory);
+            Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
+            AtmosphereHandlerWrapper w;
+            Entry<String, AtmosphereHandlerWrapper> e;
+            while (i.hasNext()) {
+                e = i.next();
+                w = e.getValue();
+                BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
 
-        Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
-        AtmosphereHandlerWrapper w;
-        Entry<String, AtmosphereHandlerWrapper> e;
-        while (i.hasNext()) {
-            e = i.next();
-            w = e.getValue();
-            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
-
-            if (w.broadcaster == null) {
-                w.broadcaster = broadcasterFactory.get(w.mapping);
-            } else {
-                w.broadcaster.setBroadcasterConfig(broadcasterConfig);
-                if (broadcasterCacheClassName != null) {
-                    BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                            .loadClass(broadcasterCacheClassName).newInstance();
-                    InjectorProvider.getInjector().inject(cache);
-                    broadcasterConfig.setBroadcasterCache(cache);
+                if (w.broadcaster == null) {
+                    w.broadcaster = broadcasterFactory.get(w.mapping);
+                } else {
+                    w.broadcaster.setBroadcasterConfig(broadcasterConfig);
+                    if (broadcasterCacheClassName != null) {
+                        BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterCacheClassName).newInstance();
+                        InjectorProvider.getInjector().inject(cache);
+                        broadcasterConfig.setBroadcasterCache(cache);
+                    }
                 }
             }
+        } catch (Exception ex) {
+            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
     }
 
@@ -811,7 +815,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType();
                         broadcasterFactory = null;
-                        configureBroadcaster(servletConfig.getServletContext());
+                        configureBroadcaster();
                     }
 
                     IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
@@ -1184,9 +1188,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @return {@link BroadcasterFactory}
      */
-    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory)  {
         this.broadcasterFactory = broadcasterFactory;
-        configureBroadcaster(config.getServletContext());
+        configureBroadcaster();
         return this;
     }
 
@@ -1204,9 +1208,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param broadcasterCacheClassName
      */
-    public void setBroadcasterCacheClassName(String broadcasterCacheClassName) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public void setBroadcasterCacheClassName(String broadcasterCacheClassName)  {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
-        configureBroadcaster(config.getServletContext());
+        configureBroadcaster();
     }
 
     /**
