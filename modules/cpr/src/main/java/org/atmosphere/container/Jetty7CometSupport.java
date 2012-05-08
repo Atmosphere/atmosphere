@@ -94,7 +94,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
         if (c == null || c.isInitial()) {
             action = suspended(req, res);
-            if (action.type() == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
+            if ((action.type() ==Action.TYPE.CANCELLED && req.getAttribute("HACK")==null) || action.type() == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 c = ContinuationSupport.getContinuation(req);
                 req.setAttribute(Continuation.class.getName(), c);
 

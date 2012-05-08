@@ -18,9 +18,11 @@ package org.atmosphere.transport.socketio;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -48,13 +50,14 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	private static SocketIOSessionManager sessionManager1 = null;
 	private static Map<String, Transport> transports = new HashMap<String, Transport>();
 	
-	private static int heartbeatInterval = 15;
-	private static int timeout = 2500;
+	private static int heartbeatInterval = 15000;
+	private static int timeout = 25000;
 	private static int suspendTime = 20000;
 	
 	//private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
-	private String availableTransports = "websocket";
-	
+	//private String availableTransports = "websocket";
+	private String availableTransports = "xhr-polling";
+	 
 	static {
 		// VERSION 1
 		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
@@ -163,6 +166,9 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
 	        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
 	        		
+	        		//HACK pour le suspend dans JETTY
+	        		request.setAttribute("HACK", Boolean.TRUE);
+	        		
 	        		return Action.CANCELLED;
 	        	} else if(protocol!=null && version==null){
 	        		version = "0";
@@ -171,7 +177,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        	Transport transport = transports.get(protocol + "-" + version);
 	        	
 	        	if(transport!=null){
-	        		transport.handle(null, resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
+	        		return transport.handle(null, resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
 	        	} else {
 	        		logger.error("Protocol not supported : " + protocol);
 	        	}
@@ -184,5 +190,13 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		
 		
 		return Action.CANCELLED;
+	}
+
+	@Override
+	public void configure(ServletConfig sc) {
+		String s = sc.getInitParameter("socketio-transport");
+		
+		availableTransports = s;
+		
 	}
 }

@@ -22,6 +22,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -177,7 +178,7 @@ public abstract class XHRTransport extends AbstractTransport {
 		}
 
 		@Override
-		public void handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
+		public Action handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
 			if ("GET".equals(request.getMethod())) {
 				synchronized (this) {
 					AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
@@ -316,6 +317,9 @@ public abstract class XHRTransport extends AbstractTransport {
 			} else {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			}
+			
+			
+			return Action.CONTINUE;
 
 		}
 
@@ -379,7 +383,11 @@ public abstract class XHRTransport extends AbstractTransport {
 			
 			if(isConnectionPersistant){
 				resource.suspend();
-			} 
+			} else {
+				//HACK pour le suspend dans JETTY
+        		request.setAttribute("HACK", Boolean.TRUE);
+			}
+			
 			
 		}
 
@@ -425,7 +433,7 @@ public abstract class XHRTransport extends AbstractTransport {
 	}
 	
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
@@ -477,6 +485,8 @@ public abstract class XHRTransport extends AbstractTransport {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			}
 		}
+		
+		return Action.CONTINUE;
 	}
 
 }

@@ -269,7 +269,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
+    public AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();

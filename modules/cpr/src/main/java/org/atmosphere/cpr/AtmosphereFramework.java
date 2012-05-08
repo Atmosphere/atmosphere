@@ -309,13 +309,13 @@ public class AtmosphereFramework implements ServletContextProvider {
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", "[/a-zA-Z0-9-&=;\\?]+");
+            path = path.replace("*", "[/a-zA-Z0-9-&=;_\\?]+");
         }
 
         atmosphereHandlers.put(path, w);
 
         if (!path.endsWith("/")) {
-            path += "[/a-zA-Z0-9-&=;\\?]+";
+            path += "[/a-zA-Z0-9-&=;_\\?]+";
             atmosphereHandlers.put(path, w);
         }
 
@@ -493,8 +493,13 @@ public class AtmosphereFramework implements ServletContextProvider {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a.trim()).newInstance());
+                	
+                	AtmosphereInterceptor interceptor = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                    .loadClass(a.trim()).newInstance();
+                	
+                	interceptor.configure(sc);
+                	
+                    interceptors.add(interceptor);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
@@ -1170,7 +1175,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw ex;
             }
         } finally {
-            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
+            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND && a.type() != Action.TYPE.CANCELLED) {
                 req.destroy();
                 res.destroy();
             }

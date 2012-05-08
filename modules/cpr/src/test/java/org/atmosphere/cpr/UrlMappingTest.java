@@ -165,4 +165,31 @@ public class UrlMappingTest {
         r = new AtmosphereRequest.Builder().pathInfo("/a/1").build();
         assertNotNull(processor.map(r));
     }
+    
+    @Test
+    public void mappingTestFailed() throws ServletException {
+        // servlet-mapping : /a/*
+        framework.addAtmosphereHandler("/ChatAtmosphereHandler", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/").build();
+        assertNotNull(processor.map(r));
+
+        r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/1").build();
+        assertNotNull(processor.map(r));
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/1/xhr-polling").build();
+        assertNotNull(processor.map(r));
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/1/xhr-polling/").build();
+        assertNotNull(processor.map(r));
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/1/xhr-polling/ta_edv9TEfsX908fxx1-").build();
+        assertNotNull(processor.map(r));
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/ChatAtmosphereHandler/1/xhr-polling/00-6cgf5R4KwIWIiODXv").build();
+        assertNotNull(processor.map(r));
+        
+        
+    }
+    
 }

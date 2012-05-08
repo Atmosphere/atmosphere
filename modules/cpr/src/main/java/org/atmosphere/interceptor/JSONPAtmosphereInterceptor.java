@@ -26,6 +26,8 @@ import org.atmosphere.cpr.HeaderConfig;
 
 import java.io.IOException;
 
+import javax.servlet.ServletConfig;
+
 /**
  * JSONP Transport Support.
  *
@@ -118,5 +120,11 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
     public String toString() {
         return "JSONP Interceptor Support";
     }
+
+	@Override
+	public void configure(ServletConfig sc) {
+		// TODO Auto-generated method stub
+		
+	}
 }
 

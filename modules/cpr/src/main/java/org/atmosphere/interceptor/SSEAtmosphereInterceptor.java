@@ -24,6 +24,8 @@ import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
 
+import javax.servlet.ServletConfig;
+
 /**
  * HTML 5 Server Side Events implementation.
  *
@@ -84,4 +86,10 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     public String toString() {
         return "SSE Interceptor Support";
     }
+
+	@Override
+	public void configure(ServletConfig sc) {
+		// TODO Auto-generated method stub
+		
+	}
 }

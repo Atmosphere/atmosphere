@@ -34,6 +34,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
@@ -94,7 +95,7 @@ public class FlashSocketTransport extends WebSocketTransport {
 	}
 
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
@@ -102,7 +103,7 @@ public class FlashSocketTransport extends WebSocketTransport {
 		String path = request.getPathInfo();
 		if (path == null || path.length() == 0 || "/".equals(path)) {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
-			return;
+			return Action.CONTINUE;
 		}
 		if (path.startsWith("/"))
 			path = path.substring(1);
@@ -127,6 +128,8 @@ public class FlashSocketTransport extends WebSocketTransport {
 		} else {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
 		}
+		
+		return Action.CONTINUE;
 	}
 
 	/**

@@ -22,6 +22,7 @@ import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.ConnectionState;
@@ -57,14 +58,14 @@ public class WebSocketTransport extends AbstractTransport {
 	}
 
 	@Override
-	public void handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
 		
 		if(processor!=null && !processor.supportWebSocket()){
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
-			return;
+			return Action.CONTINUE;
 		}
 		
 		String sessionId = extractSessionId(request);
@@ -99,6 +100,8 @@ public class WebSocketTransport extends AbstractTransport {
 			
 			session.getTransportHandler().disconnect();
 		}
+		
+		return Action.CONTINUE;
 	}
 	
 	public class SocketIOWebSocketSessionWrapperImpl implements SocketIOWebSocketSessionWrapper {
@@ -231,12 +234,12 @@ public class WebSocketTransport extends AbstractTransport {
 		 * @see com.glines.socketio.SocketIOSession.SocketIOSessionOutbound#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, com.glines.socketio.SocketIOSession)
 		 */
 		@Override
-		public void handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException {
+		public Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException {
 			
 			logger.error("calling from " + this.getClass().getName() + " : " + "handle");
 			
     		response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unexpected request on upgraded WebSocket connection");
-    		return;
+    		return Action.CONTINUE;
 		}
 
 		@Override

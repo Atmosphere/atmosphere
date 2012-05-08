@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import javax.servlet.ServletConfig;
+
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
  * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and it's
@@ -33,4 +35,6 @@ public interface AtmosphereInterceptor {
      * Return {@link Action.TYPE.CANCELLED} to stop the processing.
      */
     Action inspect(AtmosphereResource r);
+    
+    void configure(ServletConfig sc);
 }

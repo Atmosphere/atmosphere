@@ -17,6 +17,7 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.security.SecureRandom;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -46,7 +47,8 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOSessionManagerImpl.class);
 	
-	private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
+	//private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
+	private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
 	private static final int SESSION_ID_LENGTH = 20;
 
 	private static Random random = new SecureRandom();
@@ -58,13 +60,48 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	private long requestSuspendTime = 20000; // 20 sec.
 
 	private static String generateRandomString(int length) {
+		
+		/*
 	    StringBuilder result = new StringBuilder(length);
 	    byte[] bytes = new byte[length];
 	    random.nextBytes(bytes);
+	    
 	    for (int i = 0; i < bytes.length; i++) {
 	      result.append(BASE64_ALPHABET[bytes[i] & 0x3F]);
 	    }
 	    return result.toString();
+	    */
+	    
+	     StringBuilder result = new StringBuilder(length);
+	    byte[] bytes = new byte[16];
+	    
+        // Render the result as a String of hexadecimal digits
+        StringBuilder buffer = new StringBuilder();
+
+        int resultLenBytes = 0;
+
+        while (resultLenBytes < length) {
+        	random.nextBytes(bytes);
+            for (int j = 0;
+            j < bytes.length && resultLenBytes < length;
+            j++) {
+                byte b1 = (byte) ((bytes[j] & 0xf0) >> 4);
+                byte b2 = (byte) (bytes[j] & 0x0f);
+                if (b1 < 10)
+                    buffer.append((char) ('0' + b1));
+                else
+                    buffer.append((char) ('A' + (b1 - 10)));
+                if (b2 < 10)
+                    buffer.append((char) ('0' + b2));
+                else
+                    buffer.append((char) ('A' + (b2 - 10)));
+                resultLenBytes++;
+            }
+        }
+	    
+	    return result.toString();
+	     
+	    
 	}
 	
 	private String generateSessionId() {

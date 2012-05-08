@@ -20,6 +20,8 @@ import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.cpr.Action;
+
 
 /**
  * 
@@ -28,7 +30,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 public interface SocketIOSessionOutbound extends SocketIOOutbound {
 	
-	void handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException;
+	Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException;
 	/**
 	 * Cause connection and all activity to be aborted and all resources to be released.
 	 * The handler is expected to call the session's onShutdown() when it is finished.
