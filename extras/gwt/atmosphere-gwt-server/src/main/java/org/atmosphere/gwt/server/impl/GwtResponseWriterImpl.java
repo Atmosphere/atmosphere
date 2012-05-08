@@ -267,8 +267,8 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
                 } catch (IOException e) {
                     logger.error("Error closing connection", e);
                 }
-                resource.terminate(serverInitiated);
             }
+            resource.terminate(serverInitiated);
         }
     }
 
