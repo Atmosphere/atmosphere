@@ -66,7 +66,7 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
     @Override
     public void cometTerminated(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
         super.cometTerminated(cometResponse, serverInitiated);
-        logger.debug("Comet disconnected");
+        logger.info("Comet disconnected");
     }
 
     @Override
