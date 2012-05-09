@@ -18,11 +18,13 @@ package org.atmosphere.jetty;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.eclipse.jetty.websocket.WebSocket.Outbound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jetty 7.1/2 & 8 < M3 WebSocket support.
@@ -34,6 +36,7 @@ public class JettyWebSocket extends WebSocket {
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocket.class);
     private final Outbound outbound;
     private final byte frame = 0x00;
+    private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public JettyWebSocket(Outbound outbound, AtmosphereConfig config) {
         super(config);
@@ -45,7 +48,12 @@ public class JettyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-        logger.debug("{} {}", errorCode, message);
+        if (!firstWrite.get()) {
+            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
+                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
+        } else {
+            logger.debug("{} {}", errorCode, message);
+        }
         return this;
     }
 
@@ -63,9 +71,22 @@ public class JettyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        firstWrite.set(true);
+        if (!outbound.isOpen()) throw new IOException("outbound remotely closed");
         logger.trace("WebSocket.write()");
-        outbound.sendMessage(frame, data);
+
+        if (binaryWrite) {
+            byte[] b = webSocketResponseFilter.filter(r, data.getBytes(resource().getResponse().getCharacterEncoding()));
+            if (b != null) {
+                outbound.sendMessage(frame, b, 0, b.length);
+            }
+        } else {
+            String s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                outbound.sendMessage(s);
+            }
+        }
+        lastWrite = System.currentTimeMillis();
         return this;
     }
 
@@ -74,9 +95,22 @@ public class JettyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        firstWrite.set(true);
+        if (!outbound.isOpen()) throw new IOException("outbound remotely closed");
+
         logger.trace("WebSocket.write()");
-        outbound.sendMessage(frame, data, 0, data.length);
+        if (binaryWrite) {
+            byte[] b = webSocketResponseFilter.filter(r, data);
+            if (b != null) {
+                outbound.sendMessage(frame, b, 0, b.length);
+            }
+        } else {
+            byte[] s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                outbound.sendMessage(new String(s, r.getCharacterEncoding()));
+            }
+        }
+        lastWrite = System.currentTimeMillis();
         return this;
     }
 
@@ -85,9 +119,26 @@ public class JettyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-        if (!outbound.isOpen()) throw new IOException("Connection remotely closed");
+        firstWrite.set(true);
+        if (!outbound.isOpen()) throw new IOException("outbound remotely closed");
+
         logger.trace("WebSocket.write()");
-        outbound.sendMessage(frame, data, offset, length);
+        if (binaryWrite) {
+            if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
+                byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
+                if (b != null) {
+                    outbound.sendMessage(frame, b, 0, b.length);
+                }
+            } else {
+                outbound.sendMessage(frame, data, offset, length);
+            }
+        } else {
+            String s = webSocketResponseFilter.filter(r, new String(data, offset, length, "UTF-8"));
+            if (s != null) {
+                outbound.sendMessage(s);
+            }
+        }
+        lastWrite = System.currentTimeMillis();
         return this;
     }
 

@@ -66,9 +66,11 @@ public final class GrizzlyWebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         if (binaryWrite) {
-            webSocket.send(webSocketResponseFilter.filter(r, data).getBytes(resource().getResponse().getCharacterEncoding()));
+            byte[] b = webSocketResponseFilter.filter(r, data).getBytes(resource().getResponse().getCharacterEncoding());
+            if (b != null) webSocket.send(b);
         } else {
-            webSocket.send(webSocketResponseFilter.filter(r, data));
+            String s = webSocketResponseFilter.filter(r, data);
+            if (s != null)  webSocket.send(s);
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -80,9 +82,12 @@ public final class GrizzlyWebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         if (binaryWrite) {
-            webSocket.send(webSocketResponseFilter.filter(r, data));
+            byte[] b = webSocketResponseFilter.filter(r, data);
+            if (b != null) webSocket.send(b);
         } else {
-            webSocket.send(webSocketResponseFilter.filter(r, new String(data)));
+            String s = webSocketResponseFilter.filter(r, new String(data));
+            if (s != null) webSocket.send(s);
+
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -96,12 +101,13 @@ public final class GrizzlyWebSocket extends WebSocket {
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
                 byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
-                webSocket.send(b);
+                if (b != null) webSocket.send(b);
             } else {
                 webSocket.send(Arrays.copyOfRange(data, offset, length));
             }
         } else {
-            webSocket.send(webSocketResponseFilter.filter(r, new String(data, offset, length)));
+            String s = webSocketResponseFilter.filter(r, new String(data, offset, length));
+            if (s != null) webSocket.send(s);
         }
         lastWrite = System.currentTimeMillis();
         return this;
