@@ -70,7 +70,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 public AsyncIOWriter write(String data) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
-                    if (contentType != null && !contentType.contains("json")) {
+                    if (!data.startsWith("\"")) {
                         data = callbackName + "({\"message\" : \"" + data + "\"})";
                     } else {
                         data = callbackName + "({\"message\" :" + data + "})";
