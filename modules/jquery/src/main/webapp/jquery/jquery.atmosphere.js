@@ -843,7 +843,7 @@ jQuery.atmosphere = function() {
                 }
 
                 jQuery.each(rq.headers, function(name, value) {
-                    var h = jQuery.isFunction(value) ? value.call(this, rq, request) : value;
+                    var h = jQuery.isFunction(value) ? value.call(this, rq, request, _response) : value;
                     if (h != null) {
                         url += "&" + encodeURIComponent(name) + "=" + encodeURIComponent(h);
                     }
