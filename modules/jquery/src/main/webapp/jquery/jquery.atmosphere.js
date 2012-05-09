@@ -1229,24 +1229,14 @@ jQuery.atmosphere = function() {
                 var rewriteURL = rq.rewriteURL || function(url) {
                     // Maintaining session by rewriting URL
                     // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
-                    var rewriters = {
-                        JSESSIONID: function(sid) {
-                            return url.replace(/;jsessionid=[^\?]*|(\?)|$/, ";jsessionid=" + sid + "$1");
-                        },
-                        PHPSESSID: function(sid) {
-                            return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + sid + "&").replace(/&$/, "");
-                        }
-                    };
+                    var match = /(?:^|;\s*)(JSESSIONID|PHPSESSID)=([^;]*)/.exec(document.cookie);
 
-                    for (var name in rewriters) {
-                        // Finds session id from cookie
-                        var matcher = new RegExp("(?:^|;\\s*)" + encodeURIComponent(name) + "=([^;]*)").exec(document.cookie);
-                        if (matcher) {
-                            return rewriters[name](matcher[1]);
-                        }
+                    switch (match && match[1]) {
+                        case "JSESSIONID":
+                            return url.replace(/;jsessionid=[^\?]*|(\?)|$/, ";jsessionid=" + match[2] + "$1");
+                        case "PHPSESSID":
+                            return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + match[2] + "&").replace(/&$/, "");
                     }
-
-                    return url;
                 };
 
                 // Handles open and message event
