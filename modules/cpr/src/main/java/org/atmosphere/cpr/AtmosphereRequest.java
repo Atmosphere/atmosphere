@@ -866,6 +866,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         b.queryStrings.clear();
     }
 
+    @Override
+    public void setRequest(ServletRequest request) {
+        super.setRequest(request);
+        if (HttpServletRequest.class.isAssignableFrom(request.getClass())) {
+            b.request = HttpServletRequest.class.cast(request);
+        }
+    }
+
     public final static class Builder {
         private HttpServletRequest request;
         private String pathInfo = "";
