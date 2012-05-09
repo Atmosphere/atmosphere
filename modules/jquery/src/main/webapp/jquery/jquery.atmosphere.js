@@ -1310,7 +1310,7 @@ jQuery.atmosphere = function() {
 
                 return {
                     open: function() {
-                        var iframe = doc.createElement("iframe");
+                        var iframe, cdoc;
 
                         url = _attachHeaders(rq);
                         if (rq.data != '') {
@@ -1320,82 +1320,59 @@ jQuery.atmosphere = function() {
                         // Finally attach a timestamp to prevent Android and IE caching.
                         url = jQuery.atmosphere.prepareURL(url);
 
+                        doc = new ActiveXObject("htmlfile");
+                        doc.open();
+                        doc.close();
+
+                        iframe = doc.createElement("iframe");
                         iframe.src = url;
                         doc.body.appendChild(iframe);
 
-                        // For the server to respond in a consistent format regardless of user agent, we polls response text
-                        var cdoc = iframe.contentDocument || iframe.contentWindow.document;
-
+                        cdoc = iframe.contentDocument || iframe.contentWindow.document;
                         stop = jQuery.atmosphere.iterate(function() {
                             if (!cdoc.firstChild) {
                                 return;
                             }
 
+                            var response = cdoc.body.lastChild;
+
                             // Detects connection failure
-                            if (cdoc.readyState === "complete") {
-                                try {
-                                    jQuery.noop(cdoc.fileSize);
-                                } catch(e) {
-                                    _prepareCallback("Connection Failure", "error", 500, rq.transport);
-                                    return false;
-                                }
+                            if (!response) {
+                                _prepareCallback("Connection Failure", "error", 500, rq.transport);
+                                return false;
                             }
 
-                            var res = cdoc.body ? cdoc.body.lastChild : cdoc;
-                            var readResponse = function() {
-                                // Clones the element not to disturb the original one
-                                var clone = res.cloneNode(true);
+                            response.innerText = "";
+                            _prepareCallback("", "opening", 200, rq.transport);
 
-                                // If the last character is a carriage return or a line feed, IE ignores it in the innerText property
-                                // therefore, we add another non-newline character to preserve it
-                                clone.appendChild(cdoc.createTextNode("."));
-
-                                var text = clone.innerText;
-                                var isJunkEnded = true;
-
-                                if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                                    isJunkEnded = false;
-                                }
-
-                                if (isJunkEnded) {
-                                    var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLenght = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
-
-                                    text = text.substring(junkEnd);
-                                }
-                                return text.substring(0, text.length - 1);
-                            };
-
-                            //To support text/html content type
-                            if (!jQuery.nodeName(res, "pre")) {
-                                // Injects a plaintext element which renders text without interpreting the HTML and cannot be stopped
-                                // it is deprecated in HTML5, but still works
-                                var head = cdoc.head || cdoc.getElementsByTagName("head")[0] || cdoc.documentElement || cdoc;
-                                var script = cdoc.createElement("script");
-
-                                script.text = "document.write('<plaintext>')";
-
-                                head.insertBefore(script, head.firstChild);
-                                head.removeChild(script);
-
-                                // The plaintext element will be the response container
-                                res = cdoc.body.lastChild;
-                            }
-
-                            // Handles open event
-                            _prepareCallback(readResponse(), "opening", 200, rq.transport);
-
-                            // Handles message and close event
                             stop = jQuery.atmosphere.iterate(function() {
-                                var text = readResponse();
-                                if (text.length > rq.lastIndex) {
-                                    _response.status = 200;
-                                    _prepareCallback(text, "messageReceived", 200, rq.transport);
+                                var clone = response.cloneNode(true),
+                                    text;
 
-                                    // Empties response every time that it is handled
-                                    res.innerText = "";
-                                    rq.lastIndex = 0;
+                                // Adds a character not CR and LF to circumvent an Internet Explorer bug
+                                // If the contents of an element ends with one or more CR or LF, Internet Explorer ignores them in the innerText property
+                                clone.appendChild(cdoc.createTextNode("."));
+                                text = clone.innerText;
+                                text = text.substring(0, text.length - 1);
+
+                                if (text) {
+                                    response.innerText = "";
+                                    var isJunkEnded = true;
+
+                                    if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
+                                        isJunkEnded = false;
+                                    }
+
+                                    if (isJunkEnded) {
+                                        var endOfJunk = "<!-- EOD -->";
+                                        var endOfJunkLenght = endOfJunk.length;
+                                        var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+
+                                        text = text.substring(junkEnd);
+                                    }
+                                    text = text.substring(0, text.length - 1);
+
+                                    _prepareCallback(text, "messageReceived", 200, rq.transport);
                                 }
 
                                 if (cdoc.readyState === "complete") {
@@ -1403,7 +1380,7 @@ jQuery.atmosphere = function() {
                                     _ieStreaming(rq);
                                     return false;
                                 }
-                            }, null);
+                            });
 
                             return false;
                         });
