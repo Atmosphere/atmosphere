@@ -78,9 +78,14 @@ public class Jetty8WebSocket extends WebSocket {
 
         if (binaryWrite) {
             byte[] b = webSocketResponseFilter.filter(r, data.getBytes(resource().getResponse().getCharacterEncoding()));
-            connection.sendMessage(b, 0, b.length);
+            if (b != null) {
+                connection.sendMessage(b, 0, b.length);
+            }
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(r, data));
+            String s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                connection.sendMessage(s);
+            }
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -97,9 +102,14 @@ public class Jetty8WebSocket extends WebSocket {
         logger.trace("WebSocket.write()");
         if (binaryWrite) {
             byte[] b = webSocketResponseFilter.filter(r, data);
-            connection.sendMessage(b, 0, b.length);
+            if (b != null) {
+                connection.sendMessage(b, 0, b.length);
+            }
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(r, new String(data)));
+            byte[] s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                connection.sendMessage(new String(s, r.getCharacterEncoding()));
+            }
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -117,12 +127,17 @@ public class Jetty8WebSocket extends WebSocket {
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
                 byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
-                connection.sendMessage(b, 0, b.length);
+                if (b != null) {
+                    connection.sendMessage(b, 0, b.length);
+                }
             } else {
                 connection.sendMessage(data, offset, length);
             }
         } else {
-            connection.sendMessage(webSocketResponseFilter.filter(r, new String(data, offset, length, "UTF-8")));
+            String s = webSocketResponseFilter.filter(r, new String(data, offset, length, "UTF-8"));
+            if (s != null) {
+                connection.sendMessage(s);
+            }
         }
         lastWrite = System.currentTimeMillis();
         return this;
