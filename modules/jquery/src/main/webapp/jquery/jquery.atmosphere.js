@@ -1821,7 +1821,7 @@ jQuery.atmosphere = function() {
             var anchor = '';
             var pos;
 
-            if ((pos = uri.search(/\:/)) >= 0) {
+            if ((pos = uri.search(/\:\/\//)) >= 0) {
                 protocol = uri.substring(0, pos + 1);
                 uri = uri.substring(pos + 1);
             }
