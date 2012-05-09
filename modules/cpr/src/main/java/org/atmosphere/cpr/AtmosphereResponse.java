@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
@@ -63,7 +64,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
     private boolean destroyable;
-    private final HttpServletResponse response;
+    private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
@@ -803,6 +804,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             logger.trace("", e);
         }
         return this;
+    }
+
+    public void setResponse(ServletResponse response) {
+        super.setResponse(response);
+        if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
+            this.response = HttpServletResponse.class.cast(response);
+        }
     }
 
     private final static class DummyHttpServletResponse implements HttpServletResponse {
