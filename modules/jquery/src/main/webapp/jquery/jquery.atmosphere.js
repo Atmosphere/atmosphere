@@ -843,8 +843,8 @@ jQuery.atmosphere = function() {
                 }
 
                 jQuery.each(rq.headers, function(name, value) {
-                    var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create) : value;
-                    if (h) {
+                    var h = jQuery.isFunction(value) ? value.call(this, rq, request) : value;
+                    if (h != null) {
                         url += "&" + encodeURIComponent(name) + "=" + encodeURIComponent(h);
                     }
                 });
@@ -1173,7 +1173,7 @@ jQuery.atmosphere = function() {
 
                 jQuery.each(request.headers, function(name, value) {
                     var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create, _response) : value;
-                    if (h) {
+                    if (h != null) {
                         ajaxRequest.setRequestHeader(name, h);
                     }
                 });
