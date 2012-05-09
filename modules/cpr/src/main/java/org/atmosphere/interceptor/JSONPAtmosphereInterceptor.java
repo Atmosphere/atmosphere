@@ -68,7 +68,6 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
 
                 @Override
                 public AsyncIOWriter write(String data) throws IOException {
-                    String contentType = contentType();
                     String callbackName = callbackName();
                     if (!data.startsWith("\"")) {
                         data = callbackName + "({\"message\" : \"" + data + "\"})";
