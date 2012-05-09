@@ -68,16 +68,7 @@ public class AtmosphereFrameworkTest {
         @Override
         public void init(ServletConfig config) throws ServletException {
 
-            try {
-                framework.setBroadcasterFactory(new MyBroadcasterFactory());
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-
+            framework.setBroadcasterFactory(new MyBroadcasterFactory());
             super.init(config);
 
         }
