@@ -26,7 +26,6 @@ import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.fail;
 
@@ -144,6 +143,17 @@ public class UrlMappingTest {
     }
 
     @Test
+    public void mappingDotWildcard() throws ServletException {
+        framework.addAtmosphereHandler("/*", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a.b/b").build();
+        assertNotNull(processor.map(r));
+
+        r = new AtmosphereRequest.Builder().pathInfo("/a/1.2").build();
+        assertNotNull(processor.map(r));
+    }
+
+    @Test
     public void mappingWildcardPath() throws ServletException {
         framework.addAtmosphereHandler("/*", handler);
 
@@ -220,15 +230,15 @@ public class UrlMappingTest {
         }
     }
 
-    public final static class AH implements AtmosphereHandler{
-        
+    public final static class AH implements AtmosphereHandler {
+
         private final String name;
 
         public AH(String name) {
             this.name = name;
         }
-        
-        public String toString(){
+
+        public String toString() {
             return name;
         }
 
