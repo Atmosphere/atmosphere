@@ -255,7 +255,11 @@ public class AtmosphereFramework implements ServletContextProvider {
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", "[/a-zA-Z0-9-&=;\\?]+");
+            path = path.replace("*", "[a-zA-Z0-9-&=;\\?]+");
+        }
+
+        if (path.endsWith("/")) {
+            path = path + "[a-zA-Z0-9-&=;\\?]+";
         }
 
         atmosphereHandlers.put(path, w);
@@ -308,6 +312,15 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return true if removed
      */
     public AtmosphereFramework removeAtmosphereHandler(String mapping) {
+
+        if (mapping.endsWith("/")) {
+            mapping += "[a-zA-Z0-9-&=;\\?]+";
+        }
+
+        if (mapping.contains("*")) {
+            mapping = mapping.replace("*", "[a-zA-Z0-9-&=;\\?]+");
+        }
+
         atmosphereHandlers.remove(mapping);
         return this;
     }
