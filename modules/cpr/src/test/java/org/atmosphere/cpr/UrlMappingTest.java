@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -25,7 +26,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.*;
 
 public class UrlMappingTest {
 
@@ -192,4 +193,159 @@ public class UrlMappingTest {
         
     }
     
+    @Test
+    public void mappingTestFull() throws ServletException {
+    	final AtmosphereHandler red = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler blue = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler redred = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler redblue = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler blueblue = mock(AtmosphereHandler.class);
+    	
+        framework.addAtmosphereHandler("/", handler);
+        framework.addAtmosphereHandler("/red", red);
+        framework.addAtmosphereHandler("/red/red", redred);
+        framework.addAtmosphereHandler("/red/blue", redblue);
+        framework.addAtmosphereHandler("/blue", blue);
+        framework.addAtmosphereHandler("/blue/blue", blueblue);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        assertEquals(processor.map(r).atmosphereHandler, handler);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red").build();
+        assertEquals(processor.map(r).atmosphereHandler, red);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/1").build();
+        assertEquals(processor.map(r).atmosphereHandler, red);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red").build();
+        assertEquals(processor.map(r).atmosphereHandler, redred);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red/1").build();
+        assertEquals(processor.map(r).atmosphereHandler, redred);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/").build();
+        assertEquals(processor.map(r), redblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/1").build();
+        assertEquals(processor.map(r).atmosphereHandler, redblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/blue").build();
+        assertEquals(processor.map(r).atmosphereHandler, blue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue").build();
+        assertEquals(processor.map(r).atmosphereHandler, blueblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        assertNull(processor.map(r));
+    }
+   
+    @Test
+    public void findMapping() throws Exception {
+    	
+    	final AtmosphereHandler red = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler blue = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler redred = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler redblue = mock(AtmosphereHandler.class);
+    	final AtmosphereHandler blueblue = mock(AtmosphereHandler.class);
+    	
+        framework.addAtmosphereHandler("/", handler);
+        framework.addAtmosphereHandler("/red", red);
+        framework.addAtmosphereHandler("/red/red", redred);
+        framework.addAtmosphereHandler("/red/blue", redblue);
+        framework.addAtmosphereHandler("/blue", blue);
+        framework.addAtmosphereHandler("/blue/blue", blueblue);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        assertEquals(processor.map(r).atmosphereHandler, handler);
+    	
+        String path = "/red/red/1";
+        
+        // try exact match
+        AtmosphereHandlerWrapper tmp = framework.atmosphereHandlers.get(path);
+        
+        if(tmp==null){
+        	PathMap p = new PathMap();
+
+            p.put("/abs/path", "1");
+            p.put("/abs/path/longer", "2");
+            p.put("/animal/bird/*", "3");
+            p.put("/animal/fish/*", "4");
+            p.put("/animal/*", "5");
+            p.put("*.tar.gz", "6");
+            p.put("*.gz", "7");
+            p.put("/", "8");
+            p.put("/XXX:/YYY", "9");
+            p.put("", "10");
+            
+            String[][] tests = {
+                    { "/abs/path", "1"},
+                    { "/abs/path/xxx", "8"},
+                    { "/abs/pith", "8"},
+                    { "/abs/path/longer", "2"},
+                    { "/abs/path/", "8"},
+                    { "/abs/path/xxx", "8"},
+                    { "/animal/bird/eagle/bald", "3"},
+                    { "/animal/fish/shark/grey", "4"},
+                    { "/animal/insect/bug", "5"},
+                    { "/animal", "5"},
+                    { "/animal/", "5"},
+                    { "/animal/x", "5"},
+                    { "/animal/*", "5"},
+                    { "/suffix/path.tar.gz", "6"},
+                    { "/suffix/path.gz", "7"},
+                    { "/animal/path.gz", "5"},
+                    { "/Other/path", "8"},};
+
+				    for (String[] test : tests)
+				    {
+				    	assertEquals(test[1], p.getMatch(test[0]).getValue());
+				    }
+				    
+        }
+        
+        PathMap p = new PathMap();
+        
+        p.put("/", handler);
+        p.put("/red", red);
+        p.put("/red/*", red);
+        p.put("/red/red/*", redred);
+        p.put("/red/blue/*", redblue);
+        p.put("/blue/*", blue);
+        p.put("/blue/blue/*", blueblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), handler);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), red);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/1").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), red);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), redred);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red/1").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), redred);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), redblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/1").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), redblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/blue").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), blue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), blueblue);
+        
+        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        assertEquals(p.getMatch(r.getPathInfo()).getValue(), handler);
+        
+        //enleve le default handler
+        p.remove("/");
+        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        assertNull(p.getMatch(r.getPathInfo()));
+    }
 }

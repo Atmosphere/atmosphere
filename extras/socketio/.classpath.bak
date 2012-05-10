@@ -1,0 +1,34 @@
+<classpath>
+  <classpathentry kind="src" path="src/test/java" output="target/test-classes" including="**/*.java"/>
+  <classpathentry kind="src" path="src/main/java" including="**/*.java"/>
+  <classpathentry kind="output" path="target/classes"/>
+  <classpathentry kind="var" path="M2_REPO/com/ning/async-http-client/1.7.2/async-http-client-1.7.2.jar"/>
+  <classpathentry kind="src" path="/atmosphere-compat-jbossweb"/>
+  <classpathentry kind="src" path="/atmosphere-compat-tomcat"/>
+  <classpathentry kind="src" path="/atmosphere-compat-tomcat7"/>
+  <classpathentry kind="src" path="/atmosphere-runtime"/>
+  <classpathentry kind="var" path="M2_REPO/org/apache/geronimo/specs/geronimo-servlet_3.0_spec/1.0/geronimo-servlet_3.0_spec-1.0.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/glassfish/gmbal/gmbal-api-only/3.0.0-b023/gmbal-api-only-3.0.0-b023.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/glassfish/grizzly/grizzly-framework/2.2/grizzly-framework-2.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/glassfish/grizzly/grizzly-http/2.2/grizzly-http-2.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/glassfish/grizzly/grizzly-websockets/2.2/grizzly-websockets-2.2.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/codehaus/jackson/jackson-core-lgpl/1.3.1/jackson-core-lgpl-1.3.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/codehaus/jackson/jackson-mapper-lgpl/1.3.1/jackson-mapper-lgpl-1.3.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/slf4j/jcl-over-slf4j/1.6.1/jcl-over-slf4j-1.6.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty/6.1.22/jetty-6.1.22.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-http/7.6.0.v20120127/jetty-http-7.6.0.v20120127.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-io/7.6.0.v20120127/jetty-io-7.6.0.v20120127.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty-management/6.1.22/jetty-management-6.1.22.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-util/7.6.0.v20120127/jetty-util-7.6.0.v20120127.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty-util/6.1.22/jetty-util-6.1.22.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-websocket/7.6.0.v20120127/jetty-websocket-7.6.0.v20120127.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/slf4j/jul-to-slf4j/1.6.1/jul-to-slf4j-1.6.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/junit/junit/3.8.1/junit-3.8.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/ch/qos/logback/logback-classic/0.9.30/logback-classic-0.9.30.jar"/>
+  <classpathentry kind="var" path="M2_REPO/ch/qos/logback/logback-core/0.9.30/logback-core-0.9.30.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/glassfish/external/management-api/3.0.0-b012/management-api-3.0.0-b012.jar"/>
+  <classpathentry kind="var" path="M2_REPO/io/netty/netty/3.3.1.Final/netty-3.3.1.Final.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/slf4j/slf4j-api/1.6.1/slf4j-api-1.6.1.jar"/>
+  <classpathentry kind="var" path="M2_REPO/org/testng/testng/5.8/testng-5.8-jdk15.jar"/>
+  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
+</classpath>

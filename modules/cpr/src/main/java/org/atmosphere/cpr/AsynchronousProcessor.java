@@ -213,7 +213,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
         LinkedList<AtmosphereInterceptor> c = config.framework().interceptors();
-        Action a;
+        Action a = null;
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(resource);
             if (a.type() != Action.TYPE.CONTINUE) {
@@ -246,6 +246,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     protected AtmosphereHandlerWrapper map(String path) {
+    	// exact match
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
         if (atmosphereHandlerWrapper == null) {
             final Map<String, String> m = new HashMap<String, String>();
@@ -261,7 +262,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
         return atmosphereHandlerWrapper;
     }
-
+    
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *

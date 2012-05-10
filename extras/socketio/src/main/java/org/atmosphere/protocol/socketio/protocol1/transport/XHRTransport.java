@@ -53,8 +53,6 @@ public abstract class XHRTransport extends AbstractTransport {
 	
 	private final int bufferSize;
 	
-	protected static final String SESSION_KEY = XHRTransport.class.getName() + ".Session";
-	
 	protected abstract class XHRSessionHelper implements SocketIOSessionOutbound {
 		protected final SocketIOSession session;
 		private volatile boolean is_open = false;
@@ -133,16 +131,22 @@ public abstract class XHRTransport extends AbstractTransport {
 						try {
 							writeData(resource.getResponse(), message);
 						} catch (Exception e) {
+							// possible que la connection soit fermee.
+							// ex : browser ferme.
 							e.printStackTrace();
 							
-							logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
-							try {
-								finishSend(resource.getResponse());
-							} catch (IOException ex) {
-								ex.printStackTrace();
+							// DEBUG, je pense que tout ce bout est inutile
+							// car il y a eu une erreur lors de l'envoi
+							if(!resource.isCancelled()){
+								logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
+								try {
+									finishSend(resource.getResponse());
+								} catch (IOException ex) {
+									ex.printStackTrace();
+								}
+								
+								resource.resume();
 							}
-							resource.resume();
-							
 							throw new SocketIOException(e);
 						}
 						if (!isConnectionPersistant) {
@@ -397,9 +401,15 @@ public abstract class XHRTransport extends AbstractTransport {
 			session.clearHeartbeatTimer();
 			session.clearTimeoutTimer();
 			is_open = false;
-			session.getAtmosphereResourceImpl().resume();
-
 			session.onShutdown();
+			
+			//DEBUG PAS SUR DE CE CAS.
+			session.getAtmosphereResourceImpl().resume();
+		}
+		
+		@Override
+		public String getSessionId() {
+			return session.getSessionId();
 		}
 	}
 

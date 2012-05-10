@@ -162,7 +162,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        		
 	        		response.setStatus(200);
 	        		
-	        		
 	        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
 	        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
 	        		

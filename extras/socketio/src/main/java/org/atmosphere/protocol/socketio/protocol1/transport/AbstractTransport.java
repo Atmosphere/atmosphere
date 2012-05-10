@@ -35,6 +35,7 @@ import org.atmosphere.protocol.socketio.transport.Transport;
  */
 public abstract class AbstractTransport implements Transport {
 	
+	protected static final String SESSION_KEY = AbstractTransport.class.getName() + ".Session";
 	public static final String POST_MESSAGE_RECEIVED = "POST_MESSAGE_RECEIVED";
 	
 	protected String extractSessionId(HttpServletRequest request) {

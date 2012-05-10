@@ -76,7 +76,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	    byte[] bytes = new byte[16];
 	    
         // Render the result as a String of hexadecimal digits
-        StringBuilder buffer = new StringBuilder();
+        StringBuilder buffer = new StringBuilder(length);
 
         int resultLenBytes = 0;
 
@@ -99,7 +99,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
             }
         }
 	    
-	    return result.toString();
+	    return buffer.toString();
 	     
 	    
 	}
@@ -205,7 +205,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void startTimeoutTimer() {
-			logger.error("startTimeoutTimer");
+			logger.error("startTimeoutTimer for SessionID= " + sessionId);
 			clearTimeoutTimer();
 			if (!timedout && timeout > 0) {
 				timeoutSessionMonitor.start();
@@ -214,7 +214,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearTimeoutTimer() {
-			logger.error("clearTimeoutTimer");
+			logger.error("clearTimeoutTimer for SessionID= " + sessionId);
 			if (timeoutSessionMonitor != null) {
 				timeoutSessionMonitor.cancel();
 			}

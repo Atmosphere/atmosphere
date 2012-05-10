@@ -43,7 +43,7 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 	
 	protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 	
-	protected ConcurrentMap<AtmosphereResource, Queue<Object>> cache = new ConcurrentHashMap<AtmosphereResource, Queue<Object>>();
+	protected ConcurrentMap<String, Queue<Object>> cache = new ConcurrentHashMap<String, Queue<Object>>();
 	
     public SocketIOBroadcasterCache() {
     }
@@ -54,6 +54,12 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 
             public void run() {
             	logger.error("cleanup SocketIOBroadcasterCache");
+            	/*
+            	for (Entry<AtmosphereResource, Queue<Object>> entry : cache.entrySet()) {
+        			logger.info("SessionID Cached = " + entry.getKey().getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+        		}
+        		*/
+            	
             }
         }, 0, 60, TimeUnit.SECONDS);
 		
@@ -67,20 +73,24 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 	@Override
 	public void addToCache(AtmosphereResource resource, Object object) {
 		
+		// ceci peut arriver quand la connection n'est pas en suspend
+		// si elle fait un resume tout de suite
 		if(resource==null){
 			logger.warn("Impossible to cache because resource is null: " + object);
 			return;
 		}
 		
-		logger.info("Message from : " + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to cache : " + object);
+		String sessionid = (String)resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID);
+		
+		logger.info("Message from : " + sessionid + " message to cache : " + object);
 		
 		Queue<Object> queue = null;
 		
-		if(!cache.containsKey(resource)){
+		if(!cache.containsKey(sessionid)){
 			queue = new ConcurrentLinkedQueue<Object>();
-			cache.put(resource, queue);
+			cache.put(sessionid, queue);
 		} else {
-			queue = cache.get(resource);
+			queue = cache.get(sessionid);
 		}
 		
 		queue.add(object);
@@ -95,19 +105,22 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 			return null;
 		}
 		
-		logger.info("retrieveFromCache sessionid=" + resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
-		if(resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID)==null){
+		String sessionid = (String)resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID);
+		
+		logger.info("retrieveFromCache sessionid=" + sessionid);
+		if(sessionid==null){
 			return null;
 		}
 		
-		for (Entry<AtmosphereResource, Queue<Object>> entry : cache.entrySet()) {
-			logger.info("SessionID Cached = " + entry.getKey().getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
+		// ceci est pour du debug seulement
+		for (Entry<String, Queue<Object>> entry : cache.entrySet()) {
+			logger.info("SessionID Cached = " + entry.getKey());
 		}
 		
-		if(cache.containsKey(resource)){
+		if(cache.containsKey(sessionid)){
 			List<Object> list = new LinkedList<Object>();
 			
-			Queue<String> queue = new ConcurrentLinkedQueue<String>();
+			Queue<Object> queue = cache.get(sessionid);
 			
 			while(!queue.isEmpty()){
 				list.add(queue.poll());

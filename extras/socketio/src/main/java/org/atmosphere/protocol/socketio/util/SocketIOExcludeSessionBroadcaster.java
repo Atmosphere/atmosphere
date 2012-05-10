@@ -63,7 +63,12 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
         
-        logger.info("To broadcast from : " + ((HttpServletRequest) resource.getRequest()).getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to broadcast : " + msg);
+        try {
+        	// DEBUG quand la connection est cancelee, il n'est pas possiblede faire getRequest()
+        	logger.info("To broadcast from : " + ((HttpServletRequest) resource.getRequest()).getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to broadcast : " + msg);
+        } catch(Exception e){
+        	e.printStackTrace();
+        }
 
         Set<AtmosphereResource> sub = new HashSet<AtmosphereResource>();
         sub.addAll(resources);

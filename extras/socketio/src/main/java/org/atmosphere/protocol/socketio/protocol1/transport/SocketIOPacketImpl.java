@@ -76,10 +76,6 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 	public String toString(){
 		StringBuilder sb = new StringBuilder();
 		
-		if(padding && data!=null){
-			sb.append(SOCKETIO_MSG_DELIMITER).append(data.length()).append(SOCKETIO_MSG_DELIMITER);
-		}
-		
 		//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 
 		sb.append(packetType.value).append(":");
 		
@@ -98,7 +94,16 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 			sb.append(data);
 		}
 		
-		return sb.toString();
+		String msg = sb.toString();
+		
+		if(padding){
+			sb = new StringBuilder();
+			sb.append(SOCKETIO_MSG_DELIMITER).append(msg.length()).append(SOCKETIO_MSG_DELIMITER).append(msg);
+			msg = sb.toString();
+		}
+		
+		
+		return msg;
 	}
 	
 	

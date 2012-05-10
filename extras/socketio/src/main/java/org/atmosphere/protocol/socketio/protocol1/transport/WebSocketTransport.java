@@ -68,14 +68,24 @@ public class WebSocketTransport extends AbstractTransport {
 			return Action.CONTINUE;
 		}
 		
-		String sessionId = extractSessionId(request);
+		Object obj = request.getAttribute(SESSION_KEY);
+		SocketIOSession session = null;
+		String sessionId = null;
+		if (obj != null) {
+			session = (SocketIOSession) obj;
+		} else {
+			sessionId = extractSessionId(request);
+			if (sessionId != null && sessionId.length() > 0) {
+				session = sessionFactory.getSession(sessionId);
+			}
+		}
 		
 		boolean isDisconnectRequest = isDisconnectRequest(request);
 		
 		if(!isDisconnectRequest){
 		
 			if ("GET".equals(request.getMethod()) && "WebSocket".equalsIgnoreCase(request.getHeader("Upgrade"))) {
-				SocketIOSession session = sessionFactory.getSession(sessionId);
+				session = sessionFactory.getSession(sessionId);
 				
 				request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 				
@@ -96,7 +106,7 @@ public class WebSocketTransport extends AbstractTransport {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
 			}
 		} else {
-			SocketIOSession session = sessionFactory.getSession(sessionId);
+			session = sessionFactory.getSession(sessionId);
 			
 			session.getTransportHandler().disconnect();
 		}
@@ -278,6 +288,11 @@ public class WebSocketTransport extends AbstractTransport {
 		@Override
 		public void initiated(boolean initiated) {
 			this.initiated = initiated;
+		}
+		
+		@Override
+		public String getSessionId() {
+			return session.getSessionId();
 		}
 
 	}
