@@ -32,7 +32,6 @@ import java.util.concurrent.Callable;
  * @author Jeanfrancois Arcand
  */
 @Path("/async")
-@Produces("text/html;charset=ISO-8859-1")
 public class AsynchronousAnnotation {
     /**
      * Suspend the connection, wait for a broadcast events.
