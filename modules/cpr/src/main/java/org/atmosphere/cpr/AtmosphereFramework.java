@@ -314,11 +314,11 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework removeAtmosphereHandler(String mapping) {
 
         if (mapping.endsWith("/")) {
-            mapping += "[a-zA-Z0-9-&=;\\?]+";
+            mapping += "[a-zA-Z0-9-&.=;\\?]+";
         }
 
         if (mapping.contains("*")) {
-            mapping = mapping.replace("*", "[a-zA-Z0-9-&=;\\?]+");
+            mapping = mapping.replace("*", "[a-zA-Z0-9-&.=;\\?]+");
         }
 
         atmosphereHandlers.remove(mapping);
