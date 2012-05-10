@@ -56,7 +56,7 @@
                 var location = document.location.toString() + 'async';
                 connectedEndpoint = $.atmosphere.subscribe(location,
                         !callbackAdded ? callback : null,
-                        $.atmosphere.request = { transport: getElementByIdValue('transport'), attachHeadersAsQueryString:true /*, Uncomments for IE CORS support attachHeadersAsQueryString : true, enableXDR : true */ });
+                        $.atmosphere.request = { transport: getElementByIdValue('transport') });
                 callbackAdded = true;
             }
 
@@ -147,7 +147,7 @@
         <option id="jsonp" value="jsonp">jsonp</option>
         <option id="long-polling" value="long-polling">long-polling</option>
         <option id="streaming" value="streaming">http streaming</option>
-        <option id="sse" value="streaming">Server Side Events</option>
+        <option id="sse" value="sse">sse</option>
     </select>
     <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
 </div>
