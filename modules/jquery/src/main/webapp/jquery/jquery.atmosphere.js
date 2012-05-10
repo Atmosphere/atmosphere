@@ -467,10 +467,7 @@ jQuery.atmosphere = function() {
             function _buildWebSocketUrl() {
                 var url = _request.url;
                 url = _attachHeaders();
-                if (url.indexOf("http") == -1 && url.indexOf("ws") == -1) {
-                    url = jQuery.atmosphere.parseUri(document.location, url);
-                }
-                return url.replace('http:', 'ws:').replace('https:', 'wss:');
+                return decodeURI($('<a href="' + url + '"/>')[0].href.replace(/^http/, "ws"));
             }
 
             /**
@@ -1811,84 +1808,6 @@ jQuery.atmosphere = function() {
             return function() {
                 clearTimeout(timeoutId);
             };
-        },
-
-        parseUri : function(baseUrl, uri) {
-            var protocol = window.location.protocol;
-            var host = window.location.host;
-            var path = window.location.pathname;
-            var parameters = {};
-            var anchor = '';
-            var pos;
-
-            if ((pos = uri.search(/\:\/\//)) >= 0) {
-                protocol = uri.substring(0, pos + 1);
-                uri = uri.substring(pos + 1);
-            }
-
-            if ((pos = uri.search(/\#/)) >= 0) {
-                anchor = uri.substring(pos + 1);
-                uri = uri.substring(0, pos);
-            }
-
-            if ((pos = uri.search(/\?/)) >= 0) {
-                var paramsStr = uri.substring(pos + 1) + '&;';
-                uri = uri.substring(0, pos);
-                while ((pos = paramsStr.search(/\&/)) >= 0) {
-                    var paramStr = paramsStr.substring(0, pos);
-                    paramsStr = paramsStr.substring(pos + 1);
-
-                    if (paramStr.length) {
-                        var equPos = paramStr.search(/\=/);
-                        if (equPos < 0) {
-                            parameters[paramStr] = '';
-                        } else {
-                            parameters[paramStr.substring(0, equPos)] =
-                                decodeURIComponent(paramStr.substring(equPos + 1));
-                        }
-                    }
-                }
-            }
-
-            if (uri.search(/\/\//) == 0) {
-                uri = uri.substring(2);
-                if ((pos = uri.search(/\//)) >= 0) {
-                    host = uri.substring(0, pos);
-                    path = uri.substring(pos);
-                } else {
-                    host = uri;
-                    path = '/';
-                }
-            } else if (uri.search(/\//) == 0) {
-                path = uri;
-            }
-
-            else // relative to directory
-            {
-                var p = path.lastIndexOf('/');
-                if (p < 0) {
-                    path = '/';
-                } else if (p < path.length - 1) {
-                    path = path.substring(0, p + 1);
-                }
-
-                while (uri.search(/\.\.\//) == 0) {
-                    p = path.lastIndexOf('/', path.lastIndexOf('/') - 1);
-                    if (p >= 0) {
-                        path = path.substring(0, p + 1);
-                    }
-                    uri = uri.substring(3);
-                }
-                path = path + uri;
-            }
-
-            var formattedUri = protocol + '//' + host + path;
-            var div = '?';
-            for (var key in parameters) {
-                formattedUri += div + key + '=' + encodeURIComponent(parameters[key]);
-                div = '&';
-            }
-            return formattedUri;
         },
 
         log: function (level, args) {
