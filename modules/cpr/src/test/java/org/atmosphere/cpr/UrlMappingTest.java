@@ -26,6 +26,9 @@ import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.fail;
 
 public class UrlMappingTest {
 
@@ -154,15 +157,91 @@ public class UrlMappingTest {
         assertNotNull(processor.map(r));
     }
 
-//    @Test
-//    public void mappingTestTraillingHandler() throws ServletException {
-//        // servlet-mapping : /a/*
-//        framework.addAtmosphereHandler("/a", handler);
-//
-//        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
-//        assertNotNull(processor.map(r));
-//
-//        r = new AtmosphereRequest.Builder().pathInfo("/a/1").build();
-//        assertNotNull(processor.map(r));
-//    }
+    @Test
+    public void mappingTestTraillingHandler() throws ServletException {
+        // servlet-mapping : /a/*
+        framework.addAtmosphereHandler("/a", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        assertNotNull(processor.map(r));
+
+        r = new AtmosphereRequest.Builder().pathInfo("/a/1").build();
+        assertNotNull(processor.map(r));
+    }
+
+    @Test
+    public void batchMappingTest() throws ServletException {
+        framework.addAtmosphereHandler("/", new AH("/"));
+        framework.addAtmosphereHandler("/red", new AH("red"));
+        framework.addAtmosphereHandler("/red/*", new AH("red"));
+        framework.addAtmosphereHandler("/red/red/*", new AH("redred"));
+        framework.addAtmosphereHandler("/red/blue/*", new AH("redblue"));
+        framework.addAtmosphereHandler("/blue/*", new AH("blue"));
+        framework.addAtmosphereHandler("/blue/blue/*", new AH("blueblue"));
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red/1").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "redred");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red/red/1").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "redred");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "redblue");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/1").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "redblue");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/blue").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "blue");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "blueblue");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
+
+        framework.removeAtmosphereHandler("/");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        try {
+            processor.map(r);
+            fail();
+        } catch (AtmosphereMappingException e) {
+            assertNotNull(e);
+        }
+    }
+
+    public final static class AH implements AtmosphereHandler{
+        
+        private final String name;
+
+        public AH(String name) {
+            this.name = name;
+        }
+        
+        public String toString(){
+            return name;
+        }
+
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+        }
+
+        @Override
+        public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        }
+
+        @Override
+        public void destroy() {
+        }
+    }
 }

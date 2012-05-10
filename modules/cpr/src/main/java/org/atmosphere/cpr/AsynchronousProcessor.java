@@ -247,14 +247,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     protected AtmosphereHandlerWrapper map(String path) {
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+
         if (atmosphereHandlerWrapper == null) {
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
                 UriTemplate t = new UriTemplate(e.getKey());
-                logger.trace("Trying to map {} to {}", t, path);
+                logger.debug("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue());
+                    logger.debug("Mapped {} to {}", t, e.getValue().atmosphereHandler);
                     break;
                 }
             }
@@ -281,17 +282,23 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
-        // (1) First, try exact match
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path + (path.endsWith("/") ? "all" : "/all"));
         if (atmosphereHandlerWrapper == null) {
-            // (2) Try with a trailing /
-            if (!path.endsWith("/")) {
-                atmosphereHandlerWrapper = map(path + "/");
-            }
+            // (2) First, try exact match
+            atmosphereHandlerWrapper = map(path);
 
-            // (3) Try wildcard
+            // (3) try without a path
             if (atmosphereHandlerWrapper == null) {
-                atmosphereHandlerWrapper = map("/all");
+                String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                while (p.length() > 0) {
+                    atmosphereHandlerWrapper = map(p);
+
+                    // (3.1) Try path wildcard
+                    if (atmosphereHandlerWrapper != null) {
+                        break;
+                    }
+                    p = p.substring(0, p.lastIndexOf("/"));
+                }
             }
         }
 
