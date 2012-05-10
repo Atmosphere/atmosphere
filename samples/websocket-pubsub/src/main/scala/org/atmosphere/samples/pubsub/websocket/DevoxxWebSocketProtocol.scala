@@ -22,11 +22,6 @@ import org.atmosphere.websocket.protocol.SimpleHttpProtocol
 
 class DevoxxWebSocketProtocol extends SimpleHttpProtocol with Serializable {
 
-  override def onOpen(webSocket: WebSocket): Unit = {
-    super.onOpen(webSocket)
-    webSocket.resource().suspend(-1)
-  }
-
   override def onMessage(webSocket: WebSocket, message: String): java.util.List[AtmosphereRequest] = {
     if (message.startsWith("message=devoxx:")) {
       webSocket.write(webSocket.resource.getResponse, message.substring("message=".length()))
