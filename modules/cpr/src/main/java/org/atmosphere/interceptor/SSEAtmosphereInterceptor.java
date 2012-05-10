@@ -20,6 +20,8 @@ import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,24 +56,27 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
 
-            String contentType = response.getContentType();
-            response.setContentType("text/event-stream");
-            response.setCharacterEncoding("utf-8");
-            OutputStream stream = null;
-            try {
-                stream = response.getOutputStream();
-            } catch (IOException e) {
-                logger.trace("", e);
-            }
 
-            try {
-                stream.write(padding);
-                stream.flush();
-            } catch (IOException ex) {
-                logger.warn("SSE may not work", ex);
-            }
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                 @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                     response.setContentType("text/event-stream");
+                     response.setCharacterEncoding("utf-8");
+                     OutputStream stream = null;
+                     try {
+                         stream = response.getOutputStream();
+                     } catch (IOException e) {
+                         logger.trace("", e);
+                     }
 
-            response.setContentType(contentType);
+                     try {
+                         stream.write(padding);
+                         stream.flush();
+                     } catch (IOException ex) {
+                         logger.warn("SSE may not work", ex);
+                     }
+                }
+            });
 
             response.asyncIOWriter(new AsyncIOWriterAdapter() {
                 @Override
