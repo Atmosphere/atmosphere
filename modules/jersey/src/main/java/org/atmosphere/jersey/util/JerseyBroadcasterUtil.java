@@ -104,6 +104,7 @@ public final class JerseyBroadcasterUtil {
             } else {
                 if (e.getMessage() == null) {
                     logger.warn("Broadcasted message is null");
+                    return;
                 }
 
                 cr.setResponse(Response.ok(e.getMessage()).build());
