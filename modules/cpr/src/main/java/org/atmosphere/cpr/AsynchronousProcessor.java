@@ -252,10 +252,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
                 UriTemplate t = new UriTemplate(e.getKey());
-                logger.debug("Trying to map {} to {}", t, path);
+                logger.trace("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
-                    logger.debug("Mapped {} to {}", t, e.getValue().atmosphereHandler);
+                    logger.trace("Mapped {} to {}", t, e.getValue().atmosphereHandler);
                     break;
                 }
             }
