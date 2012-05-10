@@ -735,7 +735,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
             if (isUsingStream) {
-                response.getOutputStream().close();
+                try {
+                    response.getOutputStream().close();
+                } catch (java.lang.IllegalStateException ex) {}
             } else {
                 response.getWriter().close();
             }
@@ -753,8 +755,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
-
+                try {
+                    response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
+                } catch (java.lang.IllegalStateException ex) {
+                    ex.printStackTrace();
+                }
             } else {
                 response.getWriter().write(data);
             }
@@ -773,8 +778,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data);
-
+                try {
+                    response.getOutputStream().write(data);
+                } catch (java.lang.IllegalStateException ex) {}
             } else {
                 response.getWriter().write(new String(data, getCharacterEncoding()));
             }
@@ -795,8 +801,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data, offset, length);
-
+                try {
+                    response.getOutputStream().write(data, offset, length);
+                } catch (java.lang.IllegalStateException ex) {}
             } else {
                 response.getWriter().write(new String(data,  offset, length, getCharacterEncoding()));
             }

@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 
 /**
@@ -36,13 +37,15 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
 
-    private static final StringBuffer whitespace = new StringBuffer();
+    private static final byte[] padding;
 
     static {
+        StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 2000; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
+        padding = whitespace.toString().getBytes();
     }
 
     @Override
@@ -54,15 +57,20 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
             String contentType = response.getContentType();
             response.setContentType("text/event-stream");
             response.setCharacterEncoding("utf-8");
-            PrintWriter writer = null;
+            OutputStream stream = null;
             try {
-                writer = response.getWriter();
+                stream = response.getOutputStream();
             } catch (IOException e) {
                 logger.trace("", e);
             }
 
-            writer.print(whitespace);
-            writer.flush();
+            try {
+                stream.write(padding);
+                stream.flush();
+            } catch (IOException ex) {
+                logger.warn("SSE may not work", ex);
+            }
+
             response.setContentType(contentType);
 
             response.asyncIOWriter(new AsyncIOWriterAdapter() {
