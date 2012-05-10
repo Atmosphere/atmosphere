@@ -41,8 +41,8 @@
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
-        <module>async-channel</module>
-        <module>websocket-pubsub</module>
+        <module>async-annotation-pubsub</module>
+        <module>all-api-pubsub</module>
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
         <module>spring-tiles</module>

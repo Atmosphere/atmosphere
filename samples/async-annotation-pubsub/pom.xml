@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-async-channel</artifactId>
+    <artifactId>atmosphere-annotation-pubsub</artifactId>
     <packaging>war</packaging>
     <version>1.0.0-SNAPSHOT</version>
-    <name>atmosphere-async-channel</name>
+    <name>atmosphere-annotation-pubsub</name>
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
