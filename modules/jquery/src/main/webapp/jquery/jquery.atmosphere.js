@@ -975,10 +975,6 @@ jQuery.atmosphere = function() {
                             clearTimeout(rq.id);
                         }
 
-                        if (!jQuery.browser.msie && jQuery.trim(ajaxRequest.responseText).length == 0) {
-                            update = false;
-                        }
-
                         if (update) {
                             var responseText = ajaxRequest.responseText;
 
