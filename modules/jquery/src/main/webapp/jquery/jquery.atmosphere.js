@@ -1335,47 +1335,50 @@ jQuery.atmosphere = function() {
                                 return false;
                             }
 
-                            response.innerText = "";
-                            _prepareCallback("", "opening", 200, rq.transport);
+                            try {
+                                response.innerText = "";
+                                _prepareCallback("", "opening", 200, rq.transport);
 
-                            stop = jQuery.atmosphere.iterate(function() {
-                                var clone = response.cloneNode(true),
-                                    text;
+                                stop = jQuery.atmosphere.iterate(function() {
+                                    var clone = response.cloneNode(true), text;
 
-                                // Adds a character not CR and LF to circumvent an Internet Explorer bug
-                                // If the contents of an element ends with one or more CR or LF, Internet Explorer ignores them in the innerText property
-                                clone.appendChild(cdoc.createTextNode("."));
-                                text = clone.innerText;
-                                text = text.substring(0, text.length - 1);
-
-                                if (text) {
-                                    response.innerText = "";
-                                    var isJunkEnded = true;
-
-                                    if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                                        isJunkEnded = false;
-                                    }
-
-                                    if (isJunkEnded) {
-                                        var endOfJunk = "<!-- EOD -->";
-                                        var endOfJunkLenght = endOfJunk.length;
-                                        var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
-
-                                        text = text.substring(junkEnd);
-                                    }
+                                    // Adds a character not CR and LF to circumvent an Internet Explorer bug
+                                    // If the contents of an element ends with one or more CR or LF, Internet Explorer ignores them in the innerText property
+                                    clone.appendChild(cdoc.createTextNode("."));
+                                    text = clone.innerText;
                                     text = text.substring(0, text.length - 1);
 
-                                    _prepareCallback(text, "messageReceived", 200, rq.transport);
-                                }
+                                    if (text) {
+                                        response.innerText = "";
+                                        var isJunkEnded = true;
 
-                                if (cdoc.readyState === "complete") {
-                                    _prepareCallback("", "re-opening", 200, rq.transport);
-                                    _ieStreaming(rq);
-                                    return false;
-                                }
-                            });
+                                        if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
+                                            isJunkEnded = false;
+                                        }
 
-                            return false;
+                                        if (isJunkEnded) {
+                                            var endOfJunk = "<!-- EOD -->";
+                                            var endOfJunkLenght = endOfJunk.length;
+                                            var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+
+                                            text = text.substring(junkEnd);
+                                        }
+                                        text = text.substring(0, text.length - 1);
+
+                                        _prepareCallback(text, "messageReceived", 200, rq.transport);
+                                    }
+
+                                    if (cdoc.readyState === "complete") {
+                                        _prepareCallback("", "re-opening", 200, rq.transport);
+                                        _ieStreaming(rq);
+                                        return false;
+                                    }
+                                });
+
+                                return false;
+                            } catch (err) {
+                                jQuery.atmosphere.error(err);
+                            }
                         });
                     },
 
