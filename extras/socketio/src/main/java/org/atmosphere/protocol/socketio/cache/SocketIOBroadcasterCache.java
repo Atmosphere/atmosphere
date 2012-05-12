@@ -82,7 +82,11 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 		
 		String sessionid = (String)resource.getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID);
 		
-		logger.info("Message from : " + sessionid + " message to cache : " + object);
+		if(sessionid==null){
+			logger.error("tabarnac");
+		}
+		
+		logger.info("addToCache Message from : " + sessionid + " HASHCODE=" + resource.hashCode() + "   message to cache : " + object);
 		
 		Queue<Object> queue = null;
 		
@@ -114,7 +118,11 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 		
 		// ceci est pour du debug seulement
 		for (Entry<String, Queue<Object>> entry : cache.entrySet()) {
-			logger.info("SessionID Cached = " + entry.getKey());
+			if(cache.containsKey(sessionid)){
+				logger.info("SessionID Cached = " + entry.getKey() + " queue size=" + cache.get(sessionid).size());
+			} else {
+				logger.info("SessionID Cached = " + entry.getKey());
+			}
 		}
 		
 		if(cache.containsKey(sessionid)){
@@ -128,6 +136,8 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 			
 			return list;
 			
+		} else {
+			logger.info("No messages cached for SessionID = " + sessionid);
 		}
 		
 		return null;

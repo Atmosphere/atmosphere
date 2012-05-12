@@ -66,7 +66,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 	 */
 	@SuppressWarnings("unused")
 	public void onRequest(AtmosphereResource event) throws IOException {
-		logger.error("onRequest");
+		logger.debug("onRequest");
 	}
 
 	/**
@@ -91,10 +91,6 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 
 		logger.error("onStateChange on SessionID=" + request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + "  Method=" + request.getMethod());
 
-		if (request.getMethod() == null) {
-			System.err.println("HEU !");
-		}
-
 		SocketIOSessionOutbound outbound = (org.atmosphere.protocol.socketio.SocketIOSessionOutbound) request.getAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound);
 
 		if (outbound != null && event.getMessage() != null) {
@@ -117,6 +113,9 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 						outbound.sendMessage(messages);
 					}
 				} else if (event.getMessage() instanceof String) {
+					
+					logger.info("onStateChange Sending message on resume : message = " + event.getMessage().toString());
+					
 					List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(event.getMessage().toString());
 					outbound.sendMessage(messages);
 				}
@@ -130,12 +129,12 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 	}
 
 	public void destroy() {
-		logger.error("onConnect");
+		logger.debug("destroy");
 	}
 
 	@SuppressWarnings("unused")
 	public void onConnect(AtmosphereResource event, SocketIOSessionOutbound outbound) throws IOException {
-		logger.error("onConnect");
+		logger.debug("onConnect");
 	}
 
 	public void onDisconnect() throws IOException {
@@ -219,17 +218,18 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 						// on envoye les messages dans une liste pour etre sur d'avoir un separateur entre les messages pour eviter le cas suivant : 
 						// 6:::1+[false]5:::{"name":"nicknames","args":[{"ff1":"ff1"}]}
 						
+						// envoye les messages seulement a ce client
 						outbound.sendMessage(loginMessagesList);
 						
 						// DEBUG
-						logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out), false).toString());
+						logger.debug("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out), false).toString());
 
 						// on broadcast la liste des usernames dans le chat aux
 						// autres usagers
 						event.getBroadcaster().broadcast(new SocketIOPacketImpl(PacketType.EVENT, mapper.writeValueAsString(out), false).toString(), event);
 
 						// DEBUG
-						logger.error("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
+						logger.debug("Broadcasting message = " + new SocketIOPacketImpl(PacketType.EVENT, "{\"args\":[\"" + chat.getArgs().toArray()[0] + " connected\"],\"name\":\"announcement\"}", false).toString());
 
 						// on broadcast le username du nouveau dans le chat aux
 						// autres usagers
@@ -245,7 +245,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 			} else if (ChatJSONObject.MESSAGE.equalsIgnoreCase(chat.name)) {
 
 				// debug pour java.lang.IllegalStateException: No SessionManager
-				String username = (String) request.getSession().getAttribute("LOGINNAME");
+				String username = loggedUserMap.get(outbound.getSessionId());
 
 				List<String> msg = new ArrayList<String>();
 				msg.add(username);

@@ -341,9 +341,11 @@ public abstract class SocketIOTest {
 				}
 				
 				if(usernameUnique){
-					Assert.assertEquals(message, "6:::1+[false]");
+					//Assert.assertEquals(message, "6:::1+[false]");
+					Assert.assertTrue(message.contains("6:::1+[false]"));
 				} else {
-					Assert.assertEquals(message, "6:::1+[true]");
+					//Assert.assertEquals(message, "6:::1+[true]");
+					Assert.assertTrue(message.contains("6:::1+[true]"));
 				}
 				
 				// on doit faire une nouvelle connection pour obtenir la suite

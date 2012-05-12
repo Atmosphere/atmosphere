@@ -205,7 +205,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void startTimeoutTimer() {
-			logger.error("startTimeoutTimer for SessionID= " + sessionId);
+			logger.debug("startTimeoutTimer for SessionID= " + sessionId);
 			clearTimeoutTimer();
 			if (!timedout && timeout > 0) {
 				timeoutSessionMonitor.start();
@@ -214,7 +214,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearTimeoutTimer() {
-			logger.error("clearTimeoutTimer for SessionID= " + sessionId);
+			logger.debug("clearTimeoutTimer for SessionID= " + sessionId);
 			if (timeoutSessionMonitor != null) {
 				timeoutSessionMonitor.cancel();
 			}
@@ -223,14 +223,14 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		@Override
 		public void sendHeartBeat() {
 			String data = "" + messageId.incrementAndGet();
-			logger.error("Session["+sessionId+"]: sendPing " + data);
+			logger.debug("Session["+sessionId+"]: sendPing " + data);
 			try {
 				handler.sendMessage("2::");
 			} catch (Exception e) {
 				logger.error("handler.sendMessage failed: ", e);
 				handler.abort();
 			} 
-			logger.error("calling from " + this.getClass().getName() + " : " + "sendPing");
+			logger.debug("calling from " + this.getClass().getName() + " : " + "sendPing");
 			startTimeoutTimer();
 		}
 
@@ -247,7 +247,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		
 		@Override
 		public void startHeartbeatTimer() {
-			logger.error("startHeartbeatTimer");
+			logger.debug("startHeartbeatTimer");
 			clearHeartbeatTimer();
 			clearTimeoutTimer();
 			if (!timedout && heartBeatInterval > 0) {
@@ -257,7 +257,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearHeartbeatTimer() {
-			logger.error("clearHeartbeatTimer : Clear previous Timer");
+			logger.debug("clearHeartbeatTimer : Clear previous Timer");
 			if (heartBeatSessionMonitor != null) {
 				heartBeatSessionMonitor.cancel();
 			}

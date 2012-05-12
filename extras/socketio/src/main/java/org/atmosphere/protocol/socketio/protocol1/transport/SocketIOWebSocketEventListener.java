@@ -52,37 +52,38 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	@Override
 	public void onThrowable(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onThrowable event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onThrowable");
 		
 	}
 	
 	@Override
 	public void onSuspend(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend event = " + event);
+		//logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend");
 		
 	}
 	
 	@Override
 	public void onResume(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onResume event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onResume");
 		
 	}
 	
 	@Override
 	public void onDisconnect(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect");
 		sessionWrapper.onDisconnect();
 	}
 	
 	@Override
 	public void onBroadcast(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onBroadcast event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onBroadcast");
 		
 	}
 	
 	@Override
 	public void onMessage(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onMessage event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onMessage");
 		
 		if (!sessionWrapper.isInitiated()) {
 			if ("OPEN".equals(event.message())) {
@@ -137,7 +138,7 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	@Override
 	public void onConnect(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onConnect event = " + event);
+		logger.error("calling from " + this.getClass().getName() + " : " + "onConnect");
 		
 		sessionWrapper.setWebSocket(event.webSocket());
 		
