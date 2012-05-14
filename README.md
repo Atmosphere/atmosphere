@@ -8,6 +8,9 @@ Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Pol
 ### Official Documentation
 Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started. You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API) for Client Components
 
+### Quick Start
+
+The Atmosphere's Framework ships with many examples describing how to implements WebSockets, Server Side Events, Long Polling client's application. Take a look at [this page](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-the-samples) to pick the best sample to starts with.
 
 ### To use Atmosphere, add the following dependency:
 ```xml
@@ -23,6 +26,7 @@ Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, re
 [IMPORTANT: Migrating 0.x to the new 0.9 API](https://github.com/Atmosphere/atmosphere/wiki/Migrating-your-Atmosphere-0.x-to-0.9-new-API)
 
 #### Jump directly inside the code: WebSocket, Server Side Events (SSE) Long-Polling, JSONP and Http Streaming!
+
 Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/webapp/index.html#L7)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/webapp/jquery/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/ChatAtmosphereHandler.java#L32) to realize how simple Atmosphere is!
 
 #### Must read
@@ -41,41 +45,12 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 [Latest Presentation - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
 
-#### Quick Start
-
-To quickly see what Atmosphere can do with WebSocket and Comet, and If you want to play with Redis, Hazelcast, ActiveMQ(JMS) or XMPP(Gmail), [download](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/samples/atmosphere-jquery-pubsub/0.9.2/atmosphere-jquery-pubsub-0.9.2.war) the [JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L51) sample,  uncomments the appropriate technology in the [pom.xml](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/pom.xml#L2), re-war the file or manually drop the atmosphere-{technology-name}.jar under your WEB-INF/lib to enabled it automatically
-
-For SNAPSHOT, you'll have to add the Sonatype repo to your settings in order to be able to access the snapshot builds [Browse the artifact](https://oss.sonatype.org/content/repositories/releases/org/atmosphere/)
-
-Several Samples are available [Download the sample, rename the file without the maven version](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/)
 
 #### RoadMap
 
-Atmosphere 0.9 is our official release, and our work in progress version is 1.0, targeted for end of End of May 2012
+Atmosphere 0.9 is our official release, and our work in progress version is 1.0, targeted for end of End of June 2012
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
-
-#### Browse sample's code
-
-[Guice](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat-guice/src/main/java/org/atmosphere/samples/guice/GuiceChatConfig.java#L58)
-
-[Spring](https://github.com/Atmosphere/atmosphere/blob/master/samples/spring-websocket/src/main/java/org/atmosphere/samples/pubsub/services/ChatService.java#L34)
-
-[PubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java#L76)
-
-[JQueryPubSub](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L30)
-
-[Twitter Search](https://github.com/Atmosphere/atmosphere/blob/master/samples/twitter-live-feed/src/main/java/org/atmosphere/samples/twitter/TwitterFeed.java#L41)
-
-[JavaScript Multi Request](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-multirequest/src/main/webapp/js/main.js#L5)
-
-[EJB](https://github.com/Atmosphere/atmosphere/blob/master/samples/atmosphere-ee6/src/main/java/org/jersey/devoxx/samples/ee6/atmosphere/TimerResource.java#L76)
-
-[AtmosphereHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-atmospherehandler-pubsub/src/main/java/org/atmosphere/samples/pubsub/AtmosphereHandlerPubSub.java#L30)
-
-[Meteor](https://github.com/Atmosphere/atmosphere/blob/master/samples/jquery-meteor-pubsub/src/main/java/org/atmosphere/samples/pubsub/MeteorPubSub.java#L30)
-
-[JAXRS 2.0 Async API](https://github.com/Atmosphere/atmosphere/blob/master/samples/jaxrs2-chat/src/main/java/org/atmosphere/samples/chat/jersey/Jaxrs2Chat.java#L34)
 
 #### Changes logs
 
