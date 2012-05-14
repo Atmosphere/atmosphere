@@ -34,23 +34,23 @@
             }
 
             function subscribe() {
-var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-    transport: getElementByIdValue('transport')};
+                var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                    transport: getElementByIdValue('transport')};
 
-request.onMessage = function (response) {
-    detectedTransport = response.transport;
-    if (response.status == 200) {
-        var data = response.responseBody;
-        if (data.length > 0) {
-            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
-        }
-    }
-};
+                request.onMessage = function (response) {
+                    detectedTransport = response.transport;
+                    if (response.status == 200) {
+                        var data = response.responseBody;
+                        if (data.length > 0) {
+                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
+                        }
+                    }
+                };
 
-subSocket = socket.subscribe(request);
+                subSocket = socket.subscribe(request);
             }
 
-            function unsubscribe(){
+            function unsubscribe() {
                 callbackAdded = false;
                 socket.unsubscribe();
             }
@@ -151,7 +151,9 @@ subSocket = socket.subscribe(request);
 </head>
 <body>
 <h1>PubSub Sample using Atmosphere's JQuery Plug In. By default the sample use the DefaultBroadcaster.</h1>
-<h2>To enable Redis, XMPP, Hazelcast of ActiveMQ (JMS), uncomments in pom.xml the associated dependency or put atmosphere-{hazelcast|jms|xmpp|redis}.jar under WEB-INF/lib</h2>
+
+<h2>To enable Redis, XMPP, Hazelcast of ActiveMQ (JMS), uncomments in pom.xml the associated dependency or put
+    atmosphere-{hazelcast|jms|xmpp|redis}.jar under WEB-INF/lib</h2>
 
 <h2>Select PubSub topic to subscribe</h2>
 
