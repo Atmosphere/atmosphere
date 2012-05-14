@@ -118,6 +118,14 @@ public class UrlMappingTest {
 
     @Test
     public void mappingTestServletPath() throws ServletException {
+        framework.addAtmosphereHandler("/com.zyxabc.abc.Abc/gwtCometEvent*", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/com.zyxabc.abc.Abc/gwtCometEvent").build();
+        assertNotNull(processor.map(r));
+    }
+
+    @Test
+    public void mappingExactUrl() throws ServletException {
         framework.addAtmosphereHandler("/foo/a/", handler);
 
         AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a").build();

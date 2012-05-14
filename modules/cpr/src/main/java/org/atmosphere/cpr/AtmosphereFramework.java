@@ -109,6 +109,7 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  */
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
+    public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final List<String> broadcasterFilters = new ArrayList<String>();
@@ -141,6 +142,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
+
 
     @Override
     public ServletContext getServletContext() {
@@ -255,11 +257,11 @@ public class AtmosphereFramework implements ServletContextProvider {
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", "[a-zA-Z0-9-&.=;\\?]+");
+            path = path.replace("*", MAPPING_REGEX);
         }
 
         if (path.endsWith("/")) {
-            path = path + "[a-zA-Z0-9-&.=;\\?]+";
+            path = path + MAPPING_REGEX;
         }
 
         atmosphereHandlers.put(path, w);
@@ -314,11 +316,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework removeAtmosphereHandler(String mapping) {
 
         if (mapping.endsWith("/")) {
-            mapping += "[a-zA-Z0-9-&.=;\\?]+";
-        }
-
-        if (mapping.contains("*")) {
-            mapping = mapping.replace("*", "[a-zA-Z0-9-&.=;\\?]+");
+            mapping += MAPPING_REGEX;
         }
 
         atmosphereHandlers.remove(mapping);

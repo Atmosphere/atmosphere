@@ -287,17 +287,22 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // (2) First, try exact match
             atmosphereHandlerWrapper = map(path);
 
-            // (3) try without a path
             if (atmosphereHandlerWrapper == null) {
-                String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
-                while (p.length() > 0) {
-                    atmosphereHandlerWrapper = map(p);
+                // (3) Wildcard
+                atmosphereHandlerWrapper = map(path + "*");
 
-                    // (3.1) Try path wildcard
-                    if (atmosphereHandlerWrapper != null) {
-                        break;
+                // (4) try without a path
+                if (atmosphereHandlerWrapper == null) {
+                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    while (p.length() > 0) {
+                        atmosphereHandlerWrapper = map(p);
+
+                        // (3.1) Try path wildcard
+                        if (atmosphereHandlerWrapper != null) {
+                            break;
+                        }
+                        p = p.substring(0, p.lastIndexOf("/"));
                     }
-                    p = p.substring(0, p.lastIndexOf("/"));
                 }
             }
         }
