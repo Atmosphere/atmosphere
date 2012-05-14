@@ -1485,7 +1485,7 @@ jQuery.atmosphere = function() {
                 };
 
                 if (typeof(message) == 'object') {
-                    rq = $.extend(rq, message);
+                    rq = jQuery.extend(rq, message);
                 }
 
                 return rq;
