@@ -35,7 +35,8 @@
 
             function subscribe() {
                 var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                    transport: getElementByIdValue('transport')};
+                    transport: getElementByIdValue('transport'),
+                    contentType : "text/html;charset=ISO-8859-1"};
 
                 request.onMessage = function (response) {
                     detectedTransport = response.transport;
