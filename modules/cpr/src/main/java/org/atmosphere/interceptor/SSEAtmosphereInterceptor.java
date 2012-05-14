@@ -56,7 +56,6 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
 
-
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                  @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
@@ -87,6 +86,10 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
                 @Override
                 public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
+                    if (errorCode == 406 && r.getAtmosphereConfig().framework().is) {
+                        logger.warn("Status code 406: Make sure you aren't setting any @Produces " +
+                                "value if you are using Jersey and instead set the @Suspend(content-type=\"...\" value");
+                    }
                     response.sendError(errorCode);
                     return this;
                 }
