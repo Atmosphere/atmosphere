@@ -53,6 +53,8 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     }
 
     private void writePadding(AtmosphereResponse response) {
+        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return;
+
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("utf-8");
         OutputStream stream = null;
@@ -102,9 +104,7 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
                 @Override
                 public AsyncIOWriter write(String data) throws IOException {
-                    if (!r.isSuspended()) {
-                        writePadding(response);
-                    }
+                    padding();
                     response.write("data:" + data + "\n\n");
                     return this;
                 }
@@ -112,20 +112,23 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
                 // TODO: Performance: execute a single write
                 @Override
                 public AsyncIOWriter write(byte[] data) throws IOException {
-                    if (!r.isSuspended()) {
-                        writePadding(response);
-                    }
+                    padding();
                     response.write("data:").write(data).write("\n\n");
                     return this;
                 }
 
                 @Override
                 public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-                    if (!r.isSuspended()) {
-                        writePadding(response);
-                    }
+                    padding();
                     response.write("data:").write(data, offset, length).write("\n\n");
                     return this;
+                }
+
+                private void padding() {
+                    if (!r.isSuspended()) {
+                        writePadding(response);
+                        r.getRequest().setAttribute("paddingWritten", "true");
+                    }
                 }
 
                 @Override
