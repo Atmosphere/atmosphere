@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+
 /**
  * HTML 5 Server Side Events implementation.
  *
@@ -50,30 +52,34 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
         padding = whitespace.toString().getBytes();
     }
 
+    private void writePadding(AtmosphereResponse response) {
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("utf-8");
+        OutputStream stream = null;
+        try {
+            stream = response.getOutputStream();
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+
+        try {
+            stream.write(padding);
+            stream.flush();
+        } catch (IOException ex) {
+            logger.warn("SSE may not work", ex);
+        }
+    }
+
     @Override
-    public Action inspect(AtmosphereResource r) {
+    public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
+        r.getRequest().setAttribute(PROPERTY_USE_STREAM, true);
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
-
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                 @Override
+                @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                     response.setContentType("text/event-stream");
-                     response.setCharacterEncoding("utf-8");
-                     OutputStream stream = null;
-                     try {
-                         stream = response.getOutputStream();
-                     } catch (IOException e) {
-                         logger.trace("", e);
-                     }
-
-                     try {
-                         stream.write(padding);
-                         stream.flush();
-                     } catch (IOException ex) {
-                         logger.warn("SSE may not work", ex);
-                     }
+                    writePadding(response);
                 }
             });
 
@@ -96,6 +102,9 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
                 @Override
                 public AsyncIOWriter write(String data) throws IOException {
+                    if (!r.isSuspended()) {
+                        writePadding(response);
+                    }
                     response.write("data:" + data + "\n\n");
                     return this;
                 }
@@ -103,12 +112,18 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
                 // TODO: Performance: execute a single write
                 @Override
                 public AsyncIOWriter write(byte[] data) throws IOException {
+                    if (!r.isSuspended()) {
+                        writePadding(response);
+                    }
                     response.write("data:").write(data).write("\n\n");
                     return this;
                 }
 
                 @Override
                 public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
+                    if (!r.isSuspended()) {
+                        writePadding(response);
+                    }
                     response.write("data:").write(data, offset, length).write("\n\n");
                     return this;
                 }
