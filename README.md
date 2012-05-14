@@ -10,7 +10,7 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 
 ### Quick Start
 
-The Atmosphere's Framework ships with many examples describing how to implements WebSockets, Server Side Events, Long Polling client's application. Take a look at [this page](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-the-samples) to pick the best sample to starts with.
+The Atmosphere's Framework ships with many examples describing how to implements WebSockets, Server Side Events, Long Polling, Http Streaming and JSONP client's application. Take a look at [this page](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-the-samples) to pick the best sample to starts with.
 
 ### To use Atmosphere, add the following dependency:
 ```xml
