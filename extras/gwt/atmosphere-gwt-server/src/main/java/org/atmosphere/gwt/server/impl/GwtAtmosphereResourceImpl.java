@@ -181,12 +181,14 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
      * 1 or more seperate threads
      */
     void resumeAfterDeath() {
-        atmosphereHandler.execute(new Runnable() {
-            @Override
-            public void run() {
-                atmResource.resume();
-            }
-        });
+        if (atmosphereHandler != null) {
+            atmosphereHandler.execute(new Runnable() {
+                @Override
+                public void run() {
+                    atmResource.resume();
+                }
+            });
+        }
     }
 
     @Override
