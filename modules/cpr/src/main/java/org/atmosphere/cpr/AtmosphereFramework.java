@@ -372,7 +372,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Path specific container using their own property.
      */
-    public void patchContainer(){
+    public void patchContainer() {
         System.setProperty("org.apache.catalina.STRICT_SERVLET_COMPLIANCE", "false");
     }
 
@@ -455,6 +455,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Configure the list of {@link AtmosphereInterceptor}.
+     *
      * @param sc a ServletConfig
      */
     protected void configureAtmosphereConfig(ServletConfig sc) {
@@ -895,9 +896,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
      * @param asyncSupport
      * @return
+     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
      */
     public AtmosphereFramework setCometSupport(AsyncSupport asyncSupport) {
         return setAsyncSupport(asyncSupport);
@@ -915,8 +916,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Return the current {@link AsyncSupport}
      *
-     * @deprecated Use getAsyncSupport
      * @return the current {@link AsyncSupport}
+     * @deprecated Use getAsyncSupport
      */
     public AsyncSupport getCometSupport() {
         return asyncSupport;
@@ -1087,6 +1088,13 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws ServletException
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+        String originalRequestURI = (String) req.getAttribute("javax.servlet.forward.request_uri");
+        if (originalRequestURI != null && req.getAttribute(ATMOSPHERE_CONFIG) != null) {
+            // TODO: This is not right to dispatch all to jsp
+            servletConfig.getServletContext().getNamedDispatcher("jsp").forward(req, res);
+            return Action.CONTINUE;
+        }
+
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
@@ -1099,7 +1107,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         Action a = null;
         try {
             boolean skip = true;
-            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) ;
+            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
             if (s != null) {
                 skip = Boolean.valueOf(s);
             }
@@ -1111,15 +1119,15 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 req.headers(headers)
-                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+                        .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
 
                 if (body != null) {
-                   req.body(body);
+                    req.body(body);
                 }
             }
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed") )) {
+            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
@@ -1199,7 +1207,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @return {@link BroadcasterFactory}
      */
-    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory)  {
+    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) {
         this.broadcasterFactory = broadcasterFactory;
         configureBroadcaster();
         return this;
@@ -1219,7 +1227,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param broadcasterCacheClassName
      */
-    public void setBroadcasterCacheClassName(String broadcasterCacheClassName)  {
+    public void setBroadcasterCacheClassName(String broadcasterCacheClassName) {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
         configureBroadcaster();
     }
@@ -1331,9 +1339,10 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the list of {@link AtmosphereInterceptor}
+     *
      * @return the list of {@link AtmosphereInterceptor}
      */
-    public LinkedList<AtmosphereInterceptor> interceptors(){
+    public LinkedList<AtmosphereInterceptor> interceptors() {
         return interceptors;
     }
 }
