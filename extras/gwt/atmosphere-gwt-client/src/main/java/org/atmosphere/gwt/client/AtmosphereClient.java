@@ -116,7 +116,7 @@ public class AtmosphereClient {
     }
 
     public AtmosphereClient(String url, AtmosphereGWTSerializer serializer, AtmosphereListener listener) {
-        this(url, serializer, listener, false);
+        this(url, serializer, listener, true);
     }
 
     public AtmosphereClient(String url, AtmosphereGWTSerializer serializer, AtmosphereListener listener, boolean webSocketsEnabled) {

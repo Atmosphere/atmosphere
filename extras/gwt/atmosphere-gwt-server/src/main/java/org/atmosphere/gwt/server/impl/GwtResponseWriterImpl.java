@@ -128,10 +128,12 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         OutputStream outputStream = getResponse().getOutputStream();
         outputStream = getOutputStream(outputStream);
 
-        String acceptEncoding = getRequest().getHeader("Accept-Encoding");
-        if (acceptEncoding != null && acceptEncoding.contains("deflate")) {
-            getResponse().setHeader("Content-Encoding", "deflate");
-            outputStream = new DeflaterOutputStream(outputStream);
+        if (supportsDeflate()) {
+            String acceptEncoding = getRequest().getHeader("Accept-Encoding");
+            if (acceptEncoding != null && acceptEncoding.contains("deflate")) {
+                getResponse().setHeader("Content-Encoding", "deflate");
+                outputStream = new DeflaterOutputStream(outputStream);
+            }
         }
 
         writer = new OutputStreamWriter(outputStream, "UTF-8");
@@ -142,7 +144,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         getRequest().setAttribute("connectionID", connectionID);
         scheduleHeartbeat();
     }
-
+    
     public void suspend() throws IOException {
         try {
             synchronized (this) {
@@ -286,6 +288,11 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     protected abstract void doHeartbeat() throws IOException;
 
     protected abstract void doTerminate() throws IOException;
+
+    
+    protected boolean supportsDeflate() {
+        return true;
+    }
 
     protected boolean hasSession() {
         HttpSession session = resource.getSession(false);

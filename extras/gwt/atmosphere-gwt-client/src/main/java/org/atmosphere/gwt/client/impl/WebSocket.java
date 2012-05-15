@@ -37,7 +37,7 @@ public class WebSocket extends JavaScriptObject {
     public static native WebSocket create(String url) /*-{
         if ($wnd.WebSocket) {
             return new WebSocket(url);
-        } else if (!$wnd.MozWebSocket) {
+        } else if ($wnd.MozWebSocket) {
             return new MozWebSocket(url);
         }
     }-*/;
@@ -45,7 +45,7 @@ public class WebSocket extends JavaScriptObject {
     public static native WebSocket create(String url, String protocol) /*-{
         if ($wnd.WebSocket) {
             return new WebSocket(url, protocol);
-        } else if (!$wnd.MozWebSocket) {
+        } else if ($wnd.MozWebSocket) {
             return new MozWebSocket(url, protocol);
         }
     }-*/;
@@ -101,11 +101,7 @@ public class WebSocket extends JavaScriptObject {
 
 
     public native static boolean isSupported() /*-{
-        if (!$wnd.WebSocket && !$wnd.MozWebSocket) {
-            return false;
-        } else {
-            return true;
-        }
+        return $wnd.WebSocket || $wnd.MozWebSocket;
     }-*/;
 
 }
