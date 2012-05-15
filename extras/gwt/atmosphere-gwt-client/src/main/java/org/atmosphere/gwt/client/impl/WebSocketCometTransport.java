@@ -46,18 +46,22 @@ import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereClientException;
 
 import java.util.Collections;
+import java.util.logging.Logger;
 
 /**
  * @author p.havelaar
  */
 public class WebSocketCometTransport extends BaseCometTransport {
 
+    private final static Logger logger = Logger.getLogger(WebSocketCometTransport.class.getName());
+    
     @Override
     public void connect(int connectionCount) {
         disconnect();
         String url = getUrl(connectionCount);
         url = url.replaceFirst("http://", "ws://");
         url = url.replaceFirst("https://", "wss://");
+        logger.fine("Creating websocket with url: " + url);
         socket = WebSocket.create(url);
         socket.setListener(socketListener);
     }
@@ -89,41 +93,41 @@ public class WebSocketCometTransport extends BaseCometTransport {
     }
 
     private void parseMessage(String message) {
-        if (message.startsWith("s\n")) {
+        if (message.startsWith("s;")) {
             // a string message
             listener.onMessage(Collections.singletonList(
-                    HTTPRequestCometTransport.unescape(message.substring(2))));
-        } else if (message.startsWith("o\n")) {
+                    message.substring(2)));
+        } else if (message.startsWith("o;")) {
             // a GWT object message
             try {
                 listener.onMessage(Collections.singletonList(parse(message.substring(2))));
             } catch (SerializationException e) {
                 listener.onError(e, true);
             }
-        } else if (message.startsWith("c\n")) {
+        } else if (message.startsWith("c;")) {
             // a connection message
             onConnection(message.substring(2));
         }
     }
 
     private void onConnection(String message) {
-        if (message.startsWith("c")) {
+        if (message.startsWith("c;")) {
             connected = true;
-            String initParameters = message.substring(1);
+            String initParameters = message.substring(2);
             try {
-                String[] params = initParameters.split(":");
+                String[] params = initParameters.split(";");
                 connectionId = Integer.parseInt(params[1]);
                 listener.onConnected(Integer.parseInt(params[0]), connectionId);
             } catch (NumberFormatException e) {
                 listener.onError(new AtmosphereClientException("Unexpected init parameters: " + initParameters), true);
             }
-        } else if (message.startsWith("e")) {
+        } else if (message.startsWith("e;")) {
             disconnect();
-            String status = message.substring(1);
+            String status = message.substring(2);
             try {
                 int statusCode;
                 String statusMessage;
-                int index = status.indexOf(' ');
+                int index = status.indexOf(';');
                 if (index == -1) {
                     statusCode = Integer.parseInt(status);
                     statusMessage = null;
@@ -150,11 +154,12 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
         @Override
         public void onOpen(WebSocket socket) {
-
+            logger.fine("Websocket connection opened");
         }
 
         @Override
         public void onClose(WebSocket socket) {
+            logger.fine("Websocket connection closed");
             connected = false;
             listener.onDisconnected();
         }
@@ -167,7 +172,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
         @Override
         public void onMessage(WebSocket socket, String message) {
-            JsArrayString messages = AtmosphereClient.split(message, "\n\n");
+            JsArrayString messages = AtmosphereClient.split(message, "#@@#");
             int len = messages.length();
             for (int i = 0; i < len; i++) {
                 parseMessage(messages.get(i));

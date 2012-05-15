@@ -29,6 +29,8 @@ import java.util.List;
  * @author p.havelaar
  */
 public class WebsocketResponseWriter extends GwtResponseWriterImpl {
+    
+    private final static String MESSAGE_SEPERATOR = "#@@#";
 
     public WebsocketResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
         super(resource, serializationPolicy, clientOracle);
@@ -41,19 +43,26 @@ public class WebsocketResponseWriter extends GwtResponseWriterImpl {
 
         super.initiate();
 
-        writer.append("c\nc")
-                .append(String.valueOf(resource.getHeartBeatInterval())).append(':')
-                .append(String.valueOf(connectionID)).append("\n\n");
+        writer.append("c;c;")
+                .append(String.valueOf(resource.getHeartBeatInterval())).append(';')
+                .append(String.valueOf(connectionID)).append(MESSAGE_SEPERATOR);
+    }
+
+    @Override
+    protected boolean supportsDeflate() {
+        return false;
     }
 
     @Override
     protected void doSendError(int statusCode, String message) throws IOException {
 //		getResponse().setContentType("application/x-dom-event-stream");
-        writer.append("c\ne").append(String.valueOf(statusCode));
+        writer.append("c;e;").append(String.valueOf(statusCode));
+                
         if (message != null) {
-            writer.append(' ').append(HTTPRequestResponseWriter.escape(message));
+            writer.append(";").append(message);
         }
-        writer.append("\n\n");
+        
+        writer.append(MESSAGE_SEPERATOR);
     }
 
     @Override
@@ -66,25 +75,25 @@ public class WebsocketResponseWriter extends GwtResponseWriterImpl {
             CharSequence string;
             char event;
             if (message instanceof CharSequence) {
-                string = HTTPRequestResponseWriter.escape((CharSequence) message);
+                string = (CharSequence) message;
                 event = 's';
             } else {
                 string = serialize(message);
                 event = 'o';
             }
-            writer.append(event).append('\n');
-            writer.append(string).append("\n\n");
+            writer.append(event).append(";");
+            writer.append(string).append(MESSAGE_SEPERATOR);
         }
     }
 
     @Override
     protected void doHeartbeat() throws IOException {
-        writer.append("c\nh\n\n");
+        writer.append("c;h").append(MESSAGE_SEPERATOR);
     }
 
     @Override
     public void doTerminate() throws IOException {
-        writer.append("c\nd\n\n");
+        writer.append("c;d").append(MESSAGE_SEPERATOR);
     }
 
 }
