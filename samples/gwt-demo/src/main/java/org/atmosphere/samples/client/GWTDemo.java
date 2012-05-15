@@ -42,6 +42,8 @@ import java.util.logging.Logger;
 public class GWTDemo implements EntryPoint {
 
     static final Logger logger = Logger.getLogger(GWTDemo.class.getName());
+
+    int count = 0;
     
     PollAsync polling = GWT.create(Poll.class);
     AtmosphereClient client;
@@ -55,7 +57,7 @@ public class GWTDemo implements EntryPoint {
         button.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                sendMessage();
+                client.broadcast(new Event(count++, "Send from client using broadcast"));
             }
         });
 
@@ -63,7 +65,7 @@ public class GWTDemo implements EntryPoint {
         post.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                client.post(new Event(count++, "This was send using the post mechanism"));
+                client.post(new Event(count++, "Send from client using post"));
             }
         });
 
@@ -154,6 +156,7 @@ public class GWTDemo implements EntryPoint {
                 statuscode = ((StatusCodeException) exception).getStatusCode();
             }
             logger.log(Level.SEVERE, "comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
+            client.stop();
             toggleStartStop(false);
         }
 
@@ -196,9 +199,4 @@ public class GWTDemo implements EntryPoint {
         client.start();
     }
 
-    static int count = 0;
-
-    public void sendMessage() {
-        client.broadcast(new Event(count++, "Button clicked!"));
-    }
 }

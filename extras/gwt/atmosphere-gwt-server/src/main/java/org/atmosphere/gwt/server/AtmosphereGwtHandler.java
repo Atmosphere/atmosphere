@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.atmosphere.cpr.FrameworkConfig;
 
 /**
  * @author p.havelaar
@@ -178,12 +179,22 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         HttpServletRequest request = resource.getRequest();
 
         String servertransport = request.getParameter("servertransport");
+        Object webSocketSubProtocol = resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
         if ("rpcprotocol".equals(servertransport)) {
+            
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
             doServerMessage(request, resource.getResponse(), connectionID);
             return;
+            
+        } else if (webSocketSubProtocol != null 
+                  && webSocketSubProtocol.equals(FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET)) {
+        
+            Integer connectionID = (Integer) request.getAttribute(AtmosphereGwtHandler.class.getName() 
+                                        + ".connectionID");
+            doServerMessage(request, resource.getResponse(), connectionID);
+            return;
         }
-
+        
         try {
             int requestHeartbeat = heartbeat;
             String requestedHeartbeat = request.getParameter("heartbeat");
@@ -200,6 +211,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             }
 
             GwtAtmosphereResourceImpl resourceWrapper = new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat);
+            request.setAttribute(AtmosphereGwtHandler.class.getName() + ".connectionID", 
+                    (Integer) resourceWrapper.getConnectionID());
             doCometImpl(resourceWrapper);
         } catch (IOException e) {
 //            GwtAtmosphereResourceImpl resource = new GwtAtmosphereResourceImpl(atm, this, -1);
