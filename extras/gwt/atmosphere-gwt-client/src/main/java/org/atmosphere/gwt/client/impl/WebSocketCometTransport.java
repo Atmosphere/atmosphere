@@ -40,8 +40,11 @@
 package org.atmosphere.gwt.client.impl;
 
 import com.google.gwt.core.client.JsArrayString;
+import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.client.rpc.StatusCodeException;
+import java.io.Serializable;
+import java.util.List;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereClientException;
 
@@ -77,8 +80,17 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     @Override
     protected ServerTransport getServerTransport() {
-        // TODO use WebSocket send. at the moment server does not receive yet
-        return super.getServerTransport();
+        return new ServerTransportProtocol() {
+            @Override
+            void send(String message, AsyncCallback<Void> callback) {
+                socket.send(message);
+                callback.onSuccess(null);
+            }
+            @Override
+            String serialize(Serializable message) throws SerializationException {
+                return client.getSerializer().serialize(message);
+            }
+        };
     }
 
     public static boolean hasWebSocketSupport() {
