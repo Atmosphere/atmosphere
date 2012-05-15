@@ -36,7 +36,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 [Which Atmosphere API should I use for my project?](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
-[What's new in Atmosphere 0.9](http://jfarcand.wordpress.com/2012/04/12/atmosphere-9-9-9-9-released-tomcatglassfish-websocket-netty-framework-hazelcast-fluid-api-jquery-optimization/)
+[Writing HTML5 Server Side Events using Atmosphere](http://jfarcand.wordpress.com/2012/05/14/writing-portable-html5-server-side-evens-application-using-the-atmosphere-framework/)
 
 [Comet/WebSocket? Introducing the Atmosphere framework](http://www.ncolomer.net/2012/03/comewebsocket-introducing-the-atmosphere-framework/)
 
