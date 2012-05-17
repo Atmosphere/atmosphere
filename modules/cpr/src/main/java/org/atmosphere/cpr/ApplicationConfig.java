@@ -257,4 +257,8 @@ public interface ApplicationConfig {
      * gets delivered to an application or framework
      */
     String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.class.getName();
+    /**
+     * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}
+     */
+    String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.class.getName() + ".excludes";
 }
