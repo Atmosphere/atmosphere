@@ -33,6 +33,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void getSessionIDTest() throws Throwable {
+		System.err.println("\n\nTEST getSessionIDTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -44,6 +45,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void connectJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST connectJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -56,6 +58,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void idleJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST idleJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -85,6 +88,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void loginJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST loginJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -99,6 +103,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void loginDuplicateUsernameJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST loginDuplicateUsernameJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -121,6 +126,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void multipleLoginJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST multipleLoginJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -145,6 +151,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void disconnectGetJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST disconnectGetJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -161,6 +168,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void disconnectPostJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST disconnectPostJSONPollingTest\n\n");
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -192,6 +200,8 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void broadcastJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST broadcastJSONPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -245,6 +255,8 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void broadcastDisconnectJSONPollingTest() throws Throwable {
+		System.err.println("\n\nTEST broadcastDisconnectJSONPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);

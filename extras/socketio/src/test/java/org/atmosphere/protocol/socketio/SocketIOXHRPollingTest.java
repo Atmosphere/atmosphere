@@ -15,6 +15,7 @@
  */
 package org.atmosphere.protocol.socketio;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +35,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void getSessionIDTest() throws Throwable {
+		System.err.println("\n\nTEST getSessionIDTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -45,6 +48,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void connectXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST connectXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -57,6 +62,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void idleXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST idleXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -86,6 +93,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void loginXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST loginXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -100,6 +109,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void loginDuplicateUsernameXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST loginDuplicateUsernameXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -122,6 +133,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void multipleLoginXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST multipleLoginXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -146,6 +159,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void disconnectGetXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST disconnectGetXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -162,6 +177,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void disconnectPostXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST disconnectPostXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -193,6 +210,8 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void broadcastXHRPollingTest() throws Throwable {
+		System.err.println("\n\nTEST broadcastXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
@@ -217,9 +236,39 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 			public void notify(String message) {
 				log.info("clientXHRPolling1 message received = " + message);
 				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1::");
+				
+				List<SocketIOPacketImpl> messages = null;
+				try {
+					messages = SocketIOPacketImpl.parse(message);
+				} catch (SocketIOException e1) {
+					e1.printStackTrace();
+				}
+				
+				if(messages==null || messages.isEmpty()){
+					return;
+				}
+				
+				for (SocketIOPacketImpl msg : messages) {
+					
+					String data = msg.toString();
+					switch(msg.getFrameType()){
+						case EVENT : 
+							
+							break;
+						default:
+							try {
+								newSuspendConnection("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, this);
+							} catch (Throwable e) {
+								e.printStackTrace();
+							}
+							
+					}
+					
+				}
 			}
 		});
+		
+		final CountDownLatch latchGet = new CountDownLatch(1);
 		
 		suspend("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, new ResponseListener() {
 			@Override
@@ -227,14 +276,41 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 				log.info("broadcastXHRPollingTest clientXHRPolling2 message received = " + message);
 				Assert.assertNotNull(message);
 				
-				System.err.println("broadcastXHRPollingTest byte=" + message.getBytes());
-				
-				if(message.charAt(0)==SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
-					System.err.println("Multi-message");
+				List<SocketIOPacketImpl> messages = null;
+				try {
+					messages = SocketIOPacketImpl.parse(message);
+				} catch (SocketIOException e1) {
+					e1.printStackTrace();
 				}
 				
+				if(messages==null || messages.isEmpty()){
+					return;
+				}
 				
-				Assert.assertEquals(message, "5:::{\"name\":\"user message\",\"args\":[\"message1 from " + username + "\"]}");
+				for (SocketIOPacketImpl msg : messages) {
+					
+					String data = msg.toString();
+					switch(msg.getFrameType()){
+						case EVENT : 
+							// message from another user
+							if(data.contains("5:::{\"name\":\"user message\",\"args\":[\"") && data.contains("message1 from " + username + "\"]}")){
+								latchGet.countDown();
+							} 
+							break;
+						default:
+							
+					}
+					
+				}
+				
+				if(latchGet.getCount()>0){
+					try {
+						newSuspendConnection("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, this);
+					} catch (Throwable e) {
+						e.printStackTrace();
+					}
+				}
+				
 			}
 		});
 		
@@ -244,9 +320,14 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 			public void notify(String message) {
 				log.info("broadcastXHRPollingTest clientXHRPolling1 message received = " + message);
 				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1::");
+				//Assert.assertEquals(message, "1::");
+				Assert.assertEquals(message, "1");
 			}
 		});
+		
+		if (!latchGet.await(30, TimeUnit.SECONDS)) {
+            throw new RuntimeException("Timeout out broadcastXHRPollingTest");
+        }
 		
 		client.close();
 		client2.close();
@@ -254,6 +335,9 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void broadcastDisconnectXHRPollingTest() throws Throwable {
+		
+		System.err.println("\n\nTEST broadcastDisconnectXHRPollingTest\n\n");
+		
 		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);

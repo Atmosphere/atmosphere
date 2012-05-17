@@ -18,6 +18,7 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOPacket;
 
 /**
@@ -154,70 +155,123 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 			}
 		}
 	}
-
-	public static List<SocketIOPacketImpl> parse(String data) {
+	
+	private static SocketIOPacketImpl parse2(String data) throws SocketIOException {
+		
+		try {
+			String array[] = data.split(":");
+			
+			if(array.length<1){
+				System.err.println("Message invalide=" + data);
+				return null;
+			}
+			
+			String type = null;
+			String id = null;
+			String endpoint= null;
+			String message = null;
+			
+			//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 
+			
+			// 0::/test
+			// 1::/test?my=param
+			// 2::
+			// 3:1::blabla
+			// 4:1::{"a":"b"}
+			// 5:::{"args":["user1","user2 ecrit coucou"],"name":"user message"}
+			// 6:::4+["A","B"]  ou 6:::4
+			// '7::' [endpoint] ':' [reason] '+' [advice]
+			// 8 .. pas d'exemple
+			
+			if(array.length==1){
+				type = array[0];
+			} else if(array.length==2){
+				type = array[0];
+				id = array[1];
+			} else if(array.length==3){
+				type = array[0];
+				id = array[1];
+				endpoint= array[2];
+			} else {
+				
+				type = array[0];
+				id = array[1];
+				endpoint= array[2];
+				
+				// maintenant, il faut extraire le message s'il y en a un
+				
+				// on saute les 3 premiers ":" pour chercher s'il y a un message
+				
+				int start = data.indexOf(":");
+				
+				start = data.indexOf(":", ++start);
+				start = data.indexOf(":", ++start);
+				
+				if(start>-1){
+					message = data.substring(start+1);
+				}
+			}
+			
+			return new SocketIOPacketImpl(PacketType.fromInt(Integer.parseInt(type)), id, endpoint, message);
+		} catch(Exception e){
+			throw new SocketIOException("Invalid message = " + data, e);
+		}
+	}
+	
+	public static List<SocketIOPacketImpl> parse(String data) throws SocketIOException {
 		List<SocketIOPacketImpl> messages = new ArrayList<SocketIOPacketImpl>();
 
 		if(data==null || data.length()==0){
 			return messages;
 		}
 		
-		String array[] = data.split(":");
 		
-		if(array.length<1){
-			System.err.println("Message invalide=" + data);
-			return messages;
-		}
-		
-		String type = null;
-		String id = null;
-		String endpoint= null;
-		String message = null;
-		
-		//[message type] ':' [message id ('+')] ':' [message endpoint] (':' [message data]) 
-		
-		// 0::/test
-		// 1::/test?my=param
-		// 2::
-		// 3:1::blabla
-		// 4:1::{"a":"b"}
-		// 5:::{"args":["user1","user2 ecrit coucou"],"name":"user message"}
-		// 6:::4+["A","B"]  ou 6:::4
-		// '7::' [endpoint] ':' [reason] '+' [advice]
-		// 8 .. pas d'exemple
-		
-		if(array.length==1){
-			type = array[0];
-		} else if(array.length==2){
-			type = array[0];
-			id = array[1];
-		} else if(array.length==3){
-			type = array[0];
-			id = array[1];
-			endpoint= array[2];
-		} else {
+		try {
+			// regardons si nous avons des messages separes par des delimiteurs
 			
-			type = array[0];
-			id = array[1];
-			endpoint= array[2];
+			if(data.charAt(0) == SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
+				
+				int size = data.length();
+				int previousDelimiterIndex = 1;
+				int nextDelimiterIndex = -1;
+				
+				// on trouve le prochain delimiter
+				for(int i=1;i<size;i++){
+					for(;i<size;i++){
+						if(data.charAt(i) == SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
+							nextDelimiterIndex = i;
+							break;
+						}
+					}
+					
+					if(nextDelimiterIndex>previousDelimiterIndex){
+						int length = Integer.parseInt(data.substring(previousDelimiterIndex, nextDelimiterIndex));
+						
+						i = ++nextDelimiterIndex + length;
+						previousDelimiterIndex = i+1;
+						
+						SocketIOPacketImpl msg = parse2(data.substring(nextDelimiterIndex, i));
+						
+						if(msg!=null){
+							messages.add(msg);
+						}
+						
+					}
+				}
+				
+			} else {
 			
-			// maintenant, il faut extraire le message s'il y en a un
-			
-			// on saute les 3 premiers ":" pour chercher s'il y a un message
-			
-			int start = data.indexOf(":");
-			
-			start = data.indexOf(":", ++start);
-			start = data.indexOf(":", ++start);
-			
-			if(start>-1){
-				message = data.substring(start+1);
+				SocketIOPacketImpl msg = parse2(data);
+				
+				if(msg!=null){
+					messages.add(msg);
+				}
 			}
+			
+			return messages;
+		} catch(Exception e){
+			throw new SocketIOException("Invalid message=" + data, e);
 		}
-		
-		messages.add(new SocketIOPacketImpl(PacketType.fromInt(Integer.parseInt(type)), id, endpoint, message));
-		
-		return messages;
 	}
 	
 	public static void main(String[] args) throws Exception {

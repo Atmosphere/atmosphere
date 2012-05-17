@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOSession;
 import org.atmosphere.protocol.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl.PacketType;
@@ -108,13 +109,21 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 				sessionWrapper.getSession().onShutdown();
 			}
 		} else {
-			List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse(event.message());
-			
-			SocketIOSession session = sessionWrapper.getSession();
-			for (SocketIOPacketImpl msg: messages) {
-				//sessionWrapper.getSession().onMessage(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper, msg);
-				session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
+			List<SocketIOPacketImpl> messages = null;
+			try {
+				messages = SocketIOPacketImpl.parse(event.message());
+			} catch (SocketIOException e) {
+				e.printStackTrace();
 			}
+			
+			if(messages!=null && !messages.isEmpty()){
+				SocketIOSession session = sessionWrapper.getSession();
+				for (SocketIOPacketImpl msg: messages) {
+					//sessionWrapper.getSession().onMessage(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper, msg);
+					session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
+				}
+			}
+			
 		}
 	}
 	

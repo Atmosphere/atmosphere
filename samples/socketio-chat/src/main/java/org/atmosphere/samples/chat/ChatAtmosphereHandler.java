@@ -188,12 +188,14 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 
 				request.getSession().setAttribute("LOGINNAME", chat.getArgs().toArray()[0]);
 
+				
+				String username = (String) chat.getArgs().toArray()[0];
 				// est-il deja loggé ?
-				if (loggedUserMap.containsKey(chat.getArgs().toArray()[0])) {
+				if (loggedUserMap.containsValue(username)) {
 					outbound.sendMessage(new SocketIOPacketImpl(PacketType.ACK, "1+[true]").toString());
 				} else {
 					//loggedUserMap.put((String) chat.getArgs().toArray()[0], (String) chat.getArgs().toArray()[0]);
-					loggedUserMap.put(outbound.getSessionId(), (String) chat.getArgs().toArray()[0]);
+					loggedUserMap.put(outbound.getSessionId(), username);
 
 					try {
  

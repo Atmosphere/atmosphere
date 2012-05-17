@@ -107,7 +107,19 @@ public abstract class XHRTransport extends AbstractTransport {
     					case ACK:
     					case ERROR:
     						msg.setPadding(messages.size()>1);
-    						sendMessage(msg.toString());
+						try {
+							sendMessage(msg.toString());
+						} catch (Exception e) {
+							// on va chercher le resource
+							AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
+							
+							// on met le message dans le BroadcastCache
+							if(resource!=null && DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
+								
+								DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.addToCache(resource, msg);
+								
+							}
+						}
     						break;
     					default:
     						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
@@ -133,7 +145,10 @@ public abstract class XHRTransport extends AbstractTransport {
 						} catch (Exception e) {
 							// possible que la connection soit fermee.
 							// ex : browser ferme.
-							e.printStackTrace();
+							//e.printStackTrace();
+							
+							// TODO on doit remettre le message dans la queue si c'est utile
+							// genre ne pas mettre les heartbeat et ping
 							
 							// DEBUG, je pense que tout ce bout est inutile
 							// car il y a eu une erreur lors de l'envoi
@@ -142,7 +157,7 @@ public abstract class XHRTransport extends AbstractTransport {
 								try {
 									finishSend(resource.getResponse());
 								} catch (IOException ex) {
-									ex.printStackTrace();
+									//ex.printStackTrace();
 								}
 								
 								resource.resume();
@@ -153,7 +168,7 @@ public abstract class XHRTransport extends AbstractTransport {
 							try {
 								finishSend(resource.getResponse());
 							} catch (IOException e) {
-								e.printStackTrace();
+								//e.printStackTrace();
 							}
 							resource.resume();
 						} else {
@@ -183,6 +198,8 @@ public abstract class XHRTransport extends AbstractTransport {
 
 		@Override
 		public Action handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
+			logger.warn("Session id[" + session.getSessionId()+ "] method=" + request.getMethod() + "  response HashCode=" + response.hashCode());
+			
 			if ("GET".equals(request.getMethod())) {
 				synchronized (this) {
 					AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
@@ -305,6 +322,7 @@ public abstract class XHRTransport extends AbstractTransport {
 									
 									if(msg.getFrameType().equals(SocketIOPacketImpl.PacketType.EVENT)){
 										
+										// ecrit sur la connection en suspend
 										session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 										//session.getAtmosphereResourceImpl().resume();
 										writeData(response, SocketIOPacketImpl.POST_RESPONSE);

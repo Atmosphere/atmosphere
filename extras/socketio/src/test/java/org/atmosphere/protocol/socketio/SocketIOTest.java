@@ -16,6 +16,8 @@
 package org.atmosphere.protocol.socketio;
 
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,6 +33,7 @@ import com.ning.http.client.AsyncHttpClientConfig;
 import com.ning.http.client.HttpResponseBodyPart;
 import com.ning.http.client.Response;
 import com.ning.http.client.providers.grizzly.GrizzlyAsyncHttpProvider;
+import com.ning.http.client.providers.netty.NettyAsyncHttpProvider;
 import com.ning.http.client.websocket.WebSocket;
 import com.ning.http.client.websocket.WebSocketTextListener;
 import com.ning.http.client.websocket.WebSocketUpgradeHandler;
@@ -41,7 +44,7 @@ import com.ning.http.client.websocket.WebSocketUpgradeHandler;
  *
  */
 public abstract class SocketIOTest {
-	protected final Logger log = LoggerFactory.getLogger(SocketIOTest.class);
+	protected static final Logger log = LoggerFactory.getLogger(SocketIOTest.class);
 	
 	public static final String GET_SESSION_URL = "http://localhost:8080/atmosphere-socketio-chat/ChatAtmosphereHandler/1/";
 	public static final String WS_GET_SESSION_URL = "ws://localhost:8080/atmosphere-socketio-chat/ChatAtmosphereHandler/1/";
@@ -71,7 +74,8 @@ public abstract class SocketIOTest {
         if (config == null) {
             config = new AsyncHttpClientConfig.Builder().build();
         }
-        return new AsyncHttpClient(new GrizzlyAsyncHttpProvider(config), config);
+        //return new AsyncHttpClient(new GrizzlyAsyncHttpProvider(config), config);
+        return new AsyncHttpClient(new NettyAsyncHttpProvider(config), config);
     }
     
     
@@ -105,7 +109,8 @@ public abstract class SocketIOTest {
     
     public static void suspend(final String name, final AsyncHttpClient client, final String url, final ResponseListener listener) throws Throwable {
     	
-    	System.err.println("Name = " + name + " go in suspend mode");
+    	//System.err.println("Name = " + name + " go in suspend mode");
+    	log.debug(name + " go in suspend mode");
     	
     	Thread t = new Thread() {
             public void run() {
@@ -115,29 +120,34 @@ public abstract class SocketIOTest {
 
             			@Override
             			public com.ning.http.client.AsyncHandler.STATE onBodyPartReceived( HttpResponseBodyPart content) throws Exception {
+            				/*
             				try {
                             	String body = new String(content.getBodyPartBytes());
                             	System.err.println("suspend Name = " + name + " onBodyPartReceived=" + body);
                             	
                             	if(listener!=null){
                             		listener.notify(body);
-                            	}
+                            	} 
                             	
                             } finally {
                             }
+                            */
             				return super.onBodyPartReceived(content);
             			}
             			
                         @Override
                         public Response onCompleted(Response response) throws Exception {
-                            try {
-                            	String body = response.getResponseBody();
-                            	System.err.println("suspend Name = " + name + " Body=" + body);
+                            
+                        	try {
+                        		String body = new String(response.getResponseBodyAsBytes(), "UTF-8");
+                            	//System.err.println("suspend Name = " + name + " Body=" + body);
+                        		log.debug(name + " Suspend onCompleted Body=" + body);
                             	if(listener!=null){
                             		listener.notify(body);
                             	}
                             } finally {
                             }
+                            
                             return response;
                         }
                     }).get();
@@ -145,7 +155,6 @@ public abstract class SocketIOTest {
                 } catch (InterruptedException e1) {
                 } catch (Exception e) {
                 	e.printStackTrace();
-                	Assert.fail();
                 }
             }
         };
@@ -208,7 +217,8 @@ public abstract class SocketIOTest {
     
     public static void sendMessage(final String name, final AsyncHttpClient client, final String url, final String message, final ResponseListener listener) throws Throwable {
     	
-    	System.err.println("Name=" + name + " HXR-Polling Sending message = " + message);
+    	//System.err.println("Name=" + name + " HXR-Polling Sending message = " + message);
+    	log.debug(name + " HXR-Polling Sending message = " + message);
     	
     	Thread t = new Thread() {
             public void run() {
@@ -255,7 +265,7 @@ public abstract class SocketIOTest {
 		
     }
     
-    protected void connect(String name, final AsyncHttpClient client, final String url) throws Throwable {
+    protected void connect(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
 		// fait un connect
@@ -263,7 +273,7 @@ public abstract class SocketIOTest {
 			
 			@Override
 			public void notify(String message) {
-				log.info("Connect message received = " + message);
+				log.info("Connect [" + name + "] message received = " + message);
 				l.countDown();
 				Assert.assertNotNull(message);
 				Assert.assertEquals(message, "1::");
@@ -271,12 +281,12 @@ public abstract class SocketIOTest {
 		});
 		
 		if (!l.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out");
+            throw new RuntimeException("Timeout out Connect from user=[" + name + "]");
         }
     	
     }
     
-    protected void connectJSONP(String name, final AsyncHttpClient client, final String url) throws Throwable {
+    protected void connectJSONP(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
 		// fait un connect
@@ -284,7 +294,7 @@ public abstract class SocketIOTest {
 			
 			@Override
 			public void notify(String message) {
-				log.info("Connect message received = " + message);
+				log.info("Connect [" + name + "] message received = " + message);
 				l.countDown();
 				Assert.assertNotNull(message);
 				Assert.assertEquals(message, "io.j[0](\"1::\");");
@@ -297,7 +307,7 @@ public abstract class SocketIOTest {
     	
     }
     
-    protected void disconnect(String name, final AsyncHttpClient client, final String url) throws Throwable {
+    protected void disconnect(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
 		// fait un connect
@@ -305,7 +315,7 @@ public abstract class SocketIOTest {
 			
 			@Override
 			public void notify(String message) {
-				log.info("disconnect message received = " + message);
+				log.info("disconnect [" + name + "] message received = " + message);
 				l.countDown();
 				Assert.assertNotNull(message);
 				Assert.assertEquals(message, "1::");
@@ -318,63 +328,105 @@ public abstract class SocketIOTest {
     	
     }
     
-    protected void login(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique) throws Throwable{
-    	final CountDownLatch latchGet = new CountDownLatch(1);
-    	final CountDownLatch latchGet2 = new CountDownLatch(1);
+    private void newSuspendConnection(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique, ResponseListener responseListener) throws Throwable {
+    	//suspend une connection
+    	suspend(name, client, url, responseListener);
+    }
+    
+    protected void newSuspendConnection(final String name, final AsyncHttpClient client, final String url, ResponseListener responseListener) throws Throwable {
+    	
+    	System.err.println("newSuspendConnection name [" + name + "]");
+    	//suspend une connection
+    	suspend(name, client, url, responseListener);
+    }
+    
+    protected void login(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique) throws Throwable {
+    	final CountDownLatch latchGet = new CountDownLatch(2);
+    	//final CountDownLatch latchGet2 = new CountDownLatch(1);
     	final CountDownLatch latchPost = new CountDownLatch(1);
     	
     	// fait un connect
     	connect(name, client, url);
     	
-    	//suspend une connection
-    	suspend(name, client, url, new ResponseListener() {
+    	final ResponseListener responseListener = new ResponseListener() {
 			@Override
 			public void notify(String message) {
-				log.info("GET login message received = " + message);
-				latchGet.countDown();
+				log.info("GET login [" + name + "] CountDown=" + latchGet.getCount() + "  message received = " + message);
+				
 				Assert.assertNotNull(message);
 				
-				//System.err.println("byte=" + message.getBytes());
-				
-				if(message.charAt(0)==(byte)SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
-					System.err.println("Multi-message");
+				List<SocketIOPacketImpl> messages = null;
+				try {
+					messages = SocketIOPacketImpl.parse(message);
+				} catch (SocketIOException e1) {
+					e1.printStackTrace();
 				}
 				
-				if(usernameUnique){
-					//Assert.assertEquals(message, "6:::1+[false]");
-					Assert.assertTrue(message.contains("6:::1+[false]"));
-				} else {
-					//Assert.assertEquals(message, "6:::1+[true]");
-					Assert.assertTrue(message.contains("6:::1+[true]"));
+				if(messages==null || messages.isEmpty()){
+					return;
 				}
 				
-				// on doit faire une nouvelle connection pour obtenir la suite
-				//suspend une connection
-		    	try {
-					suspend(name, client, url, new ResponseListener() {
-						@Override
-						public void notify(String message) {
-							log.info("GET login message received = " + message);
-							latchGet2.countDown();
-							Assert.assertTrue(message.startsWith("5:::{\"name\":\"nicknames\",\"args\":[{"));
-							Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
-						} 
-					});
-				} catch (Throwable e) {
-					e.printStackTrace();
-					Assert.fail();
+				for (SocketIOPacketImpl msg : messages) {
+					
+					String data = msg.toString();
+					switch(msg.getFrameType()){
+						case ACK : 
+							// LOGIN
+							if(data.contains("6:::1+")){
+								latchGet.countDown();
+								
+								if(usernameUnique){
+									//Assert.assertEquals(message, "6:::1+[false]");
+									Assert.assertTrue(data.contains("6:::1+[false]"));
+								} else {
+									//Assert.assertEquals(message, "6:::1+[true]");
+									Assert.assertTrue(data.contains("6:::1+[true]"));
+									// on doit faire ceci, car pour un duplicate username, on n'envoie pas la liste des users 
+									latchGet.countDown();
+								}
+							} 
+							break;
+						case HEARTBEAT :
+						case DISCONNECT : 
+							break;
+						case EVENT : 
+							// usernames
+							if(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{")){
+								latchGet.countDown();
+								// la liste des users connectes
+								Assert.assertTrue(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{"));
+								//Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
+								Assert.assertTrue(data.contains("\"" + username + "\""));
+							} 
+							break;
+						default:
+							
+					}
+					
 				}
+				
+				log.info("FINISH GET login [" + name + "] CountDown=" + latchGet.getCount());
+				
+				if(latchGet.getCount()>0){
+					try {
+						newSuspendConnection(name, client, url, username,usernameUnique, this);
+					} catch (Throwable e) {
+						e.printStackTrace();
+					}
+				}
+				
 			} 
-		});
+		};
+    	
+    	//suspend une connection
+    	suspend(name, client, url, responseListener);
     	
     	// maintenant on fait login
 		sendMessage(name, client, url, "5:1+::{\"name\":\"nickname\",\"args\":[\"" + username + "\"]}", new ResponseListener() {
 			
-			boolean found = false;
-			
 			@Override
 			public void notify(String message) {
-				log.info("POST login message received = " + message);
+				log.info("POST login [" + name + "] message received = " + message);
 				latchPost.countDown();
 				Assert.assertNotNull(message);
 				Assert.assertEquals(message, "1");
@@ -382,26 +434,26 @@ public abstract class SocketIOTest {
 		});
 		
 		if (!latchGet.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out");
+            throw new RuntimeException("Timeout out Login 1 from user=[" + name + "]");
         }
-		
+		/*
 		if (!latchGet2.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out");
+            
+			throw new RuntimeException("Timeout out Login 2 from user=[" + name + "]");
         }
+        */
 		
 		if (!latchPost.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out");
+            throw new RuntimeException("Timeout out Login 3 from user=[" + name + "]");
         }
     }
     
     protected WebSocketWrapper loginWS(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique) throws Throwable{
-    	final CountDownLatch l = new CountDownLatch(3);
+    	final CountDownLatch l = new CountDownLatch(2);
     	
     	WebSocketWrapper wrapper = new WebSocketWrapper();
     	wrapper.setListener(new WebSocketResponseListener(wrapper) {
 			
-    		boolean isLogged = false;
-    		
 			@Override
 			public void onClose(){
 				System.err.println("onClose called");
@@ -409,36 +461,57 @@ public abstract class SocketIOTest {
 			
 			@Override
 			public void notify(String message) {
-				l.countDown();
-				if(l.getCount()==2){
-					Assert.assertNotNull(message);
-					Assert.assertEquals(message, "1::");
-					// on fait le login
-					try {
-						sendMessage(wrapper.websocket, "5:1+::{\"name\":\"nickname\",\"args\":[\"" + username + "\"]}");
-					} catch (Throwable e) {
-						e.printStackTrace();
+				log.info("WS login [" + name + "] CountDown=" + l.getCount() + "  message received = " + message);
+				Assert.assertNotNull(message);
+				
+				List<SocketIOPacketImpl> messages = null;
+				try {
+					messages = SocketIOPacketImpl.parse(message);
+				} catch (SocketIOException e1) {
+					e1.printStackTrace();
+				}
+				
+				if(messages==null || messages.isEmpty()){
+					return;
+				}
+				
+				for (SocketIOPacketImpl msg : messages) {
+					
+					String data = msg.toString();
+					switch(msg.getFrameType()){
+						case ACK : 
+							// LOGIN
+							if(data.contains("6:::1+")){
+								l.countDown();
+								
+								if(usernameUnique){
+									//Assert.assertEquals(message, "6:::1+[false]");
+									Assert.assertTrue(data.contains("6:::1+[false]"));
+								} else {
+									//Assert.assertEquals(message, "6:::1+[true]");
+									Assert.assertTrue(data.contains("6:::1+[true]"));
+									// on doit faire ceci, car pour un duplicate username, on n'envoie pas la liste des users 
+									l.countDown();
+								}
+							} 
+							break;
+						case HEARTBEAT :
+						case DISCONNECT : 
+							break;
+						case EVENT : 
+							// usernames
+							if(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{")){
+								l.countDown();
+								// la liste des users connectes
+								Assert.assertTrue(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{"));
+								//Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
+								Assert.assertTrue(data.contains("\"" + username + "\""));
+							} 
+							break;
+						default:
+							
 					}
 					
-				} else if(l.getCount()==1){
-					if(usernameUnique){
-						Assert.assertEquals(message, "6:::1+[false]");
-					} else {
-						Assert.assertEquals(message, "6:::1+[true]");
-					}
-				} else if(l.getCount()==0){
-					/*
-					if(!isLogged){
-						Assert.assertTrue(message.startsWith("5:::{\"args\":"));
-						Assert.assertTrue(message.contains(username + " connected"));
-						
-						isLogged = true;
-					} else {
-						Assert.assertTrue(message.startsWith("5:::{\"name\":"));
-					}
-					*/
-				}  else {
-					Assert.fail();
 				}
 				
 			}
@@ -447,10 +520,14 @@ public abstract class SocketIOTest {
     	// fait un connect et ca suspend
     	wrapper = connectWS(name, client, url, wrapper);
 		
-	
+    	// maintenant on fait login
+    	sendMessage(wrapper.websocket, "5:1+::{\"name\":\"nickname\",\"args\":[\"" + username + "\"]}");
+    			
+    	
 		if (!l.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out");
+            throw new RuntimeException("Timeout out Login WS for user=[" + username + "]");
         }
+        
 		
 		return wrapper;
     }
@@ -467,7 +544,7 @@ public abstract class SocketIOTest {
     	suspend(name, client, url, new ResponseListener() {
 			@Override
 			public void notify(String message) {
-				log.info("GET login message received = " + message);
+				log.info("GET login [" + name + "] message received = " + message);
 				latchGet.countDown();
 				Assert.assertNotNull(message);
 				if(usernameUnique){
@@ -482,7 +559,7 @@ public abstract class SocketIOTest {
 					suspend(name, client, url, new ResponseListener() {
 						@Override
 						public void notify(String message) {
-							log.info("GET login message received = " + message);
+							log.info("GET login [" + name + "] message received = " + message);
 							latchGet2.countDown();
 							Assert.assertTrue(message.startsWith("io.j[0](5:::{\"name\":\"nicknames\",\"args\":[{"));
 							Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
@@ -503,7 +580,7 @@ public abstract class SocketIOTest {
 			
 			@Override
 			public void notify(String message) {
-				log.info("POST login message received = " + message);
+				log.info("POST login [" + name + "] message received = " + message);
 				latchPost.countDown();
 				Assert.assertNotNull(message);
 				Assert.assertEquals(message, "1");

@@ -62,7 +62,7 @@ public class XHRPollingTransport extends XHRTransport {
 
 		@Override
 		protected void writeData(ServletResponse response, String data) throws IOException {
-			
+			logger.warn("Response HashCode=" + response.hashCode());
 			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 			//response.getWriter().print(data);
 			response.getOutputStream().write(data.getBytes("UTF-8"));

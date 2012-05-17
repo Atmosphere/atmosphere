@@ -227,7 +227,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			try {
 				handler.sendMessage("2::");
 			} catch (Exception e) {
-				logger.error("handler.sendMessage failed: ", e);
+				logger.debug("handler.sendMessage failed: ", e);
 				handler.abort();
 			} 
 			logger.debug("calling from " + this.getClass().getName() + " : " + "sendPing");
