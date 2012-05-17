@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -576,22 +577,24 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public HttpSession getSession() {
         if (session == null) {
-            session = !isNotNoOps() ?
-                    new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                    b.session != null ? b.session : b.request.getSession();
+            session = createSession();
+        } else {
+            //check if session is valid
+            try {
+                session.getLastAccessedTime();
+            } catch (IllegalStateException e) {
+                //session is not valid
+                LoggerFactory.getLogger(this.getClass()).debug("Discarding invalid session");
+                session = createSession();
+            }
         }
         return session;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public HttpSession getSession(boolean create) {
-        if (create) {
-            return getSession();
-        }
-        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
+    private HttpSession createSession() {
+        return !isNotNoOps() ?
+                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
+                b.session != null ? b.session : b.request.getSession();
     }
 
     /**
