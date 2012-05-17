@@ -104,11 +104,11 @@ public interface BroadcastFilter {
     }
 
     /**
-     * Transform or Filter a message. Return null to tell the associated
+     * Transform or Filter a message. Return BroadcastAction(ACTION.ABORT, message)
      * {@link Broadcaster} to discard the message, e.g to not broadcast it.
      *
      * @param originalMessage The original message which was {@link Broadcaster#broadcast(Object)};
-     * @param message         Object a message
+     * @param message         The transformed or not message.
      * @return a transformed message.
      */
     BroadcastAction filter(Object originalMessage, Object message);
