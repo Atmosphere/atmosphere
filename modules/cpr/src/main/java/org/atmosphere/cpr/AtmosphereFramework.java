@@ -1088,13 +1088,6 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws ServletException
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-        String originalRequestURI = (String) req.getAttribute("javax.servlet.forward.request_uri");
-        if (originalRequestURI != null && req.getAttribute(ATMOSPHERE_CONFIG) != null) {
-            // TODO: This is not right to dispatch all to jsp
-            servletConfig.getServletContext().getNamedDispatcher("jsp").forward(req, res);
-            return Action.CONTINUE;
-        }
-
         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
