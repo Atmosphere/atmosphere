@@ -98,6 +98,15 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
+        AtmosphereResourceImpl r = new AtmosphereResourceImpl(framework.getAtmosphereConfig(),
+                null,
+                request,
+                wsr,
+                framework.getAsyncSupport(),
+                null);
+
+        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
+        webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
         dispatch(request, wsr);

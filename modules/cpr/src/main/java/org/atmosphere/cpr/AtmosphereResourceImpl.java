@@ -85,6 +85,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
     public static final String METEOR = Meteor.class.getName();
+
     private final AtmosphereRequest req;
     private final AtmosphereResponse response;
     protected final Action action = new Action();
@@ -100,7 +101,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean isCancelled = false;
     private boolean resumeOnBroadcast = false;
     private Object writeOnTimeout = null;
-    private boolean sseWritten = false;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -108,7 +108,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final boolean injectCacheHeaders;
     private final boolean enableAccessControl;
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
-    private final AtmosphereHandler atmosphereHandler;
+    private AtmosphereHandler atmosphereHandler;
     private final boolean writeHeaders;
     private String padding;
 
@@ -542,7 +542,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
-    public AtmosphereResource setBroadcaster(Broadcaster broadcaster) {
+    public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
         return this;
     }
@@ -783,6 +783,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public ConcurrentLinkedQueue<AtmosphereResourceEventListener> atmosphereResourceEventListener() {
         return listeners;
+    }
+
+    public AtmosphereResourceImpl atmosphereHandler(AtmosphereHandler atmosphereHandler) {
+        this.atmosphereHandler = atmosphereHandler;
+        return this;
     }
 
     public synchronized void cancel() throws IOException {
