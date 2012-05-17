@@ -82,6 +82,10 @@ public class AtmosphereFilter implements Filter {
 
     private final AtmosphereServlet as;
 
+    private final static String EXCLUDE_FILES = "^.*\\.(ico|ICO|jpg|JPG|gif|GIF|doc|DOC|pdf|PDF)$";
+
+    private String excluded = EXCLUDE_FILES;
+
     public AtmosphereFilter() {
         as = new AtmosphereServlet(true);
     }
@@ -113,6 +117,12 @@ public class AtmosphereFilter implements Filter {
                 return filterConfig.getInitParameterNames();
             }
         });
+
+        String s = filterConfig.getInitParameter(ApplicationConfig.ATMOSPHERE_EXCLUDED_FILE);
+        if (s != null) {
+            excluded = s;
+        }
+
     }
 
     /**
@@ -126,8 +136,17 @@ public class AtmosphereFilter implements Filter {
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        Action a = as.framework().doCometSupport(AtmosphereRequest.wrap((HttpServletRequest) request),
-                AtmosphereResponse.wrap((HttpServletResponse) response));
+
+        AtmosphereRequest req = AtmosphereRequest.wrap((HttpServletRequest) request);
+        AtmosphereResponse res = AtmosphereResponse.wrap((HttpServletResponse) response);
+        Action a = null;
+
+        if (req.getServletPath() == null
+                || (as.framework().getServletContext().getResource(req.getServletPath()) == null
+                && !req.getServletPath().matches(excluded) )) {
+            a = as.framework().doCometSupport(req,res);
+        }
+
         if (a == null || a.type() != Action.TYPE.SUSPEND) {
             chain.doFilter(request, response);
         }
