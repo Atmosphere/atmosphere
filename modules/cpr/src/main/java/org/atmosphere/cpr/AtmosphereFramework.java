@@ -621,6 +621,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s != null) {
             handlersPath = s;
         }
+        s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
+        if (s != null) {
+            atmosphereDotXmlPath = s;
+        }
     }
 
     public void loadConfiguration(ServletConfig sc) throws ServletException {
