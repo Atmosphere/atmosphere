@@ -207,7 +207,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
             }
         }
-        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
+        if (resource == null) {
+            resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+        } else {
+            resource.setBroadcaster(handlerWrapper.broadcaster).atmosphereHandler(handlerWrapper.atmosphereHandler);
+        }
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
