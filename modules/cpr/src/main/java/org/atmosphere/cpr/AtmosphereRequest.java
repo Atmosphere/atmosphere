@@ -591,6 +591,17 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return session;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public HttpSession getSession(boolean create) {
+        if (create) {
+            return getSession();
+        }
+        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
+    }
+
     private HttpSession createSession() {
         return !isNotNoOps() ?
                 new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
@@ -1470,7 +1481,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(copySession? new FakeHttpSession(request.getSession(true)) : null);
+                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
             r = new NoOpsRequest();
