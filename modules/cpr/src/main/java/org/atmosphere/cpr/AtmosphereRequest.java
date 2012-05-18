@@ -1448,7 +1448,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest loadInMemory(HttpServletRequest request, boolean loadInMemory) {
+    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession) {
         Builder b;
         HttpServletRequest r;
         boolean isWrapped = false;
@@ -1470,7 +1470,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(new FakeHttpSession(request.getSession(true)));
+                .session(copySession? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
             r = new NoOpsRequest();
