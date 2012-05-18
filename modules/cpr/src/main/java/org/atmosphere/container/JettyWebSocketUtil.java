@@ -70,12 +70,12 @@ public class JettyWebSocketUtil {
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
             public boolean checkOrigin(HttpServletRequest request, String origin) {
                 // Allow all origins
-                logger.debug("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
+                logger.trace("WebSocket-checkOrigin request {} with origin {}", request.getRequestURI(), origin);
                 return true;
             }
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
-                logger.debug("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
+                logger.trace("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
                 return new JettyWebSocketHandler(AtmosphereRequest.loadInMemory(request, false), config.framework(), config.framework().getWebSocketProtocol());
             }
         });
