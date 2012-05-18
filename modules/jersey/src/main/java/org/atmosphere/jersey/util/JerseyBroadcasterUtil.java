@@ -127,12 +127,6 @@ public final class JerseyBroadcasterUtil {
                 cr.setEntity(null);
             }
 
-            try {
-                r.getResponse().flushBuffer();
-            } catch (IOException e1) {
-                e1.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
-
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
