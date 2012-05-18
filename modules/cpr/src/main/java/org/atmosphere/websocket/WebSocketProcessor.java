@@ -110,6 +110,7 @@ public class WebSocketProcessor implements Serializable {
         webSocketProtocol.onOpen(webSocket);
 
         dispatch(request, wsr);
+        request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
             final AsynchronousProcessor.AsynchronousProcessorHook hook =
