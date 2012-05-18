@@ -60,7 +60,7 @@ public interface FrameworkConfig {
      /**
      * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}
      */
-    String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
+    String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".injected";
     /**
      * Tell a {@link AsyncSupport} it can support session or not
      */
