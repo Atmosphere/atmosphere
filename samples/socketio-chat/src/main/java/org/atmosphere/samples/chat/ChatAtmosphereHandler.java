@@ -176,10 +176,15 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 
 		HttpServletRequest request = event.getRequest();
 		HttpServletResponse response = event.getResponse();
-
+		
 		try {
-			logger.error("onMessage on SessionID=" + request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + "  : Message Received = " + message);
+			logger.error("onMessage on SessionID=" + outbound.getSessionId() + "  : Message Received = " + message);
 
+			
+			if(outbound.getSessionId()==null){
+				System.out.println("SessionID=null");
+			}
+			
 			ObjectMapper mapper = new ObjectMapper();
 
 			ChatJSONObject chat = mapper.readValue(message, ChatJSONObject.class);
@@ -187,7 +192,6 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 			if (ChatJSONObject.LOGIN.equalsIgnoreCase(chat.name)) {
 
 				request.getSession().setAttribute("LOGINNAME", chat.getArgs().toArray()[0]);
-
 				
 				String username = (String) chat.getArgs().toArray()[0];
 				// est-il deja loggé ?

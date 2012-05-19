@@ -55,7 +55,7 @@ public class JSONPPollingTransport extends XHRTransport {
 		}
 
 		@Override
-		protected void writeData(ServletResponse response, String data) throws IOException {
+		protected void writeData(HttpServletResponse response, String data) throws IOException {
 			//response.getOutputStream().print(data);
 			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 			
@@ -66,7 +66,7 @@ public class JSONPPollingTransport extends XHRTransport {
 			
 		}
 
-		protected void finishSend(ServletResponse response) throws IOException {
+		protected void finishSend(HttpServletResponse response) throws IOException {
 			//response.getOutputStream().print("\");");
 			response.flushBuffer();
 		}

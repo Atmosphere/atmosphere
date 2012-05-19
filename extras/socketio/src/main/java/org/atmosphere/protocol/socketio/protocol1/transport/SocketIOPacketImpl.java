@@ -274,22 +274,4 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		}
 	}
 	
-	public static void main(String[] args) throws Exception {
-		List<SocketIOPacketImpl> messages = SocketIOPacketImpl.parse("[5:::{\"args\":[\"test connected\"],\"name\":\"announcement\"}, 5:::{\"args\":[\"test connected\"],\"name\":\"announcement\"}, 5:::{\"args\":[\"test connected\"],\"name\":\"announcement\"}, 5:::{\"args\":[],\"name\":\"disconnect\"}, 5:::{\"args\":[],\"name\":\"disconnect\"}, 5:::{\"args\":[],\"name\":\"disconnect\"}, 5:::{\"args\":[],\"name\":\"disconnect\"}, 5:::{\"args\":[],\"name\":\"disconnect\"}]");
-		
-		for (SocketIOPacketImpl msg: messages) {
-			switch(msg.getFrameType()){
-				case MESSAGE:
-				case JSON:
-				case EVENT:
-				case ACK:
-				case ERROR:
-					System.out.println(msg.data);
-					break;
-				default:
-					System.err.println("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
-			}
-		}
-	}
-	
 }

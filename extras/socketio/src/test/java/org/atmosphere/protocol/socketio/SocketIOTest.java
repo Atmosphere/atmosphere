@@ -429,7 +429,7 @@ public abstract class SocketIOTest {
 				log.info("POST login [" + name + "] message received = " + message);
 				latchPost.countDown();
 				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1");
+				Assert.assertEquals(message, SocketIOPacketImpl.POST_RESPONSE);
 			}
 		});
 		
@@ -583,7 +583,7 @@ public abstract class SocketIOTest {
 				log.info("POST login [" + name + "] message received = " + message);
 				latchPost.countDown();
 				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1");
+				Assert.assertEquals(message, SocketIOPacketImpl.POST_RESPONSE);
 			}
 		});
 		

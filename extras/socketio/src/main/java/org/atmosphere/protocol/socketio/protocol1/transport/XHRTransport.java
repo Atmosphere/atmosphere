@@ -65,9 +65,9 @@ public abstract class XHRTransport extends AbstractTransport {
 
 		protected abstract void startSend(HttpServletResponse response) throws IOException;
 
-		protected abstract void writeData(ServletResponse response, String data) throws IOException;
+		protected abstract void writeData(HttpServletResponse response, String data) throws IOException;
 
-		protected abstract void finishSend(ServletResponse response) throws IOException;
+		protected abstract void finishSend(HttpServletResponse response) throws IOException;
 
 		@Override
 		public void disconnect() {
@@ -138,6 +138,8 @@ public abstract class XHRTransport extends AbstractTransport {
 					// on va chercher le resource
 					AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
 					
+					logger.error("Session[" + session.getSessionId() + "]: " + resource.getRequest().getMethod() + "sendMessage");
+					
 					if (resource != null) {
 						
 						try {
@@ -200,9 +202,11 @@ public abstract class XHRTransport extends AbstractTransport {
 		public Action handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
 			logger.warn("Session id[" + session.getSessionId()+ "] method=" + request.getMethod() + "  response HashCode=" + response.hashCode());
 			
+			AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
+			
 			if ("GET".equals(request.getMethod())) {
 				synchronized (this) {
-					AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
+					
 					
 					if (!is_open) {
 						response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -335,6 +339,11 @@ public abstract class XHRTransport extends AbstractTransport {
 							}
 						}
 					}
+					
+					// DEBUG
+					// on ne suspend pas les POST 
+					resource.resume();
+					return Action.CANCELLED;
 				}
 			} else {
 				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
@@ -343,49 +352,6 @@ public abstract class XHRTransport extends AbstractTransport {
 			
 			return Action.CONTINUE;
 
-		}
-
-		public void onComplete() {
-			if (isConnectionPersistant) {
-				is_open = false;
-				session.onDisconnect(DisconnectReason.DISCONNECT);
-				abort();
-			} else {
-				if (!is_open) {
-					session.onDisconnect(DisconnectReason.DISCONNECT);
-					abort();
-				} else {
-					logger.error("calling from " + this.getClass().getName() + " : " + "onComplete");
-					session.startTimeoutTimer();
-				}
-			}
-		}
-
-		public void onTimeout() {
-			/*
-			if (continuation != null && cont == continuation) {
-				continuation = null;
-				if (isConnectionPersistant) {
-					is_open = false;
-					session.onDisconnect(DisconnectReason.TIMEOUT);
-					abort();
-				} else {
-					if (!is_open && buffer.isEmpty()) {
-						session.onDisconnect(DisconnectReason.DISCONNECT);
-						abort();
-					} else {
-						try {
-							finishSend(cont.getServletResponse());
-						} catch (IOException e) {
-							session.onDisconnect(DisconnectReason.DISCONNECT);
-							abort();
-						}
-					}
-					logger.error("calling from " + this.getClass().getName() + " : " + "onTimeout");
-					session.startTimeoutTimer();
-				}
-			}
-			*/
 		}
 
 		protected abstract void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException;

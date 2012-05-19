@@ -197,7 +197,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 				log.info("disconnect message received = " + message);
 				l.countDown();
 				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1::");
+				Assert.assertEquals(message, SocketIOPacketImpl.POST_RESPONSE);
 			}
 		});
 		
@@ -321,11 +321,11 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 				log.info("broadcastXHRPollingTest clientXHRPolling1 message received = " + message);
 				Assert.assertNotNull(message);
 				//Assert.assertEquals(message, "1::");
-				Assert.assertEquals(message, "1");
+				Assert.assertEquals(message, SocketIOPacketImpl.POST_RESPONSE);
 			}
 		});
 		
-		if (!latchGet.await(30, TimeUnit.SECONDS)) {
+		if (!latchGet.await(45, TimeUnit.SECONDS)) {
             throw new RuntimeException("Timeout out broadcastXHRPollingTest");
         }
 		

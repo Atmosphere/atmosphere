@@ -55,12 +55,12 @@ public class HTMLFileTransport extends XHRTransport {
 			response.flushBuffer();
 		}
 		
-		protected void writeData(ServletResponse response, String data) throws IOException {
+		protected void writeData(HttpServletResponse response, String data) throws IOException {
 			response.getOutputStream().print("<script>parent.s._("+ mapper.writeValueAsString(data) +", document);</script>");
 			response.flushBuffer();
 		}
 
-		protected void finishSend(ServletResponse response) throws IOException {};
+		protected void finishSend(HttpServletResponse response) throws IOException {};
 
 		protected void customConnect(HttpServletRequest request,
 				HttpServletResponse response) throws IOException {
