@@ -27,13 +27,13 @@
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> eu.infomas.annotation.AnnotationDetector;
 <a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereHandlerService;
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterCacheService;
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterFilterService;
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterService;
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.MeteorService;
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketHandlerService;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketProtocolService;
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketResponseFilterService;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereInterceptorService;
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterCacheService;
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterFilterService;
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterService;
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.MeteorService;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketHandlerService;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketProtocolService;
 <a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.handler.ReflectorServletProcessor;
 <a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.IntrospectionUtils;
 <a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
@@ -78,7 +78,7 @@
 <a class="jxr_linenumber" name="68" href="#68">68</a>                          MeteorService.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="69" href="#69">69</a>                          WebSocketHandlerService.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="70" href="#70">70</a>                          WebSocketProtocolService.<strong class="jxr_keyword">class</strong>,
-<a class="jxr_linenumber" name="71" href="#71">71</a>                          WebSocketResponseFilterService.<strong class="jxr_keyword">class</strong>
+<a class="jxr_linenumber" name="71" href="#71">71</a>                          AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>
 <a class="jxr_linenumber" name="72" href="#72">72</a>                  };
 <a class="jxr_linenumber" name="73" href="#73">73</a>              }
 <a class="jxr_linenumber" name="74" href="#74">74</a>  
@@ -128,16 +128,21 @@
 <a class="jxr_linenumber" name="118" href="#118">118</a>                     framework.setWebSocketProtocolClassName(className);
 <a class="jxr_linenumber" name="119" href="#119">119</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (WebSocketProtocolService.<strong class="jxr_keyword">class</strong>.equals(annotation)) {
 <a class="jxr_linenumber" name="120" href="#120">120</a>                     framework.setWebSocketProtocolClassName(className);
-<a class="jxr_linenumber" name="121" href="#121">121</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (WebSocketResponseFilterService.<strong class="jxr_keyword">class</strong>.equals(annotation)) {
-<a class="jxr_linenumber" name="122" href="#122">122</a>                 }
-<a class="jxr_linenumber" name="123" href="#123">123</a>             }
-<a class="jxr_linenumber" name="124" href="#124">124</a>         };
-<a class="jxr_linenumber" name="125" href="#125">125</a>         logger.info(<span class="jxr_string">"Scanning @Service annotations in {}"</span>, rootDir.getAbsolutePath());
-<a class="jxr_linenumber" name="126" href="#126">126</a>         <strong class="jxr_keyword">final</strong> AnnotationDetector cf = <strong class="jxr_keyword">new</strong> AnnotationDetector(reporter);
-<a class="jxr_linenumber" name="127" href="#127">127</a>         cf.detect(rootDir);
-<a class="jxr_linenumber" name="128" href="#128">128</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="129" href="#129">129</a>     }
-<a class="jxr_linenumber" name="130" href="#130">130</a> }
+<a class="jxr_linenumber" name="121" href="#121">121</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (AtmosphereInterceptorService.<strong class="jxr_keyword">class</strong>.equals(annotation)) {
+<a class="jxr_linenumber" name="122" href="#122">122</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="123" href="#123">123</a>                         framework.interceptor((AtmosphereInterceptor)cl.loadClass(className).newInstance());
+<a class="jxr_linenumber" name="124" href="#124">124</a>                     } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="125" href="#125">125</a>                         logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="126" href="#126">126</a>                     }
+<a class="jxr_linenumber" name="127" href="#127">127</a>                 }
+<a class="jxr_linenumber" name="128" href="#128">128</a>             }
+<a class="jxr_linenumber" name="129" href="#129">129</a>         };
+<a class="jxr_linenumber" name="130" href="#130">130</a>         logger.info(<span class="jxr_string">"Scanning @Service annotations in {}"</span>, rootDir.getAbsolutePath());
+<a class="jxr_linenumber" name="131" href="#131">131</a>         <strong class="jxr_keyword">final</strong> AnnotationDetector cf = <strong class="jxr_keyword">new</strong> AnnotationDetector(reporter);
+<a class="jxr_linenumber" name="132" href="#132">132</a>         cf.detect(rootDir);
+<a class="jxr_linenumber" name="133" href="#133">133</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="134" href="#134">134</a>     }
+<a class="jxr_linenumber" name="135" href="#135">135</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
