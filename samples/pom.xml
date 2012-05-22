@@ -26,6 +26,7 @@
         <!-- sample using GWT -->
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
+        <module>gwt-conn-share</module>
 
         <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
