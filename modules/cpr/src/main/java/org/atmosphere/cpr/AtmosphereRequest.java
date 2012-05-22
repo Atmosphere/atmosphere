@@ -796,6 +796,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.request.getLocale();
     }
 
+    /**
+     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
+     * method will return null.
+     *
+     * @return an {@link AtmosphereResource}, or null.
+     */
+    public AtmosphereResource resource() {
+        return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+    }
 
     /**
      * {@inheritDoc}
