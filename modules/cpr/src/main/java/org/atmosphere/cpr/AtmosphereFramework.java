@@ -110,9 +110,12 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
+
+
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final List<String> broadcasterFilters = new ArrayList<String>();
+    protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<AsyncSupportListener>();
     protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config;
@@ -120,6 +123,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final boolean isFilter;
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
     protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
+    protected final static EventLogger eLogger = new EventLogger();
+
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
     protected boolean useStreamForFlushingComments = false;
@@ -415,6 +420,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             };
             this.servletConfig = scFacade;
+            asyncSupportListener(eLogger);
+
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
             doInitParams(scFacade);
@@ -1141,9 +1148,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw ex;
             }
         } finally {
+            notify(a.type(), req, res);
+
             if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
                 req.destroy();
                 res.destroy();
+                notify(Action.TYPE.DESTROYED, req, res);
             }
         }
         return null;
@@ -1346,12 +1356,33 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Set the {@link AnnotationProcessor} class name.
+     *
      * @param annotationProcessorClassName the {@link AnnotationProcessor} class name.
      * @return this
      */
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
         this.annotationProcessorClassName = annotationProcessorClassName;
         return this;
+    }
+
+    /**
+     * Add an {@link AsyncSupportListener}
+     *
+     * @param asyncSupportListener an {@link AsyncSupportListener}
+     * @return this;
+     */
+    public AtmosphereFramework asyncSupportListener(AsyncSupportListener asyncSupportListener) {
+        asyncSupportListeners.add(asyncSupportListener);
+        return this;
+    }
+
+    /**
+     * Return the list of an {@link AsyncSupportListener}
+     *
+     * @return
+     */
+    public List<AsyncSupportListener> asyncSupportListeners() {
+        return asyncSupportListeners;
     }
 
     protected void autoConfigureService(ServletContext sc) throws IOException {
@@ -1368,8 +1399,62 @@ public class AtmosphereFramework implements ServletContextProvider {
             p.configure(this).scan(new File(path));
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
-            logger.trace("",e);
+            logger.trace("", e);
             return;
         }
     }
+
+    protected void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
+        for (AsyncSupportListener l : asyncSupportListeners()) {
+            try {
+                switch (type) {
+                    case TIMEOUT:
+                        l.onTimeout(request, response);
+                        break;
+                    case CANCELLED:
+                        l.onClose(request, response);
+                        break;
+                    case SUSPEND:
+                        l.onSuspend(request, response);
+                        break;
+                    case RESUME:
+                        l.onSuspend(request, response);
+                        break;
+                    case DESTROYED:
+                        l.onDestroyed(request, response);
+                        break;
+                }
+            } catch (Throwable t) {
+                logger.warn("", t);
+            }
+        }
+    }
+
+    private final static class EventLogger implements AsyncSupportListener {
+        @Override
+        public void onSuspend(AtmosphereRequest request, AtmosphereResponse response) {
+            logger.trace("Suspended request {} and response {}", request, response);
+        }
+
+        @Override
+        public void onResume(AtmosphereRequest request, AtmosphereResponse response) {
+            logger.trace("Suspended request {} and response {}", request, response);
+        }
+
+        @Override
+        public void onTimeout(AtmosphereRequest request, AtmosphereResponse response) {
+            logger.trace("Suspended request {} and response {}", request, response);
+        }
+
+        @Override
+        public void onClose(AtmosphereRequest request, AtmosphereResponse response) {
+            logger.trace("Suspended request {} and response {}", request, response);
+        }
+
+        @Override
+        public void onDestroyed(AtmosphereRequest request, AtmosphereResponse response) {
+            logger.trace("Suspended request {} and response {}", request, response);
+        }
+    }
+
 }

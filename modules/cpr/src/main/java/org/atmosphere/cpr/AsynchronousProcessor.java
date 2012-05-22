@@ -337,7 +337,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
         SessionTimeoutSupport.restoreTimeout(request);
-
         return action(request, response);
     }
 
@@ -358,6 +357,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r = null;
+
         try {
             SessionTimeoutSupport.restoreTimeout(request);
 
@@ -398,6 +398,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         } catch (Throwable t) {
             logger.error("failed to timeout resource {}", r, t);
         } finally {
+            config.framework().notify(Action.TYPE.TIMEOUT, request, response);
             try {
                 if (r != null) {
                     r.notifyListeners();
@@ -523,6 +524,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 // Something wrong happenned, ignore the exception
                 logger.debug("failed to cancel resource: " + r, ex);
             } finally {
+                config.framework().notify(Action.TYPE.CANCELLED, req, res);
                 try {
                     if (r != null) {
                         r.notifyListeners();

@@ -98,8 +98,6 @@ public class JettyCometSupport extends AsynchronousProcessor {
             // This will throw an exception
             action = suspended(req, response);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", response);
-
                 // Do nothing except setting the times out
                 if (action.timeout() != -1) {
                     c.suspend(action.timeout());
@@ -107,8 +105,6 @@ public class JettyCometSupport extends AsynchronousProcessor {
                     c.suspend(0);
                 }
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", response);
-
                 if (!resumed.remove(c)) {
                     c.reset();
 
@@ -120,8 +116,6 @@ public class JettyCometSupport extends AsynchronousProcessor {
                 }
             }
         } else {
-            logger.debug("Resuming response: {}", response);
-
             if (!resumed.remove(c) && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
                 c.reset();
 

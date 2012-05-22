@@ -57,7 +57,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
         Action action = null;
         action = suspended(req, res);
         if (action.type() == Action.TYPE.SUSPEND) {
-            logger.debug("Suspending response: {}", res);
             req.setAttribute(SUSPEND, action);
             req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook( (AtmosphereResourceImpl)req.getAttribute(ATMOSPHERE_RESOURCE)));
         } else if (action.type() == Action.TYPE.RESUME) {
@@ -68,11 +67,9 @@ public class NettyCometSupport extends AsynchronousProcessor {
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
                 return action;
             }
-            logger.debug("Resuming response: {}", res);
 
             Action nextAction = resumed(req, res);
             if (nextAction.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending after resuming response: {}", res);
                 req.setAttribute(SUSPEND, action);
             }
         }

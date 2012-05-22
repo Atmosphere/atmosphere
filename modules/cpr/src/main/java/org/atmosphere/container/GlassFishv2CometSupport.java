@@ -118,10 +118,8 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         Action action = suspended(req, res);
         if (action.type() == Action.TYPE.SUSPEND) {
-            logger.debug("Suspending response: {}", res);
             suspend(ctx, action, req, res);
         } else if (action.type() == Action.TYPE.RESUME) {
-            logger.debug("Resuming response: {}", res);
             resume(req, ctx);
         }
         return action;

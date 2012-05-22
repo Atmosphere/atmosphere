@@ -100,10 +100,8 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         try {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
                 suspend(action, req, res);
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", res);
                 CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
 
                 if (latch == null || req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
@@ -115,7 +113,6 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
 
                 Action nextAction = resumed(req, res);
                 if (nextAction.type() == Action.TYPE.SUSPEND) {
-                    logger.debug("Suspending after resuming response: {}", res);
                     suspend(action, req, res);
                 }
             }
