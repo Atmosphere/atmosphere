@@ -118,10 +118,7 @@ public class TomcatWebSocketUtil {
         }
 
         Action action = delegate.suspended(req, res);
-        if (action.type() == Action.TYPE.SUSPEND) {
-            logger.debug("Suspending resonse: {}", res);
-        } else if (action.type() == Action.TYPE.RESUME) {
-            logger.debug("Resume resonse: {}", res);
+        if (action.type() == Action.TYPE.RESUME) {
             req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
         }
         return action;

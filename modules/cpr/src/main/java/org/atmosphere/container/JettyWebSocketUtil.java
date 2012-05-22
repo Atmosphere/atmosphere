@@ -56,9 +56,7 @@ public class JettyWebSocketUtil {
 
             Action action = cometSupport.suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resume response: {}", res);
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
 

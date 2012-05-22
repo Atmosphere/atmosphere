@@ -84,8 +84,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         if (event.getEventType() == EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
-
                 // Do nothing except setting the times out
                 try {
                     if (action.timeout() != -1) {
@@ -99,7 +97,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                     // TODO: Must implement the same functionality using a Scheduler
                 }
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", res);
                 bz51881(event);
             } else {
                 bz51881(event);
@@ -107,19 +104,14 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
-            logger.debug("Client closed connection: response: {}", res);
 
             if (req.getAttribute(SUSPENDED) != null) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
-            } else {
-                logger.debug("Cancelling response: {}", res);
             }
 
             bz51881(event);
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
-            logger.debug("Timing out response: {}", res);
-
             action = timedout(req, res);
             bz51881(event);
         } else if (event.getEventType() == EventType.ERROR) {
@@ -129,7 +121,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                logger.debug("Cancelling response: {}", res);
                 bz51881(event);
             }
         }
