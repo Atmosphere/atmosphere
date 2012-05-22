@@ -69,8 +69,8 @@ public class TomcatWebSocketUtil {
 
 
     public static Action doService(AtmosphereRequest req, AtmosphereResponse res,
-                                                       Delegate delegate,
-                                                       AtmosphereConfig config) throws IOException, ServletException {
+                                   Delegate delegate,
+                                   AtmosphereConfig config) throws IOException, ServletException {
         // First, handshake
         if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
             // Information required to send the server handshake message
@@ -87,6 +87,7 @@ public class TomcatWebSocketUtil {
 
             if (!headerContainsToken(req, "sec-websocket-version", "13")) {
                 logger.debug("WebSocket version not supported. Downgrading to Comet");
+
                 res.sendError(501, "Websocket protocol not supported");
                 return new Action(Action.TYPE.CANCELLED);
             }
