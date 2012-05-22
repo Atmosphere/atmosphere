@@ -93,23 +93,5 @@ public class Info extends PopupPanel {
         return size;
     }
 
-    public static class InfoWidget extends Composite {
-        MyUiBinder binder = GWT.create(MyUiBinder.class);
-
-        interface MyUiBinder extends UiBinder<Widget, InfoWidget> {
-        }
-
-        @UiField
-        Label title;
-        @UiField
-        HTML message;
-
-        private InfoWidget(String title, String message) {
-            initWidget(binder.createAndBindUi(this));
-            this.title.setText(title);
-            this.message.setHTML(message);
-        }
-    }
-
 
 }
