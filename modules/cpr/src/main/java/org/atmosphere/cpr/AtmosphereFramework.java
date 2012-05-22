@@ -1148,7 +1148,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 throw ex;
             }
         } finally {
-            notify(a.type(), req, res);
+            if (a != null) {
+                notify(a.type(), req, res);
+            }
 
             if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
                 req.destroy();
