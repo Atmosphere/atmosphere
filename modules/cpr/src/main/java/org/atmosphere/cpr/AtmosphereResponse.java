@@ -886,6 +886,20 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return this;
     }
 
+    /**
+     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
+     * method will return null.
+     *
+     * @return an {@link AtmosphereResource}, or null.
+     */
+    public AtmosphereResource resource() {
+        if (atmosphereRequest != null) {
+            return (AtmosphereResource) atmosphereRequest.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        } else {
+            return null;
+        }
+    }
+
     public void setResponse(ServletResponse response) {
         super.setResponse(response);
         if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
