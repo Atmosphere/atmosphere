@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-framework-http/1.0.31/grizzly-framework-http-1.0.31.jar"/>
+	<classpathentry including="**/*.java" kind="src" output="target/test-classes" path="src/test/java"/>
+	<classpathentry including="**/*.java" kind="src" path="src/main/java"/>
+	<classpathentry excluding="**/*.java" kind="src" path="src/main/resources"/>
+	<classpathentry kind="var" path="M2_REPO/com/ning/async-http-client/1.7.2/async-http-client-1.7.2.jar"/>
+	<classpathentry kind="src" path="/atmosphere-compat-jbossweb"/>
+	<classpathentry kind="src" path="/atmosphere-compat-tomcat"/>
+	<classpathentry kind="src" path="/atmosphere-compat-tomcat7"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/commons/beanutils/1.6.1-20070314/beanutils-1.6.1-20070314.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/geronimo/specs/geronimo-servlet_3.0_spec/1.0/geronimo-servlet_3.0_spec-1.0.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-comet/1.9.39/grizzly-comet-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-compat/1.9.39/grizzly-compat-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-framework/1.9.39/grizzly-framework-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-http/1.9.39/grizzly-http-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-lzma/1.9.39/grizzly-lzma-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-portunif/1.9.39/grizzly-portunif-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-rcm/1.9.39/grizzly-rcm-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-utils/1.9.39/grizzly-utils-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/grizzly/grizzly-websockets/1.9.39/grizzly-websockets-1.9.39.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/slf4j/jcl-over-slf4j/1.6.1/jcl-over-slf4j-1.6.1.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty/6.1.22/jetty-6.1.22.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-continuation/7.6.0.v20120127/jetty-continuation-7.6.0.v20120127.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-http/7.6.0.v20120127/jetty-http-7.6.0.v20120127.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-io/7.6.0.v20120127/jetty-io-7.6.0.v20120127.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty-management/6.1.22/jetty-management-6.1.22.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-util/7.6.0.v20120127/jetty-util-7.6.0.v20120127.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jetty-util/6.1.22/jetty-util-6.1.22.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/eclipse/jetty/jetty-websocket/7.6.0.v20120127/jetty-websocket-7.6.0.v20120127.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/slf4j/jul-to-slf4j/1.6.1/jul-to-slf4j-1.6.1.jar"/>
+	<classpathentry kind="var" path="M2_REPO/junit/junit/3.8.1/junit-3.8.1.jar"/>
+	<classpathentry kind="var" path="M2_REPO/ch/qos/logback/logback-classic/0.9.30/logback-classic-0.9.30.jar"/>
+	<classpathentry kind="var" path="M2_REPO/ch/qos/logback/logback-core/0.9.30/logback-core-0.9.30.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/commons/logging-api/1.0.4/logging-api-1.0.4.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/mockito/mockito-all/1.8.5/mockito-all-1.8.5.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/sun/commons/modeler/1.1/modeler-1.1.jar"/>
+	<classpathentry kind="var" path="M2_REPO/io/netty/netty/3.3.1.Final/netty-3.3.1.Final.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/slf4j/slf4j-api/1.6.1/slf4j-api-1.6.1.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/testng/testng/5.8/testng-5.8-jdk15.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-annotations-api/7.0.27/tomcat-annotations-api-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-api/7.0.27/tomcat-api-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-catalina/7.0.27/tomcat-catalina-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-coyote/7.0.27/tomcat-coyote-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-juli/7.0.27/tomcat-juli-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-servlet-api/7.0.27/tomcat-servlet-api-7.0.27.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/tomcat/tomcat-util/7.0.27/tomcat-util-7.0.27.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
+	<classpathentry kind="output" path="target/classes"/>
+</classpath>
