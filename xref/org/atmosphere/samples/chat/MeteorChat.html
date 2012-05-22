@@ -25,72 +25,82 @@
 <a class="jxr_linenumber" name="15" href="#15">15</a>  <em class="jxr_comment"> */</em>
 <a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.samples.chat;
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
-<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
-<a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterFactory;
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.DefaultBroadcaster;
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Meteor;
-<a class="jxr_linenumber" name="22" href="#22">22</a>  
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServlet;
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletRequest;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletResponse;
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.util.Date;
-<a class="jxr_linenumber" name="28" href="#28">28</a>  
-<a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
-<a class="jxr_linenumber" name="30" href="#30">30</a>  
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> * Simple Servlet that implement the logic to build a Chat application using</em>
-<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> * a {@link Meteor} to suspend and broadcast chat message.</em>
-<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="37" href="#37">37</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">MeteorChat</a> <strong class="jxr_keyword">extends</strong> HttpServlet {
-<a class="jxr_linenumber" name="38" href="#38">38</a>  
-<a class="jxr_linenumber" name="39" href="#39">39</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} and use it to suspend the response.</em>
-<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment">     * @param req An {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="43" href="#43">43</a>  <em class="jxr_javadoccomment">     * @param res An {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="44" href="#44">44</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="45" href="#45">45</a>      @Override
-<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> doGet(HttpServletRequest req, HttpServletResponse res) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="47" href="#47">47</a>          <em class="jxr_comment">// Set the logger level to TRACE to see what's happening.</em>
-<a class="jxr_linenumber" name="48" href="#48">48</a>          <a href="../../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = Meteor.build(req).addListener(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">AtmosphereResourceEventListenerAdapter</a>());
-<a class="jxr_linenumber" name="49" href="#49">49</a>  
-<a class="jxr_linenumber" name="50" href="#50">50</a>          m.resumeOnBroadcast(m.transport() == LONG_POLLING ? <strong class="jxr_keyword">true</strong> : false).suspend(-1);
-<a class="jxr_linenumber" name="51" href="#51">51</a>      }
-<a class="jxr_linenumber" name="52" href="#52">52</a>  
-<a class="jxr_linenumber" name="53" href="#53">53</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="54" href="#54">54</a>  <em class="jxr_javadoccomment">     * Re-use the {@link Meteor} created on the first GET for broadcasting message.</em>
-<a class="jxr_linenumber" name="55" href="#55">55</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="56" href="#56">56</a>  <em class="jxr_javadoccomment">     * @param req An {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="57" href="#57">57</a>  <em class="jxr_javadoccomment">     * @param res An {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="58" href="#58">58</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="59" href="#59">59</a>      @Override
-<a class="jxr_linenumber" name="60" href="#60">60</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> doPost(HttpServletRequest req, HttpServletResponse res) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="61" href="#61">61</a>          String body = req.getReader().readLine().trim();
-<a class="jxr_linenumber" name="62" href="#62">62</a>          <em class="jxr_comment">// Simple JSON -- Use Jackson for more complex structure</em>
-<a class="jxr_linenumber" name="63" href="#63">63</a>          <em class="jxr_comment">// Message looks like { "author" : "foo", "message" : "bar" }</em>
-<a class="jxr_linenumber" name="64" href="#64">64</a>          String author = body.substring(body.indexOf(<span class="jxr_string">":"</span>) + 2, body.indexOf(<span class="jxr_string">","</span>) - 1);
-<a class="jxr_linenumber" name="65" href="#65">65</a>          String message = body.substring(body.lastIndexOf(<span class="jxr_string">":"</span>) + 2, body.length() - 2);
-<a class="jxr_linenumber" name="66" href="#66">66</a>          BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, <span class="jxr_string">"/*"</span>).broadcast(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a>(author, message).toString());
-<a class="jxr_linenumber" name="67" href="#67">67</a>      }
-<a class="jxr_linenumber" name="68" href="#68">68</a>  
-<a class="jxr_linenumber" name="69" href="#69">69</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a> {
-<a class="jxr_linenumber" name="70" href="#70">70</a>  
-<a class="jxr_linenumber" name="71" href="#71">71</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String text;
-<a class="jxr_linenumber" name="72" href="#72">72</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String author;
-<a class="jxr_linenumber" name="73" href="#73">73</a>  
-<a class="jxr_linenumber" name="74" href="#74">74</a>          <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a>(String author, String text) {
-<a class="jxr_linenumber" name="75" href="#75">75</a>              <strong class="jxr_keyword">this</strong>.author = author;
-<a class="jxr_linenumber" name="76" href="#76">76</a>              <strong class="jxr_keyword">this</strong>.text = text;
-<a class="jxr_linenumber" name="77" href="#77">77</a>          }
+<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.MeteorService;
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterFactory;
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.DefaultBroadcaster;
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Meteor;
+<a class="jxr_linenumber" name="23" href="#23">23</a>  
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServlet;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletRequest;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletResponse;
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.Date;
+<a class="jxr_linenumber" name="29" href="#29">29</a>  
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
+<a class="jxr_linenumber" name="31" href="#31">31</a>  
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> * Simple Servlet that implement the logic to build a Chat application using</em>
+<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> * a {@link Meteor} to suspend and broadcast chat message.  The Meteor is annotated using the {@link MeteorService}</em>
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> * but can also be defined in web.xml using</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * &lt;blockquote&gt;</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> * &lt;init-param&gt;</em>
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> *    &lt;param-name&gt;org.atmosphere.servlet&lt;/param-name&gt;</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> *    &lt;param-value&gt;org.atmosphere.samples.chat.MeteorChat&lt;/param-value&gt;</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * &lt;/init-param&gt;</em>
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment"> * &lt;/blockquote&gt;</em>
+<a class="jxr_linenumber" name="43" href="#43">43</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="44" href="#44">44</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="45" href="#45">45</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="46" href="#46">46</a>  @MeteorService(<span class="jxr_string">"/*"</span>)
+<a class="jxr_linenumber" name="47" href="#47">47</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">MeteorChat</a> <strong class="jxr_keyword">extends</strong> HttpServlet {
+<a class="jxr_linenumber" name="48" href="#48">48</a>  
+<a class="jxr_linenumber" name="49" href="#49">49</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="50" href="#50">50</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} and use it to suspend the response.</em>
+<a class="jxr_linenumber" name="51" href="#51">51</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_javadoccomment">     * @param req An {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="53" href="#53">53</a>  <em class="jxr_javadoccomment">     * @param res An {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="54" href="#54">54</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="55" href="#55">55</a>      @Override
+<a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> doGet(HttpServletRequest req, HttpServletResponse res) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="57" href="#57">57</a>          <em class="jxr_comment">// Set the logger level to TRACE to see what's happening.</em>
+<a class="jxr_linenumber" name="58" href="#58">58</a>          <a href="../../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = Meteor.build(req).addListener(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">AtmosphereResourceEventListenerAdapter</a>());
+<a class="jxr_linenumber" name="59" href="#59">59</a>  
+<a class="jxr_linenumber" name="60" href="#60">60</a>          m.resumeOnBroadcast(m.transport() == LONG_POLLING ? <strong class="jxr_keyword">true</strong> : false).suspend(-1);
+<a class="jxr_linenumber" name="61" href="#61">61</a>      }
+<a class="jxr_linenumber" name="62" href="#62">62</a>  
+<a class="jxr_linenumber" name="63" href="#63">63</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment">     * Re-use the {@link Meteor} created on the first GET for broadcasting message.</em>
+<a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="66" href="#66">66</a>  <em class="jxr_javadoccomment">     * @param req An {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment">     * @param res An {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="69" href="#69">69</a>      @Override
+<a class="jxr_linenumber" name="70" href="#70">70</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> doPost(HttpServletRequest req, HttpServletResponse res) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="71" href="#71">71</a>          String body = req.getReader().readLine().trim();
+<a class="jxr_linenumber" name="72" href="#72">72</a>          <em class="jxr_comment">// Simple JSON -- Use Jackson for more complex structure</em>
+<a class="jxr_linenumber" name="73" href="#73">73</a>          <em class="jxr_comment">// Message looks like { "author" : "foo", "message" : "bar" }</em>
+<a class="jxr_linenumber" name="74" href="#74">74</a>          String author = body.substring(body.indexOf(<span class="jxr_string">":"</span>) + 2, body.indexOf(<span class="jxr_string">","</span>) - 1);
+<a class="jxr_linenumber" name="75" href="#75">75</a>          String message = body.substring(body.lastIndexOf(<span class="jxr_string">":"</span>) + 2, body.length() - 2);
+<a class="jxr_linenumber" name="76" href="#76">76</a>          BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, <span class="jxr_string">"/*"</span>).broadcast(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a>(author, message).toString());
+<a class="jxr_linenumber" name="77" href="#77">77</a>      }
 <a class="jxr_linenumber" name="78" href="#78">78</a>  
-<a class="jxr_linenumber" name="79" href="#79">79</a>          <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="80" href="#80">80</a>              <strong class="jxr_keyword">return</strong> <span class="jxr_string">"{ \&quot;text\&quot; : \&quot;"</span> + text + <span class="jxr_string">"\&quot;, \&quot;author\&quot; : \&quot;"</span> + author + <span class="jxr_string">"\&quot; , \&quot;time\&quot; : "</span> + <strong class="jxr_keyword">new</strong> Date().getTime() + <span class="jxr_string">"}"</span>;
-<a class="jxr_linenumber" name="81" href="#81">81</a>          }
-<a class="jxr_linenumber" name="82" href="#82">82</a>      }
-<a class="jxr_linenumber" name="83" href="#83">83</a>  }
+<a class="jxr_linenumber" name="79" href="#79">79</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a> {
+<a class="jxr_linenumber" name="80" href="#80">80</a>  
+<a class="jxr_linenumber" name="81" href="#81">81</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String text;
+<a class="jxr_linenumber" name="82" href="#82">82</a>          <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String author;
+<a class="jxr_linenumber" name="83" href="#83">83</a>  
+<a class="jxr_linenumber" name="84" href="#84">84</a>          <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/samples/chat/MeteorChat.html">Data</a>(String author, String text) {
+<a class="jxr_linenumber" name="85" href="#85">85</a>              <strong class="jxr_keyword">this</strong>.author = author;
+<a class="jxr_linenumber" name="86" href="#86">86</a>              <strong class="jxr_keyword">this</strong>.text = text;
+<a class="jxr_linenumber" name="87" href="#87">87</a>          }
+<a class="jxr_linenumber" name="88" href="#88">88</a>  
+<a class="jxr_linenumber" name="89" href="#89">89</a>          <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="90" href="#90">90</a>              <strong class="jxr_keyword">return</strong> <span class="jxr_string">"{ \&quot;text\&quot; : \&quot;"</span> + text + <span class="jxr_string">"\&quot;, \&quot;author\&quot; : \&quot;"</span> + author + <span class="jxr_string">"\&quot; , \&quot;time\&quot; : "</span> + <strong class="jxr_keyword">new</strong> Date().getTime() + <span class="jxr_string">"}"</span>;
+<a class="jxr_linenumber" name="91" href="#91">91</a>          }
+<a class="jxr_linenumber" name="92" href="#92">92</a>      }
+<a class="jxr_linenumber" name="93" href="#93">93</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

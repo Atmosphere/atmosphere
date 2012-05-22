@@ -120,7 +120,7 @@
 <a class="jxr_linenumber" name="110" href="#110">110</a>                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
 <a class="jxr_linenumber" name="111" href="#111">111</a> 
 <a class="jxr_linenumber" name="112" href="#112">112</a>             RequestFacade facade = (RequestFacade) hsr;
-<a class="jxr_linenumber" name="113" href="#113">113</a>             StreamInbound inbound = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/TomcatWebSocketHandler.html">TomcatWebSocketHandler</a>(AtmosphereRequest.loadInMemory(req, <strong class="jxr_keyword">true</strong>),
+<a class="jxr_linenumber" name="113" href="#113">113</a>             StreamInbound inbound = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/TomcatWebSocketHandler.html">TomcatWebSocketHandler</a>(AtmosphereRequest.cloneRequest(req, <strong class="jxr_keyword">true</strong>, config.isSupportSession()),
 <a class="jxr_linenumber" name="114" href="#114">114</a>                     config.framework(), config.framework().getWebSocketProtocol());
 <a class="jxr_linenumber" name="115" href="#115">115</a>             facade.doUpgrade(inbound);
 <a class="jxr_linenumber" name="116" href="#116">116</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a>(Action.TYPE.CREATED);

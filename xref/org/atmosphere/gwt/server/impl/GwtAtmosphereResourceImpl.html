@@ -191,145 +191,147 @@
 <a class="jxr_linenumber" name="181" href="#181">181</a> <em class="jxr_javadoccomment">     * 1 or more seperate threads</em>
 <a class="jxr_linenumber" name="182" href="#182">182</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">void</strong> resumeAfterDeath() {
-<a class="jxr_linenumber" name="184" href="#184">184</a>         atmosphereHandler.execute(<strong class="jxr_keyword">new</strong> Runnable() {
-<a class="jxr_linenumber" name="185" href="#185">185</a>             @Override
-<a class="jxr_linenumber" name="186" href="#186">186</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
-<a class="jxr_linenumber" name="187" href="#187">187</a>                 atmResource.resume();
-<a class="jxr_linenumber" name="188" href="#188">188</a>             }
-<a class="jxr_linenumber" name="189" href="#189">189</a>         });
-<a class="jxr_linenumber" name="190" href="#190">190</a>     }
-<a class="jxr_linenumber" name="191" href="#191">191</a> 
-<a class="jxr_linenumber" name="192" href="#192">192</a>     @Override
-<a class="jxr_linenumber" name="193" href="#193">193</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; <strong class="jxr_keyword">void</strong> setAttribute(String name, T value) {
-<a class="jxr_linenumber" name="194" href="#194">194</a>         atmResource.getRequest().setAttribute(name, value);
-<a class="jxr_linenumber" name="195" href="#195">195</a>     }
-<a class="jxr_linenumber" name="196" href="#196">196</a> 
-<a class="jxr_linenumber" name="197" href="#197">197</a>     @Override
-<a class="jxr_linenumber" name="198" href="#198">198</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; T getAttribute(String name) {
-<a class="jxr_linenumber" name="199" href="#199">199</a>         <strong class="jxr_keyword">return</strong> (T) atmResource.getRequest().getAttribute(name);
-<a class="jxr_linenumber" name="200" href="#200">200</a>     }
-<a class="jxr_linenumber" name="201" href="#201">201</a> 
-<a class="jxr_linenumber" name="202" href="#202">202</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> getWriterImpl() {
-<a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">return</strong> writer;
-<a class="jxr_linenumber" name="204" href="#204">204</a>     }
-<a class="jxr_linenumber" name="205" href="#205">205</a> 
-<a class="jxr_linenumber" name="206" href="#206">206</a>     ScheduledFuture&lt;?&gt; scheduleHeartbeat() {
-<a class="jxr_linenumber" name="207" href="#207">207</a>         <strong class="jxr_keyword">return</strong> getBroadcaster().getBroadcasterConfig().getScheduledExecutorService()
-<a class="jxr_linenumber" name="208" href="#208">208</a>                 .schedule(heartBeatTask, heartBeatInterval, TimeUnit.MILLISECONDS);
-<a class="jxr_linenumber" name="209" href="#209">209</a>     }
-<a class="jxr_linenumber" name="210" href="#210">210</a> 
-<a class="jxr_linenumber" name="211" href="#211">211</a>     <strong class="jxr_keyword">void</strong> terminate(<strong class="jxr_keyword">boolean</strong> serverInitiated) {
-<a class="jxr_linenumber" name="212" href="#212">212</a>         <a href="../../../../../org/atmosphere/gwt/server/AtmosphereGwtHandler.html">AtmosphereGwtHandler</a> s = atmosphereHandler;
-<a class="jxr_linenumber" name="213" href="#213">213</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="214" href="#214">214</a>             atmosphereHandler = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="215" href="#215">215</a>             <strong class="jxr_keyword">if</strong> (suspended) {
-<a class="jxr_linenumber" name="216" href="#216">216</a>                 atmResource.resume();
-<a class="jxr_linenumber" name="217" href="#217">217</a>             }
-<a class="jxr_linenumber" name="218" href="#218">218</a>             s.cometTerminated(<strong class="jxr_keyword">this</strong>, serverInitiated);
-<a class="jxr_linenumber" name="219" href="#219">219</a>         }
-<a class="jxr_linenumber" name="220" href="#220">220</a>     }
-<a class="jxr_linenumber" name="221" href="#221">221</a> 
-<a class="jxr_linenumber" name="222" href="#222">222</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> createResponseWriter() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">if</strong> (atmosphereHandler != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="185" href="#185">185</a>             atmosphereHandler.execute(<strong class="jxr_keyword">new</strong> Runnable() {
+<a class="jxr_linenumber" name="186" href="#186">186</a>                 @Override
+<a class="jxr_linenumber" name="187" href="#187">187</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
+<a class="jxr_linenumber" name="188" href="#188">188</a>                     atmResource.resume();
+<a class="jxr_linenumber" name="189" href="#189">189</a>                 }
+<a class="jxr_linenumber" name="190" href="#190">190</a>             });
+<a class="jxr_linenumber" name="191" href="#191">191</a>         }
+<a class="jxr_linenumber" name="192" href="#192">192</a>     }
+<a class="jxr_linenumber" name="193" href="#193">193</a> 
+<a class="jxr_linenumber" name="194" href="#194">194</a>     @Override
+<a class="jxr_linenumber" name="195" href="#195">195</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; <strong class="jxr_keyword">void</strong> setAttribute(String name, T value) {
+<a class="jxr_linenumber" name="196" href="#196">196</a>         atmResource.getRequest().setAttribute(name, value);
+<a class="jxr_linenumber" name="197" href="#197">197</a>     }
+<a class="jxr_linenumber" name="198" href="#198">198</a> 
+<a class="jxr_linenumber" name="199" href="#199">199</a>     @Override
+<a class="jxr_linenumber" name="200" href="#200">200</a>     <strong class="jxr_keyword">public</strong> &lt;T&gt; T getAttribute(String name) {
+<a class="jxr_linenumber" name="201" href="#201">201</a>         <strong class="jxr_keyword">return</strong> (T) atmResource.getRequest().getAttribute(name);
+<a class="jxr_linenumber" name="202" href="#202">202</a>     }
+<a class="jxr_linenumber" name="203" href="#203">203</a> 
+<a class="jxr_linenumber" name="204" href="#204">204</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> getWriterImpl() {
+<a class="jxr_linenumber" name="205" href="#205">205</a>         <strong class="jxr_keyword">return</strong> writer;
+<a class="jxr_linenumber" name="206" href="#206">206</a>     }
+<a class="jxr_linenumber" name="207" href="#207">207</a> 
+<a class="jxr_linenumber" name="208" href="#208">208</a>     ScheduledFuture&lt;?&gt; scheduleHeartbeat() {
+<a class="jxr_linenumber" name="209" href="#209">209</a>         <strong class="jxr_keyword">return</strong> getBroadcaster().getBroadcasterConfig().getScheduledExecutorService()
+<a class="jxr_linenumber" name="210" href="#210">210</a>                 .schedule(heartBeatTask, heartBeatInterval, TimeUnit.MILLISECONDS);
+<a class="jxr_linenumber" name="211" href="#211">211</a>     }
+<a class="jxr_linenumber" name="212" href="#212">212</a> 
+<a class="jxr_linenumber" name="213" href="#213">213</a>     <strong class="jxr_keyword">void</strong> terminate(<strong class="jxr_keyword">boolean</strong> serverInitiated) {
+<a class="jxr_linenumber" name="214" href="#214">214</a>         <a href="../../../../../org/atmosphere/gwt/server/AtmosphereGwtHandler.html">AtmosphereGwtHandler</a> s = atmosphereHandler;
+<a class="jxr_linenumber" name="215" href="#215">215</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="216" href="#216">216</a>             atmosphereHandler = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="217" href="#217">217</a>             <strong class="jxr_keyword">if</strong> (suspended) {
+<a class="jxr_linenumber" name="218" href="#218">218</a>                 atmResource.resume();
+<a class="jxr_linenumber" name="219" href="#219">219</a>             }
+<a class="jxr_linenumber" name="220" href="#220">220</a>             s.cometTerminated(<strong class="jxr_keyword">this</strong>, serverInitiated);
+<a class="jxr_linenumber" name="221" href="#221">221</a>         }
+<a class="jxr_linenumber" name="222" href="#222">222</a>     }
 <a class="jxr_linenumber" name="223" href="#223">223</a> 
-<a class="jxr_linenumber" name="224" href="#224">224</a>         ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
-<a class="jxr_linenumber" name="225" href="#225">225</a>         SerializationPolicy serializationPolicy = clientOracle == <strong class="jxr_keyword">null</strong> ? RPCUtil.createSimpleSerializationPolicy() : <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="226" href="#226">226</a> 
-<a class="jxr_linenumber" name="227" href="#227">227</a>         String transport = atmResource.getRequest().getParameter(<span class="jxr_string">"tr"</span>);
-<a class="jxr_linenumber" name="228" href="#228">228</a>         <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"WebSocket"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="229" href="#229">229</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using websocket"</span>);
-<a class="jxr_linenumber" name="230" href="#230">230</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/WebsocketResponseWriter.html">WebsocketResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="231" href="#231">231</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"HTTPRequest"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="232" href="#232">232</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using XMLHttpRequest"</span>);
-<a class="jxr_linenumber" name="233" href="#233">233</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/HTTPRequestResponseWriter.html">HTTPRequestResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="234" href="#234">234</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IFrame"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="235" href="#235">235</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using streaming IFrame"</span>);
-<a class="jxr_linenumber" name="236" href="#236">236</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IFrameResponseWriter.html">IFrameResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="237" href="#237">237</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"OperaEventSource"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="238" href="#238">238</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using Opera EventSource"</span>);
-<a class="jxr_linenumber" name="239" href="#239">239</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/OperaEventSourceResponseWriter.html">OperaEventSourceResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="240" href="#240">240</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IEXDomainRequest"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="241" href="#241">241</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using IE XDomainRequest"</span>);
-<a class="jxr_linenumber" name="242" href="#242">242</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IEXDomainRequestResponseWriter.html">IEXDomainRequestResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="243" href="#243">243</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IEHTMLFile"</span>.equals(transport)) {
-<a class="jxr_linenumber" name="244" href="#244">244</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using IE html file iframe"</span>);
-<a class="jxr_linenumber" name="245" href="#245">245</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IEHTMLFileResponseWriter.html">IEHTMLFileResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
-<a class="jxr_linenumber" name="246" href="#246">246</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="247" href="#247">247</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"Failed to determine responsewriter"</span>);
-<a class="jxr_linenumber" name="248" href="#248">248</a>         }
-<a class="jxr_linenumber" name="249" href="#249">249</a>     }
-<a class="jxr_linenumber" name="250" href="#250">250</a> 
-<a class="jxr_linenumber" name="251" href="#251">251</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">long</strong> WARMUP_TIME = 10000;
-<a class="jxr_linenumber" name="252" href="#252">252</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">long</strong> startTime = System.currentTimeMillis();
-<a class="jxr_linenumber" name="253" href="#253">253</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> writer;
-<a class="jxr_linenumber" name="254" href="#254">254</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> atmResource;
-<a class="jxr_linenumber" name="255" href="#255">255</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> heartBeatInterval;
-<a class="jxr_linenumber" name="256" href="#256">256</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/gwt/server/AtmosphereGwtHandler.html">AtmosphereGwtHandler</a> atmosphereHandler;
-<a class="jxr_linenumber" name="257" href="#257">257</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> suspended = false;
-<a class="jxr_linenumber" name="258" href="#258">258</a>     <strong class="jxr_keyword">private</strong> Logger logger = LoggerFactory.getLogger(getClass());
-<a class="jxr_linenumber" name="259" href="#259">259</a> 
-<a class="jxr_linenumber" name="260" href="#260">260</a>     <strong class="jxr_keyword">private</strong> Runnable heartBeatTask = <strong class="jxr_keyword">new</strong> Runnable() {
-<a class="jxr_linenumber" name="261" href="#261">261</a>         @Override
-<a class="jxr_linenumber" name="262" href="#262">262</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
-<a class="jxr_linenumber" name="263" href="#263">263</a>             <strong class="jxr_keyword">if</strong> (isAlive()) {
-<a class="jxr_linenumber" name="264" href="#264">264</a>                 broadcast(HEARTBEAT_MESSAGE);
-<a class="jxr_linenumber" name="265" href="#265">265</a>             }
-<a class="jxr_linenumber" name="266" href="#266">266</a>         }
-<a class="jxr_linenumber" name="267" href="#267">267</a>     };
-<a class="jxr_linenumber" name="268" href="#268">268</a> 
-<a class="jxr_linenumber" name="269" href="#269">269</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/cpr/Serializer.html">Serializer</a> serializer = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/cpr/Serializer.html">Serializer</a>() {
-<a class="jxr_linenumber" name="270" href="#270">270</a>         @Override
-<a class="jxr_linenumber" name="271" href="#271">271</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream out, Object o) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="272" href="#272">272</a>             <strong class="jxr_keyword">if</strong> (o instanceof Serializable) {
-<a class="jxr_linenumber" name="273" href="#273">273</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="274" href="#274">274</a>                     writer.write((Serializable) o);
-<a class="jxr_linenumber" name="275" href="#275">275</a>                 } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="276" href="#276">276</a>                     <strong class="jxr_keyword">if</strong> (writer.isTerminated()) {
-<a class="jxr_linenumber" name="277" href="#277">277</a>                         logger.debug(<span class="jxr_string">"broadcast failed, connection terminated:"</span> + e.getMessage(), e);
-<a class="jxr_linenumber" name="278" href="#278">278</a>                     }
-<a class="jxr_linenumber" name="279" href="#279">279</a>                     <strong class="jxr_keyword">throw</strong> e;
-<a class="jxr_linenumber" name="280" href="#280">280</a>                 }
-<a class="jxr_linenumber" name="281" href="#281">281</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (o instanceof List) {
-<a class="jxr_linenumber" name="282" href="#282">282</a>                 List&lt;?&gt; list = (List) o;
-<a class="jxr_linenumber" name="283" href="#283">283</a>                 <strong class="jxr_keyword">if</strong> (list.size() &gt; 0) {
-<a class="jxr_linenumber" name="284" href="#284">284</a>                     <strong class="jxr_keyword">if</strong> (!(list.get(0) instanceof Serializable)) {
-<a class="jxr_linenumber" name="285" href="#285">285</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"Failed to write a list of objects that are not serializable"</span>);
-<a class="jxr_linenumber" name="286" href="#286">286</a>                     }
-<a class="jxr_linenumber" name="287" href="#287">287</a>                     writer.write((List&lt;Serializable&gt;) o);
-<a class="jxr_linenumber" name="288" href="#288">288</a>                 }
-<a class="jxr_linenumber" name="289" href="#289">289</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="290" href="#290">290</a>                 logger.warn(<span class="jxr_string">"Failed to write an object that is not serializable"</span>);
-<a class="jxr_linenumber" name="291" href="#291">291</a>             }
-<a class="jxr_linenumber" name="292" href="#292">292</a>         }
-<a class="jxr_linenumber" name="293" href="#293">293</a>     };
-<a class="jxr_linenumber" name="294" href="#294">294</a> 
-<a class="jxr_linenumber" name="295" href="#295">295</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> eventListener = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a>() {
+<a class="jxr_linenumber" name="224" href="#224">224</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> createResponseWriter() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="225" href="#225">225</a> 
+<a class="jxr_linenumber" name="226" href="#226">226</a>         ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
+<a class="jxr_linenumber" name="227" href="#227">227</a>         SerializationPolicy serializationPolicy = clientOracle == <strong class="jxr_keyword">null</strong> ? RPCUtil.createSimpleSerializationPolicy() : <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="228" href="#228">228</a> 
+<a class="jxr_linenumber" name="229" href="#229">229</a>         String transport = atmResource.getRequest().getParameter(<span class="jxr_string">"tr"</span>);
+<a class="jxr_linenumber" name="230" href="#230">230</a>         <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"WebSocket"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="231" href="#231">231</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using websocket"</span>);
+<a class="jxr_linenumber" name="232" href="#232">232</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/WebsocketResponseWriter.html">WebsocketResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="233" href="#233">233</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"HTTPRequest"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="234" href="#234">234</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using XMLHttpRequest"</span>);
+<a class="jxr_linenumber" name="235" href="#235">235</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/HTTPRequestResponseWriter.html">HTTPRequestResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="236" href="#236">236</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IFrame"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="237" href="#237">237</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using streaming IFrame"</span>);
+<a class="jxr_linenumber" name="238" href="#238">238</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IFrameResponseWriter.html">IFrameResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="239" href="#239">239</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"OperaEventSource"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="240" href="#240">240</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using Opera EventSource"</span>);
+<a class="jxr_linenumber" name="241" href="#241">241</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/OperaEventSourceResponseWriter.html">OperaEventSourceResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="242" href="#242">242</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IEXDomainRequest"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="243" href="#243">243</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using IE XDomainRequest"</span>);
+<a class="jxr_linenumber" name="244" href="#244">244</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IEXDomainRequestResponseWriter.html">IEXDomainRequestResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="245" href="#245">245</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"IEHTMLFile"</span>.equals(transport)) {
+<a class="jxr_linenumber" name="246" href="#246">246</a>             logger.debug(<span class="jxr_string">"atmosphere-gwt Using IE html file iframe"</span>);
+<a class="jxr_linenumber" name="247" href="#247">247</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/IEHTMLFileResponseWriter.html">IEHTMLFileResponseWriter</a>(<strong class="jxr_keyword">this</strong>, serializationPolicy, clientOracle);
+<a class="jxr_linenumber" name="248" href="#248">248</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="249" href="#249">249</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"Failed to determine responsewriter"</span>);
+<a class="jxr_linenumber" name="250" href="#250">250</a>         }
+<a class="jxr_linenumber" name="251" href="#251">251</a>     }
+<a class="jxr_linenumber" name="252" href="#252">252</a> 
+<a class="jxr_linenumber" name="253" href="#253">253</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">long</strong> WARMUP_TIME = 10000;
+<a class="jxr_linenumber" name="254" href="#254">254</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">long</strong> startTime = System.currentTimeMillis();
+<a class="jxr_linenumber" name="255" href="#255">255</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/gwt/server/impl/GwtResponseWriterImpl.html">GwtResponseWriterImpl</a> writer;
+<a class="jxr_linenumber" name="256" href="#256">256</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> atmResource;
+<a class="jxr_linenumber" name="257" href="#257">257</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> heartBeatInterval;
+<a class="jxr_linenumber" name="258" href="#258">258</a>     <strong class="jxr_keyword">private</strong> <a href="../../../../../org/atmosphere/gwt/server/AtmosphereGwtHandler.html">AtmosphereGwtHandler</a> atmosphereHandler;
+<a class="jxr_linenumber" name="259" href="#259">259</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> suspended = false;
+<a class="jxr_linenumber" name="260" href="#260">260</a>     <strong class="jxr_keyword">private</strong> Logger logger = LoggerFactory.getLogger(getClass());
+<a class="jxr_linenumber" name="261" href="#261">261</a> 
+<a class="jxr_linenumber" name="262" href="#262">262</a>     <strong class="jxr_keyword">private</strong> Runnable heartBeatTask = <strong class="jxr_keyword">new</strong> Runnable() {
+<a class="jxr_linenumber" name="263" href="#263">263</a>         @Override
+<a class="jxr_linenumber" name="264" href="#264">264</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
+<a class="jxr_linenumber" name="265" href="#265">265</a>             <strong class="jxr_keyword">if</strong> (isAlive()) {
+<a class="jxr_linenumber" name="266" href="#266">266</a>                 broadcast(HEARTBEAT_MESSAGE);
+<a class="jxr_linenumber" name="267" href="#267">267</a>             }
+<a class="jxr_linenumber" name="268" href="#268">268</a>         }
+<a class="jxr_linenumber" name="269" href="#269">269</a>     };
+<a class="jxr_linenumber" name="270" href="#270">270</a> 
+<a class="jxr_linenumber" name="271" href="#271">271</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/cpr/Serializer.html">Serializer</a> serializer = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/cpr/Serializer.html">Serializer</a>() {
+<a class="jxr_linenumber" name="272" href="#272">272</a>         @Override
+<a class="jxr_linenumber" name="273" href="#273">273</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(OutputStream out, Object o) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="274" href="#274">274</a>             <strong class="jxr_keyword">if</strong> (o instanceof Serializable) {
+<a class="jxr_linenumber" name="275" href="#275">275</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="276" href="#276">276</a>                     writer.write((Serializable) o);
+<a class="jxr_linenumber" name="277" href="#277">277</a>                 } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="278" href="#278">278</a>                     <strong class="jxr_keyword">if</strong> (writer.isTerminated()) {
+<a class="jxr_linenumber" name="279" href="#279">279</a>                         logger.debug(<span class="jxr_string">"broadcast failed, connection terminated:"</span> + e.getMessage(), e);
+<a class="jxr_linenumber" name="280" href="#280">280</a>                     }
+<a class="jxr_linenumber" name="281" href="#281">281</a>                     <strong class="jxr_keyword">throw</strong> e;
+<a class="jxr_linenumber" name="282" href="#282">282</a>                 }
+<a class="jxr_linenumber" name="283" href="#283">283</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (o instanceof List) {
+<a class="jxr_linenumber" name="284" href="#284">284</a>                 List&lt;?&gt; list = (List) o;
+<a class="jxr_linenumber" name="285" href="#285">285</a>                 <strong class="jxr_keyword">if</strong> (list.size() &gt; 0) {
+<a class="jxr_linenumber" name="286" href="#286">286</a>                     <strong class="jxr_keyword">if</strong> (!(list.get(0) instanceof Serializable)) {
+<a class="jxr_linenumber" name="287" href="#287">287</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"Failed to write a list of objects that are not serializable"</span>);
+<a class="jxr_linenumber" name="288" href="#288">288</a>                     }
+<a class="jxr_linenumber" name="289" href="#289">289</a>                     writer.write((List&lt;Serializable&gt;) o);
+<a class="jxr_linenumber" name="290" href="#290">290</a>                 }
+<a class="jxr_linenumber" name="291" href="#291">291</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="292" href="#292">292</a>                 logger.warn(<span class="jxr_string">"Failed to write an object that is not serializable"</span>);
+<a class="jxr_linenumber" name="293" href="#293">293</a>             }
+<a class="jxr_linenumber" name="294" href="#294">294</a>         }
+<a class="jxr_linenumber" name="295" href="#295">295</a>     };
 <a class="jxr_linenumber" name="296" href="#296">296</a> 
-<a class="jxr_linenumber" name="297" href="#297">297</a>         @Override
-<a class="jxr_linenumber" name="298" href="#298">298</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuspend(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> are) {
-<a class="jxr_linenumber" name="299" href="#299">299</a>             suspended = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="300" href="#300">300</a>         }
-<a class="jxr_linenumber" name="301" href="#301">301</a> 
-<a class="jxr_linenumber" name="302" href="#302">302</a>         @Override
-<a class="jxr_linenumber" name="303" href="#303">303</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResume(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
-<a class="jxr_linenumber" name="304" href="#304">304</a>             suspended = false;
-<a class="jxr_linenumber" name="305" href="#305">305</a>             writer.setTerminated(false);
-<a class="jxr_linenumber" name="306" href="#306">306</a>         }
-<a class="jxr_linenumber" name="307" href="#307">307</a> 
-<a class="jxr_linenumber" name="308" href="#308">308</a>         @Override
-<a class="jxr_linenumber" name="309" href="#309">309</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onDisconnect(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
-<a class="jxr_linenumber" name="310" href="#310">310</a>             suspended = false;
-<a class="jxr_linenumber" name="311" href="#311">311</a>             writer.setTerminated(false);
-<a class="jxr_linenumber" name="312" href="#312">312</a>         }
-<a class="jxr_linenumber" name="313" href="#313">313</a> 
-<a class="jxr_linenumber" name="314" href="#314">314</a>         @Override
-<a class="jxr_linenumber" name="315" href="#315">315</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onBroadcast(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
-<a class="jxr_linenumber" name="316" href="#316">316</a>         }
-<a class="jxr_linenumber" name="317" href="#317">317</a> 
-<a class="jxr_linenumber" name="318" href="#318">318</a>         @Override
-<a class="jxr_linenumber" name="319" href="#319">319</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onThrowable(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
-<a class="jxr_linenumber" name="320" href="#320">320</a>         }
-<a class="jxr_linenumber" name="321" href="#321">321</a>     };
-<a class="jxr_linenumber" name="322" href="#322">322</a> }
+<a class="jxr_linenumber" name="297" href="#297">297</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> eventListener = <strong class="jxr_keyword">new</strong> <a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a>() {
+<a class="jxr_linenumber" name="298" href="#298">298</a> 
+<a class="jxr_linenumber" name="299" href="#299">299</a>         @Override
+<a class="jxr_linenumber" name="300" href="#300">300</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuspend(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> are) {
+<a class="jxr_linenumber" name="301" href="#301">301</a>             suspended = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="302" href="#302">302</a>         }
+<a class="jxr_linenumber" name="303" href="#303">303</a> 
+<a class="jxr_linenumber" name="304" href="#304">304</a>         @Override
+<a class="jxr_linenumber" name="305" href="#305">305</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResume(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="306" href="#306">306</a>             suspended = false;
+<a class="jxr_linenumber" name="307" href="#307">307</a>             writer.setTerminated(false);
+<a class="jxr_linenumber" name="308" href="#308">308</a>         }
+<a class="jxr_linenumber" name="309" href="#309">309</a> 
+<a class="jxr_linenumber" name="310" href="#310">310</a>         @Override
+<a class="jxr_linenumber" name="311" href="#311">311</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onDisconnect(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="312" href="#312">312</a>             suspended = false;
+<a class="jxr_linenumber" name="313" href="#313">313</a>             writer.setTerminated(false);
+<a class="jxr_linenumber" name="314" href="#314">314</a>         }
+<a class="jxr_linenumber" name="315" href="#315">315</a> 
+<a class="jxr_linenumber" name="316" href="#316">316</a>         @Override
+<a class="jxr_linenumber" name="317" href="#317">317</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onBroadcast(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="318" href="#318">318</a>         }
+<a class="jxr_linenumber" name="319" href="#319">319</a> 
+<a class="jxr_linenumber" name="320" href="#320">320</a>         @Override
+<a class="jxr_linenumber" name="321" href="#321">321</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onThrowable(<a href="../../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="322" href="#322">322</a>         }
+<a class="jxr_linenumber" name="323" href="#323">323</a>     };
+<a class="jxr_linenumber" name="324" href="#324">324</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

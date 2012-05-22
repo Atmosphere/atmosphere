@@ -2,11 +2,11 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-<title>AtmosphereRequestWrapper xref</title>
-<link type="text/css" rel="stylesheet" href="../../../stylesheet.css" />
+<title>OnRefresh xref</title>
+<link type="text/css" rel="stylesheet" href="../../../../stylesheet.css" />
 </head>
 <body>
-<div id="overview"><a href="../../../../apidocs/org/atmosphere/cpr/AtmosphereRequestWrapper.html">View Javadoc</a></div><pre>
+<div id="overview"><a href="../../../../../apidocs/org/atmosphere/gwt/js/OnRefresh.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
 <a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
@@ -23,21 +23,23 @@
 <a class="jxr_linenumber" name="13" href="#13">13</a>  <em class="jxr_comment"> * License for the specific language governing permissions and limitations under</em>
 <a class="jxr_linenumber" name="14" href="#14">14</a>  <em class="jxr_comment"> * the License.</em>
 <a class="jxr_linenumber" name="15" href="#15">15</a>  <em class="jxr_comment"> */</em>
-<a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cpr;
+<a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.gwt.js;
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
-<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletRequestWrapper;
-<a class="jxr_linenumber" name="19" href="#19">19</a>  
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequestWrapper.html">AtmosphereRequestWrapper</a> <strong class="jxr_keyword">extends</strong> HttpServletRequestWrapper {
-<a class="jxr_linenumber" name="21" href="#21">21</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment">     * Constructs a request object wrapping the given request.</em>
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment">     * @param request request to wrap</em>
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_javadoccomment">     * @throws IllegalArgumentException if the request is null</em>
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="27" href="#27">27</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequestWrapper.html">AtmosphereRequestWrapper</a>(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
-<a class="jxr_linenumber" name="28" href="#28">28</a>          <strong class="jxr_keyword">super</strong>(request);
-<a class="jxr_linenumber" name="29" href="#29">29</a>      }
-<a class="jxr_linenumber" name="30" href="#30">30</a>  }
+<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.timepedia.exporter.client.Export;
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.timepedia.exporter.client.ExportClosure;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.timepedia.exporter.client.ExportPackage;
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.timepedia.exporter.client.Exportable;
+<a class="jxr_linenumber" name="22" href="#22">22</a>  
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_javadoccomment"> * @author p.havelaar</em>
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="27" href="#27">27</a>  @Export
+<a class="jxr_linenumber" name="28" href="#28">28</a>  @ExportPackage(<span class="jxr_string">"atmosphere"</span>)
+<a class="jxr_linenumber" name="29" href="#29">29</a>  @ExportClosure
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../../org/atmosphere/gwt/js/OnRefresh.html">OnRefresh</a> <strong class="jxr_keyword">extends</strong> Exportable {
+<a class="jxr_linenumber" name="31" href="#31">31</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> execute();
+<a class="jxr_linenumber" name="32" href="#32">32</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

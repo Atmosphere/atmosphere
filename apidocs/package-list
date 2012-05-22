@@ -5,6 +5,7 @@ org.atmosphere.cache
 org.atmosphere.client
 org.atmosphere.commons.util
 org.atmosphere.config
+org.atmosphere.config.service
 org.atmosphere.container
 org.atmosphere.container.version
 org.atmosphere.cpr
@@ -48,7 +49,6 @@ org.atmosphere.samples.pubsub.services
 org.atmosphere.samples.pubsub.spring
 org.atmosphere.samples.pubsub.utils
 org.atmosphere.samples.server
-org.atmosphere.samples.tictactoe
 org.atmosphere.samples.twitter
 org.atmosphere.samples.wicket
 org.atmosphere.spring

@@ -147,7 +147,7 @@
 <a class="jxr_linenumber" name="137" href="#137">137</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="138" href="#138">138</a> 
 <a class="jxr_linenumber" name="139" href="#139">139</a>         <strong class="jxr_keyword">if</strong> (!req.isAsyncStarted()) {
-<a class="jxr_linenumber" name="140" href="#140">140</a>             AsyncContext asyncContext = req.startAsync();
+<a class="jxr_linenumber" name="140" href="#140">140</a>             AsyncContext asyncContext = req.startAsync(req, res);
 <a class="jxr_linenumber" name="141" href="#141">141</a>             asyncContext.addListener(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/Servlet30CometSupport.html">CometListener</a>(<strong class="jxr_keyword">this</strong>));
 <a class="jxr_linenumber" name="142" href="#142">142</a>             <em class="jxr_comment">// Do nothing except setting the times out</em>
 <a class="jxr_linenumber" name="143" href="#143">143</a>             <strong class="jxr_keyword">if</strong> (action.timeout() != -1) {

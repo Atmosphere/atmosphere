@@ -95,22 +95,22 @@
 <a class="jxr_linenumber" name="85" href="#85">85</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String PRE_SUSPEND = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".preSuspend"</span>;
 <a class="jxr_linenumber" name="86" href="#86">86</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".skipBroadcasterCreation"</span>;
 <a class="jxr_linenumber" name="87" href="#87">87</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String METEOR = Meteor.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="88" href="#88">88</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req;
-<a class="jxr_linenumber" name="89" href="#89">89</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response;
-<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a>();
-<a class="jxr_linenumber" name="91" href="#91">91</a>      <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster;
-<a class="jxr_linenumber" name="92" href="#92">92</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
-<a class="jxr_linenumber" name="93" href="#93">93</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> asyncSupport;
-<a class="jxr_linenumber" name="94" href="#94">94</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> serializer;
-<a class="jxr_linenumber" name="95" href="#95">95</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isInScope = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="96" href="#96">96</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a> event;
-<a class="jxr_linenumber" name="97" href="#97">97</a>      <strong class="jxr_keyword">private</strong> String beginCompatibleData;
-<a class="jxr_linenumber" name="98" href="#98">98</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> useWriter = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="99" href="#99">99</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isResumed = false;
-<a class="jxr_linenumber" name="100" href="#100">100</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isCancelled = false;
-<a class="jxr_linenumber" name="101" href="#101">101</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> resumeOnBroadcast = false;
-<a class="jxr_linenumber" name="102" href="#102">102</a>     <strong class="jxr_keyword">private</strong> Object writeOnTimeout = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="103" href="#103">103</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> sseWritten = false;
+<a class="jxr_linenumber" name="88" href="#88">88</a>  
+<a class="jxr_linenumber" name="89" href="#89">89</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req;
+<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response;
+<a class="jxr_linenumber" name="91" href="#91">91</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a>();
+<a class="jxr_linenumber" name="92" href="#92">92</a>      <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster;
+<a class="jxr_linenumber" name="93" href="#93">93</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
+<a class="jxr_linenumber" name="94" href="#94">94</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> asyncSupport;
+<a class="jxr_linenumber" name="95" href="#95">95</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> serializer;
+<a class="jxr_linenumber" name="96" href="#96">96</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isInScope = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="97" href="#97">97</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a> event;
+<a class="jxr_linenumber" name="98" href="#98">98</a>      <strong class="jxr_keyword">private</strong> String beginCompatibleData;
+<a class="jxr_linenumber" name="99" href="#99">99</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> useWriter = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="100" href="#100">100</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isResumed = false;
+<a class="jxr_linenumber" name="101" href="#101">101</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isCancelled = false;
+<a class="jxr_linenumber" name="102" href="#102">102</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> resumeOnBroadcast = false;
+<a class="jxr_linenumber" name="103" href="#103">103</a>     <strong class="jxr_keyword">private</strong> Object writeOnTimeout = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="104" href="#104">104</a> 
 <a class="jxr_linenumber" name="105" href="#105">105</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> ConcurrentLinkedQueue&lt;AtmosphereResourceEventListener&gt; listeners =
 <a class="jxr_linenumber" name="106" href="#106">106</a>             <strong class="jxr_keyword">new</strong> ConcurrentLinkedQueue&lt;AtmosphereResourceEventListener&gt;();
@@ -118,7 +118,7 @@
 <a class="jxr_linenumber" name="108" href="#108">108</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> injectCacheHeaders;
 <a class="jxr_linenumber" name="109" href="#109">109</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> enableAccessControl;
 <a class="jxr_linenumber" name="110" href="#110">110</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean isSuspendEvent = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
-<a class="jxr_linenumber" name="111" href="#111">111</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler;
+<a class="jxr_linenumber" name="111" href="#111">111</a>     <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler;
 <a class="jxr_linenumber" name="112" href="#112">112</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> writeHeaders;
 <a class="jxr_linenumber" name="113" href="#113">113</a>     <strong class="jxr_keyword">private</strong> String padding;
 <a class="jxr_linenumber" name="114" href="#114">114</a> 
@@ -552,7 +552,7 @@
 <a class="jxr_linenumber" name="542" href="#542">542</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="543" href="#543">543</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="544" href="#544">544</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="545" href="#545">545</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
+<a class="jxr_linenumber" name="545" href="#545">545</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
 <a class="jxr_linenumber" name="546" href="#546">546</a>         <strong class="jxr_keyword">this</strong>.broadcaster = broadcaster;
 <a class="jxr_linenumber" name="547" href="#547">547</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="548" href="#548">548</a>     }
@@ -795,82 +795,87 @@
 <a class="jxr_linenumber" name="785" href="#785">785</a>         <strong class="jxr_keyword">return</strong> listeners;
 <a class="jxr_linenumber" name="786" href="#786">786</a>     }
 <a class="jxr_linenumber" name="787" href="#787">787</a> 
-<a class="jxr_linenumber" name="788" href="#788">788</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">void</strong> cancel() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="789" href="#789">789</a>         action.type(Action.TYPE.RESUME);
-<a class="jxr_linenumber" name="790" href="#790">790</a>         isCancelled = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="791" href="#791">791</a>         asyncSupport.action(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="792" href="#792">792</a>         <em class="jxr_comment">// We must close the underlying WebSocket as well.</em>
-<a class="jxr_linenumber" name="793" href="#793">793</a>         <strong class="jxr_keyword">if</strong> (AtmosphereResponse.<strong class="jxr_keyword">class</strong>.isAssignableFrom(response.getClass())) {
-<a class="jxr_linenumber" name="794" href="#794">794</a>             AtmosphereResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).close();
-<a class="jxr_linenumber" name="795" href="#795">795</a>             AtmosphereResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).destroy();
-<a class="jxr_linenumber" name="796" href="#796">796</a>         }
-<a class="jxr_linenumber" name="797" href="#797">797</a> 
-<a class="jxr_linenumber" name="798" href="#798">798</a>         <strong class="jxr_keyword">if</strong> (AtmosphereRequest.<strong class="jxr_keyword">class</strong>.isAssignableFrom(req.getClass())) {
-<a class="jxr_linenumber" name="799" href="#799">799</a>             AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req).destroy();
-<a class="jxr_linenumber" name="800" href="#800">800</a>         }
-<a class="jxr_linenumber" name="801" href="#801">801</a> 
-<a class="jxr_linenumber" name="802" href="#802">802</a>         <em class="jxr_comment">// TODO: Grab some measurement.</em>
-<a class="jxr_linenumber" name="803" href="#803">803</a> <em class="jxr_comment">//        req = null;</em>
-<a class="jxr_linenumber" name="804" href="#804">804</a> <em class="jxr_comment">//        response = null;</em>
-<a class="jxr_linenumber" name="805" href="#805">805</a> 
-<a class="jxr_linenumber" name="806" href="#806">806</a>         <em class="jxr_comment">// Just in case</em>
-<a class="jxr_linenumber" name="807" href="#807">807</a>         <strong class="jxr_keyword">if</strong> (broadcaster != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="808" href="#808">808</a>             broadcaster.removeAtmosphereResource(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="809" href="#809">809</a>         }
-<a class="jxr_linenumber" name="810" href="#810">810</a>         event.destroy();
-<a class="jxr_linenumber" name="811" href="#811">811</a>     }
-<a class="jxr_linenumber" name="812" href="#812">812</a> 
-<a class="jxr_linenumber" name="813" href="#813">813</a>     @Override
-<a class="jxr_linenumber" name="814" href="#814">814</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
-<a class="jxr_linenumber" name="815" href="#815">815</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="816" href="#816">816</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="788" href="#788">788</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> atmosphereHandler(<a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler) {
+<a class="jxr_linenumber" name="789" href="#789">789</a>         <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
+<a class="jxr_linenumber" name="790" href="#790">790</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="791" href="#791">791</a>     }
+<a class="jxr_linenumber" name="792" href="#792">792</a> 
+<a class="jxr_linenumber" name="793" href="#793">793</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">void</strong> cancel() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="794" href="#794">794</a>         action.type(Action.TYPE.RESUME);
+<a class="jxr_linenumber" name="795" href="#795">795</a>         isCancelled = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="796" href="#796">796</a>         asyncSupport.action(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="797" href="#797">797</a>         <em class="jxr_comment">// We must close the underlying WebSocket as well.</em>
+<a class="jxr_linenumber" name="798" href="#798">798</a>         <strong class="jxr_keyword">if</strong> (AtmosphereResponse.<strong class="jxr_keyword">class</strong>.isAssignableFrom(response.getClass())) {
+<a class="jxr_linenumber" name="799" href="#799">799</a>             AtmosphereResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).close();
+<a class="jxr_linenumber" name="800" href="#800">800</a>             AtmosphereResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response).destroy();
+<a class="jxr_linenumber" name="801" href="#801">801</a>         }
+<a class="jxr_linenumber" name="802" href="#802">802</a> 
+<a class="jxr_linenumber" name="803" href="#803">803</a>         <strong class="jxr_keyword">if</strong> (AtmosphereRequest.<strong class="jxr_keyword">class</strong>.isAssignableFrom(req.getClass())) {
+<a class="jxr_linenumber" name="804" href="#804">804</a>             AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req).destroy();
+<a class="jxr_linenumber" name="805" href="#805">805</a>         }
+<a class="jxr_linenumber" name="806" href="#806">806</a> 
+<a class="jxr_linenumber" name="807" href="#807">807</a>         <em class="jxr_comment">// TODO: Grab some measurement.</em>
+<a class="jxr_linenumber" name="808" href="#808">808</a> <em class="jxr_comment">//        req = null;</em>
+<a class="jxr_linenumber" name="809" href="#809">809</a> <em class="jxr_comment">//        response = null;</em>
+<a class="jxr_linenumber" name="810" href="#810">810</a> 
+<a class="jxr_linenumber" name="811" href="#811">811</a>         <em class="jxr_comment">// Just in case</em>
+<a class="jxr_linenumber" name="812" href="#812">812</a>         <strong class="jxr_keyword">if</strong> (broadcaster != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="813" href="#813">813</a>             broadcaster.removeAtmosphereResource(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="814" href="#814">814</a>         }
+<a class="jxr_linenumber" name="815" href="#815">815</a>         event.destroy();
+<a class="jxr_linenumber" name="816" href="#816">816</a>     }
 <a class="jxr_linenumber" name="817" href="#817">817</a> 
-<a class="jxr_linenumber" name="818" href="#818">818</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> that = (AtmosphereResourceImpl) o;
-<a class="jxr_linenumber" name="819" href="#819">819</a> 
-<a class="jxr_linenumber" name="820" href="#820">820</a>         <strong class="jxr_keyword">if</strong> (enableAccessControl != that.enableAccessControl) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="821" href="#821">821</a>         <strong class="jxr_keyword">if</strong> (injectCacheHeaders != that.injectCacheHeaders) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="822" href="#822">822</a>         <strong class="jxr_keyword">if</strong> (isInScope != that.isInScope) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="823" href="#823">823</a>         <strong class="jxr_keyword">if</strong> (writeHeaders != that.writeHeaders) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="824" href="#824">824</a>         <strong class="jxr_keyword">if</strong> (atmosphereHandler != <strong class="jxr_keyword">null</strong> ? !atmosphereHandler.equals(that.atmosphereHandler) : that.atmosphereHandler != <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="825" href="#825">825</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="826" href="#826">826</a>         <strong class="jxr_keyword">if</strong> (broadcaster != <strong class="jxr_keyword">null</strong> ? !broadcaster.equals(that.broadcaster) : that.broadcaster != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="827" href="#827">827</a>         <strong class="jxr_keyword">if</strong> (isSuspendEvent != <strong class="jxr_keyword">null</strong> ? !isSuspendEvent.equals(that.isSuspendEvent) : that.isSuspendEvent != <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="828" href="#828">828</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="829" href="#829">829</a>         <strong class="jxr_keyword">if</strong> (req != <strong class="jxr_keyword">null</strong> ? !req.equals(that.req) : that.req != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="830" href="#830">830</a>         <strong class="jxr_keyword">if</strong> (response != <strong class="jxr_keyword">null</strong> ? !response.equals(that.response) : that.response != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="831" href="#831">831</a> 
-<a class="jxr_linenumber" name="832" href="#832">832</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="833" href="#833">833</a>     }
-<a class="jxr_linenumber" name="834" href="#834">834</a> 
-<a class="jxr_linenumber" name="835" href="#835">835</a>     @Override
-<a class="jxr_linenumber" name="836" href="#836">836</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
-<a class="jxr_linenumber" name="837" href="#837">837</a>         <strong class="jxr_keyword">int</strong> result = req != <strong class="jxr_keyword">null</strong> ? req.hashCode() : 0;
-<a class="jxr_linenumber" name="838" href="#838">838</a>         result = 31 * result + (response != <strong class="jxr_keyword">null</strong> ? response.hashCode() : 0);
-<a class="jxr_linenumber" name="839" href="#839">839</a>         result = 31 * result + (broadcaster != <strong class="jxr_keyword">null</strong> ? broadcaster.hashCode() : 0);
-<a class="jxr_linenumber" name="840" href="#840">840</a>         result = 31 * result + (isInScope ? 1 : 0);
-<a class="jxr_linenumber" name="841" href="#841">841</a>         result = 31 * result + (injectCacheHeaders ? 1 : 0);
-<a class="jxr_linenumber" name="842" href="#842">842</a>         result = 31 * result + (enableAccessControl ? 1 : 0);
-<a class="jxr_linenumber" name="843" href="#843">843</a>         result = 31 * result + (isSuspendEvent != <strong class="jxr_keyword">null</strong> ? isSuspendEvent.hashCode() : 0);
-<a class="jxr_linenumber" name="844" href="#844">844</a>         result = 31 * result + (atmosphereHandler != <strong class="jxr_keyword">null</strong> ? atmosphereHandler.hashCode() : 0);
-<a class="jxr_linenumber" name="845" href="#845">845</a>         result = 31 * result + (writeHeaders ? 1 : 0);
-<a class="jxr_linenumber" name="846" href="#846">846</a>         <strong class="jxr_keyword">return</strong> result;
-<a class="jxr_linenumber" name="847" href="#847">847</a>     }
-<a class="jxr_linenumber" name="848" href="#848">848</a> 
-<a class="jxr_linenumber" name="849" href="#849">849</a>     @Override
-<a class="jxr_linenumber" name="850" href="#850">850</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="851" href="#851">851</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceImpl{"</span> +
-<a class="jxr_linenumber" name="852" href="#852">852</a>                 <span class="jxr_string">"\n hasCode"</span> + hashCode() +
-<a class="jxr_linenumber" name="853" href="#853">853</a>                 <span class="jxr_string">",\n action="</span> + action +
-<a class="jxr_linenumber" name="854" href="#854">854</a>                 <span class="jxr_string">",\n broadcaster="</span> + broadcaster.getClass().getName() +
-<a class="jxr_linenumber" name="855" href="#855">855</a>                 <span class="jxr_string">",\n asyncSupport="</span> + asyncSupport +
-<a class="jxr_linenumber" name="856" href="#856">856</a>                 <span class="jxr_string">",\n serializer="</span> + serializer +
-<a class="jxr_linenumber" name="857" href="#857">857</a>                 <span class="jxr_string">",\n isInScope="</span> + isInScope +
-<a class="jxr_linenumber" name="858" href="#858">858</a>                 <span class="jxr_string">",\n useWriter="</span> + useWriter +
-<a class="jxr_linenumber" name="859" href="#859">859</a>                 <span class="jxr_string">",\n listeners="</span> + listeners +
-<a class="jxr_linenumber" name="860" href="#860">860</a>                 '}';
-<a class="jxr_linenumber" name="861" href="#861">861</a>     }
-<a class="jxr_linenumber" name="862" href="#862">862</a> 
-<a class="jxr_linenumber" name="863" href="#863">863</a> }
+<a class="jxr_linenumber" name="818" href="#818">818</a>     @Override
+<a class="jxr_linenumber" name="819" href="#819">819</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
+<a class="jxr_linenumber" name="820" href="#820">820</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="821" href="#821">821</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="822" href="#822">822</a> 
+<a class="jxr_linenumber" name="823" href="#823">823</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> that = (AtmosphereResourceImpl) o;
+<a class="jxr_linenumber" name="824" href="#824">824</a> 
+<a class="jxr_linenumber" name="825" href="#825">825</a>         <strong class="jxr_keyword">if</strong> (enableAccessControl != that.enableAccessControl) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="826" href="#826">826</a>         <strong class="jxr_keyword">if</strong> (injectCacheHeaders != that.injectCacheHeaders) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="827" href="#827">827</a>         <strong class="jxr_keyword">if</strong> (isInScope != that.isInScope) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="828" href="#828">828</a>         <strong class="jxr_keyword">if</strong> (writeHeaders != that.writeHeaders) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="829" href="#829">829</a>         <strong class="jxr_keyword">if</strong> (atmosphereHandler != <strong class="jxr_keyword">null</strong> ? !atmosphereHandler.equals(that.atmosphereHandler) : that.atmosphereHandler != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="830" href="#830">830</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="831" href="#831">831</a>         <strong class="jxr_keyword">if</strong> (broadcaster != <strong class="jxr_keyword">null</strong> ? !broadcaster.equals(that.broadcaster) : that.broadcaster != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="832" href="#832">832</a>         <strong class="jxr_keyword">if</strong> (isSuspendEvent != <strong class="jxr_keyword">null</strong> ? !isSuspendEvent.equals(that.isSuspendEvent) : that.isSuspendEvent != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="833" href="#833">833</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="834" href="#834">834</a>         <strong class="jxr_keyword">if</strong> (req != <strong class="jxr_keyword">null</strong> ? !req.equals(that.req) : that.req != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="835" href="#835">835</a>         <strong class="jxr_keyword">if</strong> (response != <strong class="jxr_keyword">null</strong> ? !response.equals(that.response) : that.response != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="836" href="#836">836</a> 
+<a class="jxr_linenumber" name="837" href="#837">837</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="838" href="#838">838</a>     }
+<a class="jxr_linenumber" name="839" href="#839">839</a> 
+<a class="jxr_linenumber" name="840" href="#840">840</a>     @Override
+<a class="jxr_linenumber" name="841" href="#841">841</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
+<a class="jxr_linenumber" name="842" href="#842">842</a>         <strong class="jxr_keyword">int</strong> result = req != <strong class="jxr_keyword">null</strong> ? req.hashCode() : 0;
+<a class="jxr_linenumber" name="843" href="#843">843</a>         result = 31 * result + (response != <strong class="jxr_keyword">null</strong> ? response.hashCode() : 0);
+<a class="jxr_linenumber" name="844" href="#844">844</a>         result = 31 * result + (broadcaster != <strong class="jxr_keyword">null</strong> ? broadcaster.hashCode() : 0);
+<a class="jxr_linenumber" name="845" href="#845">845</a>         result = 31 * result + (isInScope ? 1 : 0);
+<a class="jxr_linenumber" name="846" href="#846">846</a>         result = 31 * result + (injectCacheHeaders ? 1 : 0);
+<a class="jxr_linenumber" name="847" href="#847">847</a>         result = 31 * result + (enableAccessControl ? 1 : 0);
+<a class="jxr_linenumber" name="848" href="#848">848</a>         result = 31 * result + (isSuspendEvent != <strong class="jxr_keyword">null</strong> ? isSuspendEvent.hashCode() : 0);
+<a class="jxr_linenumber" name="849" href="#849">849</a>         result = 31 * result + (atmosphereHandler != <strong class="jxr_keyword">null</strong> ? atmosphereHandler.hashCode() : 0);
+<a class="jxr_linenumber" name="850" href="#850">850</a>         result = 31 * result + (writeHeaders ? 1 : 0);
+<a class="jxr_linenumber" name="851" href="#851">851</a>         <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="852" href="#852">852</a>     }
+<a class="jxr_linenumber" name="853" href="#853">853</a> 
+<a class="jxr_linenumber" name="854" href="#854">854</a>     @Override
+<a class="jxr_linenumber" name="855" href="#855">855</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="856" href="#856">856</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceImpl{"</span> +
+<a class="jxr_linenumber" name="857" href="#857">857</a>                 <span class="jxr_string">"\n hasCode"</span> + hashCode() +
+<a class="jxr_linenumber" name="858" href="#858">858</a>                 <span class="jxr_string">",\n action="</span> + action +
+<a class="jxr_linenumber" name="859" href="#859">859</a>                 <span class="jxr_string">",\n broadcaster="</span> + broadcaster.getClass().getName() +
+<a class="jxr_linenumber" name="860" href="#860">860</a>                 <span class="jxr_string">",\n asyncSupport="</span> + asyncSupport +
+<a class="jxr_linenumber" name="861" href="#861">861</a>                 <span class="jxr_string">",\n serializer="</span> + serializer +
+<a class="jxr_linenumber" name="862" href="#862">862</a>                 <span class="jxr_string">",\n isInScope="</span> + isInScope +
+<a class="jxr_linenumber" name="863" href="#863">863</a>                 <span class="jxr_string">",\n useWriter="</span> + useWriter +
+<a class="jxr_linenumber" name="864" href="#864">864</a>                 <span class="jxr_string">",\n listeners="</span> + listeners +
+<a class="jxr_linenumber" name="865" href="#865">865</a>                 '}';
+<a class="jxr_linenumber" name="866" href="#866">866</a>     }
+<a class="jxr_linenumber" name="867" href="#867">867</a> 
+<a class="jxr_linenumber" name="868" href="#868">868</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
