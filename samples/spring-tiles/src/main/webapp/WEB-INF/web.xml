@@ -8,10 +8,6 @@
       <param-value>org.springframework.web.servlet.DispatcherServlet</param-value>
     </init-param>
     <init-param>
-      <param-name>org.atmosphere.cpr.broadcasterClass</param-name>
-      <param-value>org.atmosphere.cpr.DefaultBroadcaster</param-value>
-    </init-param>
-    <init-param>
       <param-name>org.atmosphere.useStream</param-name>
       <param-value>true</param-value>
     </init-param>

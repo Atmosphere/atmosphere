@@ -11,10 +11,6 @@
             <param-value>org.springframework.web.servlet.DispatcherServlet</param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
-            <param-value>org.atmosphere.samples.pubsub.config.protocol.DelegatingWebSocketProtocol</param-value>
-        </init-param>
-        <init-param>
             <param-name>contextClass</param-name>
             <param-value>
                 org.springframework.web.context.support.AnnotationConfigWebApplicationContext

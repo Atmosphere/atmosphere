@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.pubsub;
 
+import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
+@WebSocketHandlerService
 public class WebSocketPubSub extends WebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);

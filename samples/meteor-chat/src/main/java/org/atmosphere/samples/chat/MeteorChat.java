@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -30,10 +31,19 @@ import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
 
 /**
  * Simple Servlet that implement the logic to build a Chat application using
- * a {@link Meteor} to suspend and broadcast chat message.
+ * a {@link Meteor} to suspend and broadcast chat message.  The Meteor is annotated using the {@link MeteorService}
+ * but can also be defined in web.xml using
+ * <blockquote>
+ * <init-param>
+ *    <param-name>org.atmosphere.servlet</param-name>
+ *    <param-value>org.atmosphere.samples.chat.MeteorChat</param-value>
+ * </init-param>
+ * <p/>
+ * </blockquote>
  *
  * @author Jeanfrancois Arcand
  */
+@MeteorService("/*")
 public class MeteorChat extends HttpServlet {
 
     /**

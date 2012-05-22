@@ -10,10 +10,6 @@
         <description>MeteorServlet</description>
         <servlet-name>MeteorServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.MeteorServlet</servlet-class>
-        <init-param>
-            <param-name>org.atmosphere.servlet</param-name>
-            <param-value>org.atmosphere.samples.chat.MeteorChat</param-value>
-        </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

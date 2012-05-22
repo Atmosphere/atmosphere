@@ -1,8 +1,0 @@
-<atmosphere-handlers>
-    <!-- Jersey -->
-    <atmosphere-handler support-session="false" context-root="/chat"
-                        class-name="org.atmosphere.samples.chat.ChatAtmosphereHandler">
-    </atmosphere-handler>
-</atmosphere-handlers>
-
-        
