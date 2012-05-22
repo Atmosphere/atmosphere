@@ -32,9 +32,14 @@
 package org.atmosphere.gwt.client;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.rpc.client.ast.CommandSink;
+import com.google.gwt.rpc.client.ast.RpcCommand;
+import com.google.gwt.rpc.client.ast.RpcCommandVisitor;
 import com.google.gwt.rpc.client.impl.ClientWriterFactory;
+import com.google.gwt.rpc.client.impl.CommandToStringWriter;
 import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.client.rpc.SerializationStreamReader;
+import com.google.gwt.user.client.rpc.SerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamReader;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.Serializer;
@@ -96,6 +101,10 @@ public abstract class AtmosphereGWTSerializer {
             } catch (RuntimeException e) {
                 throw new SerializationException(e);
             }
+        } else if (getPushMode() == SerialMode.DE_RPC) {
+            SerializationStreamWriter writer = new CommandToStringWriter(null);
+            writer.writeObject(message);
+            return writer.toString();
         } else if (getPushMode() == SerialMode.PLAIN) {
             return message.toString();
         } else {
