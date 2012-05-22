@@ -22,12 +22,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation for telling Atmosphere which {@link org.atmosphere.websocket.WebSocketResponseFilter} class to use by default.
- *
+ * An annotation for telling Atmosphere which {@link org.atmosphere.cpr.Broadcaster} class to use by default.
  * @author Jeanfrancois Arcand
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface WebSocketResponseFilterService {
+public @interface AtmosphereInterceptorService {
 }
