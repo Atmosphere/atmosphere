@@ -68,6 +68,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
+    @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
