@@ -21,6 +21,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * An annotation for telling Atmosphere which {@link org.atmosphere.cpr.BroadcasterCache} class to use by default.
+ * @author Jeanfrancois Arcand
+ */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
