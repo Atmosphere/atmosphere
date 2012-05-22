@@ -142,7 +142,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
-
+    protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
 
     @Override
     public ServletContext getServletContext() {
@@ -415,6 +415,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             };
             this.servletConfig = scFacade;
+            autoConfigureService(scFacade.getServletContext());
             patchContainer();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
@@ -859,7 +860,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                 }
 
-                b = BroadcasterFactory.getDefault().get(atmoHandler.getContextRoot());
+                b = BroadcasterFactory.getDefault().lookup(atmoHandler.getContextRoot());
 
                 AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
                 addMapping(atmoHandler.getContextRoot(), wrapper);
@@ -1341,5 +1342,34 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public LinkedList<AtmosphereInterceptor> interceptors() {
         return interceptors;
+    }
+
+    /**
+     * Set the {@link AnnotationProcessor} class name.
+     * @param annotationProcessorClassName the {@link AnnotationProcessor} class name.
+     * @return this
+     */
+    public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
+        this.annotationProcessorClassName = annotationProcessorClassName;
+        return this;
+    }
+
+    protected void autoConfigureService(ServletContext sc) throws IOException {
+        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+
+        String path = sc.getRealPath(handlersPath);
+        // TODO: Hack to make the test works.
+        if (path == null) {
+            path = new File(handlersPath).getAbsolutePath();
+        }
+
+        try {
+            AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
+            p.configure(this).scan(new File(path));
+        } catch (Throwable e) {
+            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
+            logger.trace("",e);
+            return;
+        }
     }
 }

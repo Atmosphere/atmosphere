@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -29,6 +30,7 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
+@AtmosphereHandlerService(path="/chat")
 public class ChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
