@@ -80,6 +80,12 @@
                         <fileset>
                             <directory>${war.target}/WEB-INF/deploy</directory>
                         </fileset>
+                        <fileset>
+                            <directory>${basedir}/src/main</directory>
+                            <includes>
+                                <directory>gwt-unitCache/**</directory>
+                            </includes>
+                        </fileset>
                     </filesets>
                 </configuration>
             </plugin>

@@ -24,7 +24,7 @@ public interface WebSocketListener {
 
     void onClose(WebSocket socket);
 
-    void onError(WebSocket socket);
+    void onError(WebSocket socket, String message);
 
     void onMessage(WebSocket socket, String message);
 

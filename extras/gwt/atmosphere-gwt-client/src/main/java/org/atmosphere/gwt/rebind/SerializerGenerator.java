@@ -57,7 +57,11 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import org.atmosphere.gwt.client.AtmosphereProxyEvent;
 
 public class SerializerGenerator extends GeneratorExt {
 
@@ -86,7 +90,10 @@ public class SerializerGenerator extends GeneratorExt {
                 SerializableTypeOracleBuilder typesSentFromBrowserBuilder = new SerializableTypeOracleBuilder(
                         logger, context.getPropertyOracle(), context);
 
-                for (Class<? extends Serializable> serializable : annotation.value()) {
+                List<Class<? extends Serializable>> serializableTypes = new ArrayList();
+                Collections.addAll(serializableTypes, annotation.value());
+                serializableTypes.add(AtmosphereProxyEvent.class);
+                for (Class<? extends Serializable> serializable : serializableTypes) {
                     int rank = 0;
                     if (serializable.isArray()) {
                         while (serializable.isArray()) {

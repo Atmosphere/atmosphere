@@ -47,7 +47,15 @@ public final class Window extends JavaScriptObject {
     public native void close() /*-{
         this.close();
     }-*/;
+    
+    public native Window parent() /*-{
+        return this.parent;
+    }-*/;
 
+    public native Window opener() /*-{
+        return this.opener;
+    }-*/;
+    
     public native void set(String name, boolean flag) /*-{
         if (!this.atts) {
             this.atts = {};
@@ -123,6 +131,12 @@ public final class Window extends JavaScriptObject {
         return this.atts[name];
     }-*/;
 
+    public native void remove(String name) /*-{
+        if (this.atts) {
+           delete this.atts[name];
+        }
+    }-*/;
+    
     protected Window() {
     }
 }

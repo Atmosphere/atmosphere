@@ -35,9 +35,9 @@ public class WebSocket extends JavaScriptObject {
      * @return the created object
      */
     public static native WebSocket create(String url) /*-{
-        if ($wnd.WebSocket) {
+        if (typeof $wnd.WebSocket != 'undefined') {
             return new WebSocket(url);
-        } else if ($wnd.MozWebSocket) {
+        } else if (typeof $wnd.MozWebSocket != 'undefined') {
             return new MozWebSocket(url);
         }
     }-*/;
@@ -79,8 +79,8 @@ public class WebSocket extends JavaScriptObject {
         this.onclose = $entry(function() {
             listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onClose(Lorg/atmosphere/gwt/client/impl/WebSocket;)(self);
         });
-        this.onerror = $entry(function() {
-            listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onError(Lorg/atmosphere/gwt/client/impl/WebSocket;)(self);
+        this.onerror = $entry(function(event) {
+            listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onError(Lorg/atmosphere/gwt/client/impl/WebSocket;Ljava/lang/String;)(self, event.data);
         });
         this.onmessage = $entry(function(event) {
             listener.@org.atmosphere.gwt.client.impl.WebSocketListener::onMessage(Lorg/atmosphere/gwt/client/impl/WebSocket;Ljava/lang/String;)(self, event.data);
@@ -101,7 +101,8 @@ public class WebSocket extends JavaScriptObject {
 
 
     public native static boolean isSupported() /*-{
-        return $wnd.WebSocket || $wnd.MozWebSocket;
+        return (typeof $wnd.WebSocket != 'undefined')
+             || (typeof $wnd.MozWebSocket != 'undefined');
     }-*/;
 
 }
