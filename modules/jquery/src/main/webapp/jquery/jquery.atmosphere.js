@@ -1611,29 +1611,38 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                _invokeFunction(_response);
+                var messages = _response.responseBody.split("<||>");
+                for (i = 0; i < messages.length; i++) {
 
-                // Invoke global callbacks
-                if (jQuery.atmosphere.callbacks.length > 0) {
-                    jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
-                    try {
-                        jQuery.each(jQuery.atmosphere.callbacks, call);
-                    } catch (e) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
+                    if (messages.length > 1 && messages[i].length == 0) {
+                        continue;
+                    }
+                    _response.responseBody = messages[i];
+                    _invokeFunction(_response);
+
+                    // Invoke global callbacks
+                    if (jQuery.atmosphere.callbacks.length > 0) {
+                        jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
+                        try {
+                            jQuery.each(jQuery.atmosphere.callbacks, call);
+                        } catch (e) {
+                            jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
+                        }
+                    }
+
+                    // Invoke request callback
+                    if (typeof(_request.callback) == 'function') {
+                        if (_request.logLevel == 'debug') {
+                            jQuery.atmosphere.debug("Invoking request callbacks");
+                        }
+                        try {
+                            _request.callback(_response);
+                        } catch (e) {
+                            jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
+                        }
                     }
                 }
 
-                // Invoke request callback
-                if (typeof(_request.callback) == 'function') {
-                    if (_request.logLevel == 'debug') {
-                        jQuery.atmosphere.debug("Invoking request callbacks");
-                    }
-                    try {
-                        _request.callback(_response);
-                    } catch (e) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Callback exception" + e]);
-                    }
-                }
             }
 
             /**
