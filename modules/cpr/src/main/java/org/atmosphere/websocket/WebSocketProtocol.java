@@ -15,7 +15,6 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AsyncProtocol;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 
@@ -27,7 +26,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketProtocol extends AsyncProtocol{
+public interface WebSocketProtocol {
 
     /**
      * Allow an implementation to query the AtmosphereConfig of init-param, etc.

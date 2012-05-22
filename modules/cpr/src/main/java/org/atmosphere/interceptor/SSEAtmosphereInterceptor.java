@@ -17,14 +17,20 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 
-import javax.servlet.ServletConfig;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 
 /**
  * HTML 5 Server Side Events implementation.
@@ -33,39 +39,96 @@ import javax.servlet.ServletConfig;
  */
 public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
+    private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
+
+    private static final byte[] padding;
+
+    static {
+        StringBuffer whitespace = new StringBuffer();
+        for (int i = 0; i < 2000; i++) {
+            whitespace.append(" ");
+        }
+        whitespace.append("\n");
+        padding = whitespace.toString().getBytes();
+    }
+
+    private void writePadding(AtmosphereResponse response) {
+        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return;
+
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("utf-8");
+        OutputStream stream = null;
+        try {
+            stream = response.getOutputStream();
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+
+        try {
+            stream.write(padding);
+            stream.flush();
+        } catch (IOException ex) {
+            logger.warn("SSE may not work", ex);
+        }
+    }
+
     @Override
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
+        r.getRequest().setAttribute(PROPERTY_USE_STREAM, true);
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
-            response.asyncIOWriter(new AsyncIOWriter() {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
-                public void redirect(String location) throws IOException {
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    writePadding(response);
+                }
+            });
+
+            response.asyncIOWriter(new AsyncIOWriterAdapter() {
+                @Override
+                public AsyncIOWriter redirect(String location) throws IOException {
                     response.sendRedirect(location);
+                    return this;
                 }
 
                 @Override
-                public void writeError(int errorCode, String message) throws IOException {
+                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
+                    if (errorCode == 406) {
+                        logger.warn("Status code 406: Make sure you aren't setting any @Produces " +
+                                "value if you are using Jersey and instead set the @Suspend(content-type=\"...\" value");
+                    }
                     response.sendError(errorCode);
+                    return this;
                 }
 
                 @Override
-                public void write(String data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
+                public AsyncIOWriter write(String data) throws IOException {
+                    padding();
                     response.write("data:" + data + "\n\n");
+                    return this;
                 }
 
                 // TODO: Performance: execute a single write
                 @Override
-                public void write(byte[] data) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
+                public AsyncIOWriter write(byte[] data) throws IOException {
+                    padding();
                     response.write("data:").write(data).write("\n\n");
+                    return this;
                 }
 
                 @Override
-                public void write(byte[] data, int offset, int length) throws IOException {
-                    AtmosphereResourceImpl.class.cast(r).writeSSE(false);
+                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
+                    padding();
                     response.write("data:").write(data, offset, length).write("\n\n");
+                    return this;
+                }
+
+                private void padding() {
+                    if (!r.isSuspended()) {
+                        writePadding(response);
+                        r.getRequest().setAttribute("paddingWritten", "true");
+                    }
                 }
 
                 @Override
@@ -74,8 +137,9 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void flush() throws IOException {
+                public AsyncIOWriter flush() throws IOException {
                     response.flushBuffer();
+                    return this;
                 }
             });
         }
@@ -86,10 +150,4 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     public String toString() {
         return "SSE Interceptor Support";
     }
-
-	@Override
-	public void configure(ServletConfig sc) {
-		// TODO Auto-generated method stub
-		
-	}
 }

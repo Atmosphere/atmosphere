@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -104,6 +106,7 @@ public final class JerseyBroadcasterUtil {
             } else {
                 if (e.getMessage() == null) {
                     logger.warn("Broadcasted message is null");
+                    return;
                 }
 
                 cr.setResponse(Response.ok(e.getMessage()).build());
@@ -123,6 +126,7 @@ public final class JerseyBroadcasterUtil {
             if (cr != null) {
                 cr.setEntity(null);
             }
+
             Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (resumeOnBroadcast != null && resumeOnBroadcast) {
 

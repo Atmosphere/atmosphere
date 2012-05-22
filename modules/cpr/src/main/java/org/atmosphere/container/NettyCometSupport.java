@@ -89,7 +89,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
         if (r.isResumed() && r.getRequest().getAttribute(ASYNCHRONOUS_HOOK) != null) {
             if (r.getRequest().getAttribute(CHANNEL) == null) return;
             try {
-                ((AsyncIOWriter)r.getRequest().getAttribute(CHANNEL)).close();
+                ((AsyncIOWriter)r.getRequest().getAttribute(CHANNEL)).close(r.getResponse(false));
             } catch (IOException e) {
                 logger.trace("", e);
             }

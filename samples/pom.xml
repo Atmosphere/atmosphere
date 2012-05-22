@@ -23,9 +23,6 @@
         <module>sse-chat</module>
         <module>sse-rest-chat</module>
 
-        <!-- Using Javascript -->
-        <module>tictactoe</module>
-
         <!-- sample using GWT -->
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
@@ -41,11 +38,12 @@
         <module>atmosphere-ee6</module>
         <module>di-guice-sample</module>
         <module>channel</module>
-        <module>async-channel</module>
-        <module>websocket-pubsub</module>
+        <module>async-annotation-pubsub</module>
+        <module>all-api-pubsub</module>
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
         <module>spring-tiles</module>
+	<module>socketio-chat</module>
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>
@@ -62,7 +60,7 @@
             <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
-                <version>${jetty7-version}</version>
+                <version>${jetty8-version}</version>
                 <configuration>
                     <scanIntervalSeconds>10</scanIntervalSeconds>
                     <webAppConfig>

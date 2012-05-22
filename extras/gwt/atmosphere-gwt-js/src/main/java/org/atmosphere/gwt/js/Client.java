@@ -41,6 +41,8 @@ public class Client implements Exportable {
     private OnDisconnected onDisconnected;
     private OnBeforeDisconnected onBeforeDisconnected;
     private OnHeartbeat onHeartbeat;
+    private OnRefresh onRefresh;
+    private OnAfterRefresh onAfterRefresh;
 
     @Export
     public Client(String url) {
@@ -105,6 +107,16 @@ public class Client implements Exportable {
 
         @Override
         public void onRefresh() {
+            if (onRefresh != null) {
+                onRefresh.execute();
+            }
+        }
+
+        @Override
+        public void onAfterRefresh() {
+            if (onAfterRefresh != null) {
+                onAfterRefresh.execute();
+            }
         }
 
         @Override
@@ -145,6 +157,16 @@ public class Client implements Exportable {
     @Export
     public void setOnHeartbeat(OnHeartbeat onHeartbeat) {
         this.onHeartbeat = onHeartbeat;
+    }
+
+    @Export
+    public void setOnAfterRefresh(OnAfterRefresh onAfterRefresh) {
+        this.onAfterRefresh = onAfterRefresh;
+    }
+
+    @Export
+    public void setOnRefresh(OnRefresh onRefresh) {
+        this.onRefresh = onRefresh;
     }
 
     private native String encodeJSON(JavaScriptObject obj) /*-{

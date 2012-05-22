@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.atmosphere.cpr.FrameworkConfig;
 
 /**
  * @author p.havelaar
@@ -178,12 +179,22 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         HttpServletRequest request = resource.getRequest();
 
         String servertransport = request.getParameter("servertransport");
+        Object webSocketSubProtocol = resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
         if ("rpcprotocol".equals(servertransport)) {
+            
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
             doServerMessage(request, resource.getResponse(), connectionID);
             return;
+            
+        } else if (webSocketSubProtocol != null 
+                  && webSocketSubProtocol.equals(FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET)) {
+        
+            Integer connectionID = (Integer) request.getAttribute(AtmosphereGwtHandler.class.getName() 
+                                        + ".connectionID");
+            doServerMessage(request, resource.getResponse(), connectionID);
+            return;
         }
-
+        
         try {
             int requestHeartbeat = heartbeat;
             String requestedHeartbeat = request.getParameter("heartbeat");
@@ -200,6 +211,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             }
 
             GwtAtmosphereResourceImpl resourceWrapper = new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat);
+            request.setAttribute(AtmosphereGwtHandler.class.getName() + ".connectionID", 
+                    (Integer) resourceWrapper.getConnectionID());
             doCometImpl(resourceWrapper);
         } catch (IOException e) {
 //            GwtAtmosphereResourceImpl resource = new GwtAtmosphereResourceImpl(atm, this, -1);
@@ -224,38 +237,41 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                 if (event == null) {
                     break;
                 }
-                String messageData = data.readLine();
-                if (messageData == null) {
-                    break;
-                }
-                data.readLine();
+                String action = data.readLine();
+                
                 if (logger.isTraceEnabled()) {
-                    logger.trace("[" + connectionID + "] Server message received: " + event + ";" + messageData.charAt(0));
+                    logger.trace("[" + connectionID + "] Server message received: " + event + ";" + action);
                 }
                 if (event.equals("o")) {
-                    if (messageData.charAt(0) == 'p') {
-                        Serializable message = deserialize(messageData.substring(1));
+                    int length = Integer.parseInt(data.readLine());
+                    char[] messageData = new char[length];
+                    if (data.read(messageData, 0, length) != length) {
+                        throw new IllegalStateException("Corrupt message received");
+                    }
+                    if (action.equals("p")) {
+                        Serializable message = deserialize(messageData);
                         if (message != null) {
                             postMessages.add(message);
                         }
-                    } else if (messageData.charAt(0) == 'b') {
-                        Serializable message = deserialize(messageData.substring(1));
+                    } else if (action.equals("b")) {
+                        Serializable message = deserialize(messageData);
                         broadcast(message, resource);
                     }
 
                 } else if (event.equals("s")) {
-
-                    if (messageData.charAt(0) == 'p') {
-                        String message = messageData.substring(1);
-                        postMessages.add(message);
-                    } else if (messageData.charAt(0) == 'b') {
-                        Serializable message = messageData.substring(1);
-                        broadcast(message, resource);
+                    int length = Integer.parseInt(data.readLine());
+                    char[] messageData = new char[length];
+                    if (data.read(messageData, 0, length) != length) {
+                        throw new IllegalStateException("Corrupt message received");
+                    }
+                    if (action.equals("p")) {
+                        postMessages.add(String.copyValueOf(messageData));
+                    } else if (action.equals("b")) {
+                        broadcast(String.copyValueOf(messageData), resource);
                     }
 
                 } else if (event.equals("c")) {
-
-                    if (messageData.equals("d")) {
+                    if (action.equals("d")) {
                         disconnect(resource);
                     }
                 }
@@ -277,6 +293,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //                responsePayload, gzipEncode);
 //    }
 
+    protected Serializable deserialize(char[] data) {
+        return deserialize(String.copyValueOf(data));
+    }
     protected Serializable deserialize(String data) {
         try {
             ServerSerializationStreamReader reader = new ServerSerializationStreamReader(getClass().getClassLoader(), cometSerializationPolicyProvider);

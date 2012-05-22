@@ -15,6 +15,7 @@
 */
 package org.atmosphere.jetty;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -184,6 +185,7 @@ public class JettyWebSocketDraft08Servlet extends WebSocketServlet {
     public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.debug("WebSocket upgrade requested");
         request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-        return new JettyWebSocketDraft08Handler(AtmosphereRequest.loadInMemory(request, false), framework, framework.getWebSocketProtocol());
+        return new JettyWebSocketDraft08Handler(AtmosphereRequest.cloneRequest(request, false,
+                framework().getAtmosphereConfig().isSupportSession()), framework, framework.getWebSocketProtocol());
     }
 }

@@ -19,35 +19,43 @@ import java.io.IOException;
 
 /**
  * An Asynchronous I/O Writer is used by a {@link AtmosphereResponse} when writing data.
+ *
+ * @author Jeanfrancois Arcand
  */
 public interface AsyncIOWriter {
     /**
      * Redirect a WebSocket request to another location
+     *
      * @param location
      * @throws IOException
      */
-    void redirect(String location) throws IOException;
+    AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException;
+
     /**
      * Write an error code
+     *
      * @param errorCode the error code
      * @param message
      * @throws IOException
      */
-    void writeError(int errorCode, String message) throws IOException;
+    AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException;
+
     /**
      * Write a WebSocket message
      *
      * @param data the WebSocket message
      * @throws java.io.IOException
      */
-    void write(String data) throws IOException;
+    AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException;
+
     /**
      * Write a WebSocket message
      *
      * @param data the WebSocket message
      * @throws IOException
      */
-    void write(byte[] data) throws IOException;
+    AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException;
+
     /**
      * Write a WebSocket message
      *
@@ -56,13 +64,68 @@ public interface AsyncIOWriter {
      * @param length length if the message
      * @throws IOException
      */
-    void write(byte[] data, int offset, int length) throws IOException;
+    AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException;
+
+    /**
+     * Close the underlying connection.
+     */
+    void close(AtmosphereResponse r) throws IOException;
+
+    /**
+     * Flush the buffered content
+     */
+    AsyncIOWriter flush(AtmosphereResponse r) throws IOException;
+
+    /**
+     * Redirect a WebSocket request to another location
+     *
+     * @param location
+     * @throws IOException
+     */
+    AsyncIOWriter redirect(String location) throws IOException;
+
+    /**
+     * Write an error code
+     *
+     * @param errorCode the error code
+     * @param message
+     * @throws IOException
+     */
+    AsyncIOWriter writeError(int errorCode, String message) throws IOException;
+
+    /**
+     * Write a WebSocket message
+     *
+     * @param data the WebSocket message
+     * @throws java.io.IOException
+     */
+    AsyncIOWriter write(String data) throws IOException;
+
+    /**
+     * Write a WebSocket message
+     *
+     * @param data the WebSocket message
+     * @throws IOException
+     */
+    AsyncIOWriter write(byte[] data) throws IOException;
+
+    /**
+     * Write a WebSocket message
+     *
+     * @param data   the WebSocket message
+     * @param offset offset of the message
+     * @param length length if the message
+     * @throws IOException
+     */
+    AsyncIOWriter write(byte[] data, int offset, int length) throws IOException;
+
     /**
      * Close the underlying connection.
      */
     void close() throws IOException;
+
     /**
      * Flush the buffered content
      */
-    void flush() throws IOException;
+    AsyncIOWriter flush() throws IOException;
 }

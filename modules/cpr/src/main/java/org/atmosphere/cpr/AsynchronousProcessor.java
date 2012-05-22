@@ -207,16 +207,22 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
             }
         }
-        AtmosphereResourceImpl resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
+        if (resource == null) {
+            resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+        } else {
+            resource.setBroadcaster(handlerWrapper.broadcaster).atmosphereHandler(handlerWrapper.atmosphereHandler);
+        }
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
         LinkedList<AtmosphereInterceptor> c = config.framework().interceptors();
-        Action a = null;
+        Action a;
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(resource);
-            if (a.type() != Action.TYPE.CONTINUE) {
+            if (a == null || a.type() != Action.TYPE.CONTINUE) {
                 logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
                 return a;
             }
@@ -246,8 +252,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     protected AtmosphereHandlerWrapper map(String path) {
-    	// exact match
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
+
         if (atmosphereHandlerWrapper == null) {
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
@@ -255,14 +261,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 logger.trace("Trying to map {} to {}", t, path);
                 if (t.match(path, m)) {
                     atmosphereHandlerWrapper = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue());
+                    logger.trace("Mapped {} to {}", t, e.getValue().atmosphereHandler);
                     break;
                 }
             }
         }
         return atmosphereHandlerWrapper;
     }
-    
+
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
@@ -270,7 +276,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
-    public AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
+    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
         if (req.getPathInfo() != null) {
             path = req.getServletPath() + req.getPathInfo();
@@ -282,17 +288,28 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
-        // (1) First, try exact match
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path);
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path + (path.endsWith("/") ? "all" : "/all"));
         if (atmosphereHandlerWrapper == null) {
-            // (2) Try with a trailing /
-            if (!path.endsWith("/")) {
-                atmosphereHandlerWrapper = map(path + "/");
-            }
+            // (2) First, try exact match
+            atmosphereHandlerWrapper = map(path);
 
-            // (3) Try wildcard
             if (atmosphereHandlerWrapper == null) {
-                atmosphereHandlerWrapper = map("/all");
+                // (3) Wildcard
+                atmosphereHandlerWrapper = map(path + "*");
+
+                // (4) try without a path
+                if (atmosphereHandlerWrapper == null) {
+                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    while (p.length() > 0) {
+                        atmosphereHandlerWrapper = map(p);
+
+                        // (3.1) Try path wildcard
+                        if (atmosphereHandlerWrapper != null) {
+                            break;
+                        }
+                        p = p.substring(0, p.lastIndexOf("/"));
+                    }
+                }
             }
         }
 

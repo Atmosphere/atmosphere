@@ -103,6 +103,11 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		final AtmosphereHandler atmosphereHandler = (AtmosphereHandler)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		final AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
+		// j'aimais mieux avoir le configure(servletcontext)
+		String s = r.getAtmosphereConfig().getInitParameter("socketio-transport");
+		availableTransports = s;
+		
+		
 		if(atmosphereHandler instanceof SocketIOAtmosphereHandler){
         	
 			try {
@@ -191,11 +196,4 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		return Action.CANCELLED;
 	}
 
-	@Override
-	public void configure(ServletConfig sc) {
-		String s = sc.getInitParameter("socketio-transport");
-		
-		availableTransports = s;
-		
-	}
 }

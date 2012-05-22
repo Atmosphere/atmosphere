@@ -87,8 +87,6 @@ public class Version {
             prop.load(s);
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
         } finally {
             if (s != null) {
                 try {

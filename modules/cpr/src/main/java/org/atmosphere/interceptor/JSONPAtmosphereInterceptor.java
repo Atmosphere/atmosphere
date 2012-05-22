@@ -17,6 +17,7 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereInterceptor;
@@ -25,8 +26,6 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 
 import java.io.IOException;
-
-import javax.servlet.ServletConfig;
 
 /**
  * JSONP Transport Support.
@@ -41,7 +40,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
         if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP)) {
-            response.asyncIOWriter(new AsyncIOWriter() {
+            response.asyncIOWriter(new AsyncIOWriterAdapter() {
 
                 String contentType() {
                     String c = response.getContentType();
@@ -56,30 +55,32 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void redirect(String location) throws IOException {
+                public AsyncIOWriter redirect(String location) throws IOException {
                     response.sendRedirect(location);
+                    return this;
                 }
 
                 @Override
-                public void writeError(int errorCode, String message) throws IOException {
+                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
                     response.sendError(errorCode);
+                    return this;
                 }
 
                 @Override
-                public void write(String data) throws IOException {
-                    String contentType = contentType();
+                public AsyncIOWriter write(String data) throws IOException {
                     String callbackName = callbackName();
-                    if (contentType != null && !contentType.contains("json")) {
+                    if (!data.startsWith("\"")) {
                         data = callbackName + "({\"message\" : \"" + data + "\"})";
                     } else {
                         data = callbackName + "({\"message\" :" + data + "})";
                     }
 
                     response.write(data);
+                    return this;
                 }
 
                 @Override
-                public void write(byte[] data) throws IOException {
+                public AsyncIOWriter write(byte[] data) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
 
@@ -88,10 +89,11 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                     } else {
                         response.write(callbackName + "({\"message\" :").write(data).write("})");
                     }
+                    return this;
                 }
 
                 @Override
-                public void write(byte[] data, int offset, int length) throws IOException {
+                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
                     String contentType = contentType();
                     String callbackName = callbackName();
 
@@ -100,6 +102,7 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                     } else {
                         response.write(callbackName + "({\"message\" :").write(data, offset, length).write("})");
                     }
+                    return this;
                 }
 
                 @Override
@@ -108,8 +111,9 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
 
                 @Override
-                public void flush() throws IOException {
+                public AsyncIOWriter flush() throws IOException {
                     response.flushBuffer();
+                    return this;
                 }
             });
         }
@@ -120,11 +124,5 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
     public String toString() {
         return "JSONP Interceptor Support";
     }
-
-	@Override
-	public void configure(ServletConfig sc) {
-		// TODO Auto-generated method stub
-		
-	}
 }
 

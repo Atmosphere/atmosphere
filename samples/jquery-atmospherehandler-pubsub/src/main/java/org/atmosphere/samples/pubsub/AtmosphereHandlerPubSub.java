@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.pubsub;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -36,6 +37,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
+@AtmosphereHandlerService
 public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
 
     @Override

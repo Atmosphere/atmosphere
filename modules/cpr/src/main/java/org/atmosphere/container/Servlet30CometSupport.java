@@ -137,7 +137,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         if (!req.isAsyncStarted()) {
-            AsyncContext asyncContext = req.startAsync();
+            AsyncContext asyncContext = req.startAsync(req, res);
             asyncContext.addListener(new CometListener(this));
             // Do nothing except setting the times out
             if (action.timeout() != -1) {

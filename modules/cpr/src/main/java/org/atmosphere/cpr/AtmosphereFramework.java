@@ -95,74 +95,21 @@ import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 
 /**
- * The {@link AtmosphereFramework} acts as a dispatcher for {@link AtmosphereHandler}
- * defined in META-INF/atmosphere.xml, or if atmosphere.xml is missing, all classes
- * that implements {@link AtmosphereHandler} will be discovered and mapped using
- * the class's name.
- * <p/>
- * </pre></blockquote>
- * You can force the framework to use native API of the Web Server instead of
- * the Servlet 3.0 Async API you are deploying on by adding
+ * The {@link AtmosphereFramework} is the entry point for the framework. This class can be used to from Servlet/filter
+ * to dispatch {@link AtmosphereRequest} and {@link AtmosphereResponse}. The framework can also be configured using
+ * the setXXX method. The life cycle of this class is
  * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useNative&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
+ * AtmosphereFramework f = new AtmosphereFramework();
+ * f.init();
+ * f.doCometSupport(AtmosphereRequest, AtmosphereResource);
+ * f.destroy();
  * </pre></blockquote>
- * You can force this framework to use one Thread per connection instead of
- * native API of the Web Server you are deploying on by adding
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useBlocking&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also define {@link Broadcaster}by adding:
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterClass&lt;/param-name&gt;
- *      &lt;param-value&gt;class-name&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also for Atmosphere to use {@link java.io.OutputStream} for all write operations.
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.useStream&lt;/param-name&gt;
- *      &lt;param-value&gt;true&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure {@link org.atmosphere.cpr.BroadcasterCache} that persist message when Browser is disconnected.
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcasterCacheClass&lt;/param-name&gt;
- *      &lt;param-value&gt;class-name&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure Atmosphere to use http session or not
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.sessionSupport&lt;/param-name&gt;
- *      &lt;param-value&gt;false&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * You can also configure {@link BroadcastFilter} that will be applied at all newly created {@link Broadcaster}
- * <blockquote><pre>
- *  &lt;init-param&gt;
- *      &lt;param-name&gt;org.atmosphere.cpr.broadcastFilterClasses&lt;/param-name&gt;
- *      &lt;param-value&gt;BroadcastFilter class name separated by coma&lt;/param-value&gt;
- *  &lt;/init-param&gt;
- * </pre></blockquote>
- * All the property available are defined in {@link ApplicationConfig}
- * The Atmosphere Framework can also be used as a Servlet Filter ({@link AtmosphereFilter}).
- * <p/>
- * If you are planning to use JSP, Servlet or JSF, you can instead use the
- * {@link MeteorServlet}, which allow the use of {@link Meteor} inside those
- * components.
  *
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
+    public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final List<String> broadcasterFilters = new ArrayList<String>();
@@ -195,6 +142,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
+    protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
 
     @Override
     public ServletContext getServletContext() {
@@ -309,16 +257,14 @@ public class AtmosphereFramework implements ServletContextProvider {
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", "[/a-zA-Z0-9-&=;_\\?]+");
+            path = path.replace("*", MAPPING_REGEX);
+        }
+
+        if (path.endsWith("/")) {
+            path = path + MAPPING_REGEX;
         }
 
         atmosphereHandlers.put(path, w);
-
-        if (!path.endsWith("/")) {
-            path += "[/a-zA-Z0-9-&=;_\\?]+";
-            atmosphereHandlers.put(path, w);
-        }
-
         return this;
     }
 
@@ -368,6 +314,11 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return true if removed
      */
     public AtmosphereFramework removeAtmosphereHandler(String mapping) {
+
+        if (mapping.endsWith("/")) {
+            mapping += MAPPING_REGEX;
+        }
+
         atmosphereHandlers.remove(mapping);
         return this;
     }
@@ -419,6 +370,13 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Path specific container using their own property.
+     */
+    public void patchContainer() {
+        System.setProperty("org.apache.catalina.STRICT_SERVLET_COMPLIANCE", "false");
+    }
+
+    /**
      * Load the {@link AtmosphereHandler} associated with this AtmosphereServlet.
      *
      * @param sc the {@link ServletContext}
@@ -457,9 +415,11 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             };
             this.servletConfig = scFacade;
+            autoConfigureService(scFacade.getServletContext());
+            patchContainer();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
-            configureBroadcaster(sc.getServletContext());
+            configureBroadcaster();
             loadConfiguration(scFacade);
 
             autoDetectContainer();
@@ -469,6 +429,17 @@ public class AtmosphereFramework implements ServletContextProvider {
             initAtmosphereHandler(scFacade);
             configureAtmosphereConfig(sc);
 
+            if (broadcasterCacheClassName == null) {
+                logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
+                        "It is recommended to configure the HeaderBroadcasterCache.");
+            }
+
+            // http://java.net/jira/browse/ATMOSPHERE-157
+            if (sc.getServletContext() != null) {
+                sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
+            }
+
+            logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
@@ -485,6 +456,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Configure the list of {@link AtmosphereInterceptor}.
+     *
      * @param sc a ServletConfig
      */
     protected void configureAtmosphereConfig(ServletConfig sc) {
@@ -493,13 +465,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                	
-                	AtmosphereInterceptor interceptor = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                    .loadClass(a.trim()).newInstance();
-                	
-                	interceptor.configure(sc);
-                	
-                    interceptors.add(interceptor);
+                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()).newInstance());
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
@@ -514,7 +481,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         interceptors.addLast(new SSEAtmosphereInterceptor());
         // ADD JSONP support
         interceptors.addLast(new JSONPAtmosphereInterceptor());
-        logger.debug("Installed AtmosphereInterceptor {}", interceptors);
+        logger.info("Installed AtmosphereInterceptor {}", interceptors);
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -534,50 +501,46 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureBroadcaster(ServletContext sc) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    protected void configureBroadcaster() {
 
-        if (broadcasterFactoryClassName != null) {
-            broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
-                    .loadClass(broadcasterFactoryClassName).newInstance();
-        }
+        try {
+            if (broadcasterFactoryClassName != null) {
+                broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
+                        .loadClass(broadcasterFactoryClassName).newInstance();
+            }
 
-        if (broadcasterFactory == null) {
-            Class<? extends Broadcaster> bc =
-                    (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
-                            .loadClass(broadcasterClassName);
+            if (broadcasterFactory == null) {
+                Class<? extends Broadcaster> bc =
+                        (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterClassName);
+                broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            }
 
-            logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
+            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+            InjectorProvider.getInjector().inject(broadcasterFactory);
 
-            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-        }
+            Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
+            AtmosphereHandlerWrapper w;
+            Entry<String, AtmosphereHandlerWrapper> e;
+            while (i.hasNext()) {
+                e = i.next();
+                w = e.getValue();
+                BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
 
-        // http://java.net/jira/browse/ATMOSPHERE-157
-        if (sc != null) {
-            sc.setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
-        }
-
-        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-        InjectorProvider.getInjector().inject(broadcasterFactory);
-
-        Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
-        AtmosphereHandlerWrapper w;
-        Entry<String, AtmosphereHandlerWrapper> e;
-        while (i.hasNext()) {
-            e = i.next();
-            w = e.getValue();
-            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
-
-            if (w.broadcaster == null) {
-                w.broadcaster = broadcasterFactory.get(w.mapping);
-            } else {
-                w.broadcaster.setBroadcasterConfig(broadcasterConfig);
-                if (broadcasterCacheClassName != null) {
-                    BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                            .loadClass(broadcasterCacheClassName).newInstance();
-                    InjectorProvider.getInjector().inject(cache);
-                    broadcasterConfig.setBroadcasterCache(cache);
+                if (w.broadcaster == null) {
+                    w.broadcaster = broadcasterFactory.get(w.mapping);
+                } else {
+                    w.broadcaster.setBroadcasterConfig(broadcasterConfig);
+                    if (broadcasterCacheClassName != null) {
+                        BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterCacheClassName).newInstance();
+                        InjectorProvider.getInjector().inject(cache);
+                        broadcasterConfig.setBroadcasterCache(cache);
+                    }
                 }
             }
+        } catch (Exception ex) {
+            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
     }
 
@@ -659,6 +622,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s != null) {
             handlersPath = s;
         }
+        s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
+        if (s != null) {
+            atmosphereDotXmlPath = s;
+        }
     }
 
     public void loadConfiguration(ServletConfig sc) throws ServletException {
@@ -731,7 +698,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
         broadcasterFactory.destroy();
-        logger.info("Using BroadcasterFactory class: {}", DefaultBroadcasterFactory.class.getName());
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
@@ -866,7 +832,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType();
                         broadcasterFactory = null;
-                        configureBroadcaster(servletConfig.getServletContext());
+                        configureBroadcaster();
                     }
 
                     IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
@@ -894,7 +860,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                 }
 
-                b = BroadcasterFactory.getDefault().get(atmoHandler.getContextRoot());
+                b = BroadcasterFactory.getDefault().lookup(atmoHandler.getContextRoot());
 
                 AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
                 addMapping(atmoHandler.getContextRoot(), wrapper);
@@ -935,9 +901,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
      * @param asyncSupport
      * @return
+     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
      */
     public AtmosphereFramework setCometSupport(AsyncSupport asyncSupport) {
         return setAsyncSupport(asyncSupport);
@@ -955,8 +921,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Return the current {@link AsyncSupport}
      *
-     * @deprecated Use getAsyncSupport
      * @return the current {@link AsyncSupport}
+     * @deprecated Use getAsyncSupport
      */
     public AsyncSupport getCometSupport() {
         return asyncSupport;
@@ -1139,7 +1105,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         Action a = null;
         try {
             boolean skip = true;
-            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST) ;
+            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
             if (s != null) {
                 skip = Boolean.valueOf(s);
             }
@@ -1151,15 +1117,15 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 req.headers(headers)
-                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+                        .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
 
                 if (body != null) {
-                   req.body(body);
+                    req.body(body);
                 }
             }
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed") )) {
+            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
@@ -1169,13 +1135,13 @@ public class AtmosphereFramework implements ServletContextProvider {
                 asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7Servlet30SupportWithWebSocket(config) : new BlockingIOCometSupport(config);
                 logger.warn("Using " + asyncSupport.getClass().getName());
 
-                a = doCometSupport(req, res);
+                a = asyncSupport.service(req, res);
             } else {
                 logger.error("AtmosphereFramework exception", ex);
                 throw ex;
             }
         } finally {
-            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND && a.type() != Action.TYPE.CANCELLED) {
+            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
                 req.destroy();
                 res.destroy();
             }
@@ -1239,9 +1205,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @return {@link BroadcasterFactory}
      */
-    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) {
         this.broadcasterFactory = broadcasterFactory;
-        configureBroadcaster(config.getServletContext());
+        configureBroadcaster();
         return this;
     }
 
@@ -1259,9 +1225,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param broadcasterCacheClassName
      */
-    public void setBroadcasterCacheClassName(String broadcasterCacheClassName) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public void setBroadcasterCacheClassName(String broadcasterCacheClassName) {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
-        configureBroadcaster(config.getServletContext());
+        configureBroadcaster();
     }
 
     /**
@@ -1371,9 +1337,39 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the list of {@link AtmosphereInterceptor}
+     *
      * @return the list of {@link AtmosphereInterceptor}
      */
-    public LinkedList<AtmosphereInterceptor> interceptors(){
+    public LinkedList<AtmosphereInterceptor> interceptors() {
         return interceptors;
+    }
+
+    /**
+     * Set the {@link AnnotationProcessor} class name.
+     * @param annotationProcessorClassName the {@link AnnotationProcessor} class name.
+     * @return this
+     */
+    public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
+        this.annotationProcessorClassName = annotationProcessorClassName;
+        return this;
+    }
+
+    protected void autoConfigureService(ServletContext sc) throws IOException {
+        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+
+        String path = sc.getRealPath(handlersPath);
+        // TODO: Hack to make the test works.
+        if (path == null) {
+            path = new File(handlersPath).getAbsolutePath();
+        }
+
+        try {
+            AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
+            p.configure(this).scan(new File(path));
+        } catch (Throwable e) {
+            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
+            logger.trace("",e);
+            return;
+        }
     }
 }

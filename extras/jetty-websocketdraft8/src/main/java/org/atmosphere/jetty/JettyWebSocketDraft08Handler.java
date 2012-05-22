@@ -52,7 +52,7 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
 
         logger.debug("WebSocket.onConnect (outbound)");
         try {
-            webSocketProcessor = new WebSocketProcessor(framework, new JettyWebSocket(outbound), webSocketProtocol);
+            webSocketProcessor = new WebSocketProcessor(framework, new JettyWebSocket(outbound, framework.getAtmosphereConfig()), webSocketProtocol);
             webSocketProcessor.dispatch(request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);

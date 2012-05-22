@@ -116,27 +116,4 @@ public class SocketIOWebSocketProtocol implements WebSocketProtocol, Serializabl
     	logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean inspectResponse() {
-        return false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String handleResponse(AtmosphereResponse res, String message) {
-        // Should never be called
-        return message;
-    }
-
-    @Override
-    public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
-        // Should never be called
-        return message;
-    }
-
 }

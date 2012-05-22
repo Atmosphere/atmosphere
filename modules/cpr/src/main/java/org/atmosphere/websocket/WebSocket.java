@@ -15,28 +15,78 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-
-import javax.servlet.http.HttpServletRequest;
 
 /**
  * Represent a portable WebSocket implementation which can be used to write message.
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocket extends AsyncIOWriter {
+public abstract class WebSocket extends AsyncIOWriterAdapter {
 
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
     public final static String WEBSOCKET_ACCEPT_DONE = WebSocket.class.getName() + ".acceptDone";
 
+    private AtmosphereResource r;
+    protected long lastWrite = 0;
+    protected WebSocketResponseFilter webSocketResponseFilter = WebSocketResponseFilter.NOOPS_WebSocketResponseFilter;
+    protected final boolean binaryWrite;
+
+    public WebSocket(AtmosphereConfig config) {
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
+        if (s != null && Boolean.parseBoolean(s)) {
+            binaryWrite = true;
+        } else {
+            binaryWrite = false;
+        }
+    }
+
+    public WebSocket() {
+        binaryWrite = false;
+    }
+
     /**
-     * Return the current {@link AtmosphereResource} representing the underlying connection and the original
-     * {@link HttpServletRequest}
+     * Associate an {@link AtmosphereResource} to this WebSocket
      *
-     * @return the current {@link AtmosphereResource}
+     * @param r an {@link AtmosphereResource} to this WebSocket
+     * @return this
      */
-    AtmosphereResource resource();
+    public WebSocket resource(AtmosphereResource r) {
+        this.r = r;
+        return this;
+    }
+
+    /**
+     * Return the an {@link AtmosphereResource} used by this WebSocket
+     *
+     * @return {@link AtmosphereResource}
+     */
+    public AtmosphereResource resource() {
+        return r;
+    }
+
+    /**
+     * The last time, in milliseconds, a write operation occurred.
+     *
+     * @return this
+     */
+    public long lastWriteTimeStampInMilliseconds() {
+        return lastWrite == -1 ? System.currentTimeMillis() : lastWrite;
+    }
+
+    /**
+     * Associate a {@link WebSocketResponseFilter} that will be invoked before any write operation.
+     *
+     * @param w {@link WebSocketResponseFilter}
+     * @return this
+     */
+    public WebSocket webSocketResponseFilter(WebSocketResponseFilter w) {
+        this.webSocketResponseFilter = w;
+        return this;
+    }
 }

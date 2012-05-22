@@ -15,9 +15,10 @@
 */
 package org.atmosphere.container.version;
 
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.websocket.WebSocketAdapter;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty8WebSocket extends WebSocketAdapter {
+public class Jetty8WebSocket extends WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
@@ -38,6 +39,7 @@ public class Jetty8WebSocket extends WebSocketAdapter {
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public Jetty8WebSocket(Connection connection, AtmosphereConfig config) {
+        super(config);
         this.connection = connection;
         this.config = config;
     }
@@ -46,74 +48,106 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void writeError(int errorCode, String message) throws IOException {
+    public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
         } else {
             logger.debug("{} {}", errorCode, message);
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void redirect(String location) throws IOException {
+    public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("WebSocket Redirect not supported");
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(String data) throws IOException {
+    public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
-        connection.sendMessage(data);
-        lastWrite = System.currentTimeMillis();
-    }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void write(byte[] data) throws IOException {
-        firstWrite.set(true);
-        if (!connection.isOpen()) throw new IOException("Connection remotely closed");
-        logger.trace("WebSocket.write()");
-        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
-        if (s != null && Boolean.parseBoolean(s)) {
-            connection.sendMessage(data, 0, data.length);
+        if (binaryWrite) {
+            byte[] b = webSocketResponseFilter.filter(r, data.getBytes(resource().getResponse().getCharacterEncoding()));
+            if (b != null) {
+                connection.sendMessage(b, 0, b.length);
+            }
         } else {
-            connection.sendMessage(new String(data, 0, data.length, "UTF-8"));
+            String s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                connection.sendMessage(s);
+            }
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         firstWrite.set(true);
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+
         logger.trace("WebSocket.write()");
-        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BLOB);
-        if (s != null && Boolean.parseBoolean(s)) {
-            connection.sendMessage(data, offset, length);
+        if (binaryWrite) {
+            byte[] b = webSocketResponseFilter.filter(r, data);
+            if (b != null) {
+                connection.sendMessage(b, 0, b.length);
+            }
         } else {
-            connection.sendMessage(new String(data, offset, length, "UTF-8"));
+            byte[] s = webSocketResponseFilter.filter(r, data);
+            if (s != null) {
+                connection.sendMessage(new String(s, r.getCharacterEncoding()));
+            }
         }
         lastWrite = System.currentTimeMillis();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void close() throws IOException {
+    public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+        firstWrite.set(true);
+        if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+
+        logger.trace("WebSocket.write()");
+        if (binaryWrite) {
+            if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
+                byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
+                if (b != null) {
+                    connection.sendMessage(b, 0, b.length);
+                }
+            } else {
+                connection.sendMessage(data, offset, length);
+            }
+        } else {
+            String s = webSocketResponseFilter.filter(r, new String(data, offset, length, "UTF-8"));
+            if (s != null) {
+                connection.sendMessage(s);
+            }
+        }
+        lastWrite = System.currentTimeMillis();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
         connection.disconnect();
     }
@@ -122,7 +156,8 @@ public class Jetty8WebSocket extends WebSocketAdapter {
      * {@inheritDoc}
      */
     @Override
-    public void flush() throws IOException {
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        return this;
     }
 
     @Override

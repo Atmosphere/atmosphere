@@ -30,9 +30,6 @@ import com.google.gwt.user.client.ui.RootPanel;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
-import org.atmosphere.gwt.client.extra.Window;
-import org.atmosphere.gwt.client.extra.WindowFeatures;
-import org.atmosphere.gwt.client.extra.WindowSocket;
 
 import java.io.Serializable;
 import java.util.List;
@@ -44,11 +41,15 @@ import java.util.logging.Logger;
  */
 public class GWTDemo implements EntryPoint {
 
+    static final Logger logger = Logger.getLogger(GWTDemo.class.getName());
+
+    int count = 0;
+    
     PollAsync polling = GWT.create(Poll.class);
     AtmosphereClient client;
-    Logger logger = Logger.getLogger(getClass().getName());
-    Window screen;
-
+    Button startButton;
+    Button stopButton;
+    
     @Override
     public void onModuleLoad() {
 
@@ -56,7 +57,7 @@ public class GWTDemo implements EntryPoint {
         button.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                sendMessage();
+                client.broadcast(new Event(count++, "Send from client using broadcast"));
             }
         });
 
@@ -64,7 +65,7 @@ public class GWTDemo implements EntryPoint {
         post.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                client.post(new Event(count++, "This was send using the post mechanism"));
+                client.post(new Event(count++, "Send from client using post"));
             }
         });
 
@@ -76,7 +77,7 @@ public class GWTDemo implements EntryPoint {
 
                     @Override
                     public void onFailure(Throwable caught) {
-                        GWT.log("Failed to poll", caught);
+                        logger.log(Level.SEVERE, "Failed to poll", caught);
                     }
 
                     @Override
@@ -87,56 +88,36 @@ public class GWTDemo implements EntryPoint {
             }
         });
 
-        Button wnd = new Button("Open Window");
-        wnd.addClickHandler(new ClickHandler() {
-            @Override
-            public void onClick(ClickEvent event) {
-                Scheduler.get().scheduleDeferred(new ScheduledCommand() {
-                    @Override
-                    public void execute() {
-                        screen = Window.current().open(Document.get().getURL(), "child", new WindowFeatures().setStatus(true).setResizable(true));
-                    }
-                });
-            }
-        });
-
-        Button sendWindow = new Button("Send to window");
-        sendWindow.addClickHandler(new ClickHandler() {
-            @Override
-            public void onClick(ClickEvent event) {
-                if (screen != null) {
-                    WindowSocket.post(screen, "wsock", "Hello Child!");
-                }
-            }
-        });
-
-        WindowSocket socket = new WindowSocket();
-        socket.addHandler(new WindowSocket.MessageHandler() {
-            @Override
-            public void onMessage(String message) {
-                Info.display("Received through window socket", message);
-            }
-        });
-        socket.bind("wsock");
-
         RootPanel.get("buttons").add(button);
         RootPanel.get("buttons").add(post);
         RootPanel.get("buttons").add(pollButton);
-        RootPanel.get("buttons").add(wnd);
-        RootPanel.get("buttons").add(sendWindow);
-
+    
         initialize();
-
-        Button killbutton = new Button("Stop");
-        killbutton.addClickHandler(new ClickHandler() {
+        startButton = new Button("Start");
+        stopButton = new Button("Stop");
+        startButton.setEnabled(false);
+        startButton.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
+                toggleStartStop(true);
+                client.start();
+            }
+        });
+        stopButton.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                toggleStartStop(false);
                 client.stop();
             }
         });
+        RootPanel.get("buttons").add(startButton);
+        RootPanel.get("buttons").add(stopButton);
 
-        RootPanel.get("buttons").add(killbutton);
-
+    }
+    
+    void toggleStartStop(boolean clientConnected) {
+        startButton.setEnabled(!clientConnected);
+        stopButton.setEnabled(clientConnected);
     }
 
     public static void displayCookies() {
@@ -152,8 +133,9 @@ public class GWTDemo implements EntryPoint {
 
         @Override
         public void onConnected(int heartbeat, int connectionID) {
-            GWT.log("comet.connected [" + heartbeat + ", " + connectionID + "]");
+            logger.info("comet.connected [" + heartbeat + ", " + connectionID + "]");
             displayCookies();
+            toggleStartStop(true);
         }
 
         @Override
@@ -163,7 +145,8 @@ public class GWTDemo implements EntryPoint {
 
         @Override
         public void onDisconnected() {
-            GWT.log("comet.disconnected");
+            logger.info("comet.disconnected");
+            toggleStartStop(false);
         }
 
         @Override
@@ -172,17 +155,24 @@ public class GWTDemo implements EntryPoint {
             if (exception instanceof StatusCodeException) {
                 statuscode = ((StatusCodeException) exception).getStatusCode();
             }
-            GWT.log("comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
+            logger.log(Level.SEVERE, "comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
+            client.stop();
+            toggleStartStop(false);
         }
 
         @Override
         public void onHeartbeat() {
-            GWT.log("comet.heartbeat [" + client.getConnectionID() + "]");
+            logger.info("comet.heartbeat [" + client.getConnectionID() + "]");
         }
 
         @Override
         public void onRefresh() {
-            GWT.log("comet.refresh [" + client.getConnectionID() + "]");
+            logger.info("comet.refresh [" + client.getConnectionID() + "]");
+        }
+
+        @Override
+        public void onAfterRefresh() {
+            logger.info("comet.afterRefresh [" + client.getConnectionID() + "]");
         }
 
         @Override
@@ -209,9 +199,4 @@ public class GWTDemo implements EntryPoint {
         client.start();
     }
 
-    static int count = 0;
-
-    public void sendMessage() {
-        client.broadcast(new Event(count++, "Button clicked!"));
-    }
 }

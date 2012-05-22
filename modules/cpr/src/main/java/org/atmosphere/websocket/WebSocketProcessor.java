@@ -95,39 +95,44 @@ public class WebSocketProcessor implements Serializable {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, webSocketProtocol, request, destroyable);
+        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
+        request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
-        request.headers(configureHeader(request));
+        AtmosphereResourceImpl r = new AtmosphereResourceImpl(framework.getAtmosphereConfig(),
+                null,
+                request,
+                wsr,
+                framework.getAsyncSupport(),
+                null);
 
-        request.setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
+        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
+        webSocket.resource(r);
+        webSocketProtocol.onOpen(webSocket);
 
         dispatch(request, wsr);
+        request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
-            webSocketProtocol.onOpen(webSocket);
-            if (!webSocket.resource().getAtmosphereResourceEvent().isSuspended()) {
-                webSocketProtocol.onError(webSocket,
-                        new WebSocketException("No AtmosphereResource has been suspended. The WebSocket will be closed:  " + request.getRequestURI(), wsr));
-            } else {
-                final AsynchronousProcessor.AsynchronousProcessorHook hook =
-                        new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource());
-                request.setAttribute(ASYNCHRONOUS_HOOK, hook);
+            final AsynchronousProcessor.AsynchronousProcessorHook hook =
+                    new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource());
+            request.setAttribute(ASYNCHRONOUS_HOOK, hook);
 
-                final Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
-                if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
-                    final AtomicReference<Future<?>> f = new AtomicReference();
-                    f.set(scheduler.scheduleAtFixedRate(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())
-                                    && System.currentTimeMillis() - WebSocketAdapter.class.cast(webSocket).lastTick() > action.timeout()) {
-                                hook.timedOut();
-                                f.get().cancel(true);
-                            }
+            final Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
+            if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
+                final AtomicReference<Future<?>> f = new AtomicReference();
+                f.set(scheduler.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (WebSocket.class.isAssignableFrom(webSocket.getClass())
+                                && System.currentTimeMillis() - WebSocket.class.cast(webSocket).lastWriteTimeStampInMilliseconds() > action.timeout()) {
+                            hook.timedOut();
+                            f.get().cancel(true);
                         }
-                    }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
-                }
+                    }
+                }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
+        } else {
+            logger.warn("AtmosphereResource was null");
         }
     }
 
@@ -148,7 +153,7 @@ public class WebSocketProcessor implements Serializable {
                 s.execute(new Runnable() {
                     @Override
                     public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, webSocketProtocol, r, destroyable);
+                        AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
                         try {
                             dispatch(r, w);
                         } finally {
@@ -189,11 +194,11 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereResource resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
         if (r.getStatus() >= 400) {
-            webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher than 400", r));
+            webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher or equal than 400", r));
         }
 
-        if (webSocket.resource() == null && WebSocketAdapter.class.isAssignableFrom(webSocket.getClass())) {
-            WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(resource);
+        if (webSocket.resource() == null) {
+            webSocket.resource(resource);
         }
     }
 
@@ -236,7 +241,7 @@ public class WebSocketProcessor implements Serializable {
                 }
 
                 if (webSocket != null) {
-                    WebSocketAdapter.class.cast(webSocket).setAtmosphereResource(null);
+                    webSocket.resource(null);
                 }
             }
         }

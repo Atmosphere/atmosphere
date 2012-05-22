@@ -78,12 +78,6 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                 return Action.CONTINUE;
             }
-
-			@Override
-			public void configure(ServletConfig sc) {
-				// TODO Auto-generated method stub
-				
-			}
         });
 
         assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));
@@ -99,12 +93,6 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                 return Action.CONTINUE;
             }
-
-			@Override
-			public void configure(ServletConfig sc) {
-				// TODO Auto-generated method stub
-				
-			}
         });
 
         assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));
@@ -115,12 +103,6 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CREATED);
                 return Action.CONTINUE;
             }
-
-			@Override
-			public void configure(ServletConfig sc) {
-				// TODO Auto-generated method stub
-				
-			}
         });
         assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));
     }
@@ -133,12 +115,6 @@ public class AtmosphereInterceptorTest {
             public Action inspect(AtmosphereResource r) {
                 return Action.CANCELLED;
             }
-
-			@Override
-			public void configure(ServletConfig sc) {
-				// TODO Auto-generated method stub
-				
-			}
         });
 
         assertEquals(Action.CANCELLED, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));
@@ -152,12 +128,6 @@ public class AtmosphereInterceptorTest {
             public Action inspect(AtmosphereResource r) {
                 return Action.CREATED;
             }
-
-			@Override
-			public void configure(ServletConfig sc) {
-				// TODO Auto-generated method stub
-				
-			}
         });
 
         assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));

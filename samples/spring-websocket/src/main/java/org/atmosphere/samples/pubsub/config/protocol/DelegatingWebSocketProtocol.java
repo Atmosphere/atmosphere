@@ -18,6 +18,7 @@
  */
 package org.atmosphere.samples.pubsub.config.protocol;
 
+import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+@WebSocketProtocolService
 public class DelegatingWebSocketProtocol implements WebSocketProtocol {
 
     public static final Logger LOG = LoggerFactory.getLogger(DelegatingWebSocketProtocol.class);
@@ -90,21 +92,5 @@ public class DelegatingWebSocketProtocol implements WebSocketProtocol {
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException e) {
         LOG.error("error on websocket connection {}", e);
-    }
-
-    @Override
-    public boolean inspectResponse() {
-        return false;
-    }
-
-    @Override
-    public String handleResponse(AtmosphereResponse atmosphereResponse, String message) {
-        return message;
-    }
-
-    @Override
-    public byte[] handleResponse(AtmosphereResponse atmosphereResponse, byte[] message, int offset,
-                                 int length) {
-        return message;
     }
 }

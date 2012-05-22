@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -27,6 +28,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
@@ -62,7 +64,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereRequest implements HttpServletRequest {
+public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream bis;
     private BufferedReader br;
@@ -72,6 +74,7 @@ public class AtmosphereRequest implements HttpServletRequest {
     private boolean queryComputed = false;
 
     private AtmosphereRequest(Builder b) {
+        super(b.request == null ? new NoOpsRequest() : b.request);
         if (b.inputStream == null) {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
@@ -574,9 +577,16 @@ public class AtmosphereRequest implements HttpServletRequest {
     @Override
     public HttpSession getSession() {
         if (session == null) {
-            session = !isNotNoOps() ?
-                    new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                    b.session != null ? b.session : b.request.getSession();
+            session = createSession();
+        } else {
+            //check if session is valid
+            try {
+                session.getLastAccessedTime();
+            } catch (IllegalStateException e) {
+                //session is not valid
+                LoggerFactory.getLogger(this.getClass()).debug("Discarding invalid session");
+                session = createSession();
+            }
         }
         return session;
     }
@@ -590,6 +600,12 @@ public class AtmosphereRequest implements HttpServletRequest {
             return getSession();
         }
         return session == null && isNotNoOps() ? b.request.getSession(false) : session;
+    }
+
+    private HttpSession createSession() {
+        return !isNotNoOps() ?
+                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
+                b.session != null ? b.session : b.request.getSession();
     }
 
     /**
@@ -862,6 +878,14 @@ public class AtmosphereRequest implements HttpServletRequest {
 
         b.headers.clear();
         b.queryStrings.clear();
+    }
+
+    @Override
+    public void setRequest(ServletRequest request) {
+        super.setRequest(request);
+        if (HttpServletRequest.class.isAssignableFrom(request.getClass())) {
+            b.request = HttpServletRequest.class.cast(request);
+        }
     }
 
     public final static class Builder {
@@ -1435,7 +1459,7 @@ public class AtmosphereRequest implements HttpServletRequest {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest loadInMemory(HttpServletRequest request, boolean loadInMemory) {
+    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession) {
         Builder b;
         HttpServletRequest r;
         boolean isWrapped = false;
@@ -1457,7 +1481,7 @@ public class AtmosphereRequest implements HttpServletRequest {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(new FakeHttpSession(request.getSession(true)));
+                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
             r = new NoOpsRequest();

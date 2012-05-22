@@ -131,7 +131,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     private final static class GrizzlyApplication extends WebSocketApplication {
 
         private final AtmosphereConfig config;
-
         private WebSocketProcessor webSocketProcessor;
 
         public GrizzlyApplication(AtmosphereConfig config) {
@@ -160,7 +159,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
                     logger.trace("", e);
                 }
 
-                webSocketProcessor = new WebSocketProcessor(config.framework(), new GrizzlyWebSocket(webSocket), config.framework().getWebSocketProtocol());
+                webSocketProcessor = new WebSocketProcessor(config.framework(), new GrizzlyWebSocket(webSocket, config), config.framework().getWebSocketProtocol());
                 webSocketProcessor.dispatch(r);
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);

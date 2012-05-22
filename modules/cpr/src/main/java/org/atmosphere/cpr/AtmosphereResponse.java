@@ -20,8 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
@@ -41,13 +43,9 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
  * suspended, this object can be used to write message back tp the client at any moment.
  * <br/>
- * This object can delegates the write operation to {@link AsyncIOWriter}. An {@link AsyncProtocol} can also be
- * consulted before the bytes/string write process gets delegated to an {@link AsyncIOWriter}. If {@link org.atmosphere.cpr.AsyncProtocol#inspectResponse()}
- * return true, the {@link org.atmosphere.cpr.AsyncProtocol#handleResponse(AtmosphereResponse, String)} will have a chance to
- * manipulate the bytes and return a new representation. That new representation will then be delegated to an
- * {@link AsyncIOWriter}.
+ * This object can delegates the write operation to {@link AsyncIOWriter}.
  */
-public class AtmosphereResponse implements HttpServletResponse {
+public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponse.class);
     private final List<Cookie> cookies = new ArrayList<Cookie>();
@@ -60,20 +58,19 @@ public class AtmosphereResponse implements HttpServletResponse {
     private String contentType = "text/html";
     private boolean isCommited = false;
     private Locale locale;
-    private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
     private boolean headerHandled = false;
     private AtmosphereRequest atmosphereRequest;
     private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private final boolean delegateToNativeResponse;
-    private final boolean destroyable;
-    private final HttpServletResponse response;
+    private boolean destroyable;
+    private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
 
-    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+    public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+        super(dsr);
         response = dsr;
         this.asyncIOWriter = asyncIOWriter;
-        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
@@ -81,10 +78,10 @@ public class AtmosphereResponse implements HttpServletResponse {
         this.destroyable = destroyable;
     }
 
-    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AsyncProtocol asyncProtocol, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+    public AtmosphereResponse(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
+        super(r);
         response = r;
         this.asyncIOWriter = asyncIOWriter;
-        this.asyncProtocol = asyncProtocol;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
         this.headers = new HashMap<String, String>();
@@ -93,9 +90,10 @@ public class AtmosphereResponse implements HttpServletResponse {
     }
 
     private AtmosphereResponse(Builder b) {
+        super(b.atmosphereResponse);
+
         response = b.atmosphereResponse;
         this.asyncIOWriter = b.asyncIOWriter;
-        this.asyncProtocol = b.asyncProtocol;
         this.atmosphereRequest = b.atmosphereRequest;
         this.status = b.status;
         this.statusMessage = b.statusMessage;
@@ -109,7 +107,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         private AsyncIOWriter asyncIOWriter;
         private int status = 200;
         private String statusMessage = "OK";
-        private AsyncProtocol asyncProtocol = new FakeAsyncProtocol();
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
@@ -136,11 +133,6 @@ public class AtmosphereResponse implements HttpServletResponse {
 
         public Builder statusMessage(String statusMessage) {
             this.statusMessage = statusMessage;
-            return this;
-        }
-
-        public Builder asyncProtocol(AsyncProtocol asyncProtocol) {
-            this.asyncProtocol = asyncProtocol;
             return this;
         }
 
@@ -179,7 +171,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         headers.clear();
         atmosphereRequest = null;
         asyncIOWriter = null;
-        asyncProtocol = null;
     }
 
     /**
@@ -239,11 +230,20 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             setStatus(sc, msg);
-            asyncIOWriter.writeError(sc, msg);
+
+            // Prevent StackOverflow
+            boolean b = forceAsyncIOWriter;
+            forceAsyncIOWriter = false;
+            asyncIOWriter.writeError(this, sc, msg);
+            forceAsyncIOWriter = b;
         } else {
-            _r().sendError(sc, msg);
+            if (!_r().isCommitted()) {
+                _r().sendError(sc, msg);
+            } else {
+                logger.warn("Committed error code {} {}", sc, msg);
+            }
         }
     }
 
@@ -252,11 +252,19 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     @Override
     public void sendError(int sc) throws IOException {
-        if (!delegateToNativeResponse) {
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
             setStatus(sc);
-            asyncIOWriter.writeError(sc, "");
+            // Prevent StackOverflow
+            boolean b = forceAsyncIOWriter;
+            forceAsyncIOWriter = false;
+            asyncIOWriter.writeError(this, sc, "");
+            forceAsyncIOWriter = b;
         } else {
-            _r().sendError(sc);
+            if (!_r().isCommitted()) {
+                _r().sendError(sc);
+            } else {
+                logger.warn("Committed error code {}", sc);
+            }
         }
     }
 
@@ -265,8 +273,13 @@ public class AtmosphereResponse implements HttpServletResponse {
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        if (!delegateToNativeResponse) {
-            asyncIOWriter.redirect(location);
+        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+
+            // Prevent StackOverflow
+            boolean b = forceAsyncIOWriter;
+            forceAsyncIOWriter = false;
+            asyncIOWriter.redirect(this, location);
+            forceAsyncIOWriter = b;
         } else {
             _r().sendRedirect(location);
         }
@@ -391,7 +404,7 @@ public class AtmosphereResponse implements HttpServletResponse {
         return headers;
     }
 
-      /**
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -402,6 +415,7 @@ public class AtmosphereResponse implements HttpServletResponse {
         }
         return headers.get(name);
     }
+
     /**
      * {@inheritDoc}
      */
@@ -473,6 +487,11 @@ public class AtmosphereResponse implements HttpServletResponse {
         return destroyable;
     }
 
+    public AtmosphereResponse destroyable(boolean destroyable) {
+        this.destroyable = destroyable;
+        return this;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -484,43 +503,56 @@ public class AtmosphereResponse implements HttpServletResponse {
                 @Override
                 public void write(int i) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new byte[]{(byte) i}, 0, 1));
-                    } else {
-                        asyncIOWriter.write(new byte[]{(byte) i});
-                    }
+
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
+                    forceAsyncIOWriter = b;
                 }
 
                 @Override
                 public void write(byte[] bytes) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, 0, bytes.length));
-                    } else {
-                        asyncIOWriter.write(bytes);
-                    }
+
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    asyncIOWriter.write(AtmosphereResponse.this, bytes);
+                    forceAsyncIOWriter = b;
                 }
 
                 @Override
                 public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
                     writeStatusAndHeaders();
-                    if (asyncProtocol.inspectResponse()) {
-                        byte[] b = asyncProtocol.handleResponse(AtmosphereResponse.this, bytes, start, offset);
-                        asyncIOWriter.write(b, 0, b.length);
-                    } else {
-                        asyncIOWriter.write(bytes, start, offset);
-                    }
+
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    asyncIOWriter.write(AtmosphereResponse.this, bytes, start, offset);
+                    forceAsyncIOWriter = b;
                 }
 
                 @Override
                 public void flush() throws IOException {
                     writeStatusAndHeaders();
-                    asyncIOWriter.flush();
+
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    asyncIOWriter.flush(AtmosphereResponse.this);
+                    forceAsyncIOWriter = b;
+
                 }
 
                 @Override
                 public void close() throws java.io.IOException {
-                    asyncIOWriter.close();
+
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    asyncIOWriter.close(AtmosphereResponse.this);
+                    forceAsyncIOWriter = b;
                 }
             };
         } else {
@@ -530,7 +562,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     private void writeStatusAndHeaders() throws java.io.IOException {
         if (writeStatusAndHeader.getAndSet(false) && !forceAsyncIOWriter) {
-            asyncIOWriter.write(constructStatusAndHeaders());
+            asyncIOWriter.write(this, constructStatusAndHeaders());
         }
     }
 
@@ -567,11 +599,12 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars, offset, lenght)));
-                        } else {
-                            asyncIOWriter.write(new String(chars, offset, lenght));
-                        }
+                        // Prevent StackOverflow
+                        boolean b = forceAsyncIOWriter;
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.write(AtmosphereResponse.this, new String(chars, offset, lenght));
+                        forceAsyncIOWriter = b;
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -580,11 +613,12 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(char[] chars) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(chars)));
-                        } else {
-                            asyncIOWriter.write(new String(chars));
-                        }
+                        // Prevent StackOverflow
+                        boolean b = forceAsyncIOWriter;
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.write(AtmosphereResponse.this, new String(chars));
+                        forceAsyncIOWriter = b;
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -593,11 +627,12 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(String s, int offset, int lenght) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s.substring(offset, lenght))));
-                        } else {
-                            asyncIOWriter.write(new String(s.substring(offset, lenght)));
-                        }
+                        // Prevent StackOverflow
+                        boolean b = forceAsyncIOWriter;
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.write(AtmosphereResponse.this, new String(s.substring(offset, lenght)));
+                        forceAsyncIOWriter = b;
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -606,11 +641,12 @@ public class AtmosphereResponse implements HttpServletResponse {
                 public void write(java.lang.String s) {
                     try {
                         writeStatusAndHeaders();
-                        if (asyncProtocol.inspectResponse()) {
-                            asyncIOWriter.write(asyncProtocol.handleResponse(AtmosphereResponse.this, new String(s)));
-                        } else {
-                            asyncIOWriter.write(new String(s));
-                        }
+                        // Prevent StackOverflow
+                        boolean b = forceAsyncIOWriter;
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.write(AtmosphereResponse.this, new String(s));
+                        forceAsyncIOWriter = b;
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -676,12 +712,12 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     @Override
     public void resetBuffer() {
-       response.resetBuffer();
+        response.resetBuffer();
     }
 
     @Override
     public void setBufferSize(int size) {
-      response.setBufferSize(size);
+        response.setBufferSize(size);
     }
 
     /**
@@ -719,7 +755,7 @@ public class AtmosphereResponse implements HttpServletResponse {
      * Set an implementation of {@link AsyncIOWriter} that will be invoked every time a write operation is ready to be
      * processed.
      *
-     * @param asyncIOWriter  of {@link AsyncIOWriter}
+     * @param asyncIOWriter of {@link AsyncIOWriter}
      * @return this
      */
     public AtmosphereResponse asyncIOWriter(AsyncIOWriter asyncIOWriter) {
@@ -739,6 +775,7 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     /**
      * Set the associated {@link AtmosphereRequest}
+     *
      * @param atmosphereRequest a {@link AtmosphereRequest}
      * @return this
      */
@@ -749,11 +786,12 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     /**
      * Close the associated {@link AsyncIOWriter}
+     *
      * @throws IOException
      */
     public void close() throws IOException {
         if (asyncIOWriter != null) {
-            asyncIOWriter.close();
+            asyncIOWriter.close(this);
         }
     }
 
@@ -764,7 +802,10 @@ public class AtmosphereResponse implements HttpServletResponse {
         try {
             boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
             if (isUsingStream) {
-                response.getOutputStream().close();
+                try {
+                    response.getOutputStream().close();
+                } catch (java.lang.IllegalStateException ex) {
+                }
             } else {
                 response.getWriter().close();
             }
@@ -776,14 +817,18 @@ public class AtmosphereResponse implements HttpServletResponse {
     /**
      * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
+     *
      * @param data the String to write
      */
     public AtmosphereResponse write(String data) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
-
+                try {
+                    response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
+                } catch (java.lang.IllegalStateException ex) {
+                    ex.printStackTrace();
+                }
             } else {
                 response.getWriter().write(data);
             }
@@ -793,17 +838,20 @@ public class AtmosphereResponse implements HttpServletResponse {
         return this;
     }
 
-     /**
+    /**
      * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
+     *
      * @param data the bytes to write
      */
     public AtmosphereResponse write(byte[] data) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data);
-
+                try {
+                    response.getOutputStream().write(data);
+                } catch (java.lang.IllegalStateException ex) {
+                }
             } else {
                 response.getWriter().write(new String(data, getCharacterEncoding()));
             }
@@ -816,7 +864,8 @@ public class AtmosphereResponse implements HttpServletResponse {
     /**
      * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}
-     * @param data the bytes to write
+     *
+     * @param data   the bytes to write
      * @param offset the first byte position to write
      * @param length the data length
      */
@@ -824,15 +873,24 @@ public class AtmosphereResponse implements HttpServletResponse {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
-                response.getOutputStream().write(data, offset, length);
-
+                try {
+                    response.getOutputStream().write(data, offset, length);
+                } catch (java.lang.IllegalStateException ex) {
+                }
             } else {
-                response.getWriter().write(new String(data,  offset, length, getCharacterEncoding()));
+                response.getWriter().write(new String(data, offset, length, getCharacterEncoding()));
             }
         } catch (IOException e) {
             logger.trace("", e);
         }
         return this;
+    }
+
+    public void setResponse(ServletResponse response) {
+        super.setResponse(response);
+        if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
+            this.response = HttpServletResponse.class.cast(response);
+        }
     }
 
     private final static class DummyHttpServletResponse implements HttpServletResponse {
@@ -997,24 +1055,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         }
     }
 
-    private final static class FakeAsyncProtocol implements AsyncProtocol {
-
-        @Override
-        public boolean inspectResponse() {
-            return false;
-        }
-
-        @Override
-        public String handleResponse(AtmosphereResponse res, String message) {
-            return null;
-        }
-
-        @Override
-        public byte[] handleResponse(AtmosphereResponse res, byte[] message, int offset, int length) {
-            return new byte[0];
-        }
-    }
-
     private final static class NoOpsOutputStream extends ServletOutputStream {
         @Override
         public void write(int i) throws IOException {
@@ -1038,8 +1078,9 @@ public class AtmosphereResponse implements HttpServletResponse {
 
     /**
      * Wrap an {@link HttpServletResponse}
-     * @param response  {@link HttpServletResponse}
-     * @return  an {@link AtmosphereResponse}
+     *
+     * @param response {@link HttpServletResponse}
+     * @return an {@link AtmosphereResponse}
      */
     public final static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();
@@ -1059,8 +1100,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         if (isCommited != that.isCommited) return false;
         if (status != that.status) return false;
         if (asyncIOWriter != null ? !asyncIOWriter.equals(that.asyncIOWriter) : that.asyncIOWriter != null)
-            return false;
-        if (asyncProtocol != null ? !asyncProtocol.equals(that.asyncProtocol) : that.asyncProtocol != null)
             return false;
         if (atmosphereRequest != null ? !atmosphereRequest.equals(that.atmosphereRequest) : that.atmosphereRequest != null)
             return false;
@@ -1090,7 +1129,6 @@ public class AtmosphereResponse implements HttpServletResponse {
         result = 31 * result + (contentType != null ? contentType.hashCode() : 0);
         result = 31 * result + (isCommited ? 1 : 0);
         result = 31 * result + (locale != null ? locale.hashCode() : 0);
-        result = 31 * result + (asyncProtocol != null ? asyncProtocol.hashCode() : 0);
         result = 31 * result + (headerHandled ? 1 : 0);
         result = 31 * result + (atmosphereRequest != null ? atmosphereRequest.hashCode() : 0);
         result = 31 * result + (writeStatusAndHeader != null ? writeStatusAndHeader.hashCode() : 0);
@@ -1113,7 +1151,6 @@ public class AtmosphereResponse implements HttpServletResponse {
                 ", contentType='" + contentType + '\'' +
                 ", isCommited=" + isCommited +
                 ", locale=" + locale +
-                ", asyncProtocol=" + asyncProtocol +
                 ", headerHandled=" + headerHandled +
                 ", atmosphereRequest=" + atmosphereRequest +
                 ", writeStatusAndHeader=" + writeStatusAndHeader +

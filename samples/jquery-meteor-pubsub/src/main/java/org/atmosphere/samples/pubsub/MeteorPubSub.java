@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.pubsub;
 
+import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -33,6 +34,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
+@MeteorService
 public class MeteorPubSub extends HttpServlet {
 
     @Override

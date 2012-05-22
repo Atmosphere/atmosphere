@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -29,6 +30,7 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
+@AtmosphereHandlerService(path="/chat")
 public class ChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
@@ -40,7 +42,6 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
         if (req.getMethod().equalsIgnoreCase("GET")) {
             // The negotiation header is just needed by the sample to list all the supported transport.
             if (req.getHeader("negotiating") == null) {
-                // We are using HTTP long-polling with an invite timeout
                 r.suspend();
             } else {
                 r.getResponse().getWriter().write("OK");
@@ -67,6 +68,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
             res.getWriter().write(new Data(author, message).toString());
             switch (r.transport()) {
                 case JSONP:
+                case AJAX:
                 case LONG_POLLING:
                     event.getResource().resume();
                     break;
