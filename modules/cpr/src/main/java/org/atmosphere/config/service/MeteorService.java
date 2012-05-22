@@ -23,6 +23,8 @@ import java.lang.annotation.Target;
 
 /**
  * Annotate a {@link org.atmosphere.cpr.Meteor} implementation so Atmosphere can install it at runtime.
+ *
+ * @author Jeanfrancois Arcand
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

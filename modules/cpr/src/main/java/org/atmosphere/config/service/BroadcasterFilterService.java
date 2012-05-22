@@ -21,6 +21,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * An annotation for telling Atmosphere to add the {@link org.atmosphere.cpr.BroadcastFilter} to all created {@link Broadcaster}
+ *
+ * @author Jeanfrancois Arcand
+ */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
