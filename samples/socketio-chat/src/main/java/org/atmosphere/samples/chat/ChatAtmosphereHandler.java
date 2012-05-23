@@ -205,7 +205,7 @@ public class ChatAtmosphereHandler implements SocketIOAtmosphereHandler {
 						chat.getArgs().toArray()[0]);
 
 				String username = (String) chat.getArgs().toArray()[0];
-				// est-il deja loggé ?
+				// est-il deja logge ?
 				if (loggedUserMap.containsValue(username)) {
 					outbound.sendMessage(new SocketIOPacketImpl(PacketType.ACK,
 							"1+[true]").toString());
