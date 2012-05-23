@@ -100,10 +100,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         Action action = suspended(request, response);
         if (action.type() == Action.TYPE.SUSPEND) {
-            logger.debug("Suspending response: {}", response);
             suspend(action, request, response);
         } else if (action.type() == Action.TYPE.RESUME) {
-            logger.debug("Resuming response: {}", response);
 
             if (supportSession()) {
                 AsyncContext asyncContext =
@@ -116,7 +114,6 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
             Action nextAction = resumed(request, response);
             if (nextAction.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending after resuming response: {}", response);
                 suspend(action, request, response);
             }
         }

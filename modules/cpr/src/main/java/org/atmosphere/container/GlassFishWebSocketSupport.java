@@ -109,11 +109,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             return super.service(request, response);
         } else {
             Action action = suspended(request, response);
-            if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", response);
-            } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", response);
-            }
             return action;
         }
     }

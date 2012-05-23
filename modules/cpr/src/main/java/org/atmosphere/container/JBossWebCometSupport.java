@@ -96,8 +96,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         if (event.getType() == HttpEvent.EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
-
                 // Do nothing except setting the times out
                 try {
                     if (action.timeout() != -1) {
@@ -111,7 +109,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                     // TODO: Must implement the same functionality using a Scheduler
                 }
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", res);
                 event.close();
             } else {
                 event.close();
@@ -119,13 +116,10 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         } else if (event.getType() == HttpEvent.EventType.READ) {
             // Not implemente
         } else if (event.getType() == HttpEvent.EventType.EOF) {
-            logger.debug("Client closed connection: response: {}", res);
-
             if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                logger.debug("Cancelling response: {}", res);
                 event.close();
             }
         } else if (event.getType() == HttpEvent.EventType.ERROR) {
@@ -135,11 +129,9 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                logger.trace("Cancelling response: {}", res);
                 event.close();
             }
         } else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
-            logger.debug("Timing out {}", res);
             action = timedout(req, res);
             event.close();
         }

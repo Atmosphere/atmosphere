@@ -114,8 +114,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         if (event.getEventType() == EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
-                logger.debug("Suspending response: {}", res);
-
                 // Do nothing except setting the times out
                 try {
                     if (action.timeout() != -1) {
@@ -129,7 +127,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                     // TODO: Must implement the same functionality using a Scheduler
                 }
             } else if (action.type() == Action.TYPE.RESUME) {
-                logger.debug("Resuming response: {}", res);
                 event.close();
             } else {
                 event.close();
@@ -137,18 +134,14 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
         } else if (event.getEventSubType() == CometEvent.EventSubType.CLIENT_DISCONNECT) {
-            logger.debug("Client closed connection: response: {}", res);
 
             if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
-            } else {
-                logger.debug("Cancelling response: {}", res);
             }
 
             event.close();
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
-            logger.debug("Timing out response: {}", res);
 
             action = timedout(req, res);
             event.close();
@@ -159,7 +152,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                logger.trace("Cancelling response: {}", res);
                 event.close();
             }
         }

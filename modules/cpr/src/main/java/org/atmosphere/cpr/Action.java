@@ -52,7 +52,11 @@ public final class Action {
         /**
          * Mark this action as created. The request will still be dispatched to frameworks/container via {@link AtmosphereHandler}
          */
-        CREATED
+        CREATED,
+        /**
+         * Mark this action as destroyed. All objects associated with this action will be candidate for being garbage collected.
+         */
+        DESTROYED
     }
 
     public final static Action CANCELLED = new Action(TYPE.CANCELLED);
@@ -60,6 +64,7 @@ public final class Action {
     public final static Action CREATED = new Action(TYPE.CREATED);
     public final static Action RESUME = new Action(TYPE.RESUME);
     public final static Action SUSPEND = new Action(TYPE.SUSPEND);
+    public final static Action DESTROYED = new Action(TYPE.DESTROYED);
 
     private long timeout;
     private TYPE type;

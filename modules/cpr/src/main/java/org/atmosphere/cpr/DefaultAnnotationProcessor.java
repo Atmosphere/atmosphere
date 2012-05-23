@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import eu.infomas.annotation.AnnotationDetector;
+import org.atmosphere.config.service.AsyncSupportListenerService;
+import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
@@ -68,7 +70,9 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         MeteorService.class,
                         WebSocketHandlerService.class,
                         WebSocketProtocolService.class,
-                        AtmosphereInterceptor.class
+                        AtmosphereInterceptorService.class,
+                        AsyncSupportService.class,
+                        AsyncSupportListenerService.class
                 };
             }
 
@@ -120,7 +124,19 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     framework.setWebSocketProtocolClassName(className);
                 } else if (AtmosphereInterceptorService.class.equals(annotation)) {
                     try {
-                        framework.interceptor((AtmosphereInterceptor)cl.loadClass(className).newInstance());
+                        framework.interceptor((AtmosphereInterceptor) cl.loadClass(className).newInstance());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (AsyncSupportService.class.equals(annotation)) {
+                    try {
+                        framework.setAsyncSupport(new DefaultAsyncSupportResolver(framework.config).newCometSupport(className));
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (AsyncSupportListenerService.class.equals(annotation)) {
+                    try {
+                        framework.asyncSupportListener((AsyncSupportListener) cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
