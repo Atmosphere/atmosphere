@@ -55,7 +55,7 @@ public class Jaxrs2Test {
     }
 
     public void startServer() throws Exception {
-        server = new Server(port);
+        server = new Server();
         root = new Context(server, "/", Context.SESSIONS);
         root.addServlet(new ServletHolder(atmoServlet), ROOT);
 
