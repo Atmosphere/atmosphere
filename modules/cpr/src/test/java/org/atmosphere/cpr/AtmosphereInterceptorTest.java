@@ -141,6 +141,10 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CREATED;
             }
