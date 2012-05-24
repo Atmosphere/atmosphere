@@ -315,4 +315,9 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             return filterChain.getServletConfig().getServletName();
         }
     }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 }

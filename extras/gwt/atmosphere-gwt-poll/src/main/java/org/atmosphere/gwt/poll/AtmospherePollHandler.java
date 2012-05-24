@@ -54,4 +54,8 @@ public class AtmospherePollHandler extends ReflectorServletProcessor {
         }
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 }
