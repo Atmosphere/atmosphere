@@ -401,4 +401,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         resource.suspend(timeout);
     }
 
+    @Override
+    public String toString() {
+        return "AtmosphereGwtAtmosphereHandler";
+    }
+
 }
