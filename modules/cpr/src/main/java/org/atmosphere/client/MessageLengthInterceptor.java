@@ -18,6 +18,7 @@ package org.atmosphere.client;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -35,6 +36,10 @@ import java.io.IOException;
 public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
     private final static  byte[] END = "<||>".getBytes();
+
+    @Override
+    public void configure(AtmosphereConfig config) {
+    }
 
     @Override
     public Action inspect(final AtmosphereResource r) {
