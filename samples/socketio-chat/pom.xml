@@ -34,5 +34,11 @@
             <artifactId>slf4j-simple</artifactId>
             <version>1.6.1</version>
         </dependency>
+        <!-- This is ONLY required if you use Atmosphere's annotation. If you use atmosphere.xml, not required -->
+        <dependency>
+            <groupId>eu.infomas</groupId>
+            <artifactId>annotation-detector</artifactId>
+            <version>3.0.0</version>
+        </dependency>
     </dependencies>
 </project>

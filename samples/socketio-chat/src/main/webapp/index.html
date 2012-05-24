@@ -2,12 +2,25 @@
 <html>
 	<head>
 		<link href="css/style.css" rel="stylesheet">
-	<script src="./dist/jquery-1.7.js"></script>
-	<script src="./dist/socket.io.js"></script>
+	<script src="dist/jquery-1.7.js"></script>
+	<script src="dist/socket.io.js"></script>
 	
 	<script>
+		
+		var loginurl = "";
+		
+		var pathname = document.location.pathname;
+		
+		var lastdot = pathname.lastIndexOf("/");
+		
+		if(lastdot>1){
+			loginurl = pathname.substr(1,lastdot);
+		}
+		
+		
+		
 // socket.io specific code
-var socket = io.connect('', {'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'});
+var socket = io.connect('', {'resource':loginurl+'ChatAtmosphereHandler'});
 
 
 var connectedUrl = "";
@@ -32,12 +45,13 @@ socket.on('connect', function () {
 	
 	console.log(getDisconnectURL);
 	*/
-
+connectedUrl =  "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
+var getDisconnectURL = connectedUrl + "/?t="+ +new Date + "&disconnect";
 	
 });
 
 socket.on('announcement', function (msg) {
-  $('#lines').append($('<p>').append($('<em>').text(msg)));
+  $('#lines').append($('<p>').append($('<em>').text(msg))); 
 });
 
 socket.on('nicknames', function (nicknames) {
@@ -167,4 +181,4 @@ $(function () {
 			</div>	
 		</div>
 	</body>
-</html>
+</html>>

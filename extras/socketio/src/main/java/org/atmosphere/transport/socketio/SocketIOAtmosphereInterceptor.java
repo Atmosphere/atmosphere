@@ -18,11 +18,10 @@ package org.atmosphere.transport.socketio;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletResponse;
 
+import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -41,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * SocketIO implementation.
  * @author Sebastien Dionne
  */
+@AtmosphereInterceptorService 
 public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOAtmosphereInterceptor.class);
@@ -54,9 +54,9 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	private static int timeout = 25000;
 	private static int suspendTime = 20000;
 	
-	//private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
+	private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
 	//private String availableTransports = "websocket";
-	private String availableTransports = "xhr-polling";
+	//private String availableTransports = "xhr-polling";
 	 
 	static {
 		// VERSION 1
