@@ -42,6 +42,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -109,6 +110,7 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  */
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
+    public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
 
 
@@ -1391,14 +1393,27 @@ public class AtmosphereFramework implements ServletContextProvider {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
         String path = sc.getRealPath(handlersPath);
-        // TODO: Hack to make the test works.
-        if (path == null) {
-            path = new File(handlersPath).getAbsolutePath();
-        }
-
         try {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
             p.configure(this).scan(new File(path));
+
+            String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
+            if (pathLibs == null) {
+                pathLibs = new File(DEFAULT_LIB_PATH).getAbsolutePath();
+            }
+
+            File libFolder = new File(pathLibs);
+            File jars[] = libFolder.listFiles(new FilenameFilter() {
+
+                @Override
+                public boolean accept(File arg0, String arg1) {
+                    return arg1.endsWith(".jar");
+                }
+            });
+
+            for (File file : jars) {
+                p.scan(file);
+            }
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
