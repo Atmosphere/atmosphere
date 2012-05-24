@@ -18,6 +18,7 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -50,6 +51,10 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
         }
         whitespace.append("\n");
         padding = whitespace.toString().getBytes();
+    }
+
+    @Override
+    public void configure(AtmosphereConfig config) {
     }
 
     private void writePadding(AtmosphereResponse response) {

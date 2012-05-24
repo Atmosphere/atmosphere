@@ -436,7 +436,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             initWebSocketProtocol();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            configureAtmosphereConfig(sc);
+            configureAtmosphereInterceptor(sc);
 
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
@@ -468,14 +468,16 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param sc a ServletConfig
      */
-    protected void configureAtmosphereConfig(ServletConfig sc) {
+    protected void configureAtmosphereInterceptor(ServletConfig sc) {
         String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
         if (s != null) {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a.trim()).newInstance());
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()).newInstance();
+                    ai.configure(config);
+                    interceptors.add(ai);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
@@ -1398,10 +1400,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             p.configure(this).scan(new File(path));
 
             String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
-            if (pathLibs == null) {
-                pathLibs = new File(DEFAULT_LIB_PATH).getAbsolutePath();
-            }
-
             File libFolder = new File(pathLibs);
             File jars[] = libFolder.listFiles(new FilenameFilter() {
 
@@ -1415,7 +1413,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 p.scan(file);
             }
         } catch (Throwable e) {
-            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
+            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
             return;
         }
