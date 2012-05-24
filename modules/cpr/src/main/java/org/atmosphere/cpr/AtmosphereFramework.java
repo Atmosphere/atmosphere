@@ -42,6 +42,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -1399,6 +1400,25 @@ public class AtmosphereFramework implements ServletContextProvider {
         try {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
             p.configure(this).scan(new File(path));
+            
+            String pathLibs = sc.getRealPath("/WEB-INF/lib/");
+            if (pathLibs == null) {
+            	pathLibs = new File("/WEB-INF/lib/").getAbsolutePath();
+            }
+            
+            File libFolder = new File(pathLibs);
+            
+            File jars[] = libFolder.listFiles(new FilenameFilter() {
+				
+				@Override
+				public boolean accept(File arg0, String arg1) {
+					return arg1.endsWith(".jar");
+				}
+			});
+            
+            for (File file : jars) {
+            	p.scan(file);
+			}
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
