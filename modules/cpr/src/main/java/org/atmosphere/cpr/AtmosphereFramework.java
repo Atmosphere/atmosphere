@@ -447,7 +447,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (sc.getServletContext() != null) {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
-            postProcessBroadcaster();
 
             logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
@@ -528,34 +527,29 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
             InjectorProvider.getInjector().inject(broadcasterFactory);
-        } catch (Exception ex) {
-            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
-        }
-    }
 
-    protected void postProcessBroadcaster() {
-        Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
-        AtmosphereHandlerWrapper w;
-        while (i.hasNext()) {
-            w = i.next().getValue();
-            BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
+            Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
+            AtmosphereHandlerWrapper w;
+            Entry<String, AtmosphereHandlerWrapper> e;
+            while (i.hasNext()) {
+                e = i.next();
+                w = e.getValue();
+                BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
 
-            if (w.broadcaster == null) {
-                w.broadcaster = broadcasterFactory.lookup(w.mapping);
-            } else {
-                w.broadcaster.setBroadcasterConfig(broadcasterConfig);
-                if (broadcasterCacheClassName != null) {
-                    BroadcasterCache cache = null;
-                    try {
-                        cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                if (w.broadcaster == null) {
+                    w.broadcaster = broadcasterFactory.get(w.mapping);
+                } else {
+                    w.broadcaster.setBroadcasterConfig(broadcasterConfig);
+                    if (broadcasterCacheClassName != null) {
+                        BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
                                 .loadClass(broadcasterCacheClassName).newInstance();
-                    } catch (Exception ex) {
-                        logger.warn("", ex);
+                        InjectorProvider.getInjector().inject(cache);
+                        broadcasterConfig.setBroadcasterCache(cache);
                     }
-                    InjectorProvider.getInjector().inject(cache);
-                    broadcasterConfig.setBroadcasterCache(cache);
                 }
             }
+        } catch (Exception ex) {
+            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
     }
 
