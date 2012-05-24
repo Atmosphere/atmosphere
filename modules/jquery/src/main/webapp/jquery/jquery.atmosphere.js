@@ -1611,7 +1611,7 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                var messages = _response.responseBody.split("<||>");
+                var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
