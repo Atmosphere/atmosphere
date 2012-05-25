@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +48,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -302,7 +304,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        return b.request.getCookies();
+        return isNotNoOps() ? b.request.getCookies() : b.cookies.toArray(new Cookie[]{});
     }
 
     /**
@@ -922,6 +924,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
+        private List<Cookie> cookies = new ArrayList<Cookie>();
 
         private String contextPath = "";
         private String serverName = "";
@@ -938,6 +941,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder headers(Map<String, String> headers) {
             this.headers = Collections.synchronizedMap(headers);
+            return this;
+        }
+
+        public Builder cookies(List<Cookie> cookies) {
+            this.cookies = cookies;
             return this;
         }
 
