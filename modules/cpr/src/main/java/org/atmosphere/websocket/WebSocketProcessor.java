@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -98,12 +99,9 @@ public class WebSocketProcessor implements Serializable {
         AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
-        AtmosphereResourceImpl r = new AtmosphereResourceImpl(framework.getAtmosphereConfig(),
-                null,
-                request,
+        AtmosphereResource r = AtmosphereResourceFactory.create(framework.getAtmosphereConfig(),
                 wsr,
-                framework.getAsyncSupport(),
-                null);
+                framework.getAsyncSupport());
 
         request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
         webSocket.resource(r);

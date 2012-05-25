@@ -303,4 +303,9 @@ public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle 
      */
     Object writeOnTimeout();
 
+    /**
+     * Return the unique ID associated with this AtmosphereResource.
+     * @return the unique ID associated with this AtmosphereResource.
+     */
+    String uuid();
 }

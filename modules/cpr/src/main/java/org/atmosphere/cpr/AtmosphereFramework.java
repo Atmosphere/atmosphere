@@ -813,7 +813,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         AtmosphereConfigReader.getInstance().parse(config, stream);
-        for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandler()) {
+        for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandlerConfig()) {
             try {
                 AtmosphereHandler handler;
 
@@ -1108,10 +1108,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
-
-        if (res.request() == null) {
-            res.request(req);
-        }
 
         Action a = null;
         try {
