@@ -67,29 +67,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	//private String availableTransports = "websocket";
 	//private String availableTransports = "xhr-polling";
 	 
-	static {
-		// VERSION 1
-		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
-		//org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();
-		org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(BUFFER_SIZE_DEFAULT);
-		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(BUFFER_SIZE_DEFAULT);
-		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(BUFFER_SIZE_DEFAULT);
-		transports.put(websocketTransport1.getName()+ "-1", websocketTransport1);
-		//transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
-		transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);
-		transports.put(xhrPollingTransport1.getName()+ "-1", xhrPollingTransport1);
-		transports.put(jsonpPollingTransport1.getName()+ "-1", jsonpPollingTransport1);
-		
-		for (Transport t: transports.values()) {
-			t.init(null); // pas sur que c'est utile maintenant
-		}
-		
-		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
-		sessionManager1.setTimeout(timeout);
-		sessionManager1.setHeartbeatInterval(heartbeatInterval);
-		sessionManager1.setRequestSuspendTime(suspendTime);
-	}
-	
 	private SocketIOSessionManager getSessionManager(String version){
 		
 		if(version.equals("1")){
@@ -104,32 +81,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
         return "SocketIO-Support";
     }
     
-    protected void init(AtmosphereConfig config){
-    	
-    	// j'aimais mieux avoir le configure(servletcontext)
-		String s = config.getInitParameter(SOCKETIO_TRANSPORT);
-		availableTransports = s;
-		
-		String timeoutWebXML = config.getInitParameter(SOCKETIO_TIMEOUT);
-		if(timeoutWebXML!=null){
-			timeout = Integer.parseInt(timeoutWebXML);
-		}
-		
-		String heartbeatWebXML = config.getInitParameter(SOCKETIO_HEARTBEAT);
-		if(heartbeatWebXML!=null){
-			heartbeatInterval = Integer.parseInt(heartbeatWebXML);
-		}
-		
-		String suspendWebXML = config.getInitParameter(SOCKETIO_SUSPEND);
-		if(suspendWebXML!=null){
-			suspendTime = Integer.parseInt(suspendWebXML);
-		}
-		
-		sessionManager1.setTimeout(timeout);
-		sessionManager1.setHeartbeatInterval(heartbeatInterval);
-		sessionManager1.setRequestSuspendTime(suspendTime);
-    }
-
 	@Override
 	public Action inspect(AtmosphereResource r) {
 		final AtmosphereRequest request = r.getRequest();
@@ -137,9 +88,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		 
 		final AtmosphereHandler atmosphereHandler = (AtmosphereHandler)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		final AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-		
-		init(r.getAtmosphereConfig());
-		
 		
 		if(atmosphereHandler instanceof SocketIOAtmosphereHandler){
         	
@@ -227,6 +175,52 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		
 		
 		return Action.CANCELLED;
+	}
+
+	@Override
+	public void configure(AtmosphereConfig config) {
+		
+		
+		// j'aimais mieux avoir le configure(servletcontext)
+		String s = config.getInitParameter(SOCKETIO_TRANSPORT);
+		availableTransports = s;
+		
+		String timeoutWebXML = config.getInitParameter(SOCKETIO_TIMEOUT);
+		if(timeoutWebXML!=null){
+			timeout = Integer.parseInt(timeoutWebXML);
+		}
+		
+		String heartbeatWebXML = config.getInitParameter(SOCKETIO_HEARTBEAT);
+		if(heartbeatWebXML!=null){
+			heartbeatInterval = Integer.parseInt(heartbeatWebXML);
+		}
+		
+		String suspendWebXML = config.getInitParameter(SOCKETIO_SUSPEND);
+		if(suspendWebXML!=null){
+			suspendTime = Integer.parseInt(suspendWebXML);
+		}
+				
+		// VERSION 1
+		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
+		//org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();
+		org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(BUFFER_SIZE_DEFAULT);
+		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(BUFFER_SIZE_DEFAULT);
+		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(BUFFER_SIZE_DEFAULT);
+		transports.put(websocketTransport1.getName()+ "-1", websocketTransport1);
+		//transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
+		transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);
+		transports.put(xhrPollingTransport1.getName()+ "-1", xhrPollingTransport1);
+		transports.put(jsonpPollingTransport1.getName()+ "-1", jsonpPollingTransport1);
+		
+		for (Transport t: transports.values()) {
+			t.init(null); // pas sur que c'est utile maintenant
+		}
+		
+		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
+		sessionManager1.setTimeout(timeout);
+		sessionManager1.setHeartbeatInterval(heartbeatInterval);
+		sessionManager1.setRequestSuspendTime(suspendTime);
+		
 	}
 
 }

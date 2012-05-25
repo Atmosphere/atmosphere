@@ -110,6 +110,7 @@ import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
  */
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
+    public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
 
 
@@ -435,7 +436,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             initWebSocketProtocol();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            configureAtmosphereConfig(sc);
+            configureAtmosphereInterceptor(sc);
 
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
