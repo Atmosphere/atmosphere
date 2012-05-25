@@ -382,8 +382,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                 if (Callable.class.isAssignableFrom(entity.getClass())) {
                                     entity = Callable.class.cast(entity).call();
                                 }
-                                response.setEntity(entity);
-                                response.write();
+                                synchronized(response) {
+                                    response.setEntity(entity);
+                                    response.write();
+                                }
                             } catch (Throwable t) {
                                 logger.debug("Error running Callable", t);
                                 response.setEntity(null);
@@ -485,7 +487,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case RESUME:
                     if (response.getEntity() != null) {
                         try {
-                            response.write();
+                            synchronized(response) {
+                                response.write();
+                            }
                         } catch (IOException ex) {
                             throw new WebApplicationException(ex);
                         }
@@ -529,7 +533,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     broadcast(response, r, timeout);
                     if (!writeEntity) {
-                        response.setEntity(null);
+                        synchronized(response) {
+                            response.setEntity(null);
+                        }
                     }
                     break;
                 case SCHEDULE:
@@ -544,7 +550,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     if (response.getEntity() != null) {
                         try {
-                            response.write();
+                            synchronized (response) {
+                                response.write();
+                            }
                         } catch (IOException ex) {
                             throw new WebApplicationException(ex);
                         }
@@ -915,8 +923,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         b = b.header(HttpHeaders.LOCATION, location);
                         location = null;
                     }
-                    response.setResponse(b.entity(paddingData).build());
-                    response.write();
+
+                    synchronized(response) {
+                        response.setResponse(b.entity(paddingData).build());
+                        response.write();
+                    }
                 }
 
                 if (entity != null && flushEntity) {
@@ -932,8 +943,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (location != null) {
                         b = b.header(HttpHeaders.LOCATION, location);
                     }
-                    response.setResponse(b.entity(entity).build());
-                    response.write();
+
+                    synchronized(response) {
+                        response.setResponse(b.entity(entity).build());
+                        response.write();
+                    }
                 }
 
                 response.setEntity(null);

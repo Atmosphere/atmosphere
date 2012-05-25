@@ -49,96 +49,101 @@ public final class JerseyBroadcasterUtil {
     public final static void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e, final Broadcaster broadcaster) {
         AtmosphereRequest request = r.getRequest();
         ContainerResponse cr = null;
-        try {
-            cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
-            boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
-            if (cr == null || isCancelled) {
-                logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
-                if (!isCancelled) {
-                    logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
-                } else {
-                    logger.debug("ContainerResponse already resumed or cancelled. Ignoring");
+        // Make sure only one thread can play with the ContainerResponse. Threading issue can arise if there is a scheduler
+        // or if ContainerResponse is associated with more than Broadcaster.
+        synchronized (cr) {
+            try {
+                cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
+                boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
+
+                if (cr == null || isCancelled) {
+                    logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
+                    if (!isCancelled) {
+                        logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
+                    } else {
+                        logger.debug("ContainerResponse already resumed or cancelled. Ignoring");
+                    }
+
+                    if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
+                        DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r);
+                    }
+                    AsynchronousProcessor.destroyResource(r);
+                    return;
                 }
 
-                if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                    DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r);
+                // This is required when you change the response's type
+                String m = null;
+
+                if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
+                    m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
                 }
-                AsynchronousProcessor.destroyResource(r);
-                return;
-            }
 
-            // This is required when you change the response's type
-            String m = null;
-
-            if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
-                m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
-            }
-
-            if (m == null || m.toString().equalsIgnoreCase("text/event-stream")) {
-                m = request.getHeader(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-                if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
-                    m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
-                    if (m == null) {
-                        m = "text/plain";
+                if (m == null || m.toString().equalsIgnoreCase("text/event-stream")) {
+                    m = request.getHeader(FrameworkConfig.EXPECTED_CONTENT_TYPE);
+                    if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
+                        m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
+                        if (m == null) {
+                            m = "text/plain";
+                        }
                     }
                 }
-            }
 
-            if (e.getMessage() instanceof Response) {
-                cr.setResponse((Response) e.getMessage());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
-                cr.write();
-                if (!cr.isCommitted()) {
-                    cr.getOutputStream().flush();
-                }
-            } else if (e.getMessage() instanceof List) {
-                for (Object msg : (List<Object>) e.getMessage()) {
-                    cr.setResponse(Response.ok(msg).build());
+                if (e.getMessage() instanceof Response) {
+                    cr.setResponse((Response) e.getMessage());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
+                    if (!cr.isCommitted()) {
+                        cr.getOutputStream().flush();
+                    }
+                } else if (e.getMessage() instanceof List) {
+                    for (Object msg : (List<Object>) e.getMessage()) {
+                        cr.setResponse(Response.ok(msg).build());
+                        cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
+                        cr.write();
 
-                    // https://github.com/Atmosphere/atmosphere/issues/169
+                        // https://github.com/Atmosphere/atmosphere/issues/169
+                        if (!cr.isCommitted()) {
+                            cr.getOutputStream().flush();
+                        }
+                    }
+                } else {
+                    if (e.getMessage() == null) {
+                        logger.warn("Broadcasted message is null");
+                        return;
+                    }
+
+                    cr.setResponse(Response.ok(e.getMessage()).build());
+                    cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
+                    cr.write();
                     if (!cr.isCommitted()) {
                         cr.getOutputStream().flush();
                     }
                 }
-            } else {
-                if (e.getMessage() == null) {
-                    logger.warn("Broadcasted message is null");
-                    return;
+            } catch (Throwable t) {
+                if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
+                    DefaultBroadcaster.class.cast(broadcaster).onException(t, r);
+                } else {
+                    onException(t, r);
+                }
+            } finally {
+                if (cr != null) {
+                    cr.setEntity(null);
                 }
 
-                cr.setResponse(Response.ok(e.getMessage()).build());
-                cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
-                cr.write();
-                if (!cr.isCommitted()) {
-                    cr.getOutputStream().flush();
-                }
-            }
-        } catch (Throwable t) {
-            if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                DefaultBroadcaster.class.cast(broadcaster).onException(t, r);
-            } else {
-                onException(t, r);
-            }
-        } finally {
-            if (cr != null) {
-                cr.setEntity(null);
-            }
+                Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+                if (resumeOnBroadcast != null && resumeOnBroadcast) {
 
-            Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (resumeOnBroadcast != null && resumeOnBroadcast) {
-
-                String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
-                if (uuid != null) {
-                    if (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
-                        ((ConcurrentHashMap<String, AtmosphereResource>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                    String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
+                    if (uuid != null) {
+                        if (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
+                            ((ConcurrentHashMap<String, AtmosphereResource>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                        }
                     }
+                    r.resume();
                 }
-                r.resume();
-            }
 
+            }
         }
     }
 
