@@ -22,6 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -49,6 +50,14 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	
 	private static SocketIOSessionManager sessionManager1 = null;
 	private static Map<String, Transport> transports = new HashMap<String, Transport>();
+	
+	public static final String BUFFER_SIZE_INIT_PARAM = "socketio-bufferSize";
+	public static final String SOCKETIO_TRANSPORT = "socketio-transport";
+	public static final String SOCKETIO_TIMEOUT = "socketio-timeout";
+	public static final String SOCKETIO_HEARTBEAT = "socketio-heartbeat";
+	public static final String SOCKETIO_SUSPEND = "socketio-suspendTime";
+	
+	public int bufferSize = BUFFER_SIZE_DEFAULT;
 	
 	private static int heartbeatInterval = 15000;
 	private static int timeout = 25000;
@@ -94,6 +103,32 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
     public String toString() {
         return "SocketIO-Support";
     }
+    
+    protected void init(AtmosphereConfig config){
+    	
+    	// j'aimais mieux avoir le configure(servletcontext)
+		String s = config.getInitParameter(SOCKETIO_TRANSPORT);
+		availableTransports = s;
+		
+		String timeoutWebXML = config.getInitParameter(SOCKETIO_TIMEOUT);
+		if(timeoutWebXML!=null){
+			timeout = Integer.parseInt(timeoutWebXML);
+		}
+		
+		String heartbeatWebXML = config.getInitParameter(SOCKETIO_HEARTBEAT);
+		if(heartbeatWebXML!=null){
+			heartbeatInterval = Integer.parseInt(heartbeatWebXML);
+		}
+		
+		String suspendWebXML = config.getInitParameter(SOCKETIO_SUSPEND);
+		if(suspendWebXML!=null){
+			suspendTime = Integer.parseInt(suspendWebXML);
+		}
+		
+		sessionManager1.setTimeout(timeout);
+		sessionManager1.setHeartbeatInterval(heartbeatInterval);
+		sessionManager1.setRequestSuspendTime(suspendTime);
+    }
 
 	@Override
 	public Action inspect(AtmosphereResource r) {
@@ -103,9 +138,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		final AtmosphereHandler atmosphereHandler = (AtmosphereHandler)request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 		final AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 		
-		// j'aimais mieux avoir le configure(servletcontext)
-		String s = r.getAtmosphereConfig().getInitParameter("socketio-transport");
-		availableTransports = s;
+		init(r.getAtmosphereConfig());
 		
 		
 		if(atmosphereHandler instanceof SocketIOAtmosphereHandler){

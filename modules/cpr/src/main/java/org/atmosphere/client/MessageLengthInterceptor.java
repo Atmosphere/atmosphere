@@ -16,8 +16,10 @@
 package org.atmosphere.client;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -30,11 +32,23 @@ import java.io.IOException;
  * An {@link AtmosphereInterceptor} that add a special String "<||>" at the end of a message, allowing the
  * atmosphere.js to detect if one or several messages where aggregated in one write operations.
  *
+ * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
+ *
  * @author Jeanfrancois Arcand
  */
 public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
-    private final static  byte[] END = "<||>".getBytes();
+    private final static byte[] END = "|".getBytes();
+
+    private byte[] end = END;
+
+    @Override
+    public void configure(AtmosphereConfig config) {
+        String s = config.getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
+        if (s != null) {
+            end = s.getBytes();
+        }
+    }
 
     @Override
     public Action inspect(final AtmosphereResource r) {
@@ -63,13 +77,13 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                     @Override
                     public AsyncIOWriter write(byte[] data) throws IOException {
-                        response.write(data).write(END);
+                        response.write(data).write(end);
                         return this;
                     }
 
                     @Override
                     public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-                        response.write(data, offset, length).write(END);
+                        response.write(data, offset, length).write(end);
                         return this;
                     }
 
@@ -95,18 +109,18 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
                  @Override
                  public byte[] filter(AtmosphereResponse r, byte[] message) {
 
-                     byte[] nb = new byte[message.length + END.length];
+                     byte[] nb = new byte[message.length + end.length];
                      System.arraycopy(message, 0, nb, 0, message.length);
-                     System.arraycopy(END, 0, nb, message.length, nb.length);
+                     System.arraycopy(end, 0, nb, message.length, nb.length);
 
                      return nb;
                  }
 
                  @Override
                  public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {
-                     byte[] nb = new byte[length+ END.length];
+                     byte[] nb = new byte[length+ end.length];
                      System.arraycopy(message, offset, nb, 0, length);
-                     System.arraycopy(END, 0, nb, length, nb.length);
+                     System.arraycopy(end, 0, nb, length, nb.length);
 
                      return nb;
                  }

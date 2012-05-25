@@ -28,7 +28,6 @@ public interface SocketIOSession {
 	
 	String getSessionId();
 
-	ConnectionState getConnectionState();
 	
 	SocketIOAtmosphereHandler getSocketIOAtmosphereHandler();
 	

@@ -17,7 +17,6 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 
 import java.security.SecureRandom;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -25,7 +24,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.HeartBeatSessionMonitor;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
@@ -186,11 +184,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		@Override
 		public String getSessionId() {
 			return sessionId;
-		}
-
-		@Override
-		public ConnectionState getConnectionState() {
-			return state;
 		}
 
 		@Override
@@ -414,6 +407,38 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 			this.resource = resource;
 		}
 
+	}
+	
+	/**
+	 * 
+	 * @author Sebastien Dionne  : sebastien.dionne@gmail.com
+	 *
+	 */
+	public enum ConnectionState {
+		UNKNOWN(-1),
+		CONNECTING(0),
+		CONNECTED(1),
+		CLOSING(2),
+		CLOSED(3);
+
+		private int value;
+		private ConnectionState(int v) { this.value = v; }
+		public int value() { return value; }
+		
+		public static ConnectionState fromInt(int val) {
+			switch (val) {
+			case 0:
+				return CONNECTING;
+			case 1:
+				return CONNECTED;
+			case 2:
+				return CLOSING;
+			case 3:
+				return CLOSED;
+			default:
+				return UNKNOWN;
+			}
+		}
 	}
 
 }

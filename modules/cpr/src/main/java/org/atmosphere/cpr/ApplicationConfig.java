@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -261,4 +262,9 @@ public interface ApplicationConfig {
      * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}
      */
     String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.class.getName() + ".excludes";
+    /**
+     * The token used to separate broadcasted messages. This value is used by the client to parse several messages
+     * received in one chunk. Default is '<||>'
+     */
+    String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
 }

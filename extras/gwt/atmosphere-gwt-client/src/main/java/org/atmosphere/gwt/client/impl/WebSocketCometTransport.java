@@ -177,9 +177,9 @@ public class WebSocketCometTransport extends BaseCometTransport {
         }
 
         @Override
-        public void onError(WebSocket socket) {
+        public void onError(WebSocket socket, String message) {
             connected = false;
-            listener.onError(new IllegalStateException("Websocket Connection Error"), false);
+            listener.onError(new IllegalStateException("Websocket Error: " + message), false);
         }
 
         @Override

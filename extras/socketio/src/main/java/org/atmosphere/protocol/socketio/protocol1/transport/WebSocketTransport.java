@@ -25,9 +25,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
-import org.atmosphere.protocol.socketio.SocketIOCometSupport;
 import org.atmosphere.protocol.socketio.SocketIOException;
 import org.atmosphere.protocol.socketio.SocketIOPacket;
 import org.atmosphere.protocol.socketio.SocketIOSession;
@@ -92,7 +90,6 @@ public class WebSocketTransport extends AbstractTransport {
 		        // on ajoute par default un websocketListener
 		        SocketIOWebSocketEventListener socketioEventListener = new SocketIOWebSocketEventListener();
 		        resource.addEventListener(socketioEventListener);
-		        request.setAttribute(SocketIOCometSupport.SOCKETIOEVENTLISTENER, socketioEventListener);
 				
 		        SocketIOWebSocketSessionWrapperImpl sessionWrapper = new SocketIOWebSocketSessionWrapperImpl(session, socketioEventListener);
 		        
@@ -183,12 +180,6 @@ public class WebSocketTransport extends AbstractTransport {
 			session.startClose();
 		}
 
-		@Override
-		public ConnectionState getConnectionState() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "getConncetionState");
-			return session.getConnectionState();
-		}
-		
 		@Override
 		public void sendMessage(SocketIOPacket packet) throws SocketIOException {
 			if(packet!=null){

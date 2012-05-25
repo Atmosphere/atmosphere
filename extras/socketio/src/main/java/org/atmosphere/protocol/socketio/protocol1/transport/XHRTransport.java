@@ -18,7 +18,6 @@ package org.atmosphere.protocol.socketio.protocol1.transport;
 import java.io.IOException;
 import java.util.List;
 
-import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -29,7 +28,6 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.protocol.socketio.ConnectionState;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOClosedException;
 import org.atmosphere.protocol.socketio.SocketIOException;
@@ -84,10 +82,6 @@ public abstract class XHRTransport extends AbstractTransport {
 			}
 		}
 
-		@Override
-		public ConnectionState getConnectionState() {
-			return session.getConnectionState();
-		}
 		
 		@Override
 		public void sendMessage(SocketIOPacket packet) throws SocketIOException {
@@ -260,7 +254,6 @@ public abstract class XHRTransport extends AbstractTransport {
 								// on va regarder s'il y a des messages dans le BroadcastCache
 								if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
 									
-									@SuppressWarnings("unchecked")
 									List<Object> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
 									
 									if(cachedMessages!=null){

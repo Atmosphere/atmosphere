@@ -713,10 +713,10 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             } catch (Throwable t) {
-                logger.error("Invalid AtmosphereResource state {}. The connection has been remotely" +
+                logger.warn("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and will be added to the configured BroadcasterCache for later retrieval", event);
-                logger.error("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
-                logger.error("", t);
+                logger.trace("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
+                logger.trace("", t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r);
                 BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);

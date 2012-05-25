@@ -73,6 +73,10 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
@@ -88,6 +92,10 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
@@ -97,6 +105,10 @@ public class AtmosphereInterceptorTest {
 
         assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), mock(AtmosphereResponse.class)));
         framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
@@ -112,6 +124,10 @@ public class AtmosphereInterceptorTest {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CANCELLED;
             }
@@ -124,6 +140,10 @@ public class AtmosphereInterceptorTest {
     public void actionCreatedTest() throws ServletException, IOException {
         framework.addAtmosphereHandler("/*", handler);
         framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
             @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CREATED;

@@ -467,14 +467,16 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param sc a ServletConfig
      */
-    protected void configureAtmosphereConfig(ServletConfig sc) {
+    protected void configureAtmosphereInterceptor(ServletConfig sc) {
         String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
         if (s != null) {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a.trim()).newInstance());
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()).newInstance();
+                    ai.configure(config);
+                    interceptor(ai);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
@@ -1344,7 +1346,18 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return this
      */
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
-        interceptors.addLast(c);
+    	
+    	boolean found = false;
+    	for (AtmosphereInterceptor interceptor : interceptors) {
+			if(interceptor.getClass().equals(c.getClass())){
+				found = true;
+				break;
+			}
+		}
+    	
+    	if(!found){
+    		interceptors.addLast(c);
+    	}
         return this;
     }
 
@@ -1392,35 +1405,25 @@ public class AtmosphereFramework implements ServletContextProvider {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
         String path = sc.getRealPath(handlersPath);
-        // TODO: Hack to make the test works.
-        if (path == null) {
-            path = new File(handlersPath).getAbsolutePath();
-        }
-
         try {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
             p.configure(this).scan(new File(path));
-            
-            String pathLibs = sc.getRealPath("/WEB-INF/lib/");
-            if (pathLibs == null) {
-            	pathLibs = new File("/WEB-INF/lib/").getAbsolutePath();
-            }
-            
+
+            String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
             File libFolder = new File(pathLibs);
-            
             File jars[] = libFolder.listFiles(new FilenameFilter() {
-				
-				@Override
-				public boolean accept(File arg0, String arg1) {
-					return arg1.endsWith(".jar");
-				}
-			});
-            
+
+                @Override
+                public boolean accept(File arg0, String arg1) {
+                    return arg1.endsWith(".jar");
+                }
+            });
+
             for (File file : jars) {
-            	p.scan(file);
-			}
+                p.scan(file);
+            }
         } catch (Throwable e) {
-            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl or your own AnnotationProcessor to support @Service");
+            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
             return;
         }

@@ -468,7 +468,7 @@ jQuery.atmosphere = function() {
             function _buildWebSocketUrl() {
                 var url = _request.url;
                 url = _attachHeaders();
-                return decodeURI($('<a href="' + url + '"/>')[0].href.replace(/^http/, "ws"));
+                return decodeURI(jQuery('<a href="' + url + '"/>')[0].href.replace(/^http/, "ws"));
             }
 
             /**
@@ -1611,7 +1611,7 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                var messages = _response.responseBody.split("<||>");
+                var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
@@ -1883,7 +1883,7 @@ jQuery.atmosphere = function() {
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 // This plugin is heavily based on Douglas Crockford's reference implementation
-(function($) {
+(function(jQuery) {
 
     var escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, meta = {
         '\b' : '\\b',
@@ -1954,7 +1954,7 @@ jQuery.atmosphere = function() {
         }
     }
 
-    $.stringifyJSON = function(value) {
+    jQuery.stringifyJSON = function(value) {
         if (window.JSON && window.JSON.stringify) {
             return window.JSON.stringify(value);
         }

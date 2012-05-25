@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-extras</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>atmosphere-extras</name>
+    <url>https://github.com/Atmosphere/atmosphere</url>
+    <modules>
+        <module>gwt</module>
+        <module>guice</module>
+        <module>spring</module>
+        <module>jgroups</module>
+        <module>jms</module>
+        <module>redis</module>
+        <module>xmpp</module>
+        <module>hazelcast</module>
+        <module>weblogic</module>
+        <module>jetty-websocketdraft8</module>
+        <module>jaxrs2</module>
+    </modules>
+</project>

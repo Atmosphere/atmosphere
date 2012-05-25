@@ -124,7 +124,9 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     framework.setWebSocketProtocolClassName(className);
                 } else if (AtmosphereInterceptorService.class.equals(annotation)) {
                     try {
-                        framework.interceptor((AtmosphereInterceptor) cl.loadClass(className).newInstance());
+                        AtmosphereInterceptor a = (AtmosphereInterceptor) cl.loadClass(className).newInstance();
+                        a.configure(framework.getAtmosphereConfig());
+                        framework.interceptor(a);
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

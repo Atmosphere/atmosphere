@@ -27,6 +27,7 @@
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
         <module>gwt-conn-share</module>
+		<module>gwt-chat</module>
 
         <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
