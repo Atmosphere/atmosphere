@@ -61,7 +61,6 @@ import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-
 public class BlockingIOCometSupportTest extends BaseTest {
     protected Server server;
     protected Context root;
@@ -99,6 +98,4 @@ public class BlockingIOCometSupportTest extends BaseTest {
         server.stop();
         server = null;
     }
-
-
 }
