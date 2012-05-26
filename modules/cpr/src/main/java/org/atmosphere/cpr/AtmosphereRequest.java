@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -302,7 +303,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        return b.request.getCookies();
+        return isNotNoOps() ? b.request.getCookies() : b.cookies.toArray(new Cookie[]{});
     }
 
     /**
@@ -922,6 +923,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
+        private List<Cookie> cookies = new ArrayList<Cookie>();
 
         private String contextPath = "";
         private String serverName = "";
@@ -938,6 +940,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder headers(Map<String, String> headers) {
             this.headers = Collections.synchronizedMap(headers);
+            return this;
+        }
+
+        public Builder cookies(List<Cookie> cookies) {
+            this.cookies = cookies;
             return this;
         }
 
@@ -1445,6 +1452,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
             return null;
         }
+    }
+
+    /**
+     * Create an instance of this class without an associated {@link HttpServletRequest}
+     * @return an instance of this class without an associated {@link HttpServletRequest}
+     */
+    public final static AtmosphereRequest create() {
+        return new Builder().build();
     }
 
     /**

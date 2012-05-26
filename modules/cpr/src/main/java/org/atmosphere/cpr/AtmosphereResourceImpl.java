@@ -111,6 +111,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private AtmosphereHandler atmosphereHandler;
     private final boolean writeHeaders;
     private String padding;
+    private final String uuid;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -142,12 +143,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
         writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
 
+
         req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
         padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
+        uuid = UUID.randomUUID().toString();
     }
 
     /**
@@ -180,6 +183,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public Object writeOnTimeout() {
         return writeOnTimeout;
+    }
+
+    @Override
+    public String uuid() {
+        return uuid;
     }
 
     /**

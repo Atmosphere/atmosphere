@@ -66,6 +66,12 @@ If you plan to use Spring or GWT, take a look at their specific samples.
         <td>[GWT Javascript Library](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-jsdemo/src/main/webapp/index.html)</td>
     </tr>
     <tr>
+        <td>[gwt-chat](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-gwt-chat%22)</td>
+        <td>This sample demonstrates the use of the GWT Javascript client to create multiple chatrooms. It shows how to use the connection url and broadcasters to seperate messages into different communication channels</td>
+        <td>[ChatHandler (AtmosphereGwtHandler)](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-chat/src/main/java/org/atmosphere/samples/server/ChatHandler.java)</td>
+        <td>[GWT Chat Code](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-chat/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
+    </tr>
+    <tr>
         <td>[jaxrs2-chat](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22atmosphere-jaxrs2-chat%22)</td>
         <td>This samples demonstrates the use of JAX RS Specification 2 using the @Context, ExecutionContext and @Suspend annotation</td>
         <td>[Jersey Resource](https://github.com/Atmosphere/atmosphere/blob/master/samples/jaxrs2-chat/src/main/java/org/atmosphere/samples/chat/jersey/Jaxrs2Chat.java)</td>

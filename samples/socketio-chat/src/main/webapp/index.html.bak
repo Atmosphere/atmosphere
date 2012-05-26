@@ -124,7 +124,7 @@ $(function () {
 		  //socket = io.connect('', {'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 
 		  io.j = [];
 			io.sockets = [];
-		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':loginurl+'ChatAtmosphereHandler'}); 
+		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 
 		  
 		});
 		

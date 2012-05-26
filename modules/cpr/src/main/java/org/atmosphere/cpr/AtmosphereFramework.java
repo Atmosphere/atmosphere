@@ -813,7 +813,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         AtmosphereConfigReader.getInstance().parse(config, stream);
-        for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandler()) {
+        for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandlerConfig()) {
             try {
                 AtmosphereHandler handler;
 
@@ -871,7 +871,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                 }
 
-                b = BroadcasterFactory.getDefault().lookup(atmoHandler.getContextRoot());
+                b = BroadcasterFactory.getDefault().lookup(atmoHandler.getContextRoot(), true);
 
                 AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
                 addMapping(atmoHandler.getContextRoot(), wrapper);
@@ -1109,10 +1109,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
-        if (res.request() == null) {
-            res.request(req);
-        }
-
         Action a = null;
         try {
             boolean skip = true;
@@ -1347,18 +1343,17 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return this
      */
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
-    	
-    	boolean found = false;
-    	for (AtmosphereInterceptor interceptor : interceptors) {
-			if(interceptor.getClass().equals(c.getClass())){
-				found = true;
-				break;
-			}
-		}
-    	
-    	if(!found){
-    		interceptors.addLast(c);
-    	}
+        boolean found = false;
+        for (AtmosphereInterceptor interceptor : interceptors) {
+            if(interceptor.getClass().equals(c.getClass())){
+                found = true;
+                break;
+            }
+        }
+        
+        if(!found){
+            interceptors.addLast(c);
+        }
         return this;
     }
 

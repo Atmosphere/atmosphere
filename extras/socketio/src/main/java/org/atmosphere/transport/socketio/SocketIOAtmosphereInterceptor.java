@@ -179,9 +179,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
 	@Override
 	public void configure(AtmosphereConfig config) {
-		
-		
-		// j'aimais mieux avoir le configure(servletcontext)
 		String s = config.getInitParameter(SOCKETIO_TRANSPORT);
 		availableTransports = s;
 		
@@ -199,7 +196,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		if(suspendWebXML!=null){
 			suspendTime = Integer.parseInt(suspendWebXML);
 		}
-				
+		
 		// VERSION 1
 		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
 		//org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();

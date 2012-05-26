@@ -188,6 +188,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside web/atmosphere.xml or annotate using @AtmosphereHandlerService");
         }
 
+        if (res.request() == null) {
+            res.request(req);
+        }
+
         if (supportSession()) {
             // Create the session needed to support the Resume
             // operation from disparate requests.
@@ -210,7 +214,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
         if (resource == null) {
-            resource = new AtmosphereResourceImpl(config, handlerWrapper.broadcaster, req, res, this, handlerWrapper.atmosphereHandler);
+            // TODO: cast is dangerous
+            resource = (AtmosphereResourceImpl)
+                    AtmosphereResourceFactory.create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
         } else {
             resource.setBroadcaster(handlerWrapper.broadcaster).atmosphereHandler(handlerWrapper.atmosphereHandler);
         }
