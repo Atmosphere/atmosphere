@@ -33,7 +33,6 @@ import java.util.Map;
  *        broadcast("/hello", event)
  *        // Broadcast the event to all Broadcaster ID
  *        broaccast("/*", event);
- * <p/>
  * </pre></blockquote>
  * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.
  *
