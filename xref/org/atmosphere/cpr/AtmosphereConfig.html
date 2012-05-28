@@ -42,7 +42,7 @@
 <a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> {
 <a class="jxr_linenumber" name="34" href="#34">34</a>  
-<a class="jxr_linenumber" name="35" href="#35">35</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;AtmosphereHandlerConfig&gt; atmosphereHandler = <strong class="jxr_keyword">new</strong> ArrayList&lt;AtmosphereHandlerConfig&gt;();
+<a class="jxr_linenumber" name="35" href="#35">35</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;AtmosphereHandlerConfig&gt; atmosphereHandlerConfig = <strong class="jxr_keyword">new</strong> ArrayList&lt;AtmosphereHandlerConfig&gt;();
 <a class="jxr_linenumber" name="36" href="#36">36</a>  
 <a class="jxr_linenumber" name="37" href="#37">37</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> supportSession = <strong class="jxr_keyword">true</strong>;
 <a class="jxr_linenumber" name="38" href="#38">38</a>      <strong class="jxr_keyword">private</strong> String dispatcherName = DEFAULT_NAMED_DISPATCHER;
@@ -53,8 +53,8 @@
 <a class="jxr_linenumber" name="43" href="#43">43</a>          <strong class="jxr_keyword">this</strong>.framework = framework;
 <a class="jxr_linenumber" name="44" href="#44">44</a>      }
 <a class="jxr_linenumber" name="45" href="#45">45</a>  
-<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">public</strong> List&lt;AtmosphereHandlerConfig&gt; getAtmosphereHandler() {
-<a class="jxr_linenumber" name="47" href="#47">47</a>          <strong class="jxr_keyword">return</strong> atmosphereHandler;
+<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">public</strong> List&lt;AtmosphereHandlerConfig&gt; getAtmosphereHandlerConfig() {
+<a class="jxr_linenumber" name="47" href="#47">47</a>          <strong class="jxr_keyword">return</strong> atmosphereHandlerConfig;
 <a class="jxr_linenumber" name="48" href="#48">48</a>      }
 <a class="jxr_linenumber" name="49" href="#49">49</a>  
 <a class="jxr_linenumber" name="50" href="#50">50</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework() {

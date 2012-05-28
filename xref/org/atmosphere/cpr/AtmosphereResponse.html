@@ -1101,89 +1101,97 @@
 <a class="jxr_linenumber" name="1091" href="#1091">1091</a>     }
 <a class="jxr_linenumber" name="1092" href="#1092">1092</a> 
 <a class="jxr_linenumber" name="1093" href="#1093">1093</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="1094" href="#1094">1094</a> <em class="jxr_javadoccomment">     * Wrap an {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="1095" href="#1095">1095</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="1096" href="#1096">1096</a> <em class="jxr_javadoccomment">     * @param response {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="1097" href="#1097">1097</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResponse}</em>
-<a class="jxr_linenumber" name="1098" href="#1098">1098</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="1099" href="#1099">1099</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> wrap(HttpServletResponse response) {
-<a class="jxr_linenumber" name="1100" href="#1100">1100</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().response(response).build();
-<a class="jxr_linenumber" name="1101" href="#1101">1101</a>     }
-<a class="jxr_linenumber" name="1102" href="#1102">1102</a> 
-<a class="jxr_linenumber" name="1103" href="#1103">1103</a>     @Override
-<a class="jxr_linenumber" name="1104" href="#1104">1104</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
-<a class="jxr_linenumber" name="1105" href="#1105">1105</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="1106" href="#1106">1106</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1107" href="#1107">1107</a> 
-<a class="jxr_linenumber" name="1108" href="#1108">1108</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> that = (AtmosphereResponse) o;
-<a class="jxr_linenumber" name="1109" href="#1109">1109</a> 
-<a class="jxr_linenumber" name="1110" href="#1110">1110</a>         <strong class="jxr_keyword">if</strong> (contentLength != that.contentLength) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1111" href="#1111">1111</a>         <strong class="jxr_keyword">if</strong> (delegateToNativeResponse != that.delegateToNativeResponse) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1112" href="#1112">1112</a>         <strong class="jxr_keyword">if</strong> (destroyable != that.destroyable) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1113" href="#1113">1113</a>         <strong class="jxr_keyword">if</strong> (headerHandled != that.headerHandled) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1114" href="#1114">1114</a>         <strong class="jxr_keyword">if</strong> (isCommited != that.isCommited) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1115" href="#1115">1115</a>         <strong class="jxr_keyword">if</strong> (status != that.status) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1116" href="#1116">1116</a>         <strong class="jxr_keyword">if</strong> (asyncIOWriter != <strong class="jxr_keyword">null</strong> ? !asyncIOWriter.equals(that.asyncIOWriter) : that.asyncIOWriter != <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="1117" href="#1117">1117</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1118" href="#1118">1118</a>         <strong class="jxr_keyword">if</strong> (atmosphereRequest != <strong class="jxr_keyword">null</strong> ? !atmosphereRequest.equals(that.atmosphereRequest) : that.atmosphereRequest != <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="1119" href="#1119">1119</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1120" href="#1120">1120</a>         <strong class="jxr_keyword">if</strong> (charSet != <strong class="jxr_keyword">null</strong> ? !charSet.equals(that.charSet) : that.charSet != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1121" href="#1121">1121</a>         <strong class="jxr_keyword">if</strong> (contentType != <strong class="jxr_keyword">null</strong> ? !contentType.equals(that.contentType) : that.contentType != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1122" href="#1122">1122</a>         <strong class="jxr_keyword">if</strong> (cookies != <strong class="jxr_keyword">null</strong> ? !cookies.equals(that.cookies) : that.cookies != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1123" href="#1123">1123</a>         <strong class="jxr_keyword">if</strong> (headers != <strong class="jxr_keyword">null</strong> ? !headers.equals(that.headers) : that.headers != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1124" href="#1124">1124</a>         <strong class="jxr_keyword">if</strong> (locale != <strong class="jxr_keyword">null</strong> ? !locale.equals(that.locale) : that.locale != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1125" href="#1125">1125</a>         <strong class="jxr_keyword">if</strong> (response != <strong class="jxr_keyword">null</strong> ? !response.equals(that.response) : that.response != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1126" href="#1126">1126</a>         <strong class="jxr_keyword">if</strong> (statusMessage != <strong class="jxr_keyword">null</strong> ? !statusMessage.equals(that.statusMessage) : that.statusMessage != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="1094" href="#1094">1094</a> <em class="jxr_javadoccomment">     * Create an instance not associated with any response parent.</em>
+<a class="jxr_linenumber" name="1095" href="#1095">1095</a> <em class="jxr_javadoccomment">     * @return</em>
+<a class="jxr_linenumber" name="1096" href="#1096">1096</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="1097" href="#1097">1097</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> create() {
+<a class="jxr_linenumber" name="1098" href="#1098">1098</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().build();
+<a class="jxr_linenumber" name="1099" href="#1099">1099</a>     }
+<a class="jxr_linenumber" name="1100" href="#1100">1100</a> 
+<a class="jxr_linenumber" name="1101" href="#1101">1101</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="1102" href="#1102">1102</a> <em class="jxr_javadoccomment">     * Wrap an {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="1103" href="#1103">1103</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="1104" href="#1104">1104</a> <em class="jxr_javadoccomment">     * @param response {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="1105" href="#1105">1105</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResponse}</em>
+<a class="jxr_linenumber" name="1106" href="#1106">1106</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="1107" href="#1107">1107</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> wrap(HttpServletResponse response) {
+<a class="jxr_linenumber" name="1108" href="#1108">1108</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().response(response).build();
+<a class="jxr_linenumber" name="1109" href="#1109">1109</a>     }
+<a class="jxr_linenumber" name="1110" href="#1110">1110</a> 
+<a class="jxr_linenumber" name="1111" href="#1111">1111</a>     @Override
+<a class="jxr_linenumber" name="1112" href="#1112">1112</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
+<a class="jxr_linenumber" name="1113" href="#1113">1113</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="1114" href="#1114">1114</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1115" href="#1115">1115</a> 
+<a class="jxr_linenumber" name="1116" href="#1116">1116</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> that = (AtmosphereResponse) o;
+<a class="jxr_linenumber" name="1117" href="#1117">1117</a> 
+<a class="jxr_linenumber" name="1118" href="#1118">1118</a>         <strong class="jxr_keyword">if</strong> (contentLength != that.contentLength) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1119" href="#1119">1119</a>         <strong class="jxr_keyword">if</strong> (delegateToNativeResponse != that.delegateToNativeResponse) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1120" href="#1120">1120</a>         <strong class="jxr_keyword">if</strong> (destroyable != that.destroyable) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1121" href="#1121">1121</a>         <strong class="jxr_keyword">if</strong> (headerHandled != that.headerHandled) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1122" href="#1122">1122</a>         <strong class="jxr_keyword">if</strong> (isCommited != that.isCommited) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1123" href="#1123">1123</a>         <strong class="jxr_keyword">if</strong> (status != that.status) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1124" href="#1124">1124</a>         <strong class="jxr_keyword">if</strong> (asyncIOWriter != <strong class="jxr_keyword">null</strong> ? !asyncIOWriter.equals(that.asyncIOWriter) : that.asyncIOWriter != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="1125" href="#1125">1125</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1126" href="#1126">1126</a>         <strong class="jxr_keyword">if</strong> (atmosphereRequest != <strong class="jxr_keyword">null</strong> ? !atmosphereRequest.equals(that.atmosphereRequest) : that.atmosphereRequest != <strong class="jxr_keyword">null</strong>)
 <a class="jxr_linenumber" name="1127" href="#1127">1127</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1128" href="#1128">1128</a>         <strong class="jxr_keyword">if</strong> (writeStatusAndHeader != <strong class="jxr_keyword">null</strong> ? !writeStatusAndHeader.equals(that.writeStatusAndHeader) : that.writeStatusAndHeader != <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="1129" href="#1129">1129</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1130" href="#1130">1130</a> 
-<a class="jxr_linenumber" name="1131" href="#1131">1131</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="1132" href="#1132">1132</a>     }
-<a class="jxr_linenumber" name="1133" href="#1133">1133</a> 
-<a class="jxr_linenumber" name="1134" href="#1134">1134</a>     @Override
-<a class="jxr_linenumber" name="1135" href="#1135">1135</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
-<a class="jxr_linenumber" name="1136" href="#1136">1136</a>         <strong class="jxr_keyword">int</strong> result = cookies != <strong class="jxr_keyword">null</strong> ? cookies.hashCode() : 0;
-<a class="jxr_linenumber" name="1137" href="#1137">1137</a>         result = 31 * result + (headers != <strong class="jxr_keyword">null</strong> ? headers.hashCode() : 0);
-<a class="jxr_linenumber" name="1138" href="#1138">1138</a>         result = 31 * result + (asyncIOWriter != <strong class="jxr_keyword">null</strong> ? asyncIOWriter.hashCode() : 0);
-<a class="jxr_linenumber" name="1139" href="#1139">1139</a>         result = 31 * result + status;
-<a class="jxr_linenumber" name="1140" href="#1140">1140</a>         result = 31 * result + (statusMessage != <strong class="jxr_keyword">null</strong> ? statusMessage.hashCode() : 0);
-<a class="jxr_linenumber" name="1141" href="#1141">1141</a>         result = 31 * result + (charSet != <strong class="jxr_keyword">null</strong> ? charSet.hashCode() : 0);
-<a class="jxr_linenumber" name="1142" href="#1142">1142</a>         result = 31 * result + (<strong class="jxr_keyword">int</strong>) (contentLength ^ (contentLength &gt;&gt;&gt; 32));
-<a class="jxr_linenumber" name="1143" href="#1143">1143</a>         result = 31 * result + (contentType != <strong class="jxr_keyword">null</strong> ? contentType.hashCode() : 0);
-<a class="jxr_linenumber" name="1144" href="#1144">1144</a>         result = 31 * result + (isCommited ? 1 : 0);
-<a class="jxr_linenumber" name="1145" href="#1145">1145</a>         result = 31 * result + (locale != <strong class="jxr_keyword">null</strong> ? locale.hashCode() : 0);
-<a class="jxr_linenumber" name="1146" href="#1146">1146</a>         result = 31 * result + (headerHandled ? 1 : 0);
-<a class="jxr_linenumber" name="1147" href="#1147">1147</a>         result = 31 * result + (atmosphereRequest != <strong class="jxr_keyword">null</strong> ? atmosphereRequest.hashCode() : 0);
-<a class="jxr_linenumber" name="1148" href="#1148">1148</a>         result = 31 * result + (writeStatusAndHeader != <strong class="jxr_keyword">null</strong> ? writeStatusAndHeader.hashCode() : 0);
-<a class="jxr_linenumber" name="1149" href="#1149">1149</a>         result = 31 * result + (delegateToNativeResponse ? 1 : 0);
-<a class="jxr_linenumber" name="1150" href="#1150">1150</a>         result = 31 * result + (destroyable ? 1 : 0);
-<a class="jxr_linenumber" name="1151" href="#1151">1151</a>         result = 31 * result + (response != <strong class="jxr_keyword">null</strong> ? response.hashCode() : 0);
-<a class="jxr_linenumber" name="1152" href="#1152">1152</a>         <strong class="jxr_keyword">return</strong> result;
-<a class="jxr_linenumber" name="1153" href="#1153">1153</a>     }
-<a class="jxr_linenumber" name="1154" href="#1154">1154</a> 
-<a class="jxr_linenumber" name="1155" href="#1155">1155</a>     @Override
-<a class="jxr_linenumber" name="1156" href="#1156">1156</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="1157" href="#1157">1157</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResponse{"</span> +
-<a class="jxr_linenumber" name="1158" href="#1158">1158</a>                 <span class="jxr_string">"cookies="</span> + cookies +
-<a class="jxr_linenumber" name="1159" href="#1159">1159</a>                 <span class="jxr_string">", headers="</span> + headers +
-<a class="jxr_linenumber" name="1160" href="#1160">1160</a>                 <span class="jxr_string">", asyncIOWriter="</span> + asyncIOWriter +
-<a class="jxr_linenumber" name="1161" href="#1161">1161</a>                 <span class="jxr_string">", status="</span> + status +
-<a class="jxr_linenumber" name="1162" href="#1162">1162</a>                 <span class="jxr_string">", statusMessage='"</span> + statusMessage + '\'' +
-<a class="jxr_linenumber" name="1163" href="#1163">1163</a>                 <span class="jxr_string">", charSet='"</span> + charSet + '\'' +
-<a class="jxr_linenumber" name="1164" href="#1164">1164</a>                 <span class="jxr_string">", contentLength="</span> + contentLength +
-<a class="jxr_linenumber" name="1165" href="#1165">1165</a>                 <span class="jxr_string">", contentType='"</span> + contentType + '\'' +
-<a class="jxr_linenumber" name="1166" href="#1166">1166</a>                 <span class="jxr_string">", isCommited="</span> + isCommited +
-<a class="jxr_linenumber" name="1167" href="#1167">1167</a>                 <span class="jxr_string">", locale="</span> + locale +
-<a class="jxr_linenumber" name="1168" href="#1168">1168</a>                 <span class="jxr_string">", headerHandled="</span> + headerHandled +
-<a class="jxr_linenumber" name="1169" href="#1169">1169</a>                 <span class="jxr_string">", atmosphereRequest="</span> + atmosphereRequest +
-<a class="jxr_linenumber" name="1170" href="#1170">1170</a>                 <span class="jxr_string">", writeStatusAndHeader="</span> + writeStatusAndHeader +
-<a class="jxr_linenumber" name="1171" href="#1171">1171</a>                 <span class="jxr_string">", delegateToNativeResponse="</span> + delegateToNativeResponse +
-<a class="jxr_linenumber" name="1172" href="#1172">1172</a>                 <span class="jxr_string">", destroyable="</span> + destroyable +
-<a class="jxr_linenumber" name="1173" href="#1173">1173</a>                 <span class="jxr_string">", response="</span> + response +
-<a class="jxr_linenumber" name="1174" href="#1174">1174</a>                 '}';
-<a class="jxr_linenumber" name="1175" href="#1175">1175</a>     }
-<a class="jxr_linenumber" name="1176" href="#1176">1176</a> }
+<a class="jxr_linenumber" name="1128" href="#1128">1128</a>         <strong class="jxr_keyword">if</strong> (charSet != <strong class="jxr_keyword">null</strong> ? !charSet.equals(that.charSet) : that.charSet != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1129" href="#1129">1129</a>         <strong class="jxr_keyword">if</strong> (contentType != <strong class="jxr_keyword">null</strong> ? !contentType.equals(that.contentType) : that.contentType != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1130" href="#1130">1130</a>         <strong class="jxr_keyword">if</strong> (cookies != <strong class="jxr_keyword">null</strong> ? !cookies.equals(that.cookies) : that.cookies != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1131" href="#1131">1131</a>         <strong class="jxr_keyword">if</strong> (headers != <strong class="jxr_keyword">null</strong> ? !headers.equals(that.headers) : that.headers != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1132" href="#1132">1132</a>         <strong class="jxr_keyword">if</strong> (locale != <strong class="jxr_keyword">null</strong> ? !locale.equals(that.locale) : that.locale != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1133" href="#1133">1133</a>         <strong class="jxr_keyword">if</strong> (response != <strong class="jxr_keyword">null</strong> ? !response.equals(that.response) : that.response != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1134" href="#1134">1134</a>         <strong class="jxr_keyword">if</strong> (statusMessage != <strong class="jxr_keyword">null</strong> ? !statusMessage.equals(that.statusMessage) : that.statusMessage != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="1135" href="#1135">1135</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1136" href="#1136">1136</a>         <strong class="jxr_keyword">if</strong> (writeStatusAndHeader != <strong class="jxr_keyword">null</strong> ? !writeStatusAndHeader.equals(that.writeStatusAndHeader) : that.writeStatusAndHeader != <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="1137" href="#1137">1137</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1138" href="#1138">1138</a> 
+<a class="jxr_linenumber" name="1139" href="#1139">1139</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="1140" href="#1140">1140</a>     }
+<a class="jxr_linenumber" name="1141" href="#1141">1141</a> 
+<a class="jxr_linenumber" name="1142" href="#1142">1142</a>     @Override
+<a class="jxr_linenumber" name="1143" href="#1143">1143</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
+<a class="jxr_linenumber" name="1144" href="#1144">1144</a>         <strong class="jxr_keyword">int</strong> result = cookies != <strong class="jxr_keyword">null</strong> ? cookies.hashCode() : 0;
+<a class="jxr_linenumber" name="1145" href="#1145">1145</a>         result = 31 * result + (headers != <strong class="jxr_keyword">null</strong> ? headers.hashCode() : 0);
+<a class="jxr_linenumber" name="1146" href="#1146">1146</a>         result = 31 * result + (asyncIOWriter != <strong class="jxr_keyword">null</strong> ? asyncIOWriter.hashCode() : 0);
+<a class="jxr_linenumber" name="1147" href="#1147">1147</a>         result = 31 * result + status;
+<a class="jxr_linenumber" name="1148" href="#1148">1148</a>         result = 31 * result + (statusMessage != <strong class="jxr_keyword">null</strong> ? statusMessage.hashCode() : 0);
+<a class="jxr_linenumber" name="1149" href="#1149">1149</a>         result = 31 * result + (charSet != <strong class="jxr_keyword">null</strong> ? charSet.hashCode() : 0);
+<a class="jxr_linenumber" name="1150" href="#1150">1150</a>         result = 31 * result + (<strong class="jxr_keyword">int</strong>) (contentLength ^ (contentLength &gt;&gt;&gt; 32));
+<a class="jxr_linenumber" name="1151" href="#1151">1151</a>         result = 31 * result + (contentType != <strong class="jxr_keyword">null</strong> ? contentType.hashCode() : 0);
+<a class="jxr_linenumber" name="1152" href="#1152">1152</a>         result = 31 * result + (isCommited ? 1 : 0);
+<a class="jxr_linenumber" name="1153" href="#1153">1153</a>         result = 31 * result + (locale != <strong class="jxr_keyword">null</strong> ? locale.hashCode() : 0);
+<a class="jxr_linenumber" name="1154" href="#1154">1154</a>         result = 31 * result + (headerHandled ? 1 : 0);
+<a class="jxr_linenumber" name="1155" href="#1155">1155</a>         result = 31 * result + (atmosphereRequest != <strong class="jxr_keyword">null</strong> ? atmosphereRequest.hashCode() : 0);
+<a class="jxr_linenumber" name="1156" href="#1156">1156</a>         result = 31 * result + (writeStatusAndHeader != <strong class="jxr_keyword">null</strong> ? writeStatusAndHeader.hashCode() : 0);
+<a class="jxr_linenumber" name="1157" href="#1157">1157</a>         result = 31 * result + (delegateToNativeResponse ? 1 : 0);
+<a class="jxr_linenumber" name="1158" href="#1158">1158</a>         result = 31 * result + (destroyable ? 1 : 0);
+<a class="jxr_linenumber" name="1159" href="#1159">1159</a>         result = 31 * result + (response != <strong class="jxr_keyword">null</strong> ? response.hashCode() : 0);
+<a class="jxr_linenumber" name="1160" href="#1160">1160</a>         <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="1161" href="#1161">1161</a>     }
+<a class="jxr_linenumber" name="1162" href="#1162">1162</a> 
+<a class="jxr_linenumber" name="1163" href="#1163">1163</a>     @Override
+<a class="jxr_linenumber" name="1164" href="#1164">1164</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="1165" href="#1165">1165</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResponse{"</span> +
+<a class="jxr_linenumber" name="1166" href="#1166">1166</a>                 <span class="jxr_string">"cookies="</span> + cookies +
+<a class="jxr_linenumber" name="1167" href="#1167">1167</a>                 <span class="jxr_string">", headers="</span> + headers +
+<a class="jxr_linenumber" name="1168" href="#1168">1168</a>                 <span class="jxr_string">", asyncIOWriter="</span> + asyncIOWriter +
+<a class="jxr_linenumber" name="1169" href="#1169">1169</a>                 <span class="jxr_string">", status="</span> + status +
+<a class="jxr_linenumber" name="1170" href="#1170">1170</a>                 <span class="jxr_string">", statusMessage='"</span> + statusMessage + '\'' +
+<a class="jxr_linenumber" name="1171" href="#1171">1171</a>                 <span class="jxr_string">", charSet='"</span> + charSet + '\'' +
+<a class="jxr_linenumber" name="1172" href="#1172">1172</a>                 <span class="jxr_string">", contentLength="</span> + contentLength +
+<a class="jxr_linenumber" name="1173" href="#1173">1173</a>                 <span class="jxr_string">", contentType='"</span> + contentType + '\'' +
+<a class="jxr_linenumber" name="1174" href="#1174">1174</a>                 <span class="jxr_string">", isCommited="</span> + isCommited +
+<a class="jxr_linenumber" name="1175" href="#1175">1175</a>                 <span class="jxr_string">", locale="</span> + locale +
+<a class="jxr_linenumber" name="1176" href="#1176">1176</a>                 <span class="jxr_string">", headerHandled="</span> + headerHandled +
+<a class="jxr_linenumber" name="1177" href="#1177">1177</a>                 <span class="jxr_string">", atmosphereRequest="</span> + atmosphereRequest +
+<a class="jxr_linenumber" name="1178" href="#1178">1178</a>                 <span class="jxr_string">", writeStatusAndHeader="</span> + writeStatusAndHeader +
+<a class="jxr_linenumber" name="1179" href="#1179">1179</a>                 <span class="jxr_string">", delegateToNativeResponse="</span> + delegateToNativeResponse +
+<a class="jxr_linenumber" name="1180" href="#1180">1180</a>                 <span class="jxr_string">", destroyable="</span> + destroyable +
+<a class="jxr_linenumber" name="1181" href="#1181">1181</a>                 <span class="jxr_string">", response="</span> + response +
+<a class="jxr_linenumber" name="1182" href="#1182">1182</a>                 '}';
+<a class="jxr_linenumber" name="1183" href="#1183">1183</a>     }
+<a class="jxr_linenumber" name="1184" href="#1184">1184</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

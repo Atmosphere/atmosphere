@@ -25,253 +25,259 @@
 <a class="jxr_linenumber" name="15" href="#15">15</a>  <em class="jxr_comment"> */</em>
 <a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cpr;
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
-<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProtocol;
-<a class="jxr_linenumber" name="19" href="#19">19</a>  
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> * Web.xml init-param configuration supported by Atmosphere.</em>
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/cpr/ApplicationConfig.html">ApplicationConfig</a> {
-<a class="jxr_linenumber" name="26" href="#26">26</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment">     * The location of the atmosphere.xml file.</em>
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="29" href="#29">29</a>      String PROPERTY_ATMOSPHERE_XML = <span class="jxr_string">"org.atmosphere.atmosphereDotXml"</span>;
-<a class="jxr_linenumber" name="30" href="#30">30</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">     * The path that will be used to map request to Jersey</em>
-<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="33" href="#33">33</a>      String PROPERTY_SERVLET_MAPPING = <span class="jxr_string">"org.atmosphere.jersey.servlet-mapping"</span>;
-<a class="jxr_linenumber" name="34" href="#34">34</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment">     * Set Atmosphere to use the {@link org.atmosphere.container.BlockingIOCometSupport}, e.g blocking I/O</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="37" href="#37">37</a>      String PROPERTY_BLOCKING_COMETSUPPORT = <span class="jxr_string">"org.atmosphere.useBlocking"</span>;
-<a class="jxr_linenumber" name="38" href="#38">38</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment">     * Set Atmosphere to use the container native Comet support</em>
-<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="41" href="#41">41</a>      String PROPERTY_NATIVE_COMETSUPPORT = <span class="jxr_string">"org.atmosphere.useNative"</span>;
-<a class="jxr_linenumber" name="42" href="#42">42</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="43" href="#43">43</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to use WebSocket</em>
-<a class="jxr_linenumber" name="44" href="#44">44</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="45" href="#45">45</a>      String WEBSOCKET_SUPPORT = <span class="jxr_string">"org.atmosphere.useWebSocket"</span>;
-<a class="jxr_linenumber" name="46" href="#46">46</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="47" href="#47">47</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to use stream when writing bytes.</em>
-<a class="jxr_linenumber" name="48" href="#48">48</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="49" href="#49">49</a>      String PROPERTY_USE_STREAM = <span class="jxr_string">"org.atmosphere.useStream"</span>;
-<a class="jxr_linenumber" name="50" href="#50">50</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="51" href="#51">51</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.BroadcasterFactory} class.</em>
-<a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="53" href="#53">53</a>      String BROADCASTER_FACTORY = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterFactory"</span>;
-<a class="jxr_linenumber" name="54" href="#54">54</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="55" href="#55">55</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.Broadcaster} class.</em>
-<a class="jxr_linenumber" name="56" href="#56">56</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="57" href="#57">57</a>      String BROADCASTER_CLASS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterClass"</span>;
-<a class="jxr_linenumber" name="58" href="#58">58</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="59" href="#59">59</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.BroadcasterCache} class.</em>
-<a class="jxr_linenumber" name="60" href="#60">60</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="61" href="#61">61</a>      String BROADCASTER_CACHE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterCacheClass"</span>;
-<a class="jxr_linenumber" name="62" href="#62">62</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="63" href="#63">63</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere which {@link AsyncSupport} implementation to use.</em>
-<a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="65" href="#65">65</a>      String PROPERTY_COMET_SUPPORT = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".asyncSupport"</span>;
-<a class="jxr_linenumber" name="66" href="#66">66</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.</em>
-<a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="69" href="#69">69</a>      String PROPERTY_SESSION_SUPPORT = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".sessionSupport"</span>;
-<a class="jxr_linenumber" name="70" href="#70">70</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="71" href="#71">71</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invokation.</em>
-<a class="jxr_linenumber" name="72" href="#72">72</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="73" href="#73">73</a>      String RESUME_ON_BROADCAST = <span class="jxr_string">"org.atmosphere.resumeOnBroadcast"</span>;
-<a class="jxr_linenumber" name="74" href="#74">74</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="75" href="#75">75</a>  <em class="jxr_javadoccomment">     * The default Servlet used when forwarding request.</em>
-<a class="jxr_linenumber" name="76" href="#76">76</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="77" href="#77">77</a>      String DEFAULT_NAMED_DISPATCHER = <span class="jxr_string">"default"</span>;
-<a class="jxr_linenumber" name="78" href="#78">78</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="79" href="#79">79</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to not write the no-cache header. Default is false, e.g Atmosphere will write them.</em>
-<a class="jxr_linenumber" name="80" href="#80">80</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="81" href="#81">81</a>      String NO_CACHE_HEADERS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".noCacheHeaders"</span>;
-<a class="jxr_linenumber" name="82" href="#82">82</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="83" href="#83">83</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to not write the access-control header. Default is false, e.g Atmosphere will write them.</em>
-<a class="jxr_linenumber" name="84" href="#84">84</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="85" href="#85">85</a>      String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".dropAccessControlAllowOriginHeader"</span>;
-<a class="jxr_linenumber" name="86" href="#86">86</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="87" href="#87">87</a>  <em class="jxr_javadoccomment">     * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use</em>
-<a class="jxr_linenumber" name="88" href="#88">88</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="89" href="#89">89</a>      String BROADCASTER_LIFECYCLE_POLICY = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterLifeCyclePolicy"</span>;
-<a class="jxr_linenumber" name="90" href="#90">90</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="91" href="#91">91</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.</em>
-<a class="jxr_linenumber" name="92" href="#92">92</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="93" href="#93">93</a>      String WEBSOCKET_PROTOCOL = WebSocketProtocol.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="94" href="#94">94</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="95" href="#95">95</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
-<a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="97" href="#97">97</a>      String WEBSOCKET_CONTENT_TYPE = <span class="jxr_string">"org.atmosphere.websocket.messageContentType"</span>;
-<a class="jxr_linenumber" name="98" href="#98">98</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="99" href="#99">99</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
-<a class="jxr_linenumber" name="100" href="#100">100</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="101" href="#101">101</a>     String SSE_CONTENT_TYPE = <span class="jxr_string">"org.atmosphere.sse.contentType"</span>;
-<a class="jxr_linenumber" name="102" href="#102">102</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="103" href="#103">103</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
-<a class="jxr_linenumber" name="104" href="#104">104</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="105" href="#105">105</a>     String WEBSOCKET_METHOD = <span class="jxr_string">"org.atmosphere.websocket.messageMethod"</span>;
-<a class="jxr_linenumber" name="106" href="#106">106</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="107" href="#107">107</a> <em class="jxr_javadoccomment">     * Tell Atmosphere how long a WebSocket connection can stay idle. Default is 5 minutes</em>
-<a class="jxr_linenumber" name="108" href="#108">108</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="109" href="#109">109</a>     String WEBSOCKET_IDLETIME = <span class="jxr_string">"org.atmosphere.websocket.maxIdleTime"</span>;
-<a class="jxr_linenumber" name="110" href="#110">110</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="111" href="#111">111</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the WebSocket write buffer size. Default is 8192</em>
-<a class="jxr_linenumber" name="112" href="#112">112</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="113" href="#113">113</a>     String WEBSOCKET_BUFFER_SIZE = <span class="jxr_string">"org.atmosphere.websocket.bufferSize"</span>;
-<a class="jxr_linenumber" name="114" href="#114">114</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="115" href="#115">115</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the path delimiter to use when a WebSocket message contains the path as it first line. The</em>
-<a class="jxr_linenumber" name="116" href="#116">116</a> <em class="jxr_javadoccomment">     * value is used to create a HttpServletRequest.</em>
-<a class="jxr_linenumber" name="117" href="#117">117</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="118" href="#118">118</a>     String WEBSOCKET_PATH_DELIMITER = <span class="jxr_string">"org.atmosphere.websocket.pathDelimiter"</span>;
-<a class="jxr_linenumber" name="119" href="#119">119</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="120" href="#120">120</a> <em class="jxr_javadoccomment">     * Set the WebSocket mas text size: size&lt;0 No aggregation of frames to messages, &gt;=0 max size of text frame aggregation buffer in characters</em>
-<a class="jxr_linenumber" name="121" href="#121">121</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="122" href="#122">122</a>     String WEBSOCKET_MAXTEXTSIZE = <span class="jxr_string">"org.atmosphere.websocket.maxTextMessageSize"</span>;
-<a class="jxr_linenumber" name="123" href="#123">123</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="124" href="#124">124</a> <em class="jxr_javadoccomment">     * Set the WebSocket mas text size: size&lt;0 No aggregation of frames to messages, &gt;=0 max size of text frame aggregation buffer in characters</em>
-<a class="jxr_linenumber" name="125" href="#125">125</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="126" href="#126">126</a>     String WEBSOCKET_MAXBINARYSIZE = <span class="jxr_string">"org.atmosphere.websocket.maxBinaryMessageSize"</span>;
-<a class="jxr_linenumber" name="127" href="#127">127</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="128" href="#128">128</a> <em class="jxr_javadoccomment">     * The Atmosphere resource to use.</em>
-<a class="jxr_linenumber" name="129" href="#129">129</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="130" href="#130">130</a>     String ATMOSPHERE_RESOURCE = AtmosphereResource.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="131" href="#131">131</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="132" href="#132">132</a> <em class="jxr_javadoccomment">     * A list of {@link BroadcastFilter} separated with coma that will be added to every new {@link Broadcaster}</em>
-<a class="jxr_linenumber" name="133" href="#133">133</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="134" href="#134">134</a>     String BROADCAST_FILTER_CLASSES = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcastFilterClasses"</span>;
-<a class="jxr_linenumber" name="135" href="#135">135</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="136" href="#136">136</a> <em class="jxr_javadoccomment">     * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.</em>
-<a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="138" href="#138">138</a>     String RESUME_AND_KEEPALIVE = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive"</span>;
-<a class="jxr_linenumber" name="139" href="#139">139</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="140" href="#140">140</a> <em class="jxr_javadoccomment">     * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)</em>
-<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="142" href="#142">142</a>     String RESUMED_ON_TIMEOUT = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout"</span>;
-<a class="jxr_linenumber" name="143" href="#143">143</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="144" href="#144">144</a> <em class="jxr_javadoccomment">     * Disable invoking {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} when the connection times out or get cancelled</em>
-<a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="146" href="#146">146</a>     String DISABLE_ONSTATE_EVENT = <span class="jxr_string">"org.atmosphere.disableOnStateEvent"</span>;
-<a class="jxr_linenumber" name="147" href="#147">147</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="148" href="#148">148</a> <em class="jxr_javadoccomment">     * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)</em>
-<a class="jxr_linenumber" name="149" href="#149">149</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="150" href="#150">150</a>     String MAX_INACTIVE = <span class="jxr_string">"org.atmosphere.cpr.CometSupport.maxInactiveActivity"</span>;
-<a class="jxr_linenumber" name="151" href="#151">151</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="152" href="#152">152</a> <em class="jxr_javadoccomment">     * Support {@link Trackable} by default and create instance of those objects on the fly</em>
-<a class="jxr_linenumber" name="153" href="#153">153</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="154" href="#154">154</a>     String SUPPORT_TRACKABLE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".Trackable"</span>;
-<a class="jxr_linenumber" name="155" href="#155">155</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="156" href="#156">156</a> <em class="jxr_javadoccomment">     * Allow query string as set as request's header.</em>
-<a class="jxr_linenumber" name="157" href="#157">157</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="158" href="#158">158</a>     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".allowQueryStreamAsPostOrGet"</span>;
-<a class="jxr_linenumber" name="159" href="#159">159</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="160" href="#160">160</a> <em class="jxr_javadoccomment">     * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}</em>
-<a class="jxr_linenumber" name="161" href="#161">161</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="162" href="#162">162</a>     String STREAMING_PADDING_MODE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".padding"</span>;
-<a class="jxr_linenumber" name="163" href="#163">163</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="164" href="#164">164</a> <em class="jxr_javadoccomment">     * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} instead among them. Default is false.</em>
-<a class="jxr_linenumber" name="165" href="#165">165</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="166" href="#166">166</a>     String BROADCASTER_SHARABLE_THREAD_POOLS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.shareableThreadPool"</span>;
-<a class="jxr_linenumber" name="167" href="#167">167</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="168" href="#168">168</a> <em class="jxr_javadoccomment">     * The maximum number of Thread created when processing broadcast operations {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}</em>
-<a class="jxr_linenumber" name="169" href="#169">169</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="170" href="#170">170</a>     String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.maxProcessingThreads"</span>;
-<a class="jxr_linenumber" name="171" href="#171">171</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="172" href="#172">172</a> <em class="jxr_javadoccomment">     * The maximum number of Thread created when writing requests {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}</em>
-<a class="jxr_linenumber" name="173" href="#173">173</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="174" href="#174">174</a>     String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.maxAsyncWriteThreads"</span>;
-<a class="jxr_linenumber" name="175" href="#175">175</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="176" href="#176">176</a> <em class="jxr_javadoccomment">     * BroadcasterLifecycle max idle time before executing. Default is 5 minutes</em>
-<a class="jxr_linenumber" name="177" href="#177">177</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="178" href="#178">178</a>     String BROADCASTER_LIFECYCLE_POLICY_IDLETIME = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".maxBroadcasterLifeCyclePolicyIdleTime"</span>;
-<a class="jxr_linenumber" name="179" href="#179">179</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="180" href="#180">180</a> <em class="jxr_javadoccomment">     * Recover from a {@link Broadcaster} that has been destroyed. Default is true.</em>
-<a class="jxr_linenumber" name="181" href="#181">181</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="182" href="#182">182</a>     String RECOVER_DEAD_BROADCASTER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".recoverFromDestroyedBroadcaster"</span>;
-<a class="jxr_linenumber" name="183" href="#183">183</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="184" href="#184">184</a> <em class="jxr_javadoccomment">     * Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml</em>
-<a class="jxr_linenumber" name="185" href="#185">185</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="186" href="#186">186</a>     String ATMOSPHERE_HANDLER = AtmosphereHandler.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="187" href="#187">187</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="188" href="#188">188</a> <em class="jxr_javadoccomment">     * The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml</em>
-<a class="jxr_linenumber" name="189" href="#189">189</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="190" href="#190">190</a>     String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".contextRoot"</span>;
-<a class="jxr_linenumber" name="191" href="#191">191</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="192" href="#192">192</a> <em class="jxr_javadoccomment">     * The Servlet's name where {@link Meteor} will be available</em>
-<a class="jxr_linenumber" name="193" href="#193">193</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="194" href="#194">194</a>     String SERVLET_CLASS = <span class="jxr_string">"org.atmosphere.servlet"</span>;
-<a class="jxr_linenumber" name="195" href="#195">195</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="196" href="#196">196</a> <em class="jxr_javadoccomment">     * The Filter's name where {@link Meteor} will be available</em>
-<a class="jxr_linenumber" name="197" href="#197">197</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="198" href="#198">198</a>     String FILTER_CLASS = <span class="jxr_string">"org.atmosphere.filter"</span>;
-<a class="jxr_linenumber" name="199" href="#199">199</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="200" href="#200">200</a> <em class="jxr_javadoccomment">     * The Servlet's mapping value to the SERVLET_CLASS</em>
-<a class="jxr_linenumber" name="201" href="#201">201</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="202" href="#202">202</a>     String MAPPING = <span class="jxr_string">"org.atmosphere.mapping"</span>;
-<a class="jxr_linenumber" name="203" href="#203">203</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="204" href="#204">204</a> <em class="jxr_javadoccomment">     * The Servlet's mapping value to the FILTER_CLASS</em>
-<a class="jxr_linenumber" name="205" href="#205">205</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="206" href="#206">206</a>     String FILTER_NAME = <span class="jxr_string">"org.atmosphere.filter.name"</span>;
-<a class="jxr_linenumber" name="207" href="#207">207</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="208" href="#208">208</a> <em class="jxr_javadoccomment">     * Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is afterFilter</em>
-<a class="jxr_linenumber" name="209" href="#209">209</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="210" href="#210">210</a>     String BROADCASTER_CACHE_STRATEGY = BroadcasterCache.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".strategy"</span>;
-<a class="jxr_linenumber" name="211" href="#211">211</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="212" href="#212">212</a> <em class="jxr_javadoccomment">     * Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is never</em>
-<a class="jxr_linenumber" name="213" href="#213">213</a> <em class="jxr_javadoccomment">     * resumed.</em>
-<a class="jxr_linenumber" name="214" href="#214">214</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="215" href="#215">215</a>     String SUPPORT_LOCATION_HEADER = <span class="jxr_string">"org.atmosphere.jersey.supportLocationHeader"</span>;
-<a class="jxr_linenumber" name="216" href="#216">216</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="217" href="#217">217</a> <em class="jxr_javadoccomment">     * WebSocket version to exclude and downgrade to comet. Version are separated by comma</em>
-<a class="jxr_linenumber" name="218" href="#218">218</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="219" href="#219">219</a>     String WEB_SOCKET_BANNED_VERSION = <span class="jxr_string">"org.atmosphere.websocket.bannedVersion"</span>;
-<a class="jxr_linenumber" name="220" href="#220">220</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="221" href="#221">221</a> <em class="jxr_javadoccomment">     * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in</em>
-<a class="jxr_linenumber" name="222" href="#222">222</a> <em class="jxr_javadoccomment">     * the tomcat documentation</em>
-<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="224" href="#224">224</a>     String TOMCAT_CLOSE_STREAM = <span class="jxr_string">"org.atmosphere.container.TomcatCometSupport.discardEOF"</span>;
-<a class="jxr_linenumber" name="225" href="#225">225</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="226" href="#226">226</a> <em class="jxr_javadoccomment">     * Write binary instead of String</em>
-<a class="jxr_linenumber" name="227" href="#227">227</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="228" href="#228">228</a>     String WEBSOCKET_BINARY_WRITE = <span class="jxr_string">"org.atmosphere.websocket.binaryWrite"</span>;
-<a class="jxr_linenumber" name="229" href="#229">229</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="230" href="#230">230</a> <em class="jxr_javadoccomment">     * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to</em>
-<a class="jxr_linenumber" name="231" href="#231">231</a> <em class="jxr_javadoccomment">     * a Container</em>
-<a class="jxr_linenumber" name="232" href="#232">232</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="233" href="#233">233</a>     String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">"recycleAtmosphereRequestResponse"</span>;
-<a class="jxr_linenumber" name="234" href="#234">234</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="235" href="#235">235</a> <em class="jxr_javadoccomment">     * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".</em>
-<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="237" href="#237">237</a>     String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".atmosphereHandlerPath"</span>;
-<a class="jxr_linenumber" name="238" href="#238">238</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="239" href="#239">239</a> <em class="jxr_javadoccomment">     * Jersey's ContainerResponseWriter.</em>
-<a class="jxr_linenumber" name="240" href="#240">240</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="241" href="#241">241</a>     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = <span class="jxr_string">"org.atmosphere.jersey.containerResponseWriterClass"</span>;
-<a class="jxr_linenumber" name="242" href="#242">242</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="243" href="#243">243</a> <em class="jxr_javadoccomment">     * Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}</em>
-<a class="jxr_linenumber" name="244" href="#244">244</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="245" href="#245">245</a>     String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".executeAsync"</span>;
-<a class="jxr_linenumber" name="246" href="#246">246</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="247" href="#247">247</a> <em class="jxr_javadoccomment">     * The default content-type value used when Atmosphere requires one. Default is text/plain.</em>
-<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="249" href="#249">249</a>     String DEFAULT_CONTENT_TYPE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".defaultContextType"</span>;
-<a class="jxr_linenumber" name="250" href="#250">250</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="251" href="#251">251</a> <em class="jxr_javadoccomment">     * Wrap the request/response with associated {@link javax.servlet.http.HttpServletRequest} and</em>
-<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     * {@link javax.servlet.http.HttpServletResponse}</em>
-<a class="jxr_linenumber" name="253" href="#253">253</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="254" href="#254">254</a>     String USE_SERVLET_WRAPPER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".useWrappers"</span>;
-<a class="jxr_linenumber" name="255" href="#255">255</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="256" href="#256">256</a> <em class="jxr_javadoccomment">     * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}</em>
-<a class="jxr_linenumber" name="257" href="#257">257</a> <em class="jxr_javadoccomment">     * gets delivered to an application or framework</em>
-<a class="jxr_linenumber" name="258" href="#258">258</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="259" href="#259">259</a>     String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="260" href="#260">260</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="261" href="#261">261</a> <em class="jxr_javadoccomment">     * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}</em>
-<a class="jxr_linenumber" name="262" href="#262">262</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="263" href="#263">263</a>     String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".excludes"</span>;
-<a class="jxr_linenumber" name="264" href="#264">264</a> }
+<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.client.MessageLengthInterceptor;
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProtocol;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> * Web.xml init-param configuration supported by Atmosphere.</em>
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/cpr/ApplicationConfig.html">ApplicationConfig</a> {
+<a class="jxr_linenumber" name="27" href="#27">27</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">     * The location of the atmosphere.xml file.</em>
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>      String PROPERTY_ATMOSPHERE_XML = <span class="jxr_string">"org.atmosphere.atmosphereDotXml"</span>;
+<a class="jxr_linenumber" name="31" href="#31">31</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">     * The path that will be used to map request to Jersey</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="34" href="#34">34</a>      String PROPERTY_SERVLET_MAPPING = <span class="jxr_string">"org.atmosphere.jersey.servlet-mapping"</span>;
+<a class="jxr_linenumber" name="35" href="#35">35</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment">     * Set Atmosphere to use the {@link org.atmosphere.container.BlockingIOCometSupport}, e.g blocking I/O</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="38" href="#38">38</a>      String PROPERTY_BLOCKING_COMETSUPPORT = <span class="jxr_string">"org.atmosphere.useBlocking"</span>;
+<a class="jxr_linenumber" name="39" href="#39">39</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment">     * Set Atmosphere to use the container native Comet support</em>
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="42" href="#42">42</a>      String PROPERTY_NATIVE_COMETSUPPORT = <span class="jxr_string">"org.atmosphere.useNative"</span>;
+<a class="jxr_linenumber" name="43" href="#43">43</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="44" href="#44">44</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to use WebSocket</em>
+<a class="jxr_linenumber" name="45" href="#45">45</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="46" href="#46">46</a>      String WEBSOCKET_SUPPORT = <span class="jxr_string">"org.atmosphere.useWebSocket"</span>;
+<a class="jxr_linenumber" name="47" href="#47">47</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="48" href="#48">48</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to use stream when writing bytes.</em>
+<a class="jxr_linenumber" name="49" href="#49">49</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="50" href="#50">50</a>      String PROPERTY_USE_STREAM = <span class="jxr_string">"org.atmosphere.useStream"</span>;
+<a class="jxr_linenumber" name="51" href="#51">51</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.BroadcasterFactory} class.</em>
+<a class="jxr_linenumber" name="53" href="#53">53</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="54" href="#54">54</a>      String BROADCASTER_FACTORY = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterFactory"</span>;
+<a class="jxr_linenumber" name="55" href="#55">55</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="56" href="#56">56</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.Broadcaster} class.</em>
+<a class="jxr_linenumber" name="57" href="#57">57</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="58" href="#58">58</a>      String BROADCASTER_CLASS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterClass"</span>;
+<a class="jxr_linenumber" name="59" href="#59">59</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="60" href="#60">60</a>  <em class="jxr_javadoccomment">     * The default {@link org.atmosphere.cpr.BroadcasterCache} class.</em>
+<a class="jxr_linenumber" name="61" href="#61">61</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="62" href="#62">62</a>      String BROADCASTER_CACHE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterCacheClass"</span>;
+<a class="jxr_linenumber" name="63" href="#63">63</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere which {@link AsyncSupport} implementation to use.</em>
+<a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="66" href="#66">66</a>      String PROPERTY_COMET_SUPPORT = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".asyncSupport"</span>;
+<a class="jxr_linenumber" name="67" href="#67">67</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.</em>
+<a class="jxr_linenumber" name="69" href="#69">69</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="70" href="#70">70</a>      String PROPERTY_SESSION_SUPPORT = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".sessionSupport"</span>;
+<a class="jxr_linenumber" name="71" href="#71">71</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="72" href="#72">72</a>  <em class="jxr_javadoccomment">     * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invokation.</em>
+<a class="jxr_linenumber" name="73" href="#73">73</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="74" href="#74">74</a>      String RESUME_ON_BROADCAST = <span class="jxr_string">"org.atmosphere.resumeOnBroadcast"</span>;
+<a class="jxr_linenumber" name="75" href="#75">75</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="76" href="#76">76</a>  <em class="jxr_javadoccomment">     * The default Servlet used when forwarding request.</em>
+<a class="jxr_linenumber" name="77" href="#77">77</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="78" href="#78">78</a>      String DEFAULT_NAMED_DISPATCHER = <span class="jxr_string">"default"</span>;
+<a class="jxr_linenumber" name="79" href="#79">79</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="80" href="#80">80</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to not write the no-cache header. Default is false, e.g Atmosphere will write them.</em>
+<a class="jxr_linenumber" name="81" href="#81">81</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="82" href="#82">82</a>      String NO_CACHE_HEADERS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".noCacheHeaders"</span>;
+<a class="jxr_linenumber" name="83" href="#83">83</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="84" href="#84">84</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere to not write the access-control header. Default is false, e.g Atmosphere will write them.</em>
+<a class="jxr_linenumber" name="85" href="#85">85</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="86" href="#86">86</a>      String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".dropAccessControlAllowOriginHeader"</span>;
+<a class="jxr_linenumber" name="87" href="#87">87</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="88" href="#88">88</a>  <em class="jxr_javadoccomment">     * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use</em>
+<a class="jxr_linenumber" name="89" href="#89">89</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="90" href="#90">90</a>      String BROADCASTER_LIFECYCLE_POLICY = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcasterLifeCyclePolicy"</span>;
+<a class="jxr_linenumber" name="91" href="#91">91</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="92" href="#92">92</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.</em>
+<a class="jxr_linenumber" name="93" href="#93">93</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="94" href="#94">94</a>      String WEBSOCKET_PROTOCOL = WebSocketProtocol.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="95" href="#95">95</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
+<a class="jxr_linenumber" name="97" href="#97">97</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="98" href="#98">98</a>      String WEBSOCKET_CONTENT_TYPE = <span class="jxr_string">"org.atmosphere.websocket.messageContentType"</span>;
+<a class="jxr_linenumber" name="99" href="#99">99</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="100" href="#100">100</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
+<a class="jxr_linenumber" name="101" href="#101">101</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="102" href="#102">102</a>     String SSE_CONTENT_TYPE = <span class="jxr_string">"org.atmosphere.sse.contentType"</span>;
+<a class="jxr_linenumber" name="103" href="#103">103</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="104" href="#104">104</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest</em>
+<a class="jxr_linenumber" name="105" href="#105">105</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="106" href="#106">106</a>     String WEBSOCKET_METHOD = <span class="jxr_string">"org.atmosphere.websocket.messageMethod"</span>;
+<a class="jxr_linenumber" name="107" href="#107">107</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="108" href="#108">108</a> <em class="jxr_javadoccomment">     * Tell Atmosphere how long a WebSocket connection can stay idle. Default is 5 minutes</em>
+<a class="jxr_linenumber" name="109" href="#109">109</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="110" href="#110">110</a>     String WEBSOCKET_IDLETIME = <span class="jxr_string">"org.atmosphere.websocket.maxIdleTime"</span>;
+<a class="jxr_linenumber" name="111" href="#111">111</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="112" href="#112">112</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the WebSocket write buffer size. Default is 8192</em>
+<a class="jxr_linenumber" name="113" href="#113">113</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="114" href="#114">114</a>     String WEBSOCKET_BUFFER_SIZE = <span class="jxr_string">"org.atmosphere.websocket.bufferSize"</span>;
+<a class="jxr_linenumber" name="115" href="#115">115</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="116" href="#116">116</a> <em class="jxr_javadoccomment">     * Tell Atmosphere the path delimiter to use when a WebSocket message contains the path as it first line. The</em>
+<a class="jxr_linenumber" name="117" href="#117">117</a> <em class="jxr_javadoccomment">     * value is used to create a HttpServletRequest.</em>
+<a class="jxr_linenumber" name="118" href="#118">118</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="119" href="#119">119</a>     String WEBSOCKET_PATH_DELIMITER = <span class="jxr_string">"org.atmosphere.websocket.pathDelimiter"</span>;
+<a class="jxr_linenumber" name="120" href="#120">120</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="121" href="#121">121</a> <em class="jxr_javadoccomment">     * Set the WebSocket mas text size: size&lt;0 No aggregation of frames to messages, &gt;=0 max size of text frame aggregation buffer in characters</em>
+<a class="jxr_linenumber" name="122" href="#122">122</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="123" href="#123">123</a>     String WEBSOCKET_MAXTEXTSIZE = <span class="jxr_string">"org.atmosphere.websocket.maxTextMessageSize"</span>;
+<a class="jxr_linenumber" name="124" href="#124">124</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="125" href="#125">125</a> <em class="jxr_javadoccomment">     * Set the WebSocket mas text size: size&lt;0 No aggregation of frames to messages, &gt;=0 max size of text frame aggregation buffer in characters</em>
+<a class="jxr_linenumber" name="126" href="#126">126</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="127" href="#127">127</a>     String WEBSOCKET_MAXBINARYSIZE = <span class="jxr_string">"org.atmosphere.websocket.maxBinaryMessageSize"</span>;
+<a class="jxr_linenumber" name="128" href="#128">128</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="129" href="#129">129</a> <em class="jxr_javadoccomment">     * The Atmosphere resource to use.</em>
+<a class="jxr_linenumber" name="130" href="#130">130</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="131" href="#131">131</a>     String ATMOSPHERE_RESOURCE = AtmosphereResource.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="132" href="#132">132</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="133" href="#133">133</a> <em class="jxr_javadoccomment">     * A list of {@link BroadcastFilter} separated with coma that will be added to every new {@link Broadcaster}</em>
+<a class="jxr_linenumber" name="134" href="#134">134</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="135" href="#135">135</a>     String BROADCAST_FILTER_CLASSES = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcastFilterClasses"</span>;
+<a class="jxr_linenumber" name="136" href="#136">136</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.</em>
+<a class="jxr_linenumber" name="138" href="#138">138</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="139" href="#139">139</a>     String RESUME_AND_KEEPALIVE = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive"</span>;
+<a class="jxr_linenumber" name="140" href="#140">140</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application. This attribute is for WebServer that doesn't support times out (like Jetty 6)</em>
+<a class="jxr_linenumber" name="142" href="#142">142</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="143" href="#143">143</a>     String RESUMED_ON_TIMEOUT = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout"</span>;
+<a class="jxr_linenumber" name="144" href="#144">144</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     * Disable invoking {@link org.atmosphere.cpr.AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} when the connection times out or get cancelled</em>
+<a class="jxr_linenumber" name="146" href="#146">146</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="147" href="#147">147</a>     String DISABLE_ONSTATE_EVENT = <span class="jxr_string">"org.atmosphere.disableOnStateEvent"</span>;
+<a class="jxr_linenumber" name="148" href="#148">148</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="149" href="#149">149</a> <em class="jxr_javadoccomment">     * The maximum time, in milisecond, a connection gets idle. This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle connection (idle or remotely closed)</em>
+<a class="jxr_linenumber" name="150" href="#150">150</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="151" href="#151">151</a>     String MAX_INACTIVE = <span class="jxr_string">"org.atmosphere.cpr.CometSupport.maxInactiveActivity"</span>;
+<a class="jxr_linenumber" name="152" href="#152">152</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="153" href="#153">153</a> <em class="jxr_javadoccomment">     * Support {@link Trackable} by default and create instance of those objects on the fly</em>
+<a class="jxr_linenumber" name="154" href="#154">154</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="155" href="#155">155</a>     String SUPPORT_TRACKABLE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".Trackable"</span>;
+<a class="jxr_linenumber" name="156" href="#156">156</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="157" href="#157">157</a> <em class="jxr_javadoccomment">     * Allow query string as set as request's header.</em>
+<a class="jxr_linenumber" name="158" href="#158">158</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="159" href="#159">159</a>     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".allowQueryStreamAsPostOrGet"</span>;
+<a class="jxr_linenumber" name="160" href="#160">160</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="161" href="#161">161</a> <em class="jxr_javadoccomment">     * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}</em>
+<a class="jxr_linenumber" name="162" href="#162">162</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="163" href="#163">163</a>     String STREAMING_PADDING_MODE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".padding"</span>;
+<a class="jxr_linenumber" name="164" href="#164">164</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="165" href="#165">165</a> <em class="jxr_javadoccomment">     * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} instead among them. Default is false.</em>
+<a class="jxr_linenumber" name="166" href="#166">166</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="167" href="#167">167</a>     String BROADCASTER_SHARABLE_THREAD_POOLS = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.shareableThreadPool"</span>;
+<a class="jxr_linenumber" name="168" href="#168">168</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="169" href="#169">169</a> <em class="jxr_javadoccomment">     * The maximum number of Thread created when processing broadcast operations {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}</em>
+<a class="jxr_linenumber" name="170" href="#170">170</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="171" href="#171">171</a>     String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.maxProcessingThreads"</span>;
+<a class="jxr_linenumber" name="172" href="#172">172</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="173" href="#173">173</a> <em class="jxr_javadoccomment">     * The maximum number of Thread created when writing requests {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}</em>
+<a class="jxr_linenumber" name="174" href="#174">174</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="175" href="#175">175</a>     String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".broadcaster.maxAsyncWriteThreads"</span>;
+<a class="jxr_linenumber" name="176" href="#176">176</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="177" href="#177">177</a> <em class="jxr_javadoccomment">     * BroadcasterLifecycle max idle time before executing. Default is 5 minutes</em>
+<a class="jxr_linenumber" name="178" href="#178">178</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="179" href="#179">179</a>     String BROADCASTER_LIFECYCLE_POLICY_IDLETIME = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".maxBroadcasterLifeCyclePolicyIdleTime"</span>;
+<a class="jxr_linenumber" name="180" href="#180">180</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="181" href="#181">181</a> <em class="jxr_javadoccomment">     * Recover from a {@link Broadcaster} that has been destroyed. Default is true.</em>
+<a class="jxr_linenumber" name="182" href="#182">182</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="183" href="#183">183</a>     String RECOVER_DEAD_BROADCASTER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".recoverFromDestroyedBroadcaster"</span>;
+<a class="jxr_linenumber" name="184" href="#184">184</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="185" href="#185">185</a> <em class="jxr_javadoccomment">     * Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml</em>
+<a class="jxr_linenumber" name="186" href="#186">186</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="187" href="#187">187</a>     String ATMOSPHERE_HANDLER = AtmosphereHandler.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="188" href="#188">188</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="189" href="#189">189</a> <em class="jxr_javadoccomment">     * The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml</em>
+<a class="jxr_linenumber" name="190" href="#190">190</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="191" href="#191">191</a>     String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".contextRoot"</span>;
+<a class="jxr_linenumber" name="192" href="#192">192</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="193" href="#193">193</a> <em class="jxr_javadoccomment">     * The Servlet's name where {@link Meteor} will be available</em>
+<a class="jxr_linenumber" name="194" href="#194">194</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="195" href="#195">195</a>     String SERVLET_CLASS = <span class="jxr_string">"org.atmosphere.servlet"</span>;
+<a class="jxr_linenumber" name="196" href="#196">196</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="197" href="#197">197</a> <em class="jxr_javadoccomment">     * The Filter's name where {@link Meteor} will be available</em>
+<a class="jxr_linenumber" name="198" href="#198">198</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="199" href="#199">199</a>     String FILTER_CLASS = <span class="jxr_string">"org.atmosphere.filter"</span>;
+<a class="jxr_linenumber" name="200" href="#200">200</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="201" href="#201">201</a> <em class="jxr_javadoccomment">     * The Servlet's mapping value to the SERVLET_CLASS</em>
+<a class="jxr_linenumber" name="202" href="#202">202</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="203" href="#203">203</a>     String MAPPING = <span class="jxr_string">"org.atmosphere.mapping"</span>;
+<a class="jxr_linenumber" name="204" href="#204">204</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="205" href="#205">205</a> <em class="jxr_javadoccomment">     * The Servlet's mapping value to the FILTER_CLASS</em>
+<a class="jxr_linenumber" name="206" href="#206">206</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="207" href="#207">207</a>     String FILTER_NAME = <span class="jxr_string">"org.atmosphere.filter.name"</span>;
+<a class="jxr_linenumber" name="208" href="#208">208</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="209" href="#209">209</a> <em class="jxr_javadoccomment">     * Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is afterFilter</em>
+<a class="jxr_linenumber" name="210" href="#210">210</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="211" href="#211">211</a>     String BROADCASTER_CACHE_STRATEGY = BroadcasterCache.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".strategy"</span>;
+<a class="jxr_linenumber" name="212" href="#212">212</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="213" href="#213">213</a> <em class="jxr_javadoccomment">     * Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is never</em>
+<a class="jxr_linenumber" name="214" href="#214">214</a> <em class="jxr_javadoccomment">     * resumed.</em>
+<a class="jxr_linenumber" name="215" href="#215">215</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="216" href="#216">216</a>     String SUPPORT_LOCATION_HEADER = <span class="jxr_string">"org.atmosphere.jersey.supportLocationHeader"</span>;
+<a class="jxr_linenumber" name="217" href="#217">217</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="218" href="#218">218</a> <em class="jxr_javadoccomment">     * WebSocket version to exclude and downgrade to comet. Version are separated by comma</em>
+<a class="jxr_linenumber" name="219" href="#219">219</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="220" href="#220">220</a>     String WEB_SOCKET_BANNED_VERSION = <span class="jxr_string">"org.atmosphere.websocket.bannedVersion"</span>;
+<a class="jxr_linenumber" name="221" href="#221">221</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="222" href="#222">222</a> <em class="jxr_javadoccomment">     * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in</em>
+<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     * the tomcat documentation</em>
+<a class="jxr_linenumber" name="224" href="#224">224</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="225" href="#225">225</a>     String TOMCAT_CLOSE_STREAM = <span class="jxr_string">"org.atmosphere.container.TomcatCometSupport.discardEOF"</span>;
+<a class="jxr_linenumber" name="226" href="#226">226</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="227" href="#227">227</a> <em class="jxr_javadoccomment">     * Write binary instead of String</em>
+<a class="jxr_linenumber" name="228" href="#228">228</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="229" href="#229">229</a>     String WEBSOCKET_BINARY_WRITE = <span class="jxr_string">"org.atmosphere.websocket.binaryWrite"</span>;
+<a class="jxr_linenumber" name="230" href="#230">230</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="231" href="#231">231</a> <em class="jxr_javadoccomment">     * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to</em>
+<a class="jxr_linenumber" name="232" href="#232">232</a> <em class="jxr_javadoccomment">     * a Container</em>
+<a class="jxr_linenumber" name="233" href="#233">233</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="234" href="#234">234</a>     String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">"recycleAtmosphereRequestResponse"</span>;
+<a class="jxr_linenumber" name="235" href="#235">235</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".</em>
+<a class="jxr_linenumber" name="237" href="#237">237</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="238" href="#238">238</a>     String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".atmosphereHandlerPath"</span>;
+<a class="jxr_linenumber" name="239" href="#239">239</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="240" href="#240">240</a> <em class="jxr_javadoccomment">     * Jersey's ContainerResponseWriter.</em>
+<a class="jxr_linenumber" name="241" href="#241">241</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="242" href="#242">242</a>     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = <span class="jxr_string">"org.atmosphere.jersey.containerResponseWriterClass"</span>;
+<a class="jxr_linenumber" name="243" href="#243">243</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="244" href="#244">244</a> <em class="jxr_javadoccomment">     * Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}</em>
+<a class="jxr_linenumber" name="245" href="#245">245</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="246" href="#246">246</a>     String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".executeAsync"</span>;
+<a class="jxr_linenumber" name="247" href="#247">247</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     * The default content-type value used when Atmosphere requires one. Default is text/plain.</em>
+<a class="jxr_linenumber" name="249" href="#249">249</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="250" href="#250">250</a>     String DEFAULT_CONTENT_TYPE = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".defaultContextType"</span>;
+<a class="jxr_linenumber" name="251" href="#251">251</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     * Wrap the request/response with associated {@link javax.servlet.http.HttpServletRequest} and</em>
+<a class="jxr_linenumber" name="253" href="#253">253</a> <em class="jxr_javadoccomment">     * {@link javax.servlet.http.HttpServletResponse}</em>
+<a class="jxr_linenumber" name="254" href="#254">254</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="255" href="#255">255</a>     String USE_SERVLET_WRAPPER = ApplicationConfig.<strong class="jxr_keyword">class</strong>.getPackage().getName() + <span class="jxr_string">".useWrappers"</span>;
+<a class="jxr_linenumber" name="256" href="#256">256</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="257" href="#257">257</a> <em class="jxr_javadoccomment">     * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}</em>
+<a class="jxr_linenumber" name="258" href="#258">258</a> <em class="jxr_javadoccomment">     * gets delivered to an application or framework</em>
+<a class="jxr_linenumber" name="259" href="#259">259</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="260" href="#260">260</a>     String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="261" href="#261">261</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="262" href="#262">262</a> <em class="jxr_javadoccomment">     * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}</em>
+<a class="jxr_linenumber" name="263" href="#263">263</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="264" href="#264">264</a>     String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".excludes"</span>;
+<a class="jxr_linenumber" name="265" href="#265">265</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="266" href="#266">266</a> <em class="jxr_javadoccomment">     * The token used to separate broadcasted messages. This value is used by the client to parse several messages</em>
+<a class="jxr_linenumber" name="267" href="#267">267</a> <em class="jxr_javadoccomment">     * received in one chunk. Default is '&lt;||&gt;'</em>
+<a class="jxr_linenumber" name="268" href="#268">268</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="269" href="#269">269</a>     String MESSAGE_DELIMITER = MessageLengthInterceptor.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".delimiter"</span>;
+<a class="jxr_linenumber" name="270" href="#270">270</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

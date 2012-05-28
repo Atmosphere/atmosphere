@@ -723,10 +723,10 @@
 <a class="jxr_linenumber" name="713" href="#713">713</a>             <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="714" href="#714">714</a>                 r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
 <a class="jxr_linenumber" name="715" href="#715">715</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="716" href="#716">716</a>                 logger.error(<span class="jxr_string">"Invalid AtmosphereResource state {}. The connection has been remotely"</span> +
+<a class="jxr_linenumber" name="716" href="#716">716</a>                 logger.warn(<span class="jxr_string">"Invalid AtmosphereResource state {}. The connection has been remotely"</span> +
 <a class="jxr_linenumber" name="717" href="#717">717</a>                         <span class="jxr_string">" closed and will be added to the configured BroadcasterCache for later retrieval"</span>, event);
-<a class="jxr_linenumber" name="718" href="#718">718</a>                 logger.error(<span class="jxr_string">"If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT"</span>);
-<a class="jxr_linenumber" name="719" href="#719">719</a>                 logger.error(<span class="jxr_string">""</span>, t);
+<a class="jxr_linenumber" name="718" href="#718">718</a>                 logger.trace(<span class="jxr_string">"If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT"</span>);
+<a class="jxr_linenumber" name="719" href="#719">719</a>                 logger.trace(<span class="jxr_string">""</span>, t);
 <a class="jxr_linenumber" name="720" href="#720">720</a>                 <em class="jxr_comment">// The Request/Response associated with the AtmosphereResource has already been written and commited</em>
 <a class="jxr_linenumber" name="721" href="#721">721</a>                 removeAtmosphereResource(r);
 <a class="jxr_linenumber" name="722" href="#722">722</a>                 BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
