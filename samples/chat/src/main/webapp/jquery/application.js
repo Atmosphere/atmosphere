@@ -2,6 +2,7 @@ $(function () {
     "use strict";
 
     var detect = $('#detect');
+    var header = $('#header');
     var content = $('#content');
     var input = $('#input');
     var status = $('#status');
@@ -11,6 +12,9 @@ $(function () {
     var socket = $.atmosphere;
 
     <!-- The following code is just here for demonstration purpose and not required -->
+    <!-- Used to demonstrate the request.onTransportFailure callback. Not mandatory -->
+    var sseSupported = false;
+
     var transports = new Array();
     transports[0] = "websocket";
     transports[1] = "sse";
@@ -53,6 +57,15 @@ $(function () {
         status.text('Choose name:');
     };
 
+    <!-- For demonstration of how you can customize the fallbackTransport based on the browser -->
+    request.onTransportFailure = function(errorMsg, request) {
+        jQuery.atmosphere.info(errorMsg);
+        if ( window.EventSource ) {
+            request.fallbackTransport = "sse";
+        }
+        header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
+    };
+
     request.onReconnect = function (request, response) {
         socket.info("Reconnecting")
     };
@@ -60,7 +73,7 @@ $(function () {
     request.onMessage = function (response) {
         var message = response.responseBody;
         try {
-            var json = JSON.parse(message);
+            var json = jQuery.parseJSON(message);
         } catch (e) {
             console.log('This doesn\'t look like a valid JSON: ', message.data);
             return;
@@ -95,7 +108,7 @@ $(function () {
                 author = msg;
             }
 
-            subSocket.push(JSON.stringify({ author: author, message: msg }));
+            subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');

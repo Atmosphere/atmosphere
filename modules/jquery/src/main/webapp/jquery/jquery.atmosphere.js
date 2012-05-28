@@ -41,7 +41,7 @@ jQuery.atmosphere = function() {
     };
 
     return {
-        version : 1.0,
+        version : "1.0",
         requests : [],
         callbacks : [],
 
@@ -56,6 +56,8 @@ jQuery.atmosphere = function() {
         onReconnect : function(request, response) {
         },
         onMessagePublished : function(response) {
+        },
+        onTransportFailure : function(response) {
         },
 
         AtmosphereRequest : function(options) {
@@ -107,6 +109,8 @@ jQuery.atmosphere = function() {
                 onReconnect : function(request, response) {
                 },
                 onMessagePublished : function(response) {
+                },
+                onTransportFailure : function (reason, request) {
                 }
             };
 
@@ -273,17 +277,13 @@ jQuery.atmosphere = function() {
 
                 } else if (_request.transport == 'websocket') {
                     if (!_supportWebsocket()) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Websocket is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")"]);
-                        _open('opening', _request.fallbackTransport, _request);
-                        _reconnectWithFallbackTransport();
+                        _reconnectWithFallbackTransport("Websocket is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")");
                     } else {
                         _executeWebSocket(false);
                     }
                 } else if (_request.transport == 'sse') {
                     if (!_supportSSE()) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Server Side Events(SSE) is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")"]);
-                        _open('opening', _request.fallbackTransport, _request);
-                        _reconnectWithFallbackTransport();
+                        _reconnectWithFallbackTransport("Server Side Events(SSE) is not supported, using request.fallbackTransport (" + _request.fallbackTransport + ")");
                     } else {
                         _executeSSE(false);
                     }
@@ -295,7 +295,7 @@ jQuery.atmosphere = function() {
              */
             function _open(state, transport, request) {
 
-                request.close = function(){
+                request.close = function() {
                     _close();
                     request.reconnect = false;
                 }
@@ -505,7 +505,7 @@ jQuery.atmosphere = function() {
                     _open('re-opening', "sse", _request);
                 }
 
-                if (!_request.reconnect ){
+                if (!_request.reconnect) {
                     if (_sse != null) {
                         _sse.close();
                     }
@@ -565,9 +565,7 @@ jQuery.atmosphere = function() {
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
                     } else if (!sseOpened) {
-                        jQuery.atmosphere.log(_request.logLevel, ["SSE failed. Downgrading to fallback transport and resending"]);
-                        _open('opening', _request.fallbackTransport, _request);
-                        _reconnectWithFallbackTransport();
+                        _reconnectWithFallbackTransport("SSE failed. Downgrading to fallback transport and resending");
                     } else if (_request.reconnect && (_response.transport == 'sse')) {
                         if (_requestCount++ < _request.maxRequest) {
                             _request.requestCount = _requestCount;
@@ -605,7 +603,7 @@ jQuery.atmosphere = function() {
                     _open('re-opening', "websocket", _request);
                 }
 
-                if (!_request.reconnect ){
+                if (!_request.reconnect) {
                     if (_websocket != null) {
                         _websocket.close();
                     }
@@ -718,9 +716,7 @@ jQuery.atmosphere = function() {
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["Websocket closed normally"]);
                     } else if (!webSocketOpened) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Websocket failed. Downgrading to Comet and resending"]);
-                        _open('opening', _request.fallbackTransport, _request);
-                        _reconnectWithFallbackTransport();
+                        _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending");
 
                     } else if (_request.reconnect && _response.transport == 'websocket') {
                         if (_request.reconnect && _requestCount++ < _request.maxRequest) {
@@ -784,13 +780,20 @@ jQuery.atmosphere = function() {
              *
              * @private
              */
-            function _reconnectWithFallbackTransport() {
-                _request.transport = _request.fallbackTransport;
+            function _reconnectWithFallbackTransport(errorMessage) {
+                jQuery.atmosphere.log(_request.logLevel, [errorMessage]);
 
-                if ( _request.reconnect && _request.transport != 'none' || _request.transport == null) {
+                if (typeof(_request.onTransportFailure) != 'undefined') {
+                    _request.onTransportFailure(errorMessage, _request);
+                } else if (typeof(jQuery.atmosphere.onTransportFailure) != 'undefined') {
+                    jQuery.atmosphere.onTransportFailure(errorMessage, _request);
+                }
+
+                _request.transport = _request.fallbackTransport;
+                if (_request.reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
-                    _executeRequest();
+                    _execute();
                 }
             }
 
@@ -1543,13 +1546,11 @@ jQuery.atmosphere = function() {
                     _websocket.send(data);
 
                 } catch (e) {
-                    jQuery.atmosphere.log(_request.logLevel, ["Websocket failed. Downgrading to Comet and resending " + data]);
-
                     _websocket.onclose = function(message) {
                     };
                     _websocket.close();
 
-                    _reconnectWithFallbackTransport();
+                    _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending " + data);
                     _pushAjaxMessage(message);
                 }
             }
@@ -1617,7 +1618,7 @@ jQuery.atmosphere = function() {
                     if (messages.length > 1 && messages[i].length == 0) {
                         continue;
                     }
-                    _response.responseBody = messages[i];
+                    _response.responseBody = jQuery.trim(messages[i]);
                     _invokeFunction(_response);
 
                     // Invoke global callbacks
