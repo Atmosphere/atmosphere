@@ -28,7 +28,7 @@ $(function () {
     request.onMessage = function (response) {
         var message = response.responseBody;
         try {
-            var json = JSON.parse(message);
+            var json = jQuery.parseJSON(message);
         } catch (e) {
             console.log('This doesn\'t look like a valid JSON: ', message.data);
             return;
@@ -63,7 +63,7 @@ $(function () {
                 author = msg;
             }
 
-            subSocket.push(JSON.stringify({ author: author, message: msg }));
+            subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');
