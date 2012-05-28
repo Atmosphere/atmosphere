@@ -18,8 +18,8 @@ package org.atmosphere.cpr;
 import java.util.Collection;
 
 /**
- * A Factory used to manage {@link AtmosphereResource} instance. You can use that factory to create, delete and find
- * {@link AtmosphereResource} instance that are associated with {@link Broadcaster}.
+ * A Factory used to manage {@link AtmosphereResource} instance. You can use that factory to create, remove and find
+ * {@link AtmosphereResource} instance that are associated with one or several {@link Broadcaster}.
  */
 public final class AtmosphereResourceFactory {
 
