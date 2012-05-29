@@ -32,6 +32,8 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### Latest Publications
 
+[Grails Events Bus and sample](http://groovyflow.com/posts/489#.T8TxDpl1DvU)
+
 [Introducing SwaggerSocket](http://jfarcand.wordpress.com/2012/04/26/transparently-adding-websockets-to-your-application-using-swaggersocket/)
 
 [Which Atmosphere API should I use for my project?](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
