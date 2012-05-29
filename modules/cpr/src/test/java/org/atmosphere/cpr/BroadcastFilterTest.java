@@ -45,7 +45,7 @@ public class BroadcastFilterTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                mock(AtmosphereResponse.class),
+                AtmosphereResponse.create(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -94,7 +94,7 @@ public class BroadcastFilterTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                mock(AtmosphereResponse.class),
+                AtmosphereResponse.create(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

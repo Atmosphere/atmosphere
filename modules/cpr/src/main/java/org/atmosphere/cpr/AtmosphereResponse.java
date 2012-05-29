@@ -1091,6 +1091,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     /**
+     * Create an instance not associated with any response parent.
+     * @return
+     */
+    public final static AtmosphereResponse create() {
+        return new Builder().build();
+    }
+
+    /**
      * Wrap an {@link HttpServletResponse}
      *
      * @param response {@link HttpServletResponse}

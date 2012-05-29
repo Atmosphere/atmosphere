@@ -32,7 +32,7 @@ import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
  */
 public class AtmosphereConfig {
 
-    private final List<AtmosphereHandlerConfig> atmosphereHandler = new ArrayList<AtmosphereHandlerConfig>();
+    private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession = true;
     private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
@@ -43,8 +43,8 @@ public class AtmosphereConfig {
         this.framework = framework;
     }
 
-    public List<AtmosphereHandlerConfig> getAtmosphereHandler() {
-        return atmosphereHandler;
+    public List<AtmosphereHandlerConfig> getAtmosphereHandlerConfig() {
+        return atmosphereHandlerConfig;
     }
 
     public AtmosphereFramework framework() {

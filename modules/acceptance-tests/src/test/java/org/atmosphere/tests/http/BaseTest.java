@@ -71,6 +71,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -1356,4 +1357,73 @@ public abstract class BaseTest {
         }
     }
 
+    @Test(timeOut = 60000, enabled = true)
+    public void testCookie() {
+        logger.info("{}: running test: testCookie", getClass().getSimpleName());
+
+        final CountDownLatch latch = new CountDownLatch(2);
+        final CountDownLatch suspended = new CountDownLatch(1);
+        final AtomicReference<Cookie> cookie = new AtomicReference<Cookie>();
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            AtomicBoolean b = new AtomicBoolean(false);
+
+            public void onRequest(AtmosphereResource event) throws IOException {
+                if (!b.getAndSet(true)) {
+                    try {
+                        event.suspend();
+                    } finally {
+                        suspended.countDown();
+                    }
+                } else {
+                    event.getBroadcaster().broadcast("foo");
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isResuming()) {
+                    return;
+                }
+
+                cookie.set(event.getResource().getRequest().getCookies()[0]);
+
+                try {
+                    event.getResource().getResponse().flushBuffer();
+                    event.getResource().resume();
+                } finally {
+                    latch.countDown();
+                }
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            c.prepareGet(urlTarget).addCookie(new com.ning.http.client.Cookie("", "yo", "man", "", -1, false)).execute(new AsyncCompletionHandler<String>() {
+
+                @Override
+                public String onCompleted(Response response) throws Exception {
+                    latch.countDown();
+                    return null;
+                }
+            });
+
+            suspended.await(20, TimeUnit.SECONDS);
+            Response r = c.prepareGet(urlTarget).execute().get();
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            assertNotNull(r);
+            assertEquals(r.getStatusCode(), 200);
+            assertEquals(cookie.get().getName(), "yo");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
+
+    }
 }

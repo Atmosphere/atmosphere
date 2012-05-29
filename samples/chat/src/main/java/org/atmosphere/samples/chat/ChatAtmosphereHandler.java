@@ -72,8 +72,7 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
                 case LONG_POLLING:
                     event.getResource().resume();
                     break;
-                case WEBSOCKET :
-                case STREAMING:
+                default:
                     res.getWriter().flush();
                     break;
             }

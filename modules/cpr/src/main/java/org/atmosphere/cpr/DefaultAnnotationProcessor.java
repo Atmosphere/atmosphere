@@ -78,7 +78,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
             @Override
             public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
-                logger.info("Annotation in {} being scanned: {}", className, annotation);
+                logger.info("Found Annotation in {} being scanned: {}", className, annotation);
                 if (AtmosphereHandlerService.class.equals(annotation)) {
                     try {
                         AtmosphereHandler handler = (AtmosphereHandler) cl.loadClass(className).newInstance();
@@ -145,7 +145,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 }
             }
         };
-        logger.info("Scanning @Service annotations in {}", rootDir.getAbsolutePath());
+        logger.trace("Scanning @Service annotations in {}", rootDir.getAbsolutePath());
         final AnnotationDetector cf = new AnnotationDetector(reporter);
         cf.detect(rootDir);
         return this;
