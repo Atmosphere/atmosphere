@@ -66,7 +66,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResource extends Trackable, AtmosphereEventLifecycle {
+public interface AtmosphereResource extends AtmosphereEventLifecycle {
 
     enum TRANSPORT {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED, SSE, AJAX}
 

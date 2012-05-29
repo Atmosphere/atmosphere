@@ -26,7 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Suspend the response and use the Broadcaster associated with {@link org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID}
+ * Suspend the response and use the Broadcaster associated with {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
  * to publish the result.
  *
  * @author Jeanfrancois Arcand
