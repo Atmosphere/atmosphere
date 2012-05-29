@@ -8,7 +8,7 @@
         var client = null;
         atmosphereOnLoad = function() {
             try {
-                client = new atmosphere.Client("comet");
+                client = new atmosphere.Client(getUrl());
                 if (client == null) {
                     alert("Failed to create client");
                     return;
@@ -53,6 +53,10 @@
             var name = /\W*function\s+([\w\$]+)\(/.exec(fn);
             if (!name)return 'No name';
             return name[1];
+        }
+        function getUrl() {
+            var loc = window.location;
+            return loc.protocol + "//" + loc.host + loc.pathname + "comet";
         }
         function doPost(message) {
             try {
