@@ -110,7 +110,7 @@ public class TomcatWebSocketUtil {
                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
 
             RequestFacade facade = (RequestFacade) hsr;
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true),
+            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.loadInMemory(req, true, config.isSupportSession()),
                     config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);

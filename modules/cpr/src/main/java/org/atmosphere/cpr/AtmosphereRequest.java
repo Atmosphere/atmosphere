@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -576,9 +577,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public HttpSession getSession() {
         if (session == null) {
-            session = !isNotNoOps() ?
-                    new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                    b.session != null ? b.session : b.request.getSession();
+            session = createSession();
+        } else {
+            //check if session is valid
+            try {
+                session.getLastAccessedTime();
+            } catch (IllegalStateException e) {
+                //session is not valid
+                LoggerFactory.getLogger(this.getClass()).debug("Discarding invalid session");
+                session = createSession();
+            }
         }
         return session;
     }
@@ -592,6 +600,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return getSession();
         }
         return session == null && isNotNoOps() ? b.request.getSession(false) : session;
+    }
+
+    private HttpSession createSession() {
+        return !isNotNoOps() ?
+                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
+                b.session != null ? b.session : b.request.getSession();
     }
 
     /**
@@ -1445,7 +1459,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest loadInMemory(HttpServletRequest request, boolean loadInMemory) {
+    public final static AtmosphereRequest loadInMemory(HttpServletRequest request, boolean loadInMemory, boolean copySession) {
         Builder b;
         HttpServletRequest r;
         boolean isWrapped = false;
@@ -1467,7 +1481,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(false)
-                .session(new FakeHttpSession(request.getSession(true)));
+                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
             r = new NoOpsRequest();
