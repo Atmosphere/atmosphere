@@ -97,7 +97,7 @@
 <a class="jxr_linenumber" name="87" href="#87">87</a>                  callback.onSuccess(<strong class="jxr_keyword">null</strong>);
 <a class="jxr_linenumber" name="88" href="#88">88</a>              }
 <a class="jxr_linenumber" name="89" href="#89">89</a>              @Override
-<a class="jxr_linenumber" name="90" href="#90">90</a>              String serialize(Serializable message) <strong class="jxr_keyword">throws</strong> SerializationException {
+<a class="jxr_linenumber" name="90" href="#90">90</a>              String serialize(Object message) <strong class="jxr_keyword">throws</strong> SerializationException {
 <a class="jxr_linenumber" name="91" href="#91">91</a>                  <strong class="jxr_keyword">return</strong> client.getSerializer().serialize(message);
 <a class="jxr_linenumber" name="92" href="#92">92</a>              }
 <a class="jxr_linenumber" name="93" href="#93">93</a>          };

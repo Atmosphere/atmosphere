@@ -187,7 +187,7 @@
 <a class="jxr_linenumber" name="177" href="#177">177</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> onMessages(JsArrayString arguments) {
 <a class="jxr_linenumber" name="178" href="#178">178</a>         collect();
 <a class="jxr_linenumber" name="179" href="#179">179</a>         <strong class="jxr_keyword">int</strong> length = arguments.length();
-<a class="jxr_linenumber" name="180" href="#180">180</a>         List&lt;Serializable&gt; messages = <strong class="jxr_keyword">new</strong> ArrayList&lt;Serializable&gt;(length);
+<a class="jxr_linenumber" name="180" href="#180">180</a>         List messages = <strong class="jxr_keyword">new</strong> ArrayList&lt;Serializable&gt;(length);
 <a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; length; i++) {
 <a class="jxr_linenumber" name="182" href="#182">182</a>             String message = arguments.get(i);
 <a class="jxr_linenumber" name="183" href="#183">183</a>             <strong class="jxr_keyword">switch</strong> (message.charAt(0)) {

@@ -41,7 +41,7 @@
 <a class="jxr_linenumber" name="31" href="#31">31</a>  
 <a class="jxr_linenumber" name="32" href="#32">32</a>      <strong class="jxr_keyword">abstract</strong> <strong class="jxr_keyword">void</strong> send(String message, AsyncCallback&lt;Void&gt; callback);
 <a class="jxr_linenumber" name="33" href="#33">33</a>  
-<a class="jxr_linenumber" name="34" href="#34">34</a>      <strong class="jxr_keyword">abstract</strong> String serialize(Serializable message) <strong class="jxr_keyword">throws</strong> SerializationException;
+<a class="jxr_linenumber" name="34" href="#34">34</a>      <strong class="jxr_keyword">abstract</strong> String serialize(Object message) <strong class="jxr_keyword">throws</strong> SerializationException;
 <a class="jxr_linenumber" name="35" href="#35">35</a>  
 <a class="jxr_linenumber" name="36" href="#36">36</a>      <strong class="jxr_keyword">private</strong> Logger logger = Logger.getLogger(getClass().getName());
 <a class="jxr_linenumber" name="37" href="#37">37</a>  
@@ -65,7 +65,7 @@
 <a class="jxr_linenumber" name="55" href="#55">55</a>      }
 <a class="jxr_linenumber" name="56" href="#56">56</a>  
 <a class="jxr_linenumber" name="57" href="#57">57</a>      @Override
-<a class="jxr_linenumber" name="58" href="#58">58</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Serializable message) {
+<a class="jxr_linenumber" name="58" href="#58">58</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Object message) {
 <a class="jxr_linenumber" name="59" href="#59">59</a>          <strong class="jxr_keyword">if</strong> (message instanceof String) {
 <a class="jxr_linenumber" name="60" href="#60">60</a>              send(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()), defaultCallback);
 <a class="jxr_linenumber" name="61" href="#61">61</a>          } <strong class="jxr_keyword">else</strong> {
@@ -78,9 +78,9 @@
 <a class="jxr_linenumber" name="68" href="#68">68</a>      }
 <a class="jxr_linenumber" name="69" href="#69">69</a>  
 <a class="jxr_linenumber" name="70" href="#70">70</a>      @Override
-<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List messages) {
 <a class="jxr_linenumber" name="72" href="#72">72</a>          StringBuilder packet = <strong class="jxr_keyword">new</strong> StringBuilder();
-<a class="jxr_linenumber" name="73" href="#73">73</a>          <strong class="jxr_keyword">for</strong> (Serializable message : messages) {
+<a class="jxr_linenumber" name="73" href="#73">73</a>          <strong class="jxr_keyword">for</strong> (Object message : messages) {
 <a class="jxr_linenumber" name="74" href="#74">74</a>              <strong class="jxr_keyword">if</strong> (message instanceof String) {
 <a class="jxr_linenumber" name="75" href="#75">75</a>                  packet.append(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()));
 <a class="jxr_linenumber" name="76" href="#76">76</a>              } <strong class="jxr_keyword">else</strong> {
@@ -97,7 +97,7 @@
 <a class="jxr_linenumber" name="87" href="#87">87</a>      }
 <a class="jxr_linenumber" name="88" href="#88">88</a>  
 <a class="jxr_linenumber" name="89" href="#89">89</a>      @Override
-<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="90" href="#90">90</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="91" href="#91">91</a>          <strong class="jxr_keyword">if</strong> (message instanceof String) {
 <a class="jxr_linenumber" name="92" href="#92">92</a>              send(pack(MessageType.STRING, ActionType.POST, message.toString()), callback);
 <a class="jxr_linenumber" name="93" href="#93">93</a>          } <strong class="jxr_keyword">else</strong> {
@@ -110,9 +110,9 @@
 <a class="jxr_linenumber" name="100" href="#100">100</a>     }
 <a class="jxr_linenumber" name="101" href="#101">101</a> 
 <a class="jxr_linenumber" name="102" href="#102">102</a>     @Override
-<a class="jxr_linenumber" name="103" href="#103">103</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="103" href="#103">103</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="104" href="#104">104</a>         StringBuilder packet = <strong class="jxr_keyword">new</strong> StringBuilder();
-<a class="jxr_linenumber" name="105" href="#105">105</a>         <strong class="jxr_keyword">for</strong> (Serializable message : messages) {
+<a class="jxr_linenumber" name="105" href="#105">105</a>         <strong class="jxr_keyword">for</strong> (Object message : messages) {
 <a class="jxr_linenumber" name="106" href="#106">106</a>             <strong class="jxr_keyword">if</strong> (message instanceof String) {
 <a class="jxr_linenumber" name="107" href="#107">107</a>                 packet.append(pack(MessageType.STRING, ActionType.POST, message.toString()));
 <a class="jxr_linenumber" name="108" href="#108">108</a>             } <strong class="jxr_keyword">else</strong> {

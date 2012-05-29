@@ -53,7 +53,7 @@
 <a class="jxr_linenumber" name="43" href="#43">43</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.client.AtmosphereClient;
 <a class="jxr_linenumber" name="44" href="#44">44</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 <a class="jxr_linenumber" name="45" href="#45">45</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.client.AtmosphereListener;
-<a class="jxr_linenumber" name="46" href="#46">46</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.client.SerialMode;
+<a class="jxr_linenumber" name="46" href="#46">46</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.shared.SerialMode;
 <a class="jxr_linenumber" name="47" href="#47">47</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.gwt.shared.Constants;
 <a class="jxr_linenumber" name="48" href="#48">48</a>  
 <a class="jxr_linenumber" name="49" href="#49">49</a>  <strong class="jxr_keyword">import</strong> java.io.Serializable;
@@ -81,22 +81,22 @@
 <a class="jxr_linenumber" name="71" href="#71">71</a>      }
 <a class="jxr_linenumber" name="72" href="#72">72</a>  
 <a class="jxr_linenumber" name="73" href="#73">73</a>      @Override
-<a class="jxr_linenumber" name="74" href="#74">74</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="74" href="#74">74</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="75" href="#75">75</a>          getServerTransport().post(message, callback);
 <a class="jxr_linenumber" name="76" href="#76">76</a>      }
 <a class="jxr_linenumber" name="77" href="#77">77</a>  
 <a class="jxr_linenumber" name="78" href="#78">78</a>      @Override
-<a class="jxr_linenumber" name="79" href="#79">79</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="79" href="#79">79</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="80" href="#80">80</a>          getServerTransport().post(messages, callback);
 <a class="jxr_linenumber" name="81" href="#81">81</a>      }
 <a class="jxr_linenumber" name="82" href="#82">82</a>  
 <a class="jxr_linenumber" name="83" href="#83">83</a>      @Override
-<a class="jxr_linenumber" name="84" href="#84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Serializable message) {
+<a class="jxr_linenumber" name="84" href="#84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Object message) {
 <a class="jxr_linenumber" name="85" href="#85">85</a>          getServerTransport().broadcast(message);
 <a class="jxr_linenumber" name="86" href="#86">86</a>      }
 <a class="jxr_linenumber" name="87" href="#87">87</a>  
 <a class="jxr_linenumber" name="88" href="#88">88</a>      @Override
-<a class="jxr_linenumber" name="89" href="#89">89</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="89" href="#89">89</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List messages) {
 <a class="jxr_linenumber" name="90" href="#90">90</a>          getServerTransport().broadcast(messages);
 <a class="jxr_linenumber" name="91" href="#91">91</a>      }
 <a class="jxr_linenumber" name="92" href="#92">92</a>  
@@ -144,7 +144,7 @@
 <a class="jxr_linenumber" name="134" href="#134">134</a>         }
 <a class="jxr_linenumber" name="135" href="#135">135</a> 
 <a class="jxr_linenumber" name="136" href="#136">136</a>         @Override
-<a class="jxr_linenumber" name="137" href="#137">137</a>         <strong class="jxr_keyword">public</strong> String serialize(Serializable message) <strong class="jxr_keyword">throws</strong> SerializationException {
+<a class="jxr_linenumber" name="137" href="#137">137</a>         <strong class="jxr_keyword">public</strong> String serialize(Object message) <strong class="jxr_keyword">throws</strong> SerializationException {
 <a class="jxr_linenumber" name="138" href="#138">138</a>             <strong class="jxr_keyword">return</strong> client.getSerializer().serialize(message);
 <a class="jxr_linenumber" name="139" href="#139">139</a>         }
 <a class="jxr_linenumber" name="140" href="#140">140</a> 
@@ -152,39 +152,49 @@
 <a class="jxr_linenumber" name="142" href="#142">142</a>             <strong class="jxr_keyword">int</strong> i = client.getUrl().indexOf('?');
 <a class="jxr_linenumber" name="143" href="#143">143</a>             String serviceUrl = (i &gt; 0 ? client.getUrl().substring(0, i) : client.getUrl())
 <a class="jxr_linenumber" name="144" href="#144">144</a>                     + <span class="jxr_string">"?servertransport=rpcprotocol&amp;connectionID="</span> + connectionId;
-<a class="jxr_linenumber" name="145" href="#145">145</a>             <strong class="jxr_keyword">return</strong> serviceUrl;
-<a class="jxr_linenumber" name="146" href="#146">146</a>         }
-<a class="jxr_linenumber" name="147" href="#147">147</a> 
-<a class="jxr_linenumber" name="148" href="#148">148</a>     }
+<a class="jxr_linenumber" name="145" href="#145">145</a>             
+<a class="jxr_linenumber" name="146" href="#146">146</a>             serviceUrl = addUrlParameter(serviceUrl, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
+<a class="jxr_linenumber" name="147" href="#147">147</a>             <strong class="jxr_keyword">return</strong> serviceUrl;
+<a class="jxr_linenumber" name="148" href="#148">148</a>         }
 <a class="jxr_linenumber" name="149" href="#149">149</a> 
-<a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">protected</strong> Serializable parse(String message) <strong class="jxr_keyword">throws</strong> SerializationException {
-<a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">if</strong> (message == <strong class="jxr_keyword">null</strong> || message.isEmpty()) {
-<a class="jxr_linenumber" name="152" href="#152">152</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="153" href="#153">153</a>         }
-<a class="jxr_linenumber" name="154" href="#154">154</a>         <a href="../../../../../org/atmosphere/gwt/client/AtmosphereGWTSerializer.html">AtmosphereGWTSerializer</a> serializer = client.getSerializer();
-<a class="jxr_linenumber" name="155" href="#155">155</a>         <strong class="jxr_keyword">if</strong> (serializer == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="156" href="#156">156</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> SerializationException(<span class="jxr_string">"Can not deserialize message with no serializer: "</span> + message);
-<a class="jxr_linenumber" name="157" href="#157">157</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="158" href="#158">158</a>             <strong class="jxr_keyword">return</strong> serializer.parse(message);
-<a class="jxr_linenumber" name="159" href="#159">159</a>         }
-<a class="jxr_linenumber" name="160" href="#160">160</a>     }
-<a class="jxr_linenumber" name="161" href="#161">161</a> 
-<a class="jxr_linenumber" name="162" href="#162">162</a> 
-<a class="jxr_linenumber" name="163" href="#163">163</a>     <strong class="jxr_keyword">public</strong> String getUrl(<strong class="jxr_keyword">int</strong> connectionCount) {
-<a class="jxr_linenumber" name="164" href="#164">164</a>         String url = client.getUrl();
-<a class="jxr_linenumber" name="165" href="#165">165</a>         <strong class="jxr_keyword">if</strong> (client.getSerializer() != <strong class="jxr_keyword">null</strong> &amp;&amp; client.getSerializer().getMode() == SerialMode.DE_RPC) {
-<a class="jxr_linenumber" name="166" href="#166">166</a>             url += (url.contains(<span class="jxr_string">"?"</span>) ? <span class="jxr_string">"&amp;"</span> : <span class="jxr_string">"?"</span>) + Constants.MODULE_BASE_PARAMETER + '=' + GWT.getModuleBaseURL() + '&amp;' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName();
-<a class="jxr_linenumber" name="167" href="#167">167</a>         }
-<a class="jxr_linenumber" name="168" href="#168">168</a>         String className = getClass().getName();
-<a class="jxr_linenumber" name="169" href="#169">169</a>         className = className.substring(className.lastIndexOf('.') + 1);
-<a class="jxr_linenumber" name="170" href="#170">170</a>         String transport = className.substring(0, className.indexOf(<span class="jxr_string">"CometTransport"</span>));
-<a class="jxr_linenumber" name="171" href="#171">171</a>         <strong class="jxr_keyword">return</strong> url + (url.contains(<span class="jxr_string">"?"</span>) ? <span class="jxr_string">"&amp;"</span> : <span class="jxr_string">"?"</span>)
-<a class="jxr_linenumber" name="172" href="#172">172</a>                 + <span class="jxr_string">"t="</span> + Integer.toString((<strong class="jxr_keyword">int</strong>) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
-<a class="jxr_linenumber" name="173" href="#173">173</a>                 + <span class="jxr_string">"&amp;c="</span> + connectionCount
-<a class="jxr_linenumber" name="174" href="#174">174</a>                 + <span class="jxr_string">"&amp;tr="</span> + transport;
-<a class="jxr_linenumber" name="175" href="#175">175</a>     }
-<a class="jxr_linenumber" name="176" href="#176">176</a> 
-<a class="jxr_linenumber" name="177" href="#177">177</a> }
+<a class="jxr_linenumber" name="150" href="#150">150</a>     }
+<a class="jxr_linenumber" name="151" href="#151">151</a> 
+<a class="jxr_linenumber" name="152" href="#152">152</a>     <strong class="jxr_keyword">protected</strong> Object parse(String message) <strong class="jxr_keyword">throws</strong> SerializationException {
+<a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">if</strong> (message == <strong class="jxr_keyword">null</strong> || message.isEmpty()) {
+<a class="jxr_linenumber" name="154" href="#154">154</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="155" href="#155">155</a>         }
+<a class="jxr_linenumber" name="156" href="#156">156</a>         <a href="../../../../../org/atmosphere/gwt/client/AtmosphereGWTSerializer.html">AtmosphereGWTSerializer</a> serializer = client.getSerializer();
+<a class="jxr_linenumber" name="157" href="#157">157</a>         <strong class="jxr_keyword">if</strong> (serializer == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="158" href="#158">158</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> SerializationException(<span class="jxr_string">"Can not deserialize message without serializer: "</span> + message);
+<a class="jxr_linenumber" name="159" href="#159">159</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="160" href="#160">160</a>             <strong class="jxr_keyword">return</strong> serializer.deserialize(message);
+<a class="jxr_linenumber" name="161" href="#161">161</a>         }
+<a class="jxr_linenumber" name="162" href="#162">162</a>     }
+<a class="jxr_linenumber" name="163" href="#163">163</a> 
+<a class="jxr_linenumber" name="164" href="#164">164</a> 
+<a class="jxr_linenumber" name="165" href="#165">165</a>     <strong class="jxr_keyword">public</strong> String getUrl(<strong class="jxr_keyword">int</strong> connectionCount) {
+<a class="jxr_linenumber" name="166" href="#166">166</a>         String url = client.getUrl();
+<a class="jxr_linenumber" name="167" href="#167">167</a>         <strong class="jxr_keyword">if</strong> (client.getSerializer() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="168" href="#168">168</a>             <strong class="jxr_keyword">if</strong> (client.getSerializer().getMode() == SerialMode.DE_RPC) {
+<a class="jxr_linenumber" name="169" href="#169">169</a>                 url = addUrlParameter(url, Constants.MODULE_BASE_PARAMETER, 
+<a class="jxr_linenumber" name="170" href="#170">170</a>                     GWT.getModuleBaseURL() + '&amp;' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName());
+<a class="jxr_linenumber" name="171" href="#171">171</a>             }
+<a class="jxr_linenumber" name="172" href="#172">172</a>             url = addUrlParameter(url, Constants.CLIENT_DESERIALZE_MODE_PARAMETER, client.getSerializer().getMode().name());
+<a class="jxr_linenumber" name="173" href="#173">173</a>             url = addUrlParameter(url, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
+<a class="jxr_linenumber" name="174" href="#174">174</a>         }
+<a class="jxr_linenumber" name="175" href="#175">175</a>         String className = getClass().getName();
+<a class="jxr_linenumber" name="176" href="#176">176</a>         className = className.substring(className.lastIndexOf('.') + 1);
+<a class="jxr_linenumber" name="177" href="#177">177</a>         String transport = className.substring(0, className.indexOf(<span class="jxr_string">"CometTransport"</span>));
+<a class="jxr_linenumber" name="178" href="#178">178</a>         <strong class="jxr_keyword">return</strong> addUrlParameter(url, <span class="jxr_string">"t"</span>, Integer.toString((<strong class="jxr_keyword">int</strong>) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
+<a class="jxr_linenumber" name="179" href="#179">179</a>                 + <span class="jxr_string">"&amp;c="</span> + connectionCount
+<a class="jxr_linenumber" name="180" href="#180">180</a>                 + <span class="jxr_string">"&amp;tr="</span> + transport);
+<a class="jxr_linenumber" name="181" href="#181">181</a>     }
+<a class="jxr_linenumber" name="182" href="#182">182</a>     
+<a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">public</strong> String addUrlParameter(String url, String name, String value) {
+<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">return</strong> url + (url.contains(<span class="jxr_string">"?"</span>) ? <span class="jxr_string">"&amp;"</span> : <span class="jxr_string">"?"</span>) + name + <span class="jxr_string">"="</span> + value;
+<a class="jxr_linenumber" name="185" href="#185">185</a>     }
+<a class="jxr_linenumber" name="186" href="#186">186</a> 
+<a class="jxr_linenumber" name="187" href="#187">187</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

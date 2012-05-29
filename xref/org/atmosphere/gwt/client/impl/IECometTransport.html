@@ -63,22 +63,22 @@
 <a class="jxr_linenumber" name="53" href="#53">53</a>      }
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
 <a class="jxr_linenumber" name="55" href="#55">55</a>      @Override
-<a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="57" href="#57">57</a>          transport.post(message, callback);
 <a class="jxr_linenumber" name="58" href="#58">58</a>      }
 <a class="jxr_linenumber" name="59" href="#59">59</a>  
 <a class="jxr_linenumber" name="60" href="#60">60</a>      @Override
-<a class="jxr_linenumber" name="61" href="#61">61</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="61" href="#61">61</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="62" href="#62">62</a>          transport.post(messages, callback);
 <a class="jxr_linenumber" name="63" href="#63">63</a>      }
 <a class="jxr_linenumber" name="64" href="#64">64</a>  
 <a class="jxr_linenumber" name="65" href="#65">65</a>      @Override
-<a class="jxr_linenumber" name="66" href="#66">66</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Serializable message) {
+<a class="jxr_linenumber" name="66" href="#66">66</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Object message) {
 <a class="jxr_linenumber" name="67" href="#67">67</a>          transport.broadcast(message);
 <a class="jxr_linenumber" name="68" href="#68">68</a>      }
 <a class="jxr_linenumber" name="69" href="#69">69</a>  
 <a class="jxr_linenumber" name="70" href="#70">70</a>      @Override
-<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List messages) {
 <a class="jxr_linenumber" name="72" href="#72">72</a>          transport.broadcast(messages);
 <a class="jxr_linenumber" name="73" href="#73">73</a>      }
 <a class="jxr_linenumber" name="74" href="#74">74</a>  

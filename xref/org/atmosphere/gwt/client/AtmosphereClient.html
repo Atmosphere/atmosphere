@@ -180,32 +180,32 @@
 <a class="jxr_linenumber" name="170" href="#170">170</a>     }
 <a class="jxr_linenumber" name="171" href="#171">171</a> 
 <a class="jxr_linenumber" name="172" href="#172">172</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="173" href="#173">173</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message) {
+<a class="jxr_linenumber" name="173" href="#173">173</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message) {
 <a class="jxr_linenumber" name="174" href="#174">174</a>         primaryTransport.post(message, postCallback);
 <a class="jxr_linenumber" name="175" href="#175">175</a>     }
 <a class="jxr_linenumber" name="176" href="#176">176</a> 
 <a class="jxr_linenumber" name="177" href="#177">177</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="178" href="#178">178</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="178" href="#178">178</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="179" href="#179">179</a>         primaryTransport.post(message, callback);
 <a class="jxr_linenumber" name="180" href="#180">180</a>     }
 <a class="jxr_linenumber" name="181" href="#181">181</a> 
 <a class="jxr_linenumber" name="182" href="#182">182</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages) {
 <a class="jxr_linenumber" name="184" href="#184">184</a>         primaryTransport.post(messages, postCallback);
 <a class="jxr_linenumber" name="185" href="#185">185</a>     }
 <a class="jxr_linenumber" name="186" href="#186">186</a> 
 <a class="jxr_linenumber" name="187" href="#187">187</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="188" href="#188">188</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="188" href="#188">188</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="189" href="#189">189</a>         primaryTransport.post(messages, callback);
 <a class="jxr_linenumber" name="190" href="#190">190</a>     }
 <a class="jxr_linenumber" name="191" href="#191">191</a> 
 <a class="jxr_linenumber" name="192" href="#192">192</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="193" href="#193">193</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Serializable message) {
+<a class="jxr_linenumber" name="193" href="#193">193</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Object message) {
 <a class="jxr_linenumber" name="194" href="#194">194</a>         primaryTransport.broadcast(message);
 <a class="jxr_linenumber" name="195" href="#195">195</a>     }
 <a class="jxr_linenumber" name="196" href="#196">196</a> 
 <a class="jxr_linenumber" name="197" href="#197">197</a>     <em class="jxr_comment">// push message back to the server on this connection</em>
-<a class="jxr_linenumber" name="198" href="#198">198</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="198" href="#198">198</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List messages) {
 <a class="jxr_linenumber" name="199" href="#199">199</a>         primaryTransport.broadcast(messages);
 <a class="jxr_linenumber" name="200" href="#200">200</a>     }
 <a class="jxr_linenumber" name="201" href="#201">201</a> 
@@ -450,19 +450,19 @@
 <a class="jxr_linenumber" name="440" href="#440">440</a>             transport.initiate(AtmosphereClient.<strong class="jxr_keyword">this</strong>, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="441" href="#441">441</a>         }
 <a class="jxr_linenumber" name="442" href="#442">442</a> 
-<a class="jxr_linenumber" name="443" href="#443">443</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Serializable message, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="443" href="#443">443</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(Object message, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="444" href="#444">444</a>             transport.post(message, callback);
 <a class="jxr_linenumber" name="445" href="#445">445</a>         }
 <a class="jxr_linenumber" name="446" href="#446">446</a> 
-<a class="jxr_linenumber" name="447" href="#447">447</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List&lt;Serializable&gt; messages, AsyncCallback&lt;Void&gt; callback) {
+<a class="jxr_linenumber" name="447" href="#447">447</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> post(List messages, AsyncCallback&lt;Void&gt; callback) {
 <a class="jxr_linenumber" name="448" href="#448">448</a>             transport.post(messages, callback);
 <a class="jxr_linenumber" name="449" href="#449">449</a>         }
 <a class="jxr_linenumber" name="450" href="#450">450</a> 
-<a class="jxr_linenumber" name="451" href="#451">451</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Serializable message) {
+<a class="jxr_linenumber" name="451" href="#451">451</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(Object message) {
 <a class="jxr_linenumber" name="452" href="#452">452</a>             transport.broadcast(message);
 <a class="jxr_linenumber" name="453" href="#453">453</a>         }
 <a class="jxr_linenumber" name="454" href="#454">454</a> 
-<a class="jxr_linenumber" name="455" href="#455">455</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List&lt;Serializable&gt; messages) {
+<a class="jxr_linenumber" name="455" href="#455">455</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> broadcast(List messages) {
 <a class="jxr_linenumber" name="456" href="#456">456</a>             transport.broadcast(messages);
 <a class="jxr_linenumber" name="457" href="#457">457</a>         }
 <a class="jxr_linenumber" name="458" href="#458">458</a> 
@@ -546,7 +546,7 @@
 <a class="jxr_linenumber" name="536" href="#536">536</a>         }
 <a class="jxr_linenumber" name="537" href="#537">537</a> 
 <a class="jxr_linenumber" name="538" href="#538">538</a>         @Override
-<a class="jxr_linenumber" name="539" href="#539">539</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(List&lt;? <strong class="jxr_keyword">extends</strong> Serializable&gt; messages) {
+<a class="jxr_linenumber" name="539" href="#539">539</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(List messages) {
 <a class="jxr_linenumber" name="540" href="#540">540</a>             lastReceivedTime = Duration.currentTimeMillis();
 <a class="jxr_linenumber" name="541" href="#541">541</a>             doOnMessage(messages, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="542" href="#542">542</a>         }
