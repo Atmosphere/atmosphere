@@ -96,7 +96,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     public void shutdown() {
         WebSocketEngine.getEngine().unregister(application);
         super.shutdown();
-     }
+    }
 
     /**
      * {@inheritDoc}
@@ -131,7 +131,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     private final static class GrizzlyApplication extends WebSocketApplication {
 
         private final AtmosphereConfig config;
-        private WebSocketProcessor webSocketProcessor;
 
         public GrizzlyApplication(AtmosphereConfig config) {
             this.config = config;
@@ -159,7 +158,9 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
                     logger.trace("", e);
                 }
 
-                webSocketProcessor = new WebSocketProcessor(config.framework(), new GrizzlyWebSocket(webSocket, config), config.framework().getWebSocketProtocol());
+                WebSocketProcessor webSocketProcessor = new WebSocketProcessor(config.framework(),
+                        new GrizzlyWebSocket(webSocket, config), config.framework().getWebSocketProtocol());
+                webSocket.getRequest().setAttribute("grizzly.webSocketProcessor", webSocketProcessor);
                 webSocketProcessor.dispatch(r);
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
@@ -175,20 +176,31 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         public void onClose(com.sun.grizzly.websockets.WebSocket w, DataFrame df) {
             super.onClose(w, df);
             logger.trace("onClose {} ", w);
-            // TODO: Need to talk to Ryan about that one.
-            webSocketProcessor.close(1000);
+            DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
+            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
+                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+                webSocketProcessor.close(1000);
+            }
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, String text) {
             logger.trace("onMessage {} ", w);
-            webSocketProcessor.invokeWebSocketProtocol(text);
+            DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
+            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
+                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+                webSocketProcessor.invokeWebSocketProtocol(text);
+            }
         }
 
         @Override
         public void onMessage(com.sun.grizzly.websockets.WebSocket w, byte[] bytes) {
             logger.trace("onMessage (bytes) {} ", w);
-            webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
+            DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
+            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
+                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+                webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
+            }
         }
 
         @Override
