@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -54,11 +53,11 @@ public abstract class XHRTransport extends AbstractTransport {
 	protected abstract class XHRSessionHelper implements SocketIOSessionOutbound {
 		protected final SocketIOSession session;
 		private volatile boolean is_open = false;
-		private final boolean isConnectionPersistant;
+		private final boolean isStreamingConnection;
 
 		XHRSessionHelper(SocketIOSession session, boolean isConnectionPersistant) {
 			this.session = session;
-			this.isConnectionPersistant = isConnectionPersistant;
+			this.isStreamingConnection = isConnectionPersistant;
 		}
 
 		protected abstract void startSend(HttpServletResponse response) throws IOException;
@@ -104,10 +103,10 @@ public abstract class XHRTransport extends AbstractTransport {
 						try {
 							sendMessage(msg.toString());
 						} catch (Exception e) {
-							// on va chercher le resource
+							
 							AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
 							
-							// on met le message dans le BroadcastCache
+							// if BroadcastCache is available, add the message to the cache
 							if(resource!=null && DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
 								
 								DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.addToCache(resource, msg);
@@ -116,7 +115,7 @@ public abstract class XHRTransport extends AbstractTransport {
 						}
     						break;
     					default:
-    						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
+    						logger.error("Unknown SocketIOEvent msg = " + msg );
     				}
     			}
 			}
@@ -124,32 +123,22 @@ public abstract class XHRTransport extends AbstractTransport {
 		
 		@Override
 		public void sendMessage(String message) throws SocketIOException {
-			logger.error("Session[" + session.getSessionId() + "]: " + "sendMessage(String): " + message);
+			logger.trace("Session[" + session.getSessionId() + "]: " + "sendMessage(String): " + message);
 			
 			synchronized (this) {
 				if (is_open) {
 					
-					// on va chercher le resource
 					AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
 					
-					logger.error("Session[" + session.getSessionId() + "]: " + resource.getRequest().getMethod() + "sendMessage");
+					logger.trace("Session[" + session.getSessionId() + "]: " + resource.getRequest().getMethod() + "sendMessage");
 					
 					if (resource != null) {
 						
 						try {
 							writeData(resource.getResponse(), message);
 						} catch (Exception e) {
-							// possible que la connection soit fermee.
-							// ex : browser ferme.
-							//e.printStackTrace();
-							
-							// TODO on doit remettre le message dans la queue si c'est utile
-							// genre ne pas mettre les heartbeat et ping
-							
-							// DEBUG, je pense que tout ce bout est inutile
-							// car il y a eu une erreur lors de l'envoi
 							if(!resource.isCancelled()){
-								logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
+								logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
 								try {
 									finishSend(resource.getResponse());
 								} catch (IOException ex) {
@@ -160,7 +149,7 @@ public abstract class XHRTransport extends AbstractTransport {
 							}
 							throw new SocketIOException(e);
 						}
-						if (!isConnectionPersistant) {
+						if (!isStreamingConnection) {
 							try {
 								finishSend(resource.getResponse());
 							} catch (IOException e) {
@@ -168,24 +157,15 @@ public abstract class XHRTransport extends AbstractTransport {
 							}
 							resource.resume();
 						} else {
-							logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage");
+							logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage");
 							session.startHeartbeatTimer();
 						}
 					} else {
-						/*
-						String data = message;
-						if (cache.putMessage(data, maxIdleTime) == false) {
-							logger.error("calling from " + this.getClass().getName() + " : " + "On Disconnect sur sendMessage parce que resource==null");
-							session.onDisconnect(DisconnectReason.TIMEOUT);
-							abort();
-							throw new SocketIOException();
-						}
-						*/
-						logger.error("calling from " + this.getClass().getName() + " : " + "On Disconnect sur sendMessage parce que resource==null");
+						logger.trace("calling from " + this.getClass().getName() + " : " + "On Disconnect resource==null");
 						throw new SocketIOException();
 					}
 				} else {
-					logger.error("calling from " + this.getClass().getName() + " : " + "SocketIOClosedException sendMessage");
+					logger.trace("calling from " + this.getClass().getName() + " : " + "SocketIOClosedException sendMessage");
 					throw new SocketIOClosedException();
 				}
 			}
@@ -194,7 +174,7 @@ public abstract class XHRTransport extends AbstractTransport {
 
 		@Override
 		public Action handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
-			logger.warn("Session id[" + session.getSessionId()+ "] method=" + request.getMethod() + "  response HashCode=" + response.hashCode());
+			logger.trace("Session id[" + session.getSessionId()+ "] method=" + request.getMethod() + "  response HashCode=" + response.hashCode());
 			
 			AtmosphereResourceImpl resource = (AtmosphereResourceImpl)request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
 			
@@ -205,14 +185,14 @@ public abstract class XHRTransport extends AbstractTransport {
 					if (!is_open) {
 						response.sendError(HttpServletResponse.SC_NOT_FOUND);
 					} else {
-						if (!isConnectionPersistant) {
+						if (!isStreamingConnection) {
 							
 							if(resource!=null){
 								
 								resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 								
-								// pour le broadcast
-								resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
+								// for the Broadcaster
+								resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, session.getTransportHandler());
 								
 								session.setAtmosphereResourceImpl(resource);
 								
@@ -251,7 +231,7 @@ public abstract class XHRTransport extends AbstractTransport {
 								
 								StringBuilder data = new StringBuilder();
 								
-								// on va regarder s'il y a des messages dans le BroadcastCache
+								// if there is a Broadcaster cache, retrieve the messages from the cache, and send them
 								if(DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())){
 									
 									List<Object> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.retrieveFromCache(resource);
@@ -267,25 +247,25 @@ public abstract class XHRTransport extends AbstractTransport {
 										}
 									}
 									
-									// avons-nous du data a envoyer ?
+									// something to send ?
 									if(data.toString().length()>0){
 										startSend(response);
 										writeData(response, data.toString());
 										finishSend(response);
 										
-										// on vient d'envoyer du data, donc on resume
+										// force a resume, because we sent data
 										resource.resume();
 									} else {
 										resource.suspend(session.getRequestSuspendTime(), false);
 									}
 								} else {
-									// on suspend donc la request
+									// suspend the request
 									
 									resource.suspend(session.getRequestSuspendTime(), false);
 									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 									
-									// pour le broadcast
-									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, session.getTransportHandler());
+									// for the Broadcaster
+									resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, session.getTransportHandler());
 									
 									session.setAtmosphereResourceImpl(resource);
 								}
@@ -295,7 +275,7 @@ public abstract class XHRTransport extends AbstractTransport {
 							
 								
 						} else {
-							// ce cas n'est pas prevu pour le moment, mais ca serait pour le xhr-streaming
+							// won't happend, by should be for xhr-streaming transport
 							response.sendError(HttpServletResponse.SC_NOT_FOUND);
 						}
 					}
@@ -319,7 +299,7 @@ public abstract class XHRTransport extends AbstractTransport {
 									
 									if(msg.getFrameType().equals(SocketIOPacketImpl.PacketType.EVENT)){
 										
-										// ecrit sur la connection en suspend
+										// send message on the suspended request
 										session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 										//session.getAtmosphereResourceImpl().resume();
 										writeData(response, SocketIOPacketImpl.POST_RESPONSE);
@@ -333,8 +313,7 @@ public abstract class XHRTransport extends AbstractTransport {
 						}
 					}
 					
-					// DEBUG
-					// on ne suspend pas les POST 
+					// force a resume on a POST request 
 					resource.resume();
 					return Action.CANCELLED;
 				}
@@ -362,12 +341,9 @@ public abstract class XHRTransport extends AbstractTransport {
 			session.onConnect(resource, this);
 			finishSend(response);
 			
-			if(isConnectionPersistant){
+			if(isStreamingConnection){
 				resource.suspend();
-			} else {
-				//HACK pour le suspend dans JETTY
-        		request.setAttribute("HACK", Boolean.TRUE);
-			}
+			} 
 			
 			
 		}
@@ -380,7 +356,7 @@ public abstract class XHRTransport extends AbstractTransport {
 			is_open = false;
 			session.onShutdown();
 			
-			//DEBUG PAS SUR DE CE CAS.
+			// force a resume 
 			session.getAtmosphereResourceImpl().resume();
 		}
 		
@@ -406,8 +382,8 @@ public abstract class XHRTransport extends AbstractTransport {
 			session = sessionFactory.createSession(resource, atmosphereHandler);
 			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 			
-			// pour le broadcast
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, atmosphereHandler);
+			// for the Broadcaster
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, atmosphereHandler);
 		}
 		
 		XHRSessionHelper handler = createHelper(session);
@@ -420,7 +396,7 @@ public abstract class XHRTransport extends AbstractTransport {
 	}
 	
 	@Override
-	public Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
@@ -450,7 +426,7 @@ public abstract class XHRTransport extends AbstractTransport {
 				}
 			} else {
 				if(!isDisconnectRequest){
-					// on fait un connect
+					// handle the Connect
 					session = connect(session, resource, atmosphereHandler, sessionFactory);
 					if (session == null) {
 						response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
@@ -460,7 +436,7 @@ public abstract class XHRTransport extends AbstractTransport {
 				}
 			}
 		} else if (sessionId != null && sessionId.length() > 0) {
-			logger.error("Session NULL but not sessionId : Soit un mauvais sessionID ou il y a eu un DISCONNECT");
+			logger.trace("Session NULL but not sessionId : wrong session id or the connection was DISCONNECTED");
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
 		} else {
 			if ("GET".equals(request.getMethod())) {

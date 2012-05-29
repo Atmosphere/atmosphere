@@ -32,11 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Ceci est pour debugger.  S'il n'y a pas de modifications, on prendra
- * celui dans le module runtime
- * 
- * Ceci est dans le bug de debugger le broadcast et le cache lors des connections
- * long-polling
+ * Only for debugging.  In the final release, {@link org.atmosphere.util.ExcludeSessionBroadcaster} will be used
  * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
  */

@@ -25,27 +25,20 @@ import org.atmosphere.protocol.socketio.protocol1.transport.SocketIOPacketImpl;
  *
  */
 public interface SocketIOOutbound {
-    /**
-     * Terminate the connection. This method may return before the connection disconnect
-     * completes. The onDisconnect() method of the associated SocketInbound will be called
-     * when the disconnect is completed. The onDisconnect() method may be called during the
-     * invocation of this method.
+    
+	/**
+     * disconnect the current connection
      */
     void disconnect();
 
     /**
-     * Initiate an orderly close of the connection. The state will be changed to CLOSING so no
-     * new messages can be sent, but messages may still arrive until the distant end has
-     * acknowledged the close.
+     * force close connection
      */
     void close();
 
 
     /**
-     * Send a message to the client. This method will block if the message will not fit in the
-     * outbound buffer.
-     * If the socket is closed, becomes closed, or times out, while trying to send the message,
-     * the SocketClosedException will be thrown.
+     * Send a message to the client. If the session is still active, the message will be cached if the connection is closed.
      *
      * @param message The message to send
      * @throws SocketIOException
@@ -53,10 +46,7 @@ public interface SocketIOOutbound {
     void sendMessage(String message) throws SocketIOException;
     
     /**
-     * Send a message to the client. This method will block if the message will not fit in the
-     * outbound buffer.
-     * If the socket is closed, becomes closed, or times out, while trying to send the message,
-     * the SocketClosedException will be thrown.
+     * Send a message to the client formatted is SocketIO format. If the session is still active, the message will be cached if the connection is closed.
      *
      * @param message The message to send
      * @throws SocketIOException
@@ -64,10 +54,7 @@ public interface SocketIOOutbound {
     void sendMessage(SocketIOPacket packet) throws SocketIOException;
     
     /**
-     * Send a message to the client. This method will block if the message will not fit in the
-     * outbound buffer.
-     * If the socket is closed, becomes closed, or times out, while trying to send the message,
-     * the SocketClosedException will be thrown.
+     * Send messages to the client. If the session is still active, the messages will be cached if the connection is closed.
      *
      * @param message The message to send
      * @throws SocketIOException

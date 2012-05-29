@@ -24,36 +24,108 @@ import org.atmosphere.protocol.socketio.transport.DisconnectReason;
  *
  */
 public interface SocketIOSession {
+	
+	/**
+	 * Generate the session id
+	 * @param length session id length
+	 * @return
+	 */
 	String generateRandomString(int length);
 	
+	/**
+	 * 
+	 * @return the session id for this session
+	 */
 	String getSessionId();
 
-	
+	/**
+	 * 
+	 * @return
+	 */
 	SocketIOAtmosphereHandler getSocketIOAtmosphereHandler();
 	
+	/**
+	 * 
+	 * @return
+	 */
 	AtmosphereResourceImpl getAtmosphereResourceImpl();
 	
+	/**
+	 * 
+	 * @param resource
+	 */
 	void setAtmosphereResourceImpl(AtmosphereResourceImpl resource);
 
+	/**
+	 * 
+	 * @return
+	 */
 	SocketIOSessionOutbound getTransportHandler();
 	
+	/**
+	 * 
+	 * @param delay
+	 */
 	void setHeartbeat(long delay);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getHeartbeat();
 	
+	/**
+	 * 
+	 */
 	void sendHeartBeat();
 	
+	/**
+	 * 
+	 * @param timeout
+	 */
 	void setTimeout(long timeout);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getTimeout();
 	
+	/**
+	 * 
+	 */
 	void timeout();
 
+	/**
+	 * 
+	 */
 	void startTimeoutTimer();
+	
+	/**
+	 * 
+	 */
 	void clearTimeoutTimer();
 
+	/**
+	 * 
+	 */
 	void startHeartbeatTimer();
+	
+	/**
+	 * 
+	 */
 	void clearHeartbeatTimer();
 	
+	/**
+	 * 
+	 * @param suspendTime
+	 */
 	void setRequestSuspendTime(long suspendTime);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getRequestSuspendTime();
 
 	/**
@@ -61,6 +133,10 @@ public interface SocketIOSession {
 	 */
 	void startClose();
 
+	/**
+	 * 
+	 * @param data
+	 */
 	void onClose(String data);
 
 	/**

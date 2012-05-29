@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.protocol.socketio.SocketIOAtmosphereHandler;
 import org.atmosphere.protocol.socketio.SocketIOException;
@@ -56,15 +55,17 @@ public class WebSocketTransport extends AbstractTransport {
 	}
 
 	@Override
-	public Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+	public Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
 		
+		/*
 		if(processor!=null && !processor.supportWebSocket()){
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
 			return Action.CONTINUE;
 		}
+		*/
 		
 		Object obj = request.getAttribute(SESSION_KEY);
 		SocketIOSession session = null;
@@ -87,7 +88,7 @@ public class WebSocketTransport extends AbstractTransport {
 				
 				request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 				
-		        // on ajoute par default un websocketListener
+		        // add a default websocketListener
 		        SocketIOWebSocketEventListener socketioEventListener = new SocketIOWebSocketEventListener();
 		        resource.addEventListener(socketioEventListener);
 				
@@ -95,7 +96,7 @@ public class WebSocketTransport extends AbstractTransport {
 		        
 		        socketioEventListener.setSessionWrapper(sessionWrapper);
 		        
-		        request.setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, sessionWrapper);
+		        request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, sessionWrapper);
 		        
 				resource.suspend(-1, false);
 				
@@ -128,7 +129,7 @@ public class WebSocketTransport extends AbstractTransport {
            * @see org.eclipse.jetty.websocket.WebSocket#onDisconnect()
            */
 		public void onDisconnect() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "onDisconnect");
 			session.onShutdown();
 		}
 		
@@ -137,7 +138,7 @@ public class WebSocketTransport extends AbstractTransport {
 		 * @see org.eclipse.jetty.websocket.WebSocket#onMessage(byte, java.lang.String)
 		 */
 		public void onMessage(byte frame, String message) {
-			logger.error("calling from " + this.getClass().getName() + " : " + "onMessage");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "onMessage");
 			
 			throw new RuntimeException("Devrait pas arriver");
 		}
@@ -147,7 +148,7 @@ public class WebSocketTransport extends AbstractTransport {
 		 * @see org.eclipse.jetty.websocket.WebSocket#onMessage(byte, byte[], int, int)
 		 */
 		public void onMessage(byte frame, byte[] data, int offset, int length) {
-			logger.error("calling from " + this.getClass().getName() + " : " + "onMessage frame, data, offest, length");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "onMessage frame, data, offest, length");
             try
             {
                 onMessage(frame,new String(data,offset,length,"UTF-8"));
@@ -164,7 +165,7 @@ public class WebSocketTransport extends AbstractTransport {
 		 */
 		@Override
 		public void disconnect() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "disconnect");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "disconnect");
 			session.onDisconnect(DisconnectReason.DISCONNECT);
 			try {
 				webSocket.close();
@@ -176,7 +177,7 @@ public class WebSocketTransport extends AbstractTransport {
 
 		@Override
 		public void close() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "close");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "close");
 			session.startClose();
 		}
 
@@ -201,7 +202,7 @@ public class WebSocketTransport extends AbstractTransport {
     						sendMessage(msg.toString());
     						break;
     					default:
-    						logger.error("DEVRAIT PAS ARRIVER onStateChange SocketIOEvent msg = " + msg );
+    						logger.error("Unknown SocketIOEvent msg = " + msg );
     				}
     			}
 			}
@@ -213,12 +214,12 @@ public class WebSocketTransport extends AbstractTransport {
 		 */
 		@Override
 		public void sendMessage(String message) throws SocketIOException {
-			logger.error("calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
+			logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
 			
 			if(webSocket!=null){
 				try {
 					webSocket.write(message);
-					logger.error("WRITE SUCCESS : calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
+					logger.trace("WRITE SUCCESS : calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -237,7 +238,7 @@ public class WebSocketTransport extends AbstractTransport {
 		@Override
 		public Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException {
 			
-			logger.error("calling from " + this.getClass().getName() + " : " + "handle");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "handle");
 			
     		response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unexpected request on upgraded WebSocket connection");
     		return Action.CONTINUE;
@@ -245,7 +246,7 @@ public class WebSocketTransport extends AbstractTransport {
 
 		@Override
 		public void abort() {
-			logger.error("calling from " + this.getClass().getName() + " : " + "abort");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "abort");
 			try {
 				webSocket.close();
 			} catch (IOException e) {

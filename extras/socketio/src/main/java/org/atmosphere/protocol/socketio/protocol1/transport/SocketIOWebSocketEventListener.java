@@ -39,10 +39,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	private SocketIOWebSocketSessionWrapper sessionWrapper = null;
 	
 	
-	public SocketIOWebSocketEventListener(){
-		logger.error("SocketIOWebSocketEventListener CONSTRUCTEUR");
-	}
-	
 	public void setSessionWrapper(SocketIOWebSocketSessionWrapper sessionWrapper){
 		this.sessionWrapper = sessionWrapper;
 	}
@@ -53,38 +49,37 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	@Override
 	public void onThrowable(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onThrowable");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onThrowable");
 		
 	}
 	
 	@Override
 	public void onSuspend(AtmosphereResourceEvent event) {
-		//logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend event = " + event);
-		logger.error("calling from " + this.getClass().getName() + " : " + "onSuspend");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onSuspend");
 		
 	}
 	
 	@Override
 	public void onResume(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onResume");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onResume");
 		
 	}
 	
 	@Override
 	public void onDisconnect(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onDisconnect");
 		sessionWrapper.onDisconnect();
 	}
 	
 	@Override
 	public void onBroadcast(AtmosphereResourceEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onBroadcast");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onBroadcast");
 		
 	}
 	
 	@Override
 	public void onMessage(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onMessage");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onMessage");
 		
 		if (!sessionWrapper.isInitiated()) {
 			if ("OPEN".equals(event.message())) {
@@ -119,7 +114,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 			if(messages!=null && !messages.isEmpty()){
 				SocketIOSession session = sessionWrapper.getSession();
 				for (SocketIOPacketImpl msg: messages) {
-					//sessionWrapper.getSession().onMessage(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper, msg);
 					session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
 				}
 			}
@@ -129,25 +123,25 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	@Override
 	public void onHandshake(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onHandshake event = " + event);
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onHandshake event = " + event);
 		
 	}
 	
 	@Override
 	public void onDisconnect(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onDisconnect event = " + event);
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onDisconnect event = " + event);
 		
 	}
 	
 	@Override
 	public void onControl(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onControl event = " + event);
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onControl event = " + event);
 		
 	}
 	
 	@Override
 	public void onConnect(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onConnect");
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onConnect");
 		
 		sessionWrapper.setWebSocket(event.webSocket());
 		
@@ -172,7 +166,7 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 	
 	@Override
 	public void onClose(WebSocketEvent event) {
-		logger.error("calling from " + this.getClass().getName() + " : " + "onClose event = " + event);
+		logger.trace("calling from " + this.getClass().getName() + " : " + "onClose event = " + event);
 		
 		sessionWrapper.getSession().onClose(event.message());
 	}

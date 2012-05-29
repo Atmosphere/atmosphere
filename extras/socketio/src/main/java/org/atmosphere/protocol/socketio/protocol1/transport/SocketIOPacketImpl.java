@@ -181,7 +181,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 			// 5:::{"args":["user1","user2 ecrit coucou"],"name":"user message"}
 			// 6:::4+["A","B"]  ou 6:::4
 			// '7::' [endpoint] ':' [reason] '+' [advice]
-			// 8 .. pas d'exemple
+			// 8 .. 
 			
 			if(array.length==1){
 				type = array[0];
@@ -198,9 +198,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 				id = array[1];
 				endpoint= array[2];
 				
-				// maintenant, il faut extraire le message s'il y en a un
-				
-				// on saute les 3 premiers ":" pour chercher s'il y a un message
+				// skip the first 3 ":"
 				
 				int start = data.indexOf(":");
 				
@@ -227,8 +225,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 		
 		
 		try {
-			// regardons si nous avons des messages separes par des delimiteurs
-			
+			// look for delimiter
 			if(data.charAt(0) == SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){
 				
 				int size = data.length();

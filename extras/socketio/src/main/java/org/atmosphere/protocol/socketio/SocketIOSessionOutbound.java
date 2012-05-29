@@ -30,6 +30,14 @@ import org.atmosphere.cpr.Action;
  */
 public interface SocketIOSessionOutbound extends SocketIOOutbound {
 	
+	/**
+	 * 
+	 * @param request
+	 * @param response
+	 * @param session
+	 * @return
+	 * @throws IOException
+	 */
 	Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException;
 	/**
 	 * Cause connection and all activity to be aborted and all resources to be released.
@@ -38,5 +46,9 @@ public interface SocketIOSessionOutbound extends SocketIOOutbound {
 	 */
 	void abort();
 	
+	/**
+	 * 
+	 * @return
+	 */
 	String getSessionId();
 }

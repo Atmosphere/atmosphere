@@ -22,12 +22,39 @@ package org.atmosphere.protocol.socketio;
  */
 public interface SocketIOSessionManager extends SocketIOSessionFactory {
 	
+	/**
+	 * 
+	 * @param timeout
+	 */
 	void setTimeout(long timeout);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getTimeout();
 	
+	/**
+	 * 
+	 * @param interval
+	 */
 	void setHeartbeatInterval(long interval);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getHeartbeatInterval();
 	
+	/**
+	 * 
+	 * @param suspendTime
+	 */
 	void setRequestSuspendTime(long suspendTime);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	long getRequestSuspendTime();
 }

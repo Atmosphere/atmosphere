@@ -56,12 +56,12 @@ public class JSONPPollingTransport extends XHRTransport {
 		@Override
 		protected void writeData(HttpServletResponse response, String data) throws IOException {
 			//response.getOutputStream().print(data);
-			logger.error("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+			logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 			
 			response.setContentType("text/javascript; charset=UTF-8");
 			response.getOutputStream().print("io.j["+ jsonpIndex +"](\"" + data + "\");");
 			
-			logger.error("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+			logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 			
 		}
 
@@ -109,8 +109,8 @@ public class JSONPPollingTransport extends XHRTransport {
 			session = sessionFactory.createSession(resource, atmosphereHandler);
 			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
 			
-			// pour le broadcast
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, atmosphereHandler);
+			// for the Broadcaster
+			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, atmosphereHandler);
 		}
 		
 		XHRPollingSessionHelper handler = createHelper(session);

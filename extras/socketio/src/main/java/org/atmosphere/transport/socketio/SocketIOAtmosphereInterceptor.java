@@ -92,11 +92,10 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		if(atmosphereHandler instanceof SocketIOAtmosphereHandler){
         	
 			try {
-	        	// on trouve le transport
+	        	// find the transport
 	        	String path = request.getPathInfo();
 	        	if (path == null || path.length() == 0 || "/".equals(path)) {
 	        		response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing SocketIO transport");
-	        		// TODO faut voir ce qu'on fait ici
 	        		return null;
 	        	}
 	        	
@@ -104,22 +103,20 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        		path = path.substring(1);
 	        	} 
 	        	
-	        	// A VOIR SI C'EST PAS JUSTE POUR UN GET
-	        	
 	        	String[] parts = path.split("/");
 	        	
 	        	String protocol = null;
 	        	String version = null;
 	        	
-	        	// ici on detecte la version du protocol.
+	        	// find protocol's version
 	        	if(parts.length==0){
 	        		return null;
 	        	} else if(parts.length==1){
 	        		
-	        		// est-ce la version du protocol ?
+	        		// is protocol's version ?
 	        		if(parts[0].length()==1){
 	        			version = parts[0];
-	        			//must be a digit
+	        			// must be a digit
 	        			if(!Character.isDigit(version.charAt(0))){
 	        				version = null;
 	        			}
@@ -128,11 +125,11 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        		}
 	        		
 	        	} else {
-	        		// un ex  :[1, xhr-polling, 7589995670715459]
+	        		// ex  :[1, xhr-polling, 7589995670715459]
 	        		version = parts[0];
 	        		protocol = parts[1];
 	        		
-	        		//must be a digit
+	        		// must be a digit
 	    			if(!Character.isDigit(version.charAt(0))){
 	    				version = null;
 	    				protocol = null;
@@ -143,16 +140,11 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        	if(protocol==null && version==null){
 	        		return null;
 	        	} else if (protocol==null && version!=null){
-	        		// nous avons un GET ou POST sans le protocol
-	        		//response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing SocketIO transport");
-	        		
+	        		// create a session and send the available transports to the client
 	        		response.setStatus(200);
 	        		
 	        		SocketIOSession session = getSessionManager(version).createSession(resource, (SocketIOAtmosphereHandler)atmosphereHandler);
 	        		response.getWriter().print(session.getSessionId() + ":" + heartbeatInterval + ":" + timeout + ":" + availableTransports);
-	        		
-	        		//HACK pour le suspend dans JETTY
-	        		request.setAttribute("HACK", Boolean.TRUE);
 	        		
 	        		return Action.CANCELLED;
 	        	} else if(protocol!=null && version==null){
@@ -162,7 +154,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	        	Transport transport = transports.get(protocol + "-" + version);
 	        	
 	        	if(transport!=null){
-	        		return transport.handle(null, resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
+	        		return transport.handle(resource, (SocketIOAtmosphereHandler)atmosphereHandler, getSessionManager(version));
 	        	} else {
 	        		logger.error("Protocol not supported : " + protocol);
 	        	}
@@ -208,10 +200,6 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		//transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);
 		transports.put(xhrPollingTransport1.getName()+ "-1", xhrPollingTransport1);
 		transports.put(jsonpPollingTransport1.getName()+ "-1", jsonpPollingTransport1);
-		
-		for (Transport t: transports.values()) {
-			t.init(null); // pas sur que c'est utile maintenant
-		}
 		
 		sessionManager1 = new org.atmosphere.protocol.socketio.protocol1.transport.SocketIOSessionManagerImpl();
 		sessionManager1.setTimeout(timeout);

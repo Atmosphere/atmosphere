@@ -24,7 +24,18 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
  */
 public interface SocketIOSessionFactory {
 
+	/**
+	 * 
+	 * @param resource
+	 * @param handler
+	 * @return
+	 */
 	SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler handler);
 	
+	/**
+	 * 
+	 * @param sessionid
+	 * @return
+	 */
 	SocketIOSession getSession(String sessionid);
 }

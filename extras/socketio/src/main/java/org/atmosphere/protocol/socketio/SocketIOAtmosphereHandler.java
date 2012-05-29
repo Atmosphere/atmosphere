@@ -29,44 +29,33 @@ import org.atmosphere.protocol.socketio.transport.DisconnectReason;
 public interface SocketIOAtmosphereHandler extends AtmosphereHandler {
 	
 	
-	public static final String SocketIOSessionOutbound = "SocketIOSessionOutbound";
+	public static final String SOCKETIO_SESSION_OUTBOUND = "SocketIOSessionOutbound";
 	
 	public static final String SOCKETIO_SESSION_ID = SocketIOAtmosphereHandler.class.getPackage().getName() + ".sessionid";
 	
 	
 	/**
-     * Called when the connection is established. This will only ever be called once.
+     * Called when the connection is established.
      *
      * @param outbound The SocketOutbound associated with the connection
      */
 	void onConnect(AtmosphereResource event, SocketIOSessionOutbound handler) throws IOException;
-	void onDisconnect() throws IOException;
 	
     /**
-     * Called when the socket connection is closed. This will only ever be called once.
-     * This method may be called instead of onConnect() if the connection handshake isn't
-     * completed successfully.
+     * Called when the socket connection is disconnected. 
      *
-     * @param reason       The reason for the disconnect.
-     * @param errorMessage Possibly non null error message associated with the reason for disconnect.
-     */
-    void onDisconnect(DisconnectReason reason, String errorMessage);
-    
-    /**
-     * Called when the socket connection is closed. This will only ever be called once.
-     * This method may be called instead of onConnect() if the connection handshake isn't
-     * completed successfully.
-     *
-     * @param reason       The reason for the disconnect.
-     * @param errorMessage Possibly non null error message associated with the reason for disconnect.
+     * @param event		AtmosphereResource
+     * @param handler	outbound handler to broadcast response
+     * @param reason    The reason for the disconnect.
      */
     void onDisconnect(AtmosphereResource event, SocketIOSessionOutbound handler, DisconnectReason reason);
 
     /**
-     * Called one per arriving message.
+     * Called for each message received.
      *
-     * @param messageType
-     * @param message
+     * @param event AtmosphereResource
+     * @param handler outbound handler to broadcast response
+     * @param message message received
      */
     void onMessage(AtmosphereResource event, SocketIOSessionOutbound handler, String message);
 	

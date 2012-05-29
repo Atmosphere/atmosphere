@@ -47,7 +47,7 @@ public abstract class AbstractTransport implements Transport {
 			String[] parts = path.split("/");
 			if (parts.length >= 2) {
 
-				// on doit valider que le path est le meme que dans le URI
+				// will must validate that it's in the same URI
 				String requestURI = request.getRequestURI();
 
 				String protocol = parts[1];
@@ -64,6 +64,11 @@ public abstract class AbstractTransport implements Transport {
 		return null;
 	}
 
+	/**
+	 * Used to extract POST body from the request
+	 * @param reader
+	 * @return
+	 */
 	public static String extractString(Reader reader) {
 
 		String output = null;
@@ -87,11 +92,6 @@ public abstract class AbstractTransport implements Transport {
 	}
 
 	@Override
-	public void init(ServletConfig config) {
-
-	}
-
-	@Override
 	public void destroy() {
 
 	}
@@ -103,7 +103,7 @@ public abstract class AbstractTransport implements Transport {
 				try {
 						extractedData = URLDecoder.decode(extractedData, "UTF-8");
 						if(extractedData!=null && extractedData.length()>2){
-							// on trim les "" et remplace les \" par "
+							// trim and replace \" by "
 							if(extractedData.charAt(0)=='\"' && extractedData.charAt(extractedData.length()-1)=='\"'){
 								
 								extractedData = extractedData.substring(1,extractedData.length()-1).replaceAll("\\\\\"", "\""); 
@@ -126,9 +126,13 @@ public abstract class AbstractTransport implements Transport {
 		}
 	}
 	
+	/**
+	 * Check if there is a disconnect message in the POST Body
+	 * @param request
+	 * @return
+	 */
 	protected boolean isDisconnectRequest(HttpServletRequest request){
-		// on commence par detecter si c'est un DISCONNECT
-		// si c'est le cas, il faut terminer la connection en cours
+		
 		if ("GET".equals(request.getMethod())) {
 			
 			if(request.getParameterMap().containsKey("disconnect")){

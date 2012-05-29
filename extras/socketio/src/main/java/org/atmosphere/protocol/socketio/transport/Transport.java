@@ -37,9 +37,18 @@ public interface Transport {
 	 */
 	String getName();
 
-	void init(ServletConfig config);
-	
+	/**
+	 * 
+	 */
 	void destroy();
 
-	Action handle(AsynchronousProcessor processor, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
+	/**
+	 * 
+	 * @param resource
+	 * @param atmosphereHandler
+	 * @param sessionFactory
+	 * @return
+	 * @throws IOException
+	 */
+	Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
 }

@@ -198,7 +198,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void startTimeoutTimer() {
-			logger.debug("startTimeoutTimer for SessionID= " + sessionId);
+			logger.trace("startTimeoutTimer for SessionID= " + sessionId);
 			clearTimeoutTimer();
 			if (!timedout && timeout > 0) {
 				timeoutSessionMonitor.start();
@@ -207,7 +207,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearTimeoutTimer() {
-			logger.debug("clearTimeoutTimer for SessionID= " + sessionId);
+			logger.trace("clearTimeoutTimer for SessionID= " + sessionId);
 			if (timeoutSessionMonitor != null) {
 				timeoutSessionMonitor.cancel();
 			}
@@ -216,20 +216,20 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		@Override
 		public void sendHeartBeat() {
 			String data = "" + messageId.incrementAndGet();
-			logger.debug("Session["+sessionId+"]: sendPing " + data);
+			logger.trace("Session["+sessionId+"]: sendPing " + data);
 			try {
 				handler.sendMessage("2::");
 			} catch (Exception e) {
 				logger.debug("handler.sendMessage failed: ", e);
 				handler.abort();
 			} 
-			logger.debug("calling from " + this.getClass().getName() + " : " + "sendPing");
+			logger.trace("calling from " + this.getClass().getName() + " : " + "sendPing");
 			startTimeoutTimer();
 		}
 
 		@Override
 		public void timeout() {
-			logger.error("Session["+sessionId+"]: onTimeout");
+			logger.trace("Session["+sessionId+"]: onTimeout");
 			if (!timedout) {
 				timedout = true;
 				state = ConnectionState.CLOSED;
@@ -240,7 +240,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		
 		@Override
 		public void startHeartbeatTimer() {
-			logger.debug("startHeartbeatTimer");
+			logger.trace("startHeartbeatTimer");
 			clearHeartbeatTimer();
 			clearTimeoutTimer();
 			if (!timedout && heartBeatInterval > 0) {
@@ -250,7 +250,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void clearHeartbeatTimer() {
-			logger.debug("clearHeartbeatTimer : Clear previous Timer");
+			logger.trace("clearHeartbeatTimer : Clear previous Timer");
 			if (heartBeatSessionMonitor != null) {
 				heartBeatSessionMonitor.cancel();
 			}
@@ -334,9 +334,9 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 				try {
 					state = ConnectionState.CONNECTED;
 					
-					// pour le broadcast
+					// for the Broadcaster
 					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, sessionId);
-					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SocketIOSessionOutbound, handler);
+					resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, handler);
 					
 					startHeartbeatTimer();
 					
@@ -366,7 +366,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 		@Override
 		public void onDisconnect(DisconnectReason reason) {
-			logger.error("Session["+sessionId+"]: onDisconnect: " + reason);
+			logger.trace("Session["+sessionId+"]: onDisconnect: " + reason);
 			clearTimeoutTimer();
 			clearHeartbeatTimer();
 			if (atmosphereHandler != null) {
@@ -382,7 +382,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 		
 		@Override
 		public void onShutdown() {
-			logger.error("Session["+sessionId+"]: onShutdown");
+			logger.trace("Session["+sessionId+"]: onShutdown");
 			if (atmosphereHandler != null) {
 				if (state == ConnectionState.CLOSING) {
 					if (closeId != null) {
@@ -410,7 +410,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	}
 	
 	/**
-	 * 
+	 * Connection state based on Jetty for the connection's state
 	 * @author Sebastien Dionne  : sebastien.dionne@gmail.com
 	 *
 	 */
