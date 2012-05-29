@@ -23,5 +23,6 @@ public class Constants {
 
     public static final String MODULE_BASE_PARAMETER = "b";
     public static final String STRONG_NAME_PARAMETER = "p";
-
+    public static final String CLIENT_SERIALZE_MODE_PARAMETER = "sm";
+    public static final String CLIENT_DESERIALZE_MODE_PARAMETER = "dsm";
 }

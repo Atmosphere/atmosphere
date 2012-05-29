@@ -23,11 +23,9 @@ import com.google.gwt.dom.client.Document;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Cookies;
-import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.StatusCodeException;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.RootPanel;
-import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
 
@@ -35,7 +33,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.atmosphere.gwt.client.AtmosphereProxy;
+import org.atmosphere.gwt.client.extra.AtmosphereProxy;
 import org.atmosphere.gwt.client.extra.Window;
 import org.atmosphere.gwt.client.extra.WindowFeatures;
 
@@ -51,7 +49,7 @@ public class GWTDemo implements EntryPoint {
     Button startButton;
     Button stopButton;
     AtmosphereProxy proxy;
-    
+
     @Override
     public void onModuleLoad() {
 
@@ -59,7 +57,7 @@ public class GWTDemo implements EntryPoint {
         broadcast.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                proxy.broadcast(new Event(count++, "Send from client using broadcast"));
+                proxy.broadcast(event(count++, "Send from client using broadcast"));
             }
         });
 
@@ -67,7 +65,15 @@ public class GWTDemo implements EntryPoint {
         post.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                proxy.post(new Event(count++, "Send from client using post"));
+                proxy.post(event(count++, "Send from client using post"));
+            }
+        });
+
+        Button localBroadcast = new Button("Local Broadcast");
+        localBroadcast.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                proxy.localBroadcast(event(count++, "Send from client using local broadcast"));
             }
         });
 
@@ -88,30 +94,28 @@ public class GWTDemo implements EntryPoint {
 
         RootPanel.get("buttons").add(broadcast);
         RootPanel.get("buttons").add(post);
+        RootPanel.get("buttons").add(localBroadcast);
         RootPanel.get("buttons").add(newWindow);
     
         initialize();
 
-//        startButton = new Button("Start");
-//        stopButton = new Button("Stop");
-//        startButton.setEnabled(false);
-//        startButton.addClickHandler(new ClickHandler() {
-//            @Override
-//            public void onClick(ClickEvent event) {
-//                toggleStartStop(true);
-//                client.start();
-//            }
-//        });
-//        stopButton.addClickHandler(new ClickHandler() {
-//            @Override
-//            public void onClick(ClickEvent event) {
-//                toggleStartStop(false);
-//                client.stop();
-//            }
-//        });
-//        RootPanel.get("buttons").add(startButton);
-//        RootPanel.get("buttons").add(stopButton);
+    }
 
+    public void initialize() {
+
+        MyCometListener cometListener = new MyCometListener();
+
+        AtmosphereGWTSerializer serializer = GWT.create(EventSerializer.class);
+        // set a small length parameter to force refreshes
+        // normally you should remove the length parameter
+        proxy = new AtmosphereProxy(GWT.getModuleBaseURL() + "gwtComet", serializer, cometListener);
+    }
+    
+    Event event(long count, String message) {
+        Event bean = new Event();
+        bean.setCode(count);
+        bean.setData(message);
+        return bean;
     }
     
     void toggleStartStop(boolean clientConnected) {
@@ -174,26 +178,14 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
+        public void onMessage(List messages) {
             StringBuilder result = new StringBuilder();
-            for (Serializable obj : messages) {
+            for (Object obj : messages) {
                 result.append(obj.toString()).append("<br/>");
             }
-            logger.log(Level.INFO, "comet.message : " + result.toString());
+            logger.log(Level.INFO, "comet.message : " + result.toString().replace("<br/>", "\n"));
             Info.display("Received " + messages.size() + " messages", result.toString());
         }
-    }
-
-    ;
-
-    public void initialize() {
-
-        MyCometListener cometListener = new MyCometListener();
-
-        AtmosphereGWTSerializer serializer = GWT.create(EventSerializer.class);
-        // set a small length parameter to force refreshes
-        // normally you should remove the length parameter
-        proxy = new AtmosphereProxy(GWT.getModuleBaseURL() + "gwtComet", serializer, cometListener);
     }
 
 }

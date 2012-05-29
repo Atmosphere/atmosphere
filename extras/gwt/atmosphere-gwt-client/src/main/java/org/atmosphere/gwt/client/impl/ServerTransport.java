@@ -28,11 +28,11 @@ public interface ServerTransport {
 
     public void disconnect();
 
-    public void post(Serializable message, AsyncCallback<Void> callback);
+    public void post(Object message, AsyncCallback<Void> callback);
 
-    public void post(List<Serializable> messages, AsyncCallback<Void> callback);
+    public void post(List messages, AsyncCallback<Void> callback);
 
-    public void broadcast(Serializable message);
+    public void broadcast(Object message);
 
-    public void broadcast(List<Serializable> messages);
+    public void broadcast(List messages);
 }

@@ -170,32 +170,32 @@ public class AtmosphereClient {
     }
 
     // push message back to the server on this connection
-    public void post(Serializable message) {
+    public void post(Object message) {
         primaryTransport.post(message, postCallback);
     }
 
     // push message back to the server on this connection
-    public void post(Serializable message, AsyncCallback<Void> callback) {
+    public void post(Object message, AsyncCallback<Void> callback) {
         primaryTransport.post(message, callback);
     }
 
     // push message back to the server on this connection
-    public void post(List<Serializable> messages) {
+    public void post(List messages) {
         primaryTransport.post(messages, postCallback);
     }
 
     // push message back to the server on this connection
-    public void post(List<Serializable> messages, AsyncCallback<Void> callback) {
+    public void post(List messages, AsyncCallback<Void> callback) {
         primaryTransport.post(messages, callback);
     }
 
     // push message back to the server on this connection
-    public void broadcast(Serializable message) {
+    public void broadcast(Object message) {
         primaryTransport.broadcast(message);
     }
 
     // push message back to the server on this connection
-    public void broadcast(List<Serializable> messages) {
+    public void broadcast(List messages) {
         primaryTransport.broadcast(messages);
     }
 
@@ -440,19 +440,19 @@ public class AtmosphereClient {
             transport.initiate(AtmosphereClient.this, this);
         }
 
-        public void post(Serializable message, AsyncCallback<Void> callback) {
+        public void post(Object message, AsyncCallback<Void> callback) {
             transport.post(message, callback);
         }
 
-        public void post(List<Serializable> messages, AsyncCallback<Void> callback) {
+        public void post(List messages, AsyncCallback<Void> callback) {
             transport.post(messages, callback);
         }
 
-        public void broadcast(Serializable message) {
+        public void broadcast(Object message) {
             transport.broadcast(message);
         }
 
-        public void broadcast(List<Serializable> messages) {
+        public void broadcast(List messages) {
             transport.broadcast(messages);
         }
 
@@ -536,7 +536,7 @@ public class AtmosphereClient {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
+        public void onMessage(List messages) {
             lastReceivedTime = Duration.currentTimeMillis();
             doOnMessage(messages, this);
         }

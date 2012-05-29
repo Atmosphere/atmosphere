@@ -176,9 +176,9 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
+        public void onMessage(List messages) {
             StringBuilder result = new StringBuilder();
-            for (Serializable obj : messages) {
+            for (Object obj : messages) {
                 result.append(obj.toString()).append("<br/>");
             }
             logger.log(Level.INFO, "comet.message [" + client.getConnectionID() + "] " + result.toString());

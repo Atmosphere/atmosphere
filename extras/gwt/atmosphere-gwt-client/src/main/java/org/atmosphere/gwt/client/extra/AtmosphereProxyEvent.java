@@ -1,28 +1,20 @@
-package org.atmosphere.gwt.client;
+package org.atmosphere.gwt.client.extra;
 
-import java.io.Serializable;
+import com.kfuntak.gwt.json.serialization.client.JsonSerializable;
 
 /**
  *
  * @author p.havelaar
  */
-public class AtmosphereProxyEvent implements Serializable {
+public class AtmosphereProxyEvent  {
     public static enum EventType {
         ON_CONNECTED, ON_BEFORE_DISCONNECTED, ON_DISCONNECTED, ON_ERROR, ON_HEARTBEAT, ON_REFRESH, ON_AFTER_REFRESH,
-        ON_MESSAGE, POST, BROADCAST,
+        ON_MESSAGE, POST, BROADCAST, LOCAL_BROADCAST,
         ANNOUNCE_NEW_CHILD, ANNOUNCE_CHILD_DEATH, ELECT_MASTER, ADOPT_ORPHANS, ANNOUNCE_NEW_PARENT;
     }
+    private EventType eventType;
+    private Object data;
     
-    protected EventType eventType = EventType.ON_ERROR;
-    protected transient Serializable data;
-    
-    public AtmosphereProxyEvent() {
-    }
-    
-    public AtmosphereProxyEvent(EventType type) {
-        this.eventType = type;
-    }
-
     public AtmosphereProxyEvent setEventType(EventType eventType) {
         this.eventType = eventType;
         return this;
@@ -32,11 +24,11 @@ public class AtmosphereProxyEvent implements Serializable {
         return eventType;
     }
 
-    public Serializable getData() {
+    public Object getData() {
         return data;
     }
 
-    public AtmosphereProxyEvent setData(Serializable data) {
+    public AtmosphereProxyEvent setData(Object data) {
         this.data = data;
         return this;
     }

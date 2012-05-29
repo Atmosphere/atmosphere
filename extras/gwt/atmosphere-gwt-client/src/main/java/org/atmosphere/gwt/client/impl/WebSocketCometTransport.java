@@ -87,7 +87,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
                 callback.onSuccess(null);
             }
             @Override
-            String serialize(Serializable message) throws SerializationException {
+            String serialize(Object message) throws SerializationException {
                 return client.getSerializer().serialize(message);
             }
         };

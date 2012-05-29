@@ -31,7 +31,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
 
     abstract void send(String message, AsyncCallback<Void> callback);
 
-    abstract String serialize(Serializable message) throws SerializationException;
+    abstract String serialize(Object message) throws SerializationException;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
@@ -55,7 +55,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
     }
 
     @Override
-    public void broadcast(Serializable message) {
+    public void broadcast(Object message) {
         if (message instanceof String) {
             send(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()), defaultCallback);
         } else {
@@ -68,9 +68,9 @@ abstract public class ServerTransportProtocol implements ServerTransport {
     }
 
     @Override
-    public void broadcast(List<Serializable> messages) {
+    public void broadcast(List messages) {
         StringBuilder packet = new StringBuilder();
-        for (Serializable message : messages) {
+        for (Object message : messages) {
             if (message instanceof String) {
                 packet.append(pack(MessageType.STRING, ActionType.BROADCAST, message.toString()));
             } else {
@@ -87,7 +87,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
     }
 
     @Override
-    public void post(Serializable message, AsyncCallback<Void> callback) {
+    public void post(Object message, AsyncCallback<Void> callback) {
         if (message instanceof String) {
             send(pack(MessageType.STRING, ActionType.POST, message.toString()), callback);
         } else {
@@ -100,9 +100,9 @@ abstract public class ServerTransportProtocol implements ServerTransport {
     }
 
     @Override
-    public void post(List<Serializable> messages, AsyncCallback<Void> callback) {
+    public void post(List messages, AsyncCallback<Void> callback) {
         StringBuilder packet = new StringBuilder();
-        for (Serializable message : messages) {
+        for (Object message : messages) {
             if (message instanceof String) {
                 packet.append(pack(MessageType.STRING, ActionType.POST, message.toString()));
             } else {

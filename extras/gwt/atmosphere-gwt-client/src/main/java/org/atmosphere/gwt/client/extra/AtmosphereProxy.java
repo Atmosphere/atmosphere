@@ -1,25 +1,23 @@
-package org.atmosphere.gwt.client;
+package org.atmosphere.gwt.client.extra;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
-import com.google.gwt.rpc.client.impl.ClientWriterFactory;
-import com.google.gwt.rpc.client.impl.CommandToStringWriter;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.Window.ClosingHandler;
-import com.google.gwt.user.client.rpc.SerializationException;
-import com.google.gwt.user.client.rpc.SerializationStreamReader;
-import com.google.gwt.user.client.rpc.SerializationStreamWriter;
-import java.io.Serializable;
+import com.kfuntak.gwt.json.serialization.client.JsonSerializable;
+import com.kfuntak.gwt.json.serialization.client.Serializer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
-import org.atmosphere.gwt.client.extra.Window;
-import org.atmosphere.gwt.client.extra.WindowSocket;
+import org.atmosphere.gwt.client.AtmosphereClient;
+import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
+import org.atmosphere.gwt.client.AtmosphereListener;
 
-import org.atmosphere.gwt.client.AtmosphereProxyEvent.EventType;
+import org.atmosphere.gwt.client.extra.AtmosphereProxyEvent.EventType;
 
 /**
  *
@@ -32,6 +30,7 @@ public class AtmosphereProxy {
     
     private AtmosphereListener clientListener;
     private AtmosphereGWTSerializer serializer;
+    private Serializer jsonSerializer = GWT.create(Serializer.class);
     private AtmosphereClient masterConnection = null;
     private String url;
     private WindowSocket eventSocket;
@@ -46,16 +45,16 @@ public class AtmosphereProxy {
     }
     
     // push message back to the server on this connection
-    public void post(Serializable message) {
+    public void post(JsonSerializable message) {
         post(Collections.singletonList(message));
     }
 
     // push message back to the server on this connection
-    public void post(List<Serializable> messages) {
+    public void post(List<JsonSerializable> messages) {
         if (masterConnection != null) {
             masterConnection.post(messages);
         } else if (parent != null) {
-            for (Serializable m : messages) {
+            for (JsonSerializable m : messages) {
                 dispatchEvent(parent, event(EventType.POST).setData(m));
             }
         } else {
@@ -63,21 +62,39 @@ public class AtmosphereProxy {
         }
     }
 
-    // push message back to the server on this connection
-    public void broadcast(Serializable message) {
+    // send message back to the server on this connection for broadcast
+    public void broadcast(JsonSerializable message) {
         broadcast(Collections.singletonList(message));
     }
 
-    // push message back to the server on this connection
-    public void broadcast(List<Serializable> messages) {
+    // send message back to the server on this connection for broadcast
+    public void broadcast(List<JsonSerializable> messages) {
         if (masterConnection != null) {
             masterConnection.broadcast(messages);
         } else if (parent != null) {
-            for (Serializable m : messages) {
+            for (JsonSerializable m : messages) {
                 dispatchEvent(parent, event(EventType.BROADCAST).setData(m));
             }
         } else {
             throw new IllegalStateException("Failed to find master connection for broadcast");
+        }
+    }
+
+    // 
+    public void localBroadcast(JsonSerializable message) {
+        localBroadcast(Collections.singletonList(message));
+    }
+
+    // push message to other windows
+    public void localBroadcast(List<JsonSerializable> messages) {
+        if (masterConnection != null) {
+            masterListener.onMessage(messages);
+        } else if (parent != null) {
+            for (JsonSerializable m : messages) {
+                dispatchEvent(parent, event(EventType.LOCAL_BROADCAST).setData(m));
+            }
+        } else {
+            throw new IllegalStateException("Failed to find master connection for local broadcast");
         }
     }
 
@@ -202,7 +219,7 @@ public class AtmosphereProxy {
                 clientListener.onDisconnected();
                 break;
             case ON_ERROR:
-                clientListener.onError(new AtmosphereClientException((String)event.getData()), true);
+//                clientListener.onError(new AtmosphereClientException((String)event.getData()), true);
                 break;
             case ON_HEARTBEAT:
                 clientListener.onHeartbeat();
@@ -238,13 +255,23 @@ public class AtmosphereProxy {
                     throw new IllegalStateException("Failed to find master connection for broadcast");
                 }
                 return;
+            case LOCAL_BROADCAST:
+                if (masterConnection != null) {
+                    masterListener.onMessage(Collections.singletonList(event.getData()));
+                } else if (parent != null) {
+                    // we are not the master propagate up
+                    dispatchRawEvent(parent, rawEvent);
+                } else {
+                    throw new IllegalStateException("Failed to find master connection for local broadcast");
+                }
+                return;
         }
         // propagate message to children
         dispatchRawEvent(rawEvent);
     }
     
     protected AtmosphereProxyEvent event(AtmosphereProxyEvent.EventType type) {
-        return new AtmosphereProxyEvent(type);
+        return new AtmosphereProxyEvent().setEventType(type);
     }
     
     protected void dispatchEvent(Window target, AtmosphereProxyEvent event) {
@@ -252,7 +279,9 @@ public class AtmosphereProxy {
     }
     
     protected void dispatchEvent(AtmosphereProxyEvent event) {
-        dispatchRawEvent(serialize(event));
+        if (windowList.size() > 0) {
+            dispatchRawEvent(serialize(event));
+        }
     }
     
     protected void dispatchRawEvent(Window target, String event) {
@@ -265,25 +294,43 @@ public class AtmosphereProxy {
         }
     }
     
-    protected String serialize(Serializable object) {
-        try {
-            SerializationStreamWriter writer = new CommandToStringWriter(null);
-            writer.writeObject(object);
-            return writer.toString();
-        } catch (SerializationException ex) {
-            clientListener.onError(ex, true);
-            throw new RuntimeException("Failed to serialize object", ex);
+//    protected String serialize(JsonSerializable object) {
+//        try {
+//            SerializationStreamWriter writer = new CommandToStringWriter(null);
+//            writer.writeObject(object);
+//            return writer.toString();
+//        } catch (SerializationException ex) {
+//            clientListener.onError(ex, true);
+//            throw new RuntimeException("Failed to serialize object", ex);
+//        }
+//    }
+    protected String serialize(AtmosphereProxyEvent event) {
+        String data;
+        if (event.getData() != null) {
+            data = jsonSerializer.serialize(event.getData());
+        } else {
+            data = "";
         }
+        return event.getEventType().name() + ";" + data;
     }
     
-    protected <T extends Serializable> T deserialize(String data) {
-        try {
-            SerializationStreamReader reader = ClientWriterFactory.createReader(data);
-            return (T) reader.readObject();
-        } catch (SerializationException ex) {
-            clientListener.onError(ex, true);
-            throw new RuntimeException("Failed to deserialize object", ex);
-        }
+//    protected <T extends JsonSerializable> T deserialize(String data) {
+//        try {
+//            SerializationStreamReader reader = ClientWriterFactory.createReader(data);
+//            return (T) reader.readObject();
+//        } catch (SerializationException ex) {
+//            clientListener.onError(ex, true);
+//            throw new RuntimeException("Failed to deserialize object", ex);
+//        }
+//    }
+     protected AtmosphereProxyEvent deserialize(String data) {
+         AtmosphereProxyEvent event = new AtmosphereProxyEvent();
+         int pos = data.indexOf(";");
+         event.setEventType(EventType.valueOf(data.substring(0, pos)));
+         if (pos + 1 < data.length()) {
+            event.setData(JsonSerializerUtil.deserialize(jsonSerializer, data.substring(pos+1)));
+         }
+         return event;
     }
     
     private AtmosphereListener masterListener = new AtmosphereListener() {
@@ -309,7 +356,7 @@ public class AtmosphereProxy {
         @Override
         public void onError(Throwable exception, boolean connected) {
             clientListener.onError(exception, connected);
-            dispatchEvent(event(EventType.ON_ERROR).setData(exception.getMessage()));
+//            dispatchEvent(event(EventType.ON_ERROR).setData(exception.getMessage()));
         }
 
         @Override
@@ -331,11 +378,12 @@ public class AtmosphereProxy {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
+        public void onMessage(List messages) {
             clientListener.onMessage(messages);
-            for (Serializable m : messages) {
+            for (Object m : messages) {
                 dispatchEvent(event(EventType.ON_MESSAGE).setData(m));
             }
         }
+
     };
 }

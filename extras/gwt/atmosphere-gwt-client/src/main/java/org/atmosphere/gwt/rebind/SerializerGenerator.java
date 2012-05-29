@@ -43,6 +43,7 @@ import com.google.gwt.dev.javac.rebind.RebindResult;
 import com.google.gwt.dev.javac.rebind.RebindStatus;
 import com.google.gwt.dev.util.collect.Lists;
 import com.google.gwt.rpc.linker.RpcDataArtifact;
+import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.client.rpc.impl.Serializer;
 import com.google.gwt.user.rebind.ClassSourceFileComposerFactory;
 import com.google.gwt.user.rebind.SourceWriter;
@@ -50,7 +51,7 @@ import com.google.gwt.user.rebind.rpc.SerializableTypeOracle;
 import com.google.gwt.user.rebind.rpc.SerializableTypeOracleBuilder;
 import com.google.gwt.user.rebind.rpc.SerializationUtils;
 import com.google.gwt.user.rebind.rpc.TypeSerializerCreator;
-import org.atmosphere.gwt.client.SerialMode;
+import org.atmosphere.gwt.shared.SerialMode;
 import org.atmosphere.gwt.client.SerialTypes;
 
 import java.io.OutputStream;
@@ -58,10 +59,8 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.atmosphere.gwt.client.AtmosphereProxyEvent;
 
 public class SerializerGenerator extends GeneratorExt {
 
@@ -90,14 +89,13 @@ public class SerializerGenerator extends GeneratorExt {
                 SerializableTypeOracleBuilder typesSentFromBrowserBuilder = new SerializableTypeOracleBuilder(
                         logger, context.getPropertyOracle(), context);
 
-                List<Class<? extends Serializable>> serializableTypes = new ArrayList();
+                List<Class<?>> serializableTypes = new ArrayList();
                 Collections.addAll(serializableTypes, annotation.value());
-                serializableTypes.add(AtmosphereProxyEvent.class);
-                for (Class<? extends Serializable> serializable : serializableTypes) {
+                for (Class<?> serializable : serializableTypes) {
                     int rank = 0;
                     if (serializable.isArray()) {
                         while (serializable.isArray()) {
-                            serializable = (Class<? extends Serializable>) serializable.getComponentType();
+                            serializable = (Class<?>) serializable.getComponentType();
                             rank++;
                         }
                     }
@@ -148,19 +146,43 @@ public class SerializerGenerator extends GeneratorExt {
 
                 composerFactory.addImport(Serializer.class.getName());
                 composerFactory.addImport(SerialMode.class.getName());
-
+                composerFactory.addImport(SerializationException.class.getName());
+                composerFactory.addImport(Serializable.class.getName());
+                
                 composerFactory.setSuperclass(typeName);
                 // TODO is the SERIALIZER required for DE RPC?
                 SourceWriter sourceWriter = composerFactory.createSourceWriter(context, printWriter);
                 sourceWriter.print("private Serializer SERIALIZER = new " + realize + "();");
-                sourceWriter.print("protected Serializer getSerializer() {return SERIALIZER;}");
-                sourceWriter.print("public SerialMode getMode() {return SerialMode." + annotation.mode().name() + ";}");
-                sourceWriter.print("public SerialMode getPushMode() {return SerialMode." + annotation.pushmode().name() + ";}");
+                sourceWriter.print("protected Serializer getRPCSerializer() {return SERIALIZER;}");
+                sourceWriter.println("public SerialMode getMode() {return SerialMode." + annotation.mode().name() + ";}");
+                sourceWriter.println("public SerialMode getPushMode() {return SerialMode." + annotation.pushMode().name() + ";}");
+                sourceWriter.println("public Object deserialize(String message) throws SerializationException {");
+                sourceWriter.println("  return deserialize" + annotation.mode().name() + "(message);}");
+                sourceWriter.println("public String serialize(Object message) throws SerializationException {");
+                sourceWriter.println("  return serialize" + annotation.pushMode().name() + "(message);}");
                 sourceWriter.commit(logger);
 
                 if (annotation.mode() == SerialMode.DE_RPC) {
                     RpcDataArtifact data = new RpcDataArtifact(type.getQualifiedSourceName());
                     for (JType t : typesSentToBrowser.getSerializableTypes()) {
+                        if (!(t instanceof JClassType)) {
+                            continue;
+                        }
+                        JField[] serializableFields = SerializationUtils.getSerializableFields(context.getTypeOracle(), (JClassType) t);
+
+                        List<String> names = Lists.create();
+                        for (int i = 0, j = serializableFields.length; i < j; i++) {
+                            names = Lists.add(names, serializableFields[i].getName());
+                        }
+
+                        data.setFields(SerializationUtils.getRpcTypeName(t), names);
+                    }
+
+                    context.commitArtifact(logger, data);
+                }
+                if (annotation.pushMode() == SerialMode.DE_RPC) {
+                    RpcDataArtifact data = new RpcDataArtifact(type.getQualifiedSourceName());
+                    for (JType t : typesSentFromBrowser.getSerializableTypes()) {
                         if (!(t instanceof JClassType)) {
                             continue;
                         }
