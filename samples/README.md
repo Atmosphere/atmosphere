@@ -72,6 +72,12 @@ If you plan to use Spring or GWT, take a look at their specific samples.
         <td>[GWT Chat Code](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-chat/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
     </tr>
     <tr>
+        <td>[gwt-conn-share](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-gwt-connection-sharing%22)</td>
+        <td>This sample demonstrates the use of the AtmosphereProxy on the client. It is an intelligent wrapper for the AtmosphereClient connection that is able to share the connection between multiple windows. It detects this automatically and is able to detect when a window is closed and the master connection needs to be reestablished from another window. All incoming and outgoing events are bubbled to all the client windows. Outgoing events are routed to the correct window that has the master connection. It is also possible to broadcast messages locally, which means the message gets send to all the client windows, but not to the server.</td>
+        <td>[AtmosphereGwtHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-conn-share/src/main/java/org/atmosphere/samples/server/AtmosphereHandler.java)</td>
+        <td>[GWT Code](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-conn-share/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
+    </tr>
+    <tr>
         <td>[jaxrs2-chat](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22atmosphere-jaxrs2-chat%22)</td>
         <td>This samples demonstrates the use of JAX RS Specification 2 using the @Context, ExecutionContext and @Suspend annotation</td>
         <td>[Jersey Resource](https://github.com/Atmosphere/atmosphere/blob/master/samples/jaxrs2-chat/src/main/java/org/atmosphere/samples/chat/jersey/Jaxrs2Chat.java)</td>
