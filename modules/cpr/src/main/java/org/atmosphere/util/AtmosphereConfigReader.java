@@ -219,7 +219,7 @@ public class AtmosphereConfigReader {
 
             }
 
-            config.getAtmosphereHandler().add(atmoHandler);
+            config.getAtmosphereHandlerConfig().add(atmoHandler);
         }
 
         return config;
