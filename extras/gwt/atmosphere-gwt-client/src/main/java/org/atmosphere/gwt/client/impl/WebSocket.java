@@ -35,17 +35,17 @@ public class WebSocket extends JavaScriptObject {
      * @return the created object
      */
     public static native WebSocket create(String url) /*-{
-        if (typeof $wnd.WebSocket != 'undefined') {
+        if (typeof $wnd.WebSocket != "undefined") {
             return new WebSocket(url);
-        } else if (typeof $wnd.MozWebSocket != 'undefined') {
+        } else if (typeof $wnd.MozWebSocket != "undefined") {
             return new MozWebSocket(url);
         }
     }-*/;
 
     public static native WebSocket create(String url, String protocol) /*-{
-        if ($wnd.WebSocket) {
+        if (typeof $wnd.WebSocket != "undefined") {
             return new WebSocket(url, protocol);
-        } else if ($wnd.MozWebSocket) {
+        } else if (typeof $wnd.MozWebSocket != "undefined") {
             return new MozWebSocket(url, protocol);
         }
     }-*/;
@@ -101,8 +101,8 @@ public class WebSocket extends JavaScriptObject {
 
 
     public native static boolean isSupported() /*-{
-        return (typeof $wnd.WebSocket != 'undefined')
-             || (typeof $wnd.MozWebSocket != 'undefined');
+        return (typeof $wnd.WebSocket != "undefined")
+             || (typeof $wnd.MozWebSocket != "undefined");
     }-*/;
 
 }
