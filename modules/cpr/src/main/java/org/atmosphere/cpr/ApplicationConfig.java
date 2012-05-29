@@ -150,10 +150,6 @@ public interface ApplicationConfig {
      */
     String MAX_INACTIVE = "org.atmosphere.cpr.CometSupport.maxInactiveActivity";
     /**
-     * Support {@link Trackable} by default and create instance of those objects on the fly
-     */
-    String SUPPORT_TRACKABLE = ApplicationConfig.class.getPackage().getName() + ".Trackable";
-    /**
      * Allow query string as set as request's header.
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
