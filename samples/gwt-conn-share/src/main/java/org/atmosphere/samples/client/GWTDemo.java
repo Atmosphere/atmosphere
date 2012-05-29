@@ -106,8 +106,7 @@ public class GWTDemo implements EntryPoint {
         MyCometListener cometListener = new MyCometListener();
 
         AtmosphereGWTSerializer serializer = GWT.create(EventSerializer.class);
-        // set a small length parameter to force refreshes
-        // normally you should remove the length parameter
+
         proxy = new AtmosphereProxy(GWT.getModuleBaseURL() + "gwtComet", serializer, cometListener);
     }
     
