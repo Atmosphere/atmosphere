@@ -108,7 +108,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         if (!Utils.webSocketEnabled(request)) {
             return super.service(request, response);
         } else {
-            return suspended(request, response);;
+            return suspended(request, response);
         }
     }
 
