@@ -1181,7 +1181,7 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-                if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
+                if (force || (request.suspend && ajaxRequest.readyState == 4 && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     _open('re-opening', request.transport, request);
                     if (request.reconnect) {
                         _executeRequest();
