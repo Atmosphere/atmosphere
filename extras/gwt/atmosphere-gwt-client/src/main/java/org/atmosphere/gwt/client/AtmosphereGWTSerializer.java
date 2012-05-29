@@ -31,10 +31,8 @@
 
 package org.atmosphere.gwt.client;
 
+import org.atmosphere.gwt.shared.SerialMode;
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.rpc.client.ast.CommandSink;
-import com.google.gwt.rpc.client.ast.RpcCommand;
-import com.google.gwt.rpc.client.ast.RpcCommandVisitor;
 import com.google.gwt.rpc.client.impl.ClientWriterFactory;
 import com.google.gwt.rpc.client.impl.CommandToStringWriter;
 import com.google.gwt.user.client.rpc.SerializationException;
@@ -43,8 +41,7 @@ import com.google.gwt.user.client.rpc.SerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamReader;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.Serializer;
-
-import java.io.Serializable;
+import org.atmosphere.gwt.client.extra.JsonSerializerUtil;
 
 /**
  * The base class for comet serializers. To instantiate this class follow this example:
@@ -62,38 +59,53 @@ import java.io.Serializable;
  * Where MyType1 and MyType2 are the types that your expecting to receive from the server.
  */
 public abstract class AtmosphereGWTSerializer {
+    
+    protected com.kfuntak.gwt.json.serialization.client.Serializer jsonSerializer;
 
-    @SuppressWarnings("unchecked")
-    public <T extends Serializable> T parse(String message) throws SerializationException {
-        if (getMode() == SerialMode.RPC) {
-            try {
-                Serializer serializer = getSerializer();
-                ClientSerializationStreamReader reader = new ClientSerializationStreamReader(serializer);
-                reader.prepareToRead(message);
-                return (T) reader.readObject();
-            } catch (RuntimeException e) {
-                throw new SerializationException(e);
-            }
-        } else if (getMode() == SerialMode.DE_RPC) {
-            try {
-                SerializationStreamReader reader = ClientWriterFactory.createReader(message);
-                return (T) reader.readObject();
-            } catch (RuntimeException e) {
-                throw new SerializationException(e);
-            }
-        } else if (getMode() == SerialMode.PLAIN) {
-            return (T) message;
-        } else {
-            throw new UnsupportedOperationException("Not implemented yet");
+    public AtmosphereGWTSerializer() {
+        if (getMode() == SerialMode.JSON
+            || getPushMode() == SerialMode.JSON) {
+            jsonSerializer = GWT.create(com.kfuntak.gwt.json.serialization.client.Serializer.class);
         }
+    }
+    
+    public abstract SerialMode getMode();
+
+    public abstract SerialMode getPushMode();
+
+    public abstract Object deserialize(String message) throws SerializationException;
+    
+    protected Object deserializeRPC(String message) throws SerializationException {
+        try {
+            Serializer serializer = getRPCSerializer();
+            ClientSerializationStreamReader reader = new ClientSerializationStreamReader(serializer);
+            reader.prepareToRead(message);
+            return reader.readObject();
+        } catch (RuntimeException e) {
+            throw new SerializationException(e);
+        }
+    }
+    protected Object deserializeDE_RPC(String message) throws SerializationException {
+        try {
+            SerializationStreamReader reader = ClientWriterFactory.createReader(message);
+            return reader.readObject();
+        } catch (RuntimeException e) {
+            throw new SerializationException(e);
+        }
+    }
+    protected Object deserializeJSON(String message) throws SerializationException {
+        return JsonSerializerUtil.deserialize(jsonSerializer, message);
+    }
+    protected Object deserializePLAIN(String message) throws SerializationException {
+        return message;
     }
 
 
-    @SuppressWarnings("unchecked")
-    public <T extends Serializable> String serialize(T message) throws SerializationException {
-        if (getPushMode() == SerialMode.RPC) {
+    public abstract String serialize(Object message) throws SerializationException;
+    
+    protected String serializeRPC(Object message) throws SerializationException {
             try {
-                Serializer serializer = getSerializer();
+                Serializer serializer = getRPCSerializer();
                 ClientSerializationStreamWriter writer = new ClientSerializationStreamWriter(serializer, GWT.getModuleBaseURL(), GWT.getPermutationStrongName());
                 writer.prepareToWrite();
                 writer.writeObject(message);
@@ -101,21 +113,24 @@ public abstract class AtmosphereGWTSerializer {
             } catch (RuntimeException e) {
                 throw new SerializationException(e);
             }
-        } else if (getPushMode() == SerialMode.DE_RPC) {
-            SerializationStreamWriter writer = new CommandToStringWriter(null);
-            writer.writeObject(message);
-            return writer.toString();
-        } else if (getPushMode() == SerialMode.PLAIN) {
-            return message.toString();
-        } else {
-            throw new UnsupportedOperationException("Not implemented yet");
-        }
+    }
+    protected String serializeDE_RPC(Object message) throws SerializationException {
+        // TODO This only works in the Development Mode shell
+        // DE_RPC is deprecated, we should look into the possibility of using the AutoBean framework
+        // AtmosphereProxy already does this
+        // This will open the possibility to send JSON to the server
+        SerializationStreamWriter writer = new CommandToStringWriter(null);
+        writer.writeObject(message);
+        return writer.toString();
+    }
+    protected String serializeJSON(Object message) throws SerializationException {
+        return jsonSerializer.serialize(message);
+    }
+    protected String serializePLAIN(Object message) throws SerializationException {
+        return message.toString();
     }
 
 
-    protected abstract Serializer getSerializer();
+    protected abstract Serializer getRPCSerializer();
 
-    public abstract SerialMode getMode();
-
-    public abstract SerialMode getPushMode();
 }

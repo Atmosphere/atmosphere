@@ -41,6 +41,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.atmosphere.gwt.shared.Constants;
+import org.atmosphere.gwt.shared.SerialMode;
 
 /**
  * @author p.havelaar
@@ -69,6 +71,15 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
 
     protected boolean isDeRPC() {
         return clientOracle != null;
+    }
+    
+    protected SerialMode getSerializationMode() {
+        String mode = resource.getRequest().getParameter(Constants.CLIENT_DESERIALZE_MODE_PARAMETER);
+        if (mode != null) {
+            return SerialMode.valueOf(mode);
+        } else {
+            return SerialMode.RPC;
+        }
     }
 
     public HttpServletRequest getRequest() {
@@ -299,17 +310,26 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         return session != null;
     }
 
-    protected String serialize(Serializable message) throws NotSerializableException, UnsupportedEncodingException {
+    protected String serialize(Object message) throws NotSerializableException, UnsupportedEncodingException {
         try {
-            if (clientOracle == null) {
+            switch (getSerializationMode()) {
+            case RPC:
                 ServerSerializationStreamWriter streamWriter = new ServerSerializationStreamWriter(serializationPolicy);
                 streamWriter.prepareToWrite();
                 streamWriter.writeObject(message);
                 return streamWriter.toString();
-            } else {
+                
+            case DE_RPC:
                 ByteArrayOutputStream result = new ByteArrayOutputStream();
                 RPC.streamResponseForSuccess(clientOracle, result, message);
                 return new String(result.toByteArray(), "UTF-8");
+                
+            case JSON:
+                throw new UnsupportedOperationException("Not implemented yet");
+                
+            default:
+            case PLAIN:
+                return message.toString();
             }
         } catch (SerializationException e) {
             throw new NotSerializableException("Unable to serialize object, message: " + e.getMessage());

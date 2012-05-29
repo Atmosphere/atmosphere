@@ -83,5 +83,5 @@ public interface AtmosphereListener {
      *
      * @param messages
      */
-    public void onMessage(List<? extends Serializable> messages);
+    public void onMessage(List messages);
 }

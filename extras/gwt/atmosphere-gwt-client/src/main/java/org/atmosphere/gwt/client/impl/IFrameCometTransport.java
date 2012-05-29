@@ -177,7 +177,7 @@ public class IFrameCometTransport extends BaseCometTransport {
     private void onMessages(JsArrayString arguments) {
         collect();
         int length = arguments.length();
-        List<Serializable> messages = new ArrayList<Serializable>(length);
+        List messages = new ArrayList<Serializable>(length);
         for (int i = 0; i < length; i++) {
             String message = arguments.get(i);
             switch (message.charAt(0)) {

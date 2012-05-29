@@ -30,12 +30,12 @@
  */
 package org.atmosphere.gwt.client;
 
-import java.io.Serializable;
+import org.atmosphere.gwt.shared.SerialMode;
 
 public @interface SerialTypes {
-    Class<? extends Serializable>[] value();
+    Class<?>[] value();
 
     SerialMode mode() default SerialMode.RPC;
 
-    SerialMode pushmode() default SerialMode.RPC;
+    SerialMode pushMode() default SerialMode.RPC;
 }

@@ -40,6 +40,17 @@
             <groupId>com.google.gwt</groupId>
             <artifactId>gwt-dev</artifactId>
         </dependency>
+        <dependency> 
+           <groupId>com.kfuntak.gwt.json</groupId> 
+           <artifactId>gwtprojsonserializer</artifactId> 
+           <version>1.0.4</version> 
+        </dependency>
     </dependencies>
-
+    
+    <repositories> 
+      <repository> 
+        <id>gwtprojsonserializer</id> 
+        <url>http://gwtprojsonserializer.googlecode.com/svn/repo</url> 
+      </repository>
+    </repositories> 
 </project>

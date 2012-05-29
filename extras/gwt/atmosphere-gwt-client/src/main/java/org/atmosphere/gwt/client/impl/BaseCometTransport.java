@@ -43,7 +43,7 @@ import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
-import org.atmosphere.gwt.client.SerialMode;
+import org.atmosphere.gwt.shared.SerialMode;
 import org.atmosphere.gwt.shared.Constants;
 
 import java.io.Serializable;
@@ -71,22 +71,22 @@ public abstract class BaseCometTransport implements CometTransport {
     }
 
     @Override
-    public void post(Serializable message, AsyncCallback<Void> callback) {
+    public void post(Object message, AsyncCallback<Void> callback) {
         getServerTransport().post(message, callback);
     }
 
     @Override
-    public void post(List<Serializable> messages, AsyncCallback<Void> callback) {
+    public void post(List messages, AsyncCallback<Void> callback) {
         getServerTransport().post(messages, callback);
     }
 
     @Override
-    public void broadcast(Serializable message) {
+    public void broadcast(Object message) {
         getServerTransport().broadcast(message);
     }
 
     @Override
-    public void broadcast(List<Serializable> messages) {
+    public void broadcast(List messages) {
         getServerTransport().broadcast(messages);
     }
 
@@ -134,7 +134,7 @@ public abstract class BaseCometTransport implements CometTransport {
         }
 
         @Override
-        public String serialize(Serializable message) throws SerializationException {
+        public String serialize(Object message) throws SerializationException {
             return client.getSerializer().serialize(message);
         }
 
@@ -142,36 +142,46 @@ public abstract class BaseCometTransport implements CometTransport {
             int i = client.getUrl().indexOf('?');
             String serviceUrl = (i > 0 ? client.getUrl().substring(0, i) : client.getUrl())
                     + "?servertransport=rpcprotocol&connectionID=" + connectionId;
+            
+            serviceUrl = addUrlParameter(serviceUrl, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
             return serviceUrl;
         }
 
     }
 
-    protected Serializable parse(String message) throws SerializationException {
+    protected Object parse(String message) throws SerializationException {
         if (message == null || message.isEmpty()) {
             return null;
         }
         AtmosphereGWTSerializer serializer = client.getSerializer();
         if (serializer == null) {
-            throw new SerializationException("Can not deserialize message with no serializer: " + message);
+            throw new SerializationException("Can not deserialize message without serializer: " + message);
         } else {
-            return serializer.parse(message);
+            return serializer.deserialize(message);
         }
     }
 
 
     public String getUrl(int connectionCount) {
         String url = client.getUrl();
-        if (client.getSerializer() != null && client.getSerializer().getMode() == SerialMode.DE_RPC) {
-            url += (url.contains("?") ? "&" : "?") + Constants.MODULE_BASE_PARAMETER + '=' + GWT.getModuleBaseURL() + '&' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName();
+        if (client.getSerializer() != null) {
+            if (client.getSerializer().getMode() == SerialMode.DE_RPC) {
+                url = addUrlParameter(url, Constants.MODULE_BASE_PARAMETER, 
+                    GWT.getModuleBaseURL() + '&' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName());
+            }
+            url = addUrlParameter(url, Constants.CLIENT_DESERIALZE_MODE_PARAMETER, client.getSerializer().getMode().name());
+            url = addUrlParameter(url, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
         }
         String className = getClass().getName();
         className = className.substring(className.lastIndexOf('.') + 1);
         String transport = className.substring(0, className.indexOf("CometTransport"));
-        return url + (url.contains("?") ? "&" : "?")
-                + "t=" + Integer.toString((int) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
+        return addUrlParameter(url, "t", Integer.toString((int) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
                 + "&c=" + connectionCount
-                + "&tr=" + transport;
+                + "&tr=" + transport);
+    }
+    
+    public String addUrlParameter(String url, String name, String value) {
+        return url + (url.contains("?") ? "&" : "?") + name + "=" + value;
     }
 
 }

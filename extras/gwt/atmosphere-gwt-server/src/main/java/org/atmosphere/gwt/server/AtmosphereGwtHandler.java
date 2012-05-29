@@ -49,6 +49,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.gwt.shared.Constants;
+import org.atmosphere.gwt.shared.SerialMode;
 
 /**
  * @author p.havelaar
@@ -231,6 +233,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (resource == null) {
             return;
         }
+        String mode = resource.getRequest().getParameter(Constants.CLIENT_SERIALZE_MODE_PARAMETER);
+        SerialMode serialMode;
+        if (mode != null) {
+            serialMode = SerialMode.valueOf(mode);
+        } else {
+            serialMode = SerialMode.RPC;
+        }
+        
         try {
             while (true) {
                 String event = data.readLine();
@@ -249,12 +259,12 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                         throw new IllegalStateException("Corrupt message received");
                     }
                     if (action.equals("p")) {
-                        Serializable message = deserialize(messageData);
+                        Serializable message = deserialize(messageData, serialMode);
                         if (message != null) {
                             postMessages.add(message);
                         }
                     } else if (action.equals("b")) {
-                        Serializable message = deserialize(messageData);
+                        Serializable message = deserialize(messageData, serialMode);
                         broadcast(message, resource);
                     }
 
@@ -293,17 +303,27 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //                responsePayload, gzipEncode);
 //    }
 
-    protected Serializable deserialize(char[] data) {
-        return deserialize(String.copyValueOf(data));
+    protected Serializable deserialize(char[] data, SerialMode mode) {
+        return deserialize(String.copyValueOf(data), mode);
     }
-    protected Serializable deserialize(String data) {
-        try {
-            ServerSerializationStreamReader reader = new ServerSerializationStreamReader(getClass().getClassLoader(), cometSerializationPolicyProvider);
-            reader.prepareToRead(data);
-            return (Serializable) reader.readObject();
-        } catch (SerializationException ex) {
-            logger.error("Failed to deserialize message", ex);
-            return null;
+    protected Serializable deserialize(String data, SerialMode mode) {
+        switch (mode) {
+            default:
+            case RPC:
+                try {
+                    ServerSerializationStreamReader reader = new ServerSerializationStreamReader(getClass().getClassLoader(), cometSerializationPolicyProvider);
+                    reader.prepareToRead(data);
+                    return (Serializable) reader.readObject();
+                } catch (SerializationException ex) {
+                    logger.error("Failed to deserialize message", ex);
+                    return null;
+                }
+            case DE_RPC:
+            case JSON:
+                throw new UnsupportedOperationException("Not implemented");
+                
+            case PLAIN:
+                return data;
         }
     }
 //

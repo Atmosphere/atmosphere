@@ -19,6 +19,11 @@
     </build>
 
     <dependencies>
+        <dependency> 
+           <groupId>com.kfuntak.gwt.json</groupId> 
+           <artifactId>gwtprojsonserializer</artifactId> 
+           <version>1.0.4</version> 
+        </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-common</artifactId>
@@ -43,4 +48,11 @@
         </dependency>
     </dependencies>
 
+    <repositories> 
+      <repository> 
+        <id>gwtprojsonserializer</id> 
+        <url>http://gwtprojsonserializer.googlecode.com/svn/repo</url> 
+      </repository>
+    </repositories> 
+    
 </project>

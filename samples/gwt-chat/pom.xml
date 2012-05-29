@@ -103,12 +103,6 @@
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-gwt-common</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-server</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>

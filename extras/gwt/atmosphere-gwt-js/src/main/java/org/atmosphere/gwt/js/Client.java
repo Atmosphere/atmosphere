@@ -24,7 +24,6 @@ import org.timepedia.exporter.client.Export;
 import org.timepedia.exporter.client.ExportPackage;
 import org.timepedia.exporter.client.Exportable;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -120,9 +119,9 @@ public class Client implements Exportable {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
+        public void onMessage(List messages) {
             if (onMessage != null) {
-                for (Serializable m : messages) {
+                for (Object m : messages) {
                     onMessage.execute(decodeJSON((String) m));
                 }
             }

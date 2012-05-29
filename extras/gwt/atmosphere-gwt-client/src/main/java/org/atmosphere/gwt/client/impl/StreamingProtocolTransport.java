@@ -77,7 +77,7 @@ abstract public class StreamingProtocolTransport extends BaseCometTransport {
         }
     }
 
-    private void parse(String message, List<Serializable> messages) {
+    private void parse(String message, List messages) {
         if (expectingDisconnection) {
             listener.onError(new AtmosphereClientException("Expecting disconnection but received message: " + message), true);
         } else if (message.isEmpty()) {

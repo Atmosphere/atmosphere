@@ -193,6 +193,9 @@ public class GWTDemo implements EntryPoint {
         @Override
         public void onBeforeDisconnected() {
             logger.log(Level.INFO, "comet.beforeDisconnected");
+            if (author != null) {
+                client.broadcast(new Event(author, MESSAGE_LEFT_ROOM));
+            }
         }
 
         @Override
@@ -228,8 +231,8 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
-        public void onMessage(List<? extends Serializable> messages) {
-            for (Serializable obj : messages) {
+        public void onMessage(List messages) {
+            for (Object obj : messages) {
                 if (obj instanceof Event) {
                     Event e = (Event)obj;
                     String line = timeFormat.format(e.getTime())
