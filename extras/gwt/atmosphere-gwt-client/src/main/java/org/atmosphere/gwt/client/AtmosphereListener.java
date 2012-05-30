@@ -30,7 +30,6 @@
  */
 package org.atmosphere.gwt.client;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -83,5 +82,5 @@ public interface AtmosphereListener {
      *
      * @param messages
      */
-    public void onMessage(List messages);
+    public void onMessage(List<?> messages);
 }

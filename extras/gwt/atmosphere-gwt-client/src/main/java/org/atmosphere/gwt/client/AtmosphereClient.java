@@ -44,7 +44,6 @@ import com.google.gwt.user.client.rpc.AsyncCallback;
 import org.atmosphere.gwt.client.impl.CometTransport;
 import org.atmosphere.gwt.client.impl.WebSocketCometTransport;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -180,12 +179,12 @@ public class AtmosphereClient {
     }
 
     // push message back to the server on this connection
-    public void post(List messages) {
+    public void post(List<?> messages) {
         primaryTransport.post(messages, postCallback);
     }
 
     // push message back to the server on this connection
-    public void post(List messages, AsyncCallback<Void> callback) {
+    public void post(List<?> messages, AsyncCallback<Void> callback) {
         primaryTransport.post(messages, callback);
     }
 
@@ -195,7 +194,7 @@ public class AtmosphereClient {
     }
 
     // push message back to the server on this connection
-    public void broadcast(List messages) {
+    public void broadcast(List<?> messages) {
         primaryTransport.broadcast(messages);
     }
 
@@ -330,7 +329,7 @@ public class AtmosphereClient {
             for (Object object : refreshQueue) {
                 if (object == REFRESH || object == DISCONNECT) {
                 } else {
-                    doOnMessage((List<? extends Serializable>) object, primaryTransport);
+                    doOnMessage((List<?>) object, primaryTransport);
                 }
             }
             refreshQueue.clear();
@@ -358,7 +357,7 @@ public class AtmosphereClient {
                 } else if (object == DISCONNECT) {
                     doOnDisconnected(primaryTransport);
                 } else {
-                    doOnMessage((List<? extends Serializable>) object, primaryTransport);
+                    doOnMessage((List<?>) object, primaryTransport);
                 }
             }
             refreshQueue.clear();
@@ -407,7 +406,7 @@ public class AtmosphereClient {
         }
     }
 
-    private void doOnMessage(List<? extends Serializable> messages, CometClientTransportWrapper transport) {
+    private void doOnMessage(List<?> messages, CometClientTransportWrapper transport) {
         if (transport == primaryTransport) {
             listener.onMessage(messages);
         } else if (RefreshState.PRIMARY_DISCONNECTED.equals(refreshState)) {
@@ -444,7 +443,7 @@ public class AtmosphereClient {
             transport.post(message, callback);
         }
 
-        public void post(List messages, AsyncCallback<Void> callback) {
+        public void post(List<?> messages, AsyncCallback<Void> callback) {
             transport.post(messages, callback);
         }
 
@@ -452,7 +451,7 @@ public class AtmosphereClient {
             transport.broadcast(message);
         }
 
-        public void broadcast(List messages) {
+        public void broadcast(List<?> messages) {
             transport.broadcast(messages);
         }
 
@@ -536,7 +535,7 @@ public class AtmosphereClient {
         }
 
         @Override
-        public void onMessage(List messages) {
+        public void onMessage(List<?> messages) {
             lastReceivedTime = Duration.currentTimeMillis();
             doOnMessage(messages, this);
         }
