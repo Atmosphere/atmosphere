@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -149,10 +150,6 @@ public interface ApplicationConfig {
      */
     String MAX_INACTIVE = "org.atmosphere.cpr.CometSupport.maxInactiveActivity";
     /**
-     * Support {@link Trackable} by default and create instance of those objects on the fly
-     */
-    String SUPPORT_TRACKABLE = ApplicationConfig.class.getPackage().getName() + ".Trackable";
-    /**
      * Allow query string as set as request's header.
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
@@ -257,4 +254,13 @@ public interface ApplicationConfig {
      * gets delivered to an application or framework
      */
     String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.class.getName();
+    /**
+     * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}
+     */
+    String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.class.getName() + ".excludes";
+    /**
+     * The token used to separate broadcasted messages. This value is used by the client to parse several messages
+     * received in one chunk. Default is '<||>'
+     */
+    String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
 }

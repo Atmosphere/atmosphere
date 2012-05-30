@@ -25,12 +25,19 @@ package org.atmosphere.cpr;
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereInterceptor {
+
+    /**
+     * Allow this object to configure it's state when initialized
+     *
+     * @param config an {@link AtmosphereConfig}
+     */
+    void configure(AtmosphereConfig config);
     /**
      * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}
      * @param r a {@link AtmosphereResource}
-     * @return {@link Action.CONTINUE}
+     * @return {@link Action#CONTINUE}
      * to dispatch the {@link AtmosphereResource} to other {@link }AtmosphereInterceptor} or {@link AtmosphereHandler}.
-     * Return {@link Action.TYPE.CANCELLED} to stop the processing.
+     * Return {@link Action.TYPE#CANCELLED} to stop the processing.
      */
     Action inspect(AtmosphereResource r);
 }

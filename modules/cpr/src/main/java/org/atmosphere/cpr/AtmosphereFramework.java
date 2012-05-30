@@ -428,7 +428,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             initWebSocketProtocol();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            configureAtmosphereConfig(sc);
+            configureAtmosphereInterceptor(sc);
 
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
@@ -459,14 +459,16 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Configure the list of {@link AtmosphereInterceptor}.
      * @param sc a ServletConfig
      */
-    protected void configureAtmosphereConfig(ServletConfig sc) {
+    protected void configureAtmosphereInterceptor(ServletConfig sc) {
         String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
         if (s != null) {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    interceptors.add((AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a.trim()).newInstance());
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()).newInstance();
+                    ai.configure(config);
+                    interceptor(ai);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
                 } catch (IllegalAccessException e) {
