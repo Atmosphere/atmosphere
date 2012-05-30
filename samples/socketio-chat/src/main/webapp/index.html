@@ -33,18 +33,6 @@ socket.on('connect', function () {
      $("#transport").append(new Option(item, item));
 	});
 	
-	/*
-	console.log(this.socket.options.resource);
-	console.log(this.socket.transport.name);
-	console.log(this.socket.sessionid);
-	console.log(io.protocol);
-	
-	//connectedUrl =  document.location.protocol + "://" + document.location.host + "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
-	connectedUrl =  "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
-	var getDisconnectURL = connectedUrl + "/?t="+ +new Date + "&disconnect";
-	
-	console.log(getDisconnectURL);
-	*/
 connectedUrl =  "/" + this.socket.options.resource + "/" + io.protocol + "/" + this.socket.transport.name + "/"  + this.socket.sessionid;
 var getDisconnectURL = connectedUrl + "/?t="+ +new Date + "&disconnect";
 	
@@ -118,31 +106,15 @@ $(function () {
   $(document).ready(function() {
   	
   	$("#transport").change( function() {
-		  //alert($(this).val());
 		  socket.disconnect();
-		  // voir pull request 343 : https://github.com/LearnBoost/socket.io-client/pull/343
-		  //socket = io.connect('', {'resource':'atmosphere-socketio-chat/ChatAtmosphereHandler'}); 
+		  // pull request 343 : https://github.com/LearnBoost/socket.io-client/pull/343
 		  io.j = [];
 			io.sockets = [];
 		  socket = io.connect('', {'transports':['' + $(this).val() + ''], 'resource':loginurl+'ChatAtmosphereHandler'}); 
 		  
 		});
 		
-		$("#manualDisconnectGet").bind("click", function(){
-				// faudrait faire un GET avec /?disconnect;
-				
-				//alert("get");
-				var getDisconnectURL = connectedUrl + "?t="+ +new Date + "&disconnect";
-				
-				$.get(getDisconnectURL, function(data) {
-					  //$('.result').html(data);
-					  //alert('Load was performed.'  +data);
-					});
-				
-		});
 		$("#manualDisconnectPost").bind("click", function(){
-				// faudrait faire un GET avec /?disconnect;
-				
 				var getDisconnectURL = connectedUrl;
 				
 				$.post(getDisconnectURL, "0:::", function(data) {
@@ -176,7 +148,6 @@ $(function () {
 			</form>
 			<div id="transports">
 				<select id="transport"></select>
-				<div id="manualDisconnectGet">Force Disconnect with GET</div>
 				<div id="manualDisconnectPost">Force Disconnect with Post</div>
 			</div>	
 		</div>
