@@ -142,7 +142,7 @@
                 <configuration>
                     <filesets>
                         <fileset>
-                            <directory>${project.basedir}/works</directory>
+                            <directory>${project.basedir}/work</directory>
                         </fileset>
                          <fileset>
                             <directory>${project.basedir}/overlays</directory>
@@ -266,6 +266,7 @@
         <module>modules</module>
         <module>extras</module>
         <module>samples</module>
+        <module>integration-tests</module>
     </modules>
     <reporting>
         <outputDirectory>target/site</outputDirectory>

@@ -8,19 +8,14 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-modules</artifactId>
+    <artifactId>atmosphere-integration</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-modules</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <modules>
-        <module>compat-tomcat</module>
-        <module>compat-tomcat7</module>
-        <module>compat-jbossweb</module>
         <module>cpr</module>
-        <module>annotations</module>
         <module>jersey</module>
-        <module>jquery</module>
     </modules>
 </project>
