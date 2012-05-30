@@ -803,11 +803,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
             if (isUsingStream) {
                 try {
-                    response.getOutputStream().close();
+                    getOutputStream().close();
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                response.getWriter().close();
+                getWriter().close();
             }
         } catch (IOException e) {
             logger.trace("", e);
@@ -825,12 +825,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    response.getOutputStream().write(data.getBytes(getCharacterEncoding()));
+                    getOutputStream().write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
                     ex.printStackTrace();
                 }
             } else {
-                response.getWriter().write(data);
+                getWriter().write(data);
             }
         } catch (IOException e) {
             logger.trace("", e);
@@ -849,11 +849,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    response.getOutputStream().write(data);
+                    getOutputStream().write(data);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                response.getWriter().write(new String(data, getCharacterEncoding()));
+                getWriter().write(new String(data, getCharacterEncoding()));
             }
         } catch (IOException e) {
             logger.trace("", e);
@@ -874,11 +874,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    response.getOutputStream().write(data, offset, length);
+                    getOutputStream().write(data, offset, length);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                response.getWriter().write(new String(data, offset, length, getCharacterEncoding()));
+                getWriter().write(new String(data, offset, length, getCharacterEncoding()));
             }
         } catch (IOException e) {
             logger.trace("", e);
