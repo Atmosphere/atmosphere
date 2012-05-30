@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9.5</version>
+        <version>0.9.5-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-di-guice-sample</artifactId>
     <packaging>war</packaging>
-    <version>0.9.5</version>
+    <version>0.9.5-SNAPSHOT</version>
     <name>atmosphere-di-guice-sample</name>
     <dependencies>
         <dependency>
