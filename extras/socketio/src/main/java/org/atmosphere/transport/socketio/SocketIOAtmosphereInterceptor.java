@@ -63,9 +63,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 	private static int timeout = 25000;
 	private static int suspendTime = 20000;
 	
-	private String availableTransports = "websocket,flashsocket,htmlfile,xhr-polling,jsonp-polling";
-	//private String availableTransports = "websocket";
-	//private String availableTransports = "xhr-polling";
+	private String availableTransports = "websocket,xhr-polling,jsonp-polling";
 	 
 	private SocketIOSessionManager getSessionManager(String version){
 		
@@ -191,13 +189,9 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 		
 		// VERSION 1
 		org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport websocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.WebSocketTransport();
-		//org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport flashsocketTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.FlashSocketTransport();
-		//org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport htmlFileTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.HTMLFileTransport(BUFFER_SIZE_DEFAULT);
 		org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport xhrPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.XHRPollingTransport(BUFFER_SIZE_DEFAULT);
 		org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport jsonpPollingTransport1 = new org.atmosphere.protocol.socketio.protocol1.transport.JSONPPollingTransport(BUFFER_SIZE_DEFAULT);
 		transports.put(websocketTransport1.getName()+ "-1", websocketTransport1);
-		//transports.put(flashsocketTransport1.getName()+ "-1", flashsocketTransport1);
-		//transports.put(htmlFileTransport1.getName()+ "-1", htmlFileTransport1);
 		transports.put(xhrPollingTransport1.getName()+ "-1", xhrPollingTransport1);
 		transports.put(jsonpPollingTransport1.getName()+ "-1", jsonpPollingTransport1);
 		

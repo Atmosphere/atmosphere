@@ -60,13 +60,6 @@ public class WebSocketTransport extends AbstractTransport {
 		HttpServletRequest request = resource.getRequest();
 		HttpServletResponse response = resource.getResponse();
 		
-		/*
-		if(processor!=null && !processor.supportWebSocket()){
-			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
-			return Action.CONTINUE;
-		}
-		*/
-		
 		Object obj = request.getAttribute(SESSION_KEY);
 		SocketIOSession session = null;
 		String sessionId = null;
@@ -170,7 +163,6 @@ public class WebSocketTransport extends AbstractTransport {
 			try {
 				webSocket.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -221,7 +213,6 @@ public class WebSocketTransport extends AbstractTransport {
 					webSocket.write(message);
 					logger.trace("WRITE SUCCESS : calling from " + this.getClass().getName() + " : " + "sendMessage(string) = " + message);
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			} else {
@@ -250,7 +241,6 @@ public class WebSocketTransport extends AbstractTransport {
 			try {
 				webSocket.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			webSocket = null;

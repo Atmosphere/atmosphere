@@ -16,7 +16,6 @@
 package org.atmosphere.protocol.socketio;
 
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +31,6 @@ import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.AsyncHttpClientConfig;
 import com.ning.http.client.HttpResponseBodyPart;
 import com.ning.http.client.Response;
-import com.ning.http.client.providers.grizzly.GrizzlyAsyncHttpProvider;
 import com.ning.http.client.providers.netty.NettyAsyncHttpProvider;
 import com.ning.http.client.websocket.WebSocket;
 import com.ning.http.client.websocket.WebSocketTextListener;
@@ -48,9 +46,6 @@ public abstract class SocketIOTest {
 	
 	public static final String GET_SESSION_URL = "http://localhost:8080/atmosphere-socketio-chat/ChatAtmosphereHandler/1/";
 	public static final String WS_GET_SESSION_URL = "ws://localhost:8080/atmosphere-socketio-chat/ChatAtmosphereHandler/1/";
-	
-	//public static final String GET_SESSION_URL = "http://192.168.10.144:3000/socket.io/1/";
-	//public static final String WS_GET_SESSION_URL = "ws://192.168.10.144:3000/socket.io/1/";
 	
 	public final static int TIMEOUT = 5;
 	
@@ -74,7 +69,6 @@ public abstract class SocketIOTest {
         if (config == null) {
             config = new AsyncHttpClientConfig.Builder().build();
         }
-        //return new AsyncHttpClient(new GrizzlyAsyncHttpProvider(config), config);
         return new AsyncHttpClient(new NettyAsyncHttpProvider(config), config);
     }
     
@@ -84,7 +78,7 @@ public abstract class SocketIOTest {
     	final CountDownLatch l = new CountDownLatch(1);
     	final AtomicReference<String> sessionid = new AtomicReference<String>();
     	
-    	// on va chercher une sessionID
+    	// get a sessionID
 		client.prepareGet(url).execute(new AsyncCompletionHandlerAdapter() {
 
             @Override
@@ -109,7 +103,6 @@ public abstract class SocketIOTest {
     
     public static void suspend(final String name, final AsyncHttpClient client, final String url, final ResponseListener listener) throws Throwable {
     	
-    	//System.err.println("Name = " + name + " go in suspend mode");
     	log.debug(name + " go in suspend mode");
     	
     	Thread t = new Thread() {
@@ -120,18 +113,6 @@ public abstract class SocketIOTest {
 
             			@Override
             			public com.ning.http.client.AsyncHandler.STATE onBodyPartReceived( HttpResponseBodyPart content) throws Exception {
-            				/*
-            				try {
-                            	String body = new String(content.getBodyPartBytes());
-                            	System.err.println("suspend Name = " + name + " onBodyPartReceived=" + body);
-                            	
-                            	if(listener!=null){
-                            		listener.notify(body);
-                            	} 
-                            	
-                            } finally {
-                            }
-                            */
             				return super.onBodyPartReceived(content);
             			}
             			
@@ -140,7 +121,6 @@ public abstract class SocketIOTest {
                             
                         	try {
                         		String body = new String(response.getResponseBodyAsBytes(), "UTF-8");
-                            	//System.err.println("suspend Name = " + name + " Body=" + body);
                         		log.debug(name + " Suspend onCompleted Body=" + body);
                             	if(listener!=null){
                             		listener.notify(body);
@@ -165,12 +145,11 @@ public abstract class SocketIOTest {
     
     public static WebSocketWrapper connectWS(final String name, final AsyncHttpClient client, String url, final WebSocketWrapper wrapper) throws Throwable {
     	
-    	// on ouvre une connection en WebSocket
+    	// open a WebSocket connection
         WebSocket websocket = client.prepareGet(url).execute(new WebSocketUpgradeHandler.Builder().addWebSocketListener(new WebSocketTextListener() {
 			
 			@Override
 			public void onOpen(WebSocket websocket) {
-				// TODO Auto-generated method stub
 				
 			}
 			
@@ -197,7 +176,6 @@ public abstract class SocketIOTest {
 			}
 
 			public void onFragment(String arg0, boolean arg1) {
-				// TODO Auto-generated method stub
 				System.err.println("onFragment=" + arg0);
 				
 			}
@@ -217,7 +195,6 @@ public abstract class SocketIOTest {
     
     public static void sendMessage(final String name, final AsyncHttpClient client, final String url, final String message, final ResponseListener listener) throws Throwable {
     	
-    	//System.err.println("Name=" + name + " HXR-Polling Sending message = " + message);
     	log.debug(name + " HXR-Polling Sending message = " + message);
     	
     	Thread t = new Thread() {
@@ -268,7 +245,6 @@ public abstract class SocketIOTest {
     protected void connect(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
-		// fait un connect
 		suspend(name, client, url, new ResponseListener() {
 			
 			@Override
@@ -289,7 +265,6 @@ public abstract class SocketIOTest {
     protected void connectJSONP(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
-		// fait un connect
 		suspend(name, client, url, new ResponseListener() {
 			
 			@Override
@@ -310,7 +285,6 @@ public abstract class SocketIOTest {
     protected void disconnect(final String name, final AsyncHttpClient client, final String url) throws Throwable {
     	final CountDownLatch l = new CountDownLatch(1);
 		
-		// fait un connect
 		suspend(name, client, url+ "?disconnect", new ResponseListener() {
 			
 			@Override
@@ -328,24 +302,40 @@ public abstract class SocketIOTest {
     	
     }
     
+    protected void disconnectJSONP(final String name, final AsyncHttpClient client, final String url) throws Throwable {
+    	final CountDownLatch l = new CountDownLatch(1);
+		
+		suspend(name, client, url+ "?disconnect", new ResponseListener() {
+			
+			@Override
+			public void notify(String message) {
+				log.info("disconnect [" + name + "] message received = " + message);
+				l.countDown();
+				Assert.assertNotNull(message);
+				Assert.assertEquals(message, "io.j[0](\"1::\")");
+			}
+		});
+		
+		if (!l.await(30, TimeUnit.SECONDS)) {
+            throw new RuntimeException("Timeout out");
+        }
+    	
+    }
+    
     private void newSuspendConnection(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique, ResponseListener responseListener) throws Throwable {
-    	//suspend une connection
     	suspend(name, client, url, responseListener);
     }
     
     protected void newSuspendConnection(final String name, final AsyncHttpClient client, final String url, ResponseListener responseListener) throws Throwable {
     	
     	System.err.println("newSuspendConnection name [" + name + "]");
-    	//suspend une connection
     	suspend(name, client, url, responseListener);
     }
     
     protected void login(final String name, final AsyncHttpClient client, final String url, final String username, final boolean usernameUnique) throws Throwable {
     	final CountDownLatch latchGet = new CountDownLatch(2);
-    	//final CountDownLatch latchGet2 = new CountDownLatch(1);
     	final CountDownLatch latchPost = new CountDownLatch(1);
     	
-    	// fait un connect
     	connect(name, client, url);
     	
     	final ResponseListener responseListener = new ResponseListener() {
@@ -376,12 +366,9 @@ public abstract class SocketIOTest {
 								latchGet.countDown();
 								
 								if(usernameUnique){
-									//Assert.assertEquals(message, "6:::1+[false]");
 									Assert.assertTrue(data.contains("6:::1+[false]"));
 								} else {
-									//Assert.assertEquals(message, "6:::1+[true]");
 									Assert.assertTrue(data.contains("6:::1+[true]"));
-									// on doit faire ceci, car pour un duplicate username, on n'envoie pas la liste des users 
 									latchGet.countDown();
 								}
 							} 
@@ -393,9 +380,7 @@ public abstract class SocketIOTest {
 							// usernames
 							if(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{")){
 								latchGet.countDown();
-								// la liste des users connectes
 								Assert.assertTrue(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{"));
-								//Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
 								Assert.assertTrue(data.contains("\"" + username + "\""));
 							} 
 							break;
@@ -418,10 +403,10 @@ public abstract class SocketIOTest {
 			} 
 		};
     	
-    	//suspend une connection
+    	//suspend connection
     	suspend(name, client, url, responseListener);
     	
-    	// maintenant on fait login
+    	// login
 		sendMessage(name, client, url, "5:1+::{\"name\":\"nickname\",\"args\":[\"" + username + "\"]}", new ResponseListener() {
 			
 			@Override
@@ -436,12 +421,6 @@ public abstract class SocketIOTest {
 		if (!latchGet.await(30, TimeUnit.SECONDS)) {
             throw new RuntimeException("Timeout out Login 1 from user=[" + name + "]");
         }
-		/*
-		if (!latchGet2.await(30, TimeUnit.SECONDS)) {
-            
-			throw new RuntimeException("Timeout out Login 2 from user=[" + name + "]");
-        }
-        */
 		
 		if (!latchPost.await(30, TimeUnit.SECONDS)) {
             throw new RuntimeException("Timeout out Login 3 from user=[" + name + "]");
@@ -485,12 +464,9 @@ public abstract class SocketIOTest {
 								l.countDown();
 								
 								if(usernameUnique){
-									//Assert.assertEquals(message, "6:::1+[false]");
 									Assert.assertTrue(data.contains("6:::1+[false]"));
 								} else {
-									//Assert.assertEquals(message, "6:::1+[true]");
 									Assert.assertTrue(data.contains("6:::1+[true]"));
-									// on doit faire ceci, car pour un duplicate username, on n'envoie pas la liste des users 
 									l.countDown();
 								}
 							} 
@@ -502,9 +478,7 @@ public abstract class SocketIOTest {
 							// usernames
 							if(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{")){
 								l.countDown();
-								// la liste des users connectes
 								Assert.assertTrue(data.contains("5:::{\"name\":\"nicknames\",\"args\":[{"));
-								//Assert.assertTrue(message.contains("\"" + username + "\":\"" + username + "\""));
 								Assert.assertTrue(data.contains("\"" + username + "\""));
 							} 
 							break;
@@ -517,10 +491,10 @@ public abstract class SocketIOTest {
 			}
 		});
     	
-    	// fait un connect et ca suspend
+    	// connect and suspend
     	wrapper = connectWS(name, client, url, wrapper);
 		
-    	// maintenant on fait login
+    	// login
     	sendMessage(wrapper.websocket, "5:1+::{\"name\":\"nickname\",\"args\":[\"" + username + "\"]}");
     			
     	
@@ -537,10 +511,8 @@ public abstract class SocketIOTest {
     	final CountDownLatch latchGet2 = new CountDownLatch(1);
     	final CountDownLatch latchPost = new CountDownLatch(1);
     	
-    	// fait un connect
     	connectJSONP(name, client, url);
     	
-    	//suspend une connection
     	suspend(name, client, url, new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -548,13 +520,12 @@ public abstract class SocketIOTest {
 				latchGet.countDown();
 				Assert.assertNotNull(message);
 				if(usernameUnique){
-					Assert.assertEquals(message, "io.j[0](6:::1+[false]);");
+					Assert.assertEquals(message, "io.j[0](\"6:::1+[false]\");");
 				} else {
-					Assert.assertEquals(message, "io.j[0](6:::1+[true]);");
+					Assert.assertEquals(message, "io.j[0](\"6:::1+[true]\");");
 				}
 				
-				// on doit faire une nouvelle connection pour obtenir la suite
-				//suspend une connection
+				// create a new connection the reconnect
 		    	try {
 					suspend(name, client, url, new ResponseListener() {
 						@Override
@@ -572,11 +543,9 @@ public abstract class SocketIOTest {
 			} 
 		});
     	
-    	// maintenant on fait login
+    	// login
     	String message = "\"5:1+::{\\\"name\\\":\\\"nickname\\\",\\\"args\\\":[\\\"" + username + "\\\"]}\"";
 		sendMessage(name, client, url, "d=" + URLEncoder.encode(message,"UTF-8"), new ResponseListener() {
-			
-			boolean found = false;
 			
 			@Override
 			public void notify(String message) {

@@ -132,37 +132,31 @@ public abstract class XHRTransport extends AbstractTransport {
 					
 					logger.trace("Session[" + session.getSessionId() + "]: " + resource.getRequest().getMethod() + "sendMessage");
 					
-					if (resource != null) {
-						
-						try {
-							writeData(resource.getResponse(), message);
-						} catch (Exception e) {
-							if(!resource.isCancelled()){
-								logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
-								try {
-									finishSend(resource.getResponse());
-								} catch (IOException ex) {
-									//ex.printStackTrace();
-								}
-								
-								resource.resume();
-							}
-							throw new SocketIOException(e);
-						}
-						if (!isStreamingConnection) {
+					try {
+						writeData(resource.getResponse(), message);
+					} catch (Exception e) {
+						if(!resource.isCancelled()){
+							logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage ON FORCE UN RESUME");
 							try {
 								finishSend(resource.getResponse());
-							} catch (IOException e) {
-								//e.printStackTrace();
+							} catch (IOException ex) {
+								//ex.printStackTrace();
 							}
+							
 							resource.resume();
-						} else {
-							logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage");
-							session.startHeartbeatTimer();
 						}
+						throw new SocketIOException(e);
+					}
+					if (!isStreamingConnection) {
+						try {
+							finishSend(resource.getResponse());
+						} catch (IOException e) {
+							//e.printStackTrace();
+						}
+						resource.resume();
 					} else {
-						logger.trace("calling from " + this.getClass().getName() + " : " + "On Disconnect resource==null");
-						throw new SocketIOException();
+						logger.trace("calling from " + this.getClass().getName() + " : " + "sendMessage");
+						session.startHeartbeatTimer();
 					}
 				} else {
 					logger.trace("calling from " + this.getClass().getName() + " : " + "SocketIOClosedException sendMessage");
@@ -301,7 +295,6 @@ public abstract class XHRTransport extends AbstractTransport {
 										
 										// send message on the suspended request
 										session.onMessage(session.getAtmosphereResourceImpl(), session.getTransportHandler(), msg.getData());
-										//session.getAtmosphereResourceImpl().resume();
 										writeData(response, SocketIOPacketImpl.POST_RESPONSE);
 										
 									} else {

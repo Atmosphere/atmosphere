@@ -45,7 +45,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 	
 	private static final Logger logger = LoggerFactory.getLogger(SocketIOSessionManagerImpl.class);
 	
-	//private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
 	private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
 	private static final int SESSION_ID_LENGTH = 20;
 
@@ -59,18 +58,6 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
 	private static String generateRandomString(int length) {
 		
-		/*
-	    StringBuilder result = new StringBuilder(length);
-	    byte[] bytes = new byte[length];
-	    random.nextBytes(bytes);
-	    
-	    for (int i = 0; i < bytes.length; i++) {
-	      result.append(BASE64_ALPHABET[bytes[i] & 0x3F]);
-	    }
-	    return result.toString();
-	    */
-	    
-	     StringBuilder result = new StringBuilder(length);
 	    byte[] bytes = new byte[16];
 	    
         // Render the result as a String of hexadecimal digits

@@ -111,7 +111,6 @@ public abstract class AbstractTransport implements Transport {
 						}
 
 				} catch (UnsupportedEncodingException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				return extractedData;
@@ -121,7 +120,6 @@ public abstract class AbstractTransport implements Transport {
 		} else if (contentType.startsWith("text/plain")) {
 			return data;
 		} else {
-			// TODO: Treat as text for now, maybe error in the future.
 			return data;
 		}
 	}

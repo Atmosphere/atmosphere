@@ -50,7 +50,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
 		
-		// fait un connect
+		// connect
 		connectJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1);
 		
 		client.close();
@@ -63,12 +63,12 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
 		
-		// fait un connect
+		// connect
 		connectJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1);
 		
 		final CountDownLatch l = new CountDownLatch(1);
 		
-		// maintenant on fait un suspend et attend un ping
+		// suspend and waiting for a ping
 		suspend("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, new ResponseListener() {
 			
 			@Override
@@ -95,7 +95,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1 +"?i=0", username, true);
 		
 		client.close();
@@ -110,14 +110,14 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		//login
 		loginJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid2 = getSessionID(client, GET_SESSION_URL);
 		
-		// maintenant on fait login
+		// login
 		login("clientJSONPolling2", client2, GET_SESSION_URL+"jsonp-polling/" + sessionid2, username, false);
 		
 		client.close();
@@ -133,7 +133,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -142,7 +142,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling2", client2, GET_SESSION_URL+"jsonp-polling/" + sessionid2, username2, true);
 		
 		client.close();
@@ -158,10 +158,10 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
-		disconnect("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1);
+		disconnectJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1);
 		
 		client.close();
 	}
@@ -175,7 +175,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
 		final CountDownLatch l = new CountDownLatch(1);
@@ -208,7 +208,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -217,10 +217,10 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling2", client2, GET_SESSION_URL+"jsonp-polling/" + sessionid2, username2, true);
 		
-		// maintenant, on met en suspend les deux clients
+		// suspend both clients
 		suspend("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -239,7 +239,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 			}
 		});
 		
-		// client 1 va broadcaster un message que le client2 va recevoir
+		// client 1 send a message that will be received by client 2
 		sendMessage("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, "5:::{\\\"name\\\":\\\"user message\\\",\\\"args\\\":[\\\"message1 from " + username + "\\\"]}", new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -263,7 +263,7 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -272,10 +272,10 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		loginJSONP("clientJSONPolling2", client2, GET_SESSION_URL+"jsonp-polling/" + sessionid2, username2, true);
 		
-		// maintenant, on met en suspend les deux clients
+		//suspend both clients
 		suspend("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1, new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -291,12 +291,11 @@ public class SocketIOJSONPollingTest extends SocketIOTest {
 				log.info("clientJSONPolling2 message received = " + message);
 				Assert.assertNotNull(message);
 				
-				// il est possible de recevoir d'autres messages, comme les users qui restent dans le chat
 				Assert.assertTrue(message.contains("io.j[0](\"5:::{\"name\":\"announcement\",\"args\":[\"" + username + " disconnected\"]}"));
 			}
 		});
 		
-		// client 2 va recevoir un broadcast de disconnect du user1
+		// client 2 will received a disconnect notification from client 1
 		disconnect("clientJSONPolling1", client, GET_SESSION_URL+"jsonp-polling/" + sessionid1);
 		
 		client.close();

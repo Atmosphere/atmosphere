@@ -53,12 +53,6 @@ public class SocketIOBroadcasterCache implements BroadcasterCache {
 
             public void run() {
             	logger.trace("cleanup SocketIOBroadcasterCache");
-            	/*
-            	for (Entry<AtmosphereResource, Queue<Object>> entry : cache.entrySet()) {
-        			logger.info("SessionID Cached = " + entry.getKey().getRequest().getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID));
-        		}
-        		*/
-            	
             }
         }, 0, 60, TimeUnit.SECONDS);
 		

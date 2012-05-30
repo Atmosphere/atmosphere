@@ -91,7 +91,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 			}
 		});
 		
-		// fait un connect et ca suspend
+		//connect and suspend
 		WebSocket websocket = connectWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, wrapper).websocket;
 		
 		if (!l.await(30, TimeUnit.SECONDS)) {
@@ -153,7 +153,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 			}
 		});
 		
-		// fait un connect et ca suspend
+		// connect and suspend
 		WebSocket websocket = connectWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, wrapper).websocket;
 		
 		if (!l.await(45, TimeUnit.SECONDS)) {
@@ -172,7 +172,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocket websocket = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true).websocket;
 		
 		client.close();
@@ -187,14 +187,14 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocket websocket = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true).websocket;
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid2 = getSessionID(client, GET_SESSION_URL);
 		
-		// maintenant on fait login
+		// login
 		WebSocket websocket2 = loginWS("clientWebSocket2", client2, WS_GET_SESSION_URL+"websocket/" + sessionid2, username, false).websocket;
 		
 		client.close();
@@ -210,7 +210,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocket websocket = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true).websocket;
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -219,29 +219,12 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocket websocket2 = loginWS("clientWebSocket2", client2, WS_GET_SESSION_URL+"websocket/" + sessionid2, username2, true).websocket;
 		
 		client.close();
 		client2.close();
 	}
-	/*
-	@Test(groups = {"standalone", "default_provider"})
-    public void disconnectGetWebSocketTest() throws Throwable {
-		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
-		
-		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
-		
-		final String username = "test_" + System.currentTimeMillis();
-		
-		// maintenant on fait login
-		WebSocket websocket = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true).websocket;
-		
-		disconnect("clientWebSocket1", client, GET_SESSION_URL+"websocket/" + sessionid1);
-		
-		client.close();
-	}
-	*/
 	
 	@Test(groups = {"standalone", "default_provider"})
     public void disconnectPostWebSocketTest() throws Throwable {
@@ -254,7 +237,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final CountDownLatch l = new CountDownLatch(1);
 		
-		// maintenant on fait login
+		// login
 		WebSocketWrapper webSocketWrapper1 = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true);
 		
 		webSocketWrapper1.setListener(new WebSocketResponseListener(webSocketWrapper1) {
@@ -315,7 +298,7 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocketWrapper webSocketWrapper1 = loginWS("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -324,11 +307,10 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 		
 		final String username2 = "test2_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		WebSocketWrapper webSocketWrapper2 = loginWS("clientWebSocket2", client2, WS_GET_SESSION_URL+"websocket/" + sessionid2, username2, true);
 		
 		
-		//final CountDownLatch lWebSocket1 = new CountDownLatch(1);
 		final CountDownLatch lWebSocket2 = new CountDownLatch(1);
 		
 		webSocketWrapper1.setListener(new WebSocketResponseListener(webSocketWrapper1) {
@@ -360,7 +342,6 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 					switch(msg.getFrameType()){
 						case CONNECT : 
 							Assert.assertEquals(message, "1::");
-							//lWebSocket1.countDown();
 							break;
 						default:
 							
@@ -413,13 +394,8 @@ public class SocketIOWebSocketTest extends SocketIOTest {
 			}
 		});
 		
-		// client 1 va broadcaster un message que le client2 va recevoir
+		// client 1 send a message that will be received by client 2
 		sendMessage(webSocketWrapper1.websocket, "5:::{\"name\":\"user message\",\"args\":[\"message1 from " + username + "\"]}");
-		/*
-		if (!lWebSocket1.await(30, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Timeout out WS 1");
-        }
-        */
 		
 		if (!lWebSocket2.await(30, TimeUnit.SECONDS)) {
             throw new RuntimeException("Timeout out WS 2");
@@ -434,50 +410,6 @@ public class SocketIOWebSocketTest extends SocketIOTest {
     public void broadcastDisconnectWebSocketTest() throws Throwable {
 		System.err.println("\n\nTEST broadcastDisconnectWebSocketTest\n\n");
 		Assert.fail();
-		/*
-		final AsyncHttpClient client = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
-		
-		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
-		
-		final String username = "test_" + System.currentTimeMillis();
-		
-		// maintenant on fait login
-		login("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1, username, true);
-		
-		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
-		
-		final String sessionid2 = getSessionID(client, GET_SESSION_URL);
-		
-		final String username2 = "test_" + System.currentTimeMillis();
-		
-		// maintenant on fait login
-		login("clientWebSocket2", client2, WS_GET_SESSION_URL+"websocket/" + sessionid2, username2, true);
-		
-		// maintenant, on met en suspend les deux clients
-		suspendWS("clientWebSocket1", client, GET_SESSION_URL+"websocket/" + sessionid1, new ResponseListener() {
-			@Override
-			public void notify(String message) {
-				log.info("clientWebSocket1 message received = " + message);
-				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "1::");
-			}
-		});
-		
-		suspendWS("clientWebSocket2", client2, WS_GET_SESSION_URL+"websocket/" + sessionid2, new ResponseListener() {
-			@Override
-			public void notify(String message) {
-				log.info("clientWebSocket2 message received = " + message);
-				Assert.assertNotNull(message);
-				Assert.assertEquals(message, "5:::{\"name\":\"announcement\",\"args\":[\"" + username + " disconnected\"]}");
-			}
-		});
-		
-		// client 2 va recevoir un broadcast de disconnect du user1
-		disconnect("clientWebSocket1", client, WS_GET_SESSION_URL+"websocket/" + sessionid1);
-		
-		client.close();
-		client2.close();
-		*/
 	}
 
 }

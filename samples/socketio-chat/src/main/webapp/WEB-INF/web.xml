@@ -22,12 +22,6 @@
 			<param-name>socketio-transport</param-name>
 			<param-value>websocket,xhr-polling,jsonp-polling</param-value>
 		</init-param>
-		<!--
-		<init-param>
-			<param-name>socketio-transport</param-name>
-			<param-value>websocket,htmlfile,xhr-polling,jsonp-polling</param-value>
-		</init-param>
-		-->
 		<init-param>
 			<param-name>socketio-timeout</param-name>
 			<param-value>25000</param-value>

@@ -232,7 +232,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
 				int previousDelimiterIndex = 1;
 				int nextDelimiterIndex = -1;
 				
-				// on trouve le prochain delimiter
+				// find next delimiter
 				for(int i=1;i<size;i++){
 					for(;i<size;i++){
 						if(data.charAt(i) == SocketIOPacketImpl.SOCKETIO_MSG_DELIMITER){

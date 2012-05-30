@@ -54,7 +54,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
 		
-		// fait un connect
+		// connect
 		connect("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1);
 		
 		client.close();
@@ -68,12 +68,12 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String sessionid1 = getSessionID(client, GET_SESSION_URL);
 		
-		// fait un connect
+		// connect
 		connect("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1);
 		
 		final CountDownLatch l = new CountDownLatch(1);
 		
-		// maintenant on fait un suspend et attend un ping
+		//suspend and waiting for a ping
 		suspend("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, new ResponseListener() {
 			
 			@Override
@@ -101,7 +101,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		client.close();
@@ -117,14 +117,14 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
 		
 		final String sessionid2 = getSessionID(client, GET_SESSION_URL);
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, username, false);
 		
 		client.close();
@@ -141,7 +141,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -150,7 +150,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, username2, true);
 		
 		client.close();
@@ -167,7 +167,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		disconnect("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1);
@@ -185,7 +185,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		final CountDownLatch l = new CountDownLatch(1);
@@ -218,7 +218,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -227,10 +227,10 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, username2, true);
 		
-		// maintenant, on met en suspend les deux clients
+		// suspend both clients
 		suspend("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -314,13 +314,12 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 			}
 		});
 		
-		// client 1 va broadcaster un message que le client2 va recevoir
+		// client 1 send a message that will be received by client 2
 		sendMessage("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, "5:::{\"name\":\"user message\",\"args\":[\"message1 from " + username + "\"]}", new ResponseListener() {
 			@Override
 			public void notify(String message) {
 				log.info("broadcastXHRPollingTest clientXHRPolling1 message received = " + message);
 				Assert.assertNotNull(message);
-				//Assert.assertEquals(message, "1::");
 				Assert.assertEquals(message, SocketIOPacketImpl.POST_RESPONSE);
 			}
 		});
@@ -344,7 +343,7 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, username, true);
 		
 		final AsyncHttpClient client2 = getAsyncHttpClient(new AsyncHttpClientConfig.Builder().setFollowRedirects(true).build());
@@ -353,10 +352,10 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 		
 		final String username2 = "test_" + System.currentTimeMillis();
 		
-		// maintenant on fait login
+		// login
 		login("clientXHRPolling2", client2, GET_SESSION_URL+"xhr-polling/" + sessionid2, username2, true);
 		
-		// maintenant, on met en suspend les deux clients
+		// suspend both clients
 		suspend("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1, new ResponseListener() {
 			@Override
 			public void notify(String message) {
@@ -372,12 +371,11 @@ public class SocketIOXHRPollingTest extends SocketIOTest {
 				log.info("broadcastDisconnectXHRPollingTest clientXHRPolling2 message received = " + message);
 				Assert.assertNotNull(message);
 				
-				// il est possible de recevoir d'autres messages, comme les users qui restent dans le chat
 				Assert.assertTrue(message.contains("5:::{\"name\":\"announcement\",\"args\":[\"" + username + " disconnected\"]}"));
 			}
 		});
 		
-		// client 2 va recevoir un broadcast de disconnect du user1
+		// client 2 will received a disconnect notification from client 1
 		disconnect("clientXHRPolling1", client, GET_SESSION_URL+"xhr-polling/" + sessionid1);
 		
 		client.close();

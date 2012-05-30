@@ -60,7 +60,6 @@ public class SocketIOExcludeSessionBroadcaster extends DefaultBroadcaster {
         }
         
         try {
-        	// DEBUG quand la connection est cancelee, il n'est pas possiblede faire getRequest()
         	logger.info("To broadcast from : " + ((HttpServletRequest) resource.getRequest()).getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID) + " message to broadcast : " + msg);
         } catch(Exception e){
         	e.printStackTrace();

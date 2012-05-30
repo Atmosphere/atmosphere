@@ -47,15 +47,10 @@ public class JSONPPollingTransport extends XHRTransport {
 		}
 
 		protected void startSend(HttpServletResponse response) throws IOException {
-			/*
-			response.setContentType("text/javascript; charset=UTF-8");
-			response.getOutputStream().print("io.j["+ jsonpIndex +"](\"");
-			*/
 		}
 
 		@Override
 		protected void writeData(HttpServletResponse response, String data) throws IOException {
-			//response.getOutputStream().print(data);
 			logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 			
 			response.setContentType("text/javascript; charset=UTF-8");
@@ -66,7 +61,6 @@ public class JSONPPollingTransport extends XHRTransport {
 		}
 
 		protected void finishSend(HttpServletResponse response) throws IOException {
-			//response.getOutputStream().print("\");");
 			response.flushBuffer();
 		}
 
@@ -79,12 +73,7 @@ public class JSONPPollingTransport extends XHRTransport {
 				jsonpIndex = 0;
 			}
 			
-			//startSend(response);
-	    	
 	    	writeData(response, new SocketIOPacketImpl(PacketType.CONNECT).toString());
-	    	
-			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.SESSION_ID, 0, session.getSessionId()));
-			//writeData(response, SocketIOFrame.encode(SocketIOFrame.FrameType.HEARTBEAT_INTERVAL, 0, "" + REQUEST_TIMEOUT));
 		}
 	}
 	
