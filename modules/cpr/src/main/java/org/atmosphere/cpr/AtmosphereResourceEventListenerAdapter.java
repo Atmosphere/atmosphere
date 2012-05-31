@@ -27,26 +27,41 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListener.class);
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onSuspend(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onResume(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onBroadcast(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.trace("", event);
