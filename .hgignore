@@ -22,3 +22,4 @@ samples/gwt-demo/src/main/webapp/WEB-INF/classes/
 samples/gwt-demo/src/main/webapp/gwtDemo
 samples/gwt-demo/src/main/webapp/WEB-INF/lib
 samples/gwt-demo/src/main/webapp/WEB-INF/deploy
+gwt-unitCache*
