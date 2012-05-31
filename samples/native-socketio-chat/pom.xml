@@ -9,10 +9,10 @@
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.atmosphere.samples</groupId>
-	<artifactId>atmosphere-newsocketio-chat</artifactId>
+	<artifactId>atmosphere-nativesocketio-chat</artifactId>
 	<packaging>war</packaging>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>atmosphere-socketio-chat</name>
+	<name>atmosphere-nativesocketio-chat</name>
 	<url>http://maven.apache.org</url>
 	<dependencies>
 		<dependency>

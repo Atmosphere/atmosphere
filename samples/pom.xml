@@ -45,7 +45,11 @@
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
         <module>spring-tiles</module>
+
+        <!-- SocketIO -->
         <module>socketio-chat</module>
+        <module>native-socketio-chat</module>
+
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>

@@ -16,6 +16,8 @@
 package org.atmosphere.socketio;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -34,7 +36,7 @@ public interface SocketIOSessionOutbound extends SocketIOOutbound {
      * @return
      * @throws IOException
      */
-    Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException;
+    Action handle(AtmosphereRequest request, AtmosphereResponse response, SocketIOSession session) throws IOException;
 
     /**
      * Cause connection and all activity to be aborted and all resources to be released.

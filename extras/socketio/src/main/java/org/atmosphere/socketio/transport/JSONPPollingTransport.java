@@ -15,6 +15,7 @@
  */
 package org.atmosphere.socketio.transport;
 
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.SocketIOSession;
@@ -89,7 +90,7 @@ public class JSONPPollingTransport extends XHRTransport {
     }
 
     @Override
-    protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
         if (session == null) {
             session = sessionFactory.createSession(resource, atmosphereHandler);
@@ -105,7 +106,7 @@ public class JSONPPollingTransport extends XHRTransport {
     }
 
     @Override
-    protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    protected SocketIOSession connect(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
         return connect(null, resource, atmosphereHandler, sessionFactory);
     }
 }

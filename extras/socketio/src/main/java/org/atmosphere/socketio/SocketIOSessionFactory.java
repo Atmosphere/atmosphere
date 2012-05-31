@@ -15,8 +15,8 @@
  */
 package org.atmosphere.socketio;
 
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 
 /**
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
@@ -28,7 +28,7 @@ public interface SocketIOSessionFactory {
      * @param handler
      * @return
      */
-    SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler handler);
+    SocketIOSession createSession(AtmosphereResourceImpl resource, AtmosphereHandler handler);
 
     /**
      * @param sessionid

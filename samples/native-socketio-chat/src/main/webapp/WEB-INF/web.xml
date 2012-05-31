@@ -15,22 +15,22 @@
 		</init-param>
 		<init-param>
 			<param-name>socketio-timeout</param-name>
-			<param-value>250000</param-value>
+			<param-value>25000</param-value>
 		</init-param>
 		<init-param>
 			<param-name>socketio-heartbeat</param-name>
-			<param-value>150000</param-value>
+			<param-value>15000</param-value>
 		</init-param>
 		<init-param>
 			<param-name>socketio-suspendTime</param-name>
-			<param-value>300000</param-value>
+			<param-value>30000</param-value>
 		</init-param>
 
 		<load-on-startup>0</load-on-startup>
 	</servlet>
 	<servlet-mapping>
 		<servlet-name>AtmosphereServlet</servlet-name>
-		<url-pattern>/chat/*</url-pattern>
+		<url-pattern>/ChatAtmosphereHandler/*</url-pattern>
 	</servlet-mapping>
 	<welcome-file-list>
 		<welcome-file>index.html</welcome-file>

@@ -16,13 +16,16 @@
 package org.atmosphere.socketio.transport;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.socketio.SocketIOException;
 import org.atmosphere.socketio.SocketIOPacket;
 import org.atmosphere.socketio.SocketIOSession;
 import org.atmosphere.socketio.SocketIOSessionFactory;
 import org.atmosphere.socketio.SocketIOWebSocketSessionWrapper;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.cpr.SocketIOWebSocketEventListener;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -40,7 +43,6 @@ import java.util.List;
 public class WebSocketTransport extends AbstractTransport {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketTransport.class);
-
     public static final String TRANSPORT_NAME = "websocket";
 
     public WebSocketTransport() {
@@ -52,10 +54,9 @@ public class WebSocketTransport extends AbstractTransport {
     }
 
     @Override
-    public Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    public Action handle(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
-        HttpServletRequest request = resource.getRequest();
-        HttpServletResponse response = resource.getResponse();
+        AtmosphereRequest request = resource.getRequest();
 
         Object obj = request.getAttribute(SESSION_KEY);
         SocketIOSession session = null;
@@ -70,9 +71,7 @@ public class WebSocketTransport extends AbstractTransport {
         }
 
         boolean isDisconnectRequest = isDisconnectRequest(request);
-
         if (!isDisconnectRequest) {
-
             if ("GET".equals(request.getMethod()) && "WebSocket".equalsIgnoreCase(request.getHeader("Upgrade"))) {
                 session = sessionFactory.getSession(sessionId);
 
@@ -83,23 +82,16 @@ public class WebSocketTransport extends AbstractTransport {
                 resource.addEventListener(socketioEventListener);
 
                 SocketIOWebSocketSessionWrapperImpl sessionWrapper = new SocketIOWebSocketSessionWrapperImpl(session, socketioEventListener);
-
                 socketioEventListener.setSessionWrapper(sessionWrapper);
-
                 request.setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, sessionWrapper);
-
                 resource.suspend(-1, false);
-
-            } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid " + TRANSPORT_NAME + " transport request");
             }
         } else {
             session = sessionFactory.getSession(sessionId);
-
             session.getTransportHandler().disconnect();
         }
 
-        return Action.CONTINUE;
+        return Action.CANCELLED;
     }
 
     public class SocketIOWebSocketSessionWrapperImpl implements SocketIOWebSocketSessionWrapper {
@@ -129,8 +121,7 @@ public class WebSocketTransport extends AbstractTransport {
            */
         public void onMessage(byte frame, String message) {
             logger.trace("calling from " + this.getClass().getName() + " : " + "onMessage");
-
-            throw new RuntimeException("Devrait pas arriver");
+            throw new RuntimeException();
         }
 
         /*
@@ -221,7 +212,7 @@ public class WebSocketTransport extends AbstractTransport {
            * @see com.glines.socketio.SocketIOSession.SocketIOSessionOutbound#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, com.glines.socketio.SocketIOSession)
            */
         @Override
-        public Action handle(HttpServletRequest request, HttpServletResponse response, SocketIOSession session) throws IOException {
+        public Action handle(AtmosphereRequest request, AtmosphereResponse response, SocketIOSession session) throws IOException {
 
             logger.trace("calling from " + this.getClass().getName() + " : " + "handle");
 

@@ -15,6 +15,9 @@
  */
 package org.atmosphere.socketio.transport;
 
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.socketio.HeartBeatSessionMonitor;
 import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
@@ -25,15 +28,19 @@ import org.atmosphere.socketio.SocketIOSessionManager;
 import org.atmosphere.socketio.SocketIOSessionOutbound;
 import org.atmosphere.socketio.TimeoutSessionMonitor;
 import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereInterceptor;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.SecureRandom;
+import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -43,9 +50,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
     private static final Logger logger = LoggerFactory.getLogger(SocketIOSessionManagerImpl.class);
 
-    private static final char[] BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
     private static final int SESSION_ID_LENGTH = 20;
-
     private static Random random = new SecureRandom();
     private ConcurrentMap<String, SocketIOSession> socketIOSessions = new ConcurrentHashMap<String, SocketIOSession>();
     private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
@@ -53,6 +58,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
     private long heartbeatInterval = 15;
     private long timeout = 2500;
     private long requestSuspendTime = 20000; // 20 sec.
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private static String generateRandomString(int length) {
 
@@ -92,7 +98,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
     }
 
     @Override
-    public SocketIOSession createSession(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler inbound) {
+    public SocketIOSession createSession(AtmosphereResourceImpl resource, AtmosphereHandler inbound) {
         SessionImpl impl = new SessionImpl(generateSessionId(), resource, inbound, getTimeout(), getHeartbeatInterval(), getRequestSuspendTime());
         socketIOSessions.put(impl.getSessionId(), impl);
         return impl;
@@ -137,7 +143,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
         private final String sessionId;
 
         private AtmosphereResourceImpl resource = null;
-        private SocketIOAtmosphereHandler atmosphereHandler;
+        private AtmosphereHandler atmosphereHandler;
         private SocketIOSessionOutbound handler = null;
         private ConnectionState state = ConnectionState.CONNECTING;
         private long heartBeatInterval = 0;
@@ -148,8 +154,9 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
         private boolean timedout = false;
         private AtomicLong messageId = new AtomicLong(0);
         private String closeId = null;
+        private AtomicBoolean firstRequest = new AtomicBoolean(true);
 
-        SessionImpl(String sessionId, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, long timeout, long heartBeatInterval, long requestSuspendTime) {
+        SessionImpl(String sessionId, AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, long timeout, long heartBeatInterval, long requestSuspendTime) {
             this.sessionId = sessionId;
             this.atmosphereHandler = atmosphereHandler;
             this.resource = resource;
@@ -172,7 +179,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
         }
 
         @Override
-        public SocketIOAtmosphereHandler getSocketIOAtmosphereHandler() {
+        public AtmosphereHandler getAtmosphereHandler() {
             return atmosphereHandler;
         }
 
@@ -324,8 +331,11 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
                     resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, handler);
 
                     startHeartbeatTimer();
-
-                    atmosphereHandler.onConnect(resource, handler);
+                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onConnect(resource, handler);
+                    } else {
+                        atmosphereHandler.onRequest(resource);
+                    }
                 } catch (Throwable e) {
                     logger.error("Session[" + sessionId + "]: Exception thrown by SocketIOInbound.onConnect()", e);
                     state = ConnectionState.CLOSED;
@@ -337,12 +347,22 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
         }
 
         @Override
-        public void onMessage(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler, String message) {
+        public void onMessage(AtmosphereResourceImpl resource, SocketIOSessionOutbound outbound, String message) {
             startHeartbeatTimer();
 
             if (atmosphereHandler != null && message != null) {
                 try {
-                    atmosphereHandler.onMessage(resource, handler, message);
+                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onMessage(resource, outbound, message);
+                    } else {
+                        SocketIOProtocol p = mapper.readValue(message, SocketIOProtocol.class);
+
+                        for (String msg : p.getArgs()) {
+                            AtmosphereRequest r = resource.getRequest();
+                            r.body(msg).method("POST");
+                            atmosphereHandler.onRequest(resource);
+                        }
+                    }
                 } catch (Throwable e) {
                     logger.error("Session[" + sessionId + "]: Exception thrown by SocketIOInbound.onMessage()", e);
                 }
@@ -357,7 +377,11 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
             if (atmosphereHandler != null) {
                 state = ConnectionState.CLOSED;
                 try {
-                    atmosphereHandler.onDisconnect(resource, handler, reason);
+                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onDisconnect(resource, handler, reason);
+                    } else {
+                        atmosphereHandler.onStateChange(new AtmosphereResourceEventImpl(resource, true, false));
+                    }
                 } catch (Throwable e) {
                     logger.error("Session[" + sessionId + "]: Exception thrown by SocketIOInbound.onDisconnect()", e);
                 }
@@ -432,4 +456,29 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
         }
     }
 
+    public static final class SocketIOProtocol {
+        public String name;
+        public Collection<String> args;
+
+        public Collection<String> getArgs() {
+            return args;
+        }
+
+        public void setArgs(Collection<String> args) {
+            this.args = args;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return "SocketIOProtocol [name=" + name + ", args=" + args + "]";
+        }
+    }
 }

@@ -16,10 +16,9 @@
 package org.atmosphere.socketio.transport;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.SocketIOSessionFactory;
-import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 
 import java.io.IOException;
 
@@ -33,17 +32,7 @@ public interface Transport {
      */
     String getName();
 
-    /**
-     *
-     */
     void destroy();
 
-    /**
-     * @param resource
-     * @param atmosphereHandler
-     * @param sessionFactory
-     * @return
-     * @throws IOException
-     */
-    Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
+    Action handle(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
 }

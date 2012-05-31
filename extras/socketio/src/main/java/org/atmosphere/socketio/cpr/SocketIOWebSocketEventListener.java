@@ -15,14 +15,13 @@
  */
 package org.atmosphere.socketio.cpr;
 
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.socketio.SocketIOException;
 import org.atmosphere.socketio.SocketIOSession;
 import org.atmosphere.socketio.SocketIOWebSocketSessionWrapper;
 import org.atmosphere.socketio.transport.SocketIOPacketImpl;
 import org.atmosphere.socketio.transport.SocketIOPacketImpl.PacketType;
-import org.atmosphere.websocket.WebSocketEventListener;
+import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +31,10 @@ import java.util.List;
 /**
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
  */
-public class SocketIOWebSocketEventListener implements WebSocketEventListener {
+public class SocketIOWebSocketEventListener extends WebSocketEventListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(SocketIOWebSocketEventListener.class);
     private SocketIOWebSocketSessionWrapper sessionWrapper = null;
-
 
     public void setSessionWrapper(SocketIOWebSocketSessionWrapper sessionWrapper) {
         this.sessionWrapper = sessionWrapper;
@@ -44,36 +42,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
 
     public SocketIOWebSocketSessionWrapper getSessionWrapper() {
         return sessionWrapper;
-    }
-
-    @Override
-    public void onThrowable(AtmosphereResourceEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onThrowable");
-
-    }
-
-    @Override
-    public void onSuspend(AtmosphereResourceEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onSuspend");
-
-    }
-
-    @Override
-    public void onResume(AtmosphereResourceEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onResume");
-
-    }
-
-    @Override
-    public void onDisconnect(AtmosphereResourceEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onDisconnect");
-        sessionWrapper.onDisconnect();
-    }
-
-    @Override
-    public void onBroadcast(AtmosphereResourceEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onBroadcast");
-
     }
 
     @Override
@@ -118,24 +86,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
             }
 
         }
-    }
-
-    @Override
-    public void onHandshake(WebSocketEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onHandshake event = " + event);
-
-    }
-
-    @Override
-    public void onDisconnect(WebSocketEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onDisconnect event = " + event);
-
-    }
-
-    @Override
-    public void onControl(WebSocketEvent event) {
-        logger.trace("calling from " + this.getClass().getName() + " : " + "onControl event = " + event);
-
     }
 
     @Override

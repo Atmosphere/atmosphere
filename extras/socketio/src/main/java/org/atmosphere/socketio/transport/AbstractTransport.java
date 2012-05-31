@@ -15,7 +15,8 @@
  */
 package org.atmosphere.socketio.transport;
 
-import javax.servlet.http.HttpServletRequest;
+import org.atmosphere.cpr.AtmosphereRequest;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
@@ -29,10 +30,10 @@ import java.util.List;
  */
 public abstract class AbstractTransport implements Transport {
 
-    protected static final String SESSION_KEY = AbstractTransport.class.getName() + ".Session";
+    public static final String SESSION_KEY = AbstractTransport.class.getName() + ".Session";
     public static final String POST_MESSAGE_RECEIVED = "POST_MESSAGE_RECEIVED";
 
-    protected String extractSessionId(HttpServletRequest request) {
+    protected String extractSessionId(AtmosphereRequest request) {
         String path = request.getPathInfo();
 
         if (path != null && path.length() > 0 && !"/".equals(path)) {
@@ -125,7 +126,7 @@ public abstract class AbstractTransport implements Transport {
      * @param request
      * @return
      */
-    protected boolean isDisconnectRequest(HttpServletRequest request) {
+    protected boolean isDisconnectRequest(AtmosphereRequest request) {
 
         if ("GET".equals(request.getMethod())) {
 

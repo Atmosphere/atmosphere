@@ -149,7 +149,7 @@ public class Jetty8WebSocket extends WebSocket {
     @Override
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
-        connection.disconnect();
+        connection.close();
     }
 
     /**

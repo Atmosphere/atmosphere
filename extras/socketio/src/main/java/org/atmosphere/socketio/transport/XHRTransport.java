@@ -17,9 +17,12 @@ package org.atmosphere.socketio.transport;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.SocketIOClosedException;
@@ -164,7 +167,7 @@ public abstract class XHRTransport extends AbstractTransport {
         }
 
         @Override
-        public Action handle(HttpServletRequest request, final HttpServletResponse response, SocketIOSession session) throws IOException {
+        public Action handle(AtmosphereRequest request, final AtmosphereResponse response, SocketIOSession session) throws IOException {
             logger.trace("Session id[" + session.getSessionId() + "] method=" + request.getMethod() + "  response HashCode=" + response.hashCode());
 
             AtmosphereResourceImpl resource = (AtmosphereResourceImpl) request.getAttribute(ApplicationConfig.ATMOSPHERE_RESOURCE);
@@ -318,7 +321,7 @@ public abstract class XHRTransport extends AbstractTransport {
 
         protected abstract void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException;
 
-        public void connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler) throws IOException {
+        public void connect(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler) throws IOException {
 
             HttpServletRequest request = resource.getRequest();
             HttpServletResponse response = resource.getResponse();
@@ -366,7 +369,7 @@ public abstract class XHRTransport extends AbstractTransport {
     protected abstract XHRSessionHelper createHelper(SocketIOSession session);
 
 
-    protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
         if (session == null) {
             session = sessionFactory.createSession(resource, atmosphereHandler);
@@ -381,15 +384,15 @@ public abstract class XHRTransport extends AbstractTransport {
         return session;
     }
 
-    protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    protected SocketIOSession connect(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
         return connect(null, resource, atmosphereHandler, sessionFactory);
     }
 
     @Override
-    public Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+    public Action handle(AtmosphereResourceImpl resource, AtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
 
-        HttpServletRequest request = resource.getRequest();
-        HttpServletResponse response = resource.getResponse();
+        AtmosphereRequest request = resource.getRequest();
+        AtmosphereResponse response = resource.getResponse();
 
         Object obj = request.getAttribute(SESSION_KEY);
         SocketIOSession session = null;
