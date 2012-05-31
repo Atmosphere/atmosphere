@@ -18,60 +18,51 @@ package org.atmosphere.socketio;
 import org.atmosphere.websocket.WebSocket;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public interface SocketIOWebSocketSessionWrapper extends SocketIOSessionOutbound {
-	
-	/**
-	 * 
-	 * @return
-	 */
-	SocketIOSession getSession();
-	
-	/**
-	 * 
-	 */
-	void onDisconnect();
-	
-	/**
-	 * 
-	 * @param frame
-	 * @param message
-	 */
-	void onMessage(byte frame, String message);
-	
-	/**
-	 * 
-	 * @param frame
-	 * @param data
-	 * @param offset
-	 * @param length
-	 */
-	void onMessage(byte frame, byte[] data, int offset, int length);
-	
-	/**
-	 * 
-	 * @return
-	 */
-	boolean isInitiated();
-	
-	/**
-	 * 
-	 * @return
-	 */
-	WebSocket webSocket();
-	 
-	/**
-	 * 
-	 * @param websocket
-	 */
-	void setWebSocket(WebSocket websocket);
 
-	/**
-	 * 
-	 * @param initialed
-	 */
-	void initiated(boolean initialed);
+    /**
+     * @return
+     */
+    SocketIOSession getSession();
+
+    /**
+     *
+     */
+    void onDisconnect();
+
+    /**
+     * @param frame
+     * @param message
+     */
+    void onMessage(byte frame, String message);
+
+    /**
+     * @param frame
+     * @param data
+     * @param offset
+     * @param length
+     */
+    void onMessage(byte frame, byte[] data, int offset, int length);
+
+    /**
+     * @return
+     */
+    boolean isInitiated();
+
+    /**
+     * @return
+     */
+    WebSocket webSocket();
+
+    /**
+     * @param websocket
+     */
+    void setWebSocket(WebSocket websocket);
+
+    /**
+     * @param initialed
+     */
+    void initiated(boolean initialed);
 }

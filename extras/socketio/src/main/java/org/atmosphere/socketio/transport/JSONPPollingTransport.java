@@ -15,100 +15,97 @@
  */
 package org.atmosphere.socketio.transport;
 
-import java.io.IOException;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.SocketIOAtmosphereHandler;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.SocketIOSession;
 import org.atmosphere.socketio.SocketIOSessionFactory;
-import org.atmosphere.socketio.transport.SocketIOPacketImpl.PacketType;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public class JSONPPollingTransport extends XHRTransport {
-	public static final String TRANSPORT_NAME = "jsonp-polling";
-	
-	private static final Logger logger = LoggerFactory.getLogger(JSONPPollingTransport.class);
-	
-	private long jsonpIndex = 0;
+    public static final String TRANSPORT_NAME = "jsonp-polling";
 
-	protected class XHRPollingSessionHelper extends XHRSessionHelper {
+    private static final Logger logger = LoggerFactory.getLogger(JSONPPollingTransport.class);
 
-		XHRPollingSessionHelper(SocketIOSession session) {
-			super(session, false);
-		}
+    private long jsonpIndex = 0;
 
-		protected void startSend(HttpServletResponse response) throws IOException {
-		}
+    protected class XHRPollingSessionHelper extends XHRSessionHelper {
 
-		@Override
-		protected void writeData(HttpServletResponse response, String data) throws IOException {
-			logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
-			
-			response.setContentType("text/javascript; charset=UTF-8");
-			response.getOutputStream().print("io.j["+ jsonpIndex +"](\"" + data + "\");");
-			
-			logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
-			
-		}
+        XHRPollingSessionHelper(SocketIOSession session) {
+            super(session, false);
+        }
 
-		protected void finishSend(HttpServletResponse response) throws IOException {
-			response.flushBuffer();
-		}
+        protected void startSend(HttpServletResponse response) throws IOException {
+        }
 
-		protected void customConnect(HttpServletRequest request,
-				HttpServletResponse response) throws IOException {
-			
-			if(request.getParameter("i")!=null){
-				jsonpIndex = Integer.parseInt(request.getParameter("i"));
-			} else {
-				jsonpIndex = 0;
-			}
-			
-	    	writeData(response, new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.CONNECT).toString());
-		}
-	}
-	
-	public JSONPPollingTransport(int bufferSize) {
-		super(bufferSize);
-	}
+        @Override
+        protected void writeData(HttpServletResponse response, String data) throws IOException {
+            logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 
-	@Override
-	public String getName() {
-		return TRANSPORT_NAME;
-	}
-	
+            response.setContentType("text/javascript; charset=UTF-8");
+            response.getOutputStream().print("io.j[" + jsonpIndex + "](\"" + data + "\");");
 
-	protected XHRPollingSessionHelper createHelper(SocketIOSession session) {
-		return new XHRPollingSessionHelper(session);
-	}
+            logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 
-	@Override
-	protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
-		
-		if(session==null){
-			session = sessionFactory.createSession(resource, atmosphereHandler);
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
-			
-			// for the Broadcaster
-			resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, atmosphereHandler);
-		}
-		
-		XHRPollingSessionHelper handler = createHelper(session);
-		handler.connect(resource, atmosphereHandler);
-		return session;
-	}
-	
-	@Override
-	protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
-		return connect(null, resource, atmosphereHandler, sessionFactory);
-	}
+        }
+
+        protected void finishSend(HttpServletResponse response) throws IOException {
+            response.flushBuffer();
+        }
+
+        protected void customConnect(HttpServletRequest request,
+                                     HttpServletResponse response) throws IOException {
+
+            if (request.getParameter("i") != null) {
+                jsonpIndex = Integer.parseInt(request.getParameter("i"));
+            } else {
+                jsonpIndex = 0;
+            }
+
+            writeData(response, new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.CONNECT).toString());
+        }
+    }
+
+    public JSONPPollingTransport(int bufferSize) {
+        super(bufferSize);
+    }
+
+    @Override
+    public String getName() {
+        return TRANSPORT_NAME;
+    }
+
+
+    protected XHRPollingSessionHelper createHelper(SocketIOSession session) {
+        return new XHRPollingSessionHelper(session);
+    }
+
+    @Override
+    protected SocketIOSession connect(SocketIOSession session, AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+
+        if (session == null) {
+            session = sessionFactory.createSession(resource, atmosphereHandler);
+            resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
+
+            // for the Broadcaster
+            resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, atmosphereHandler);
+        }
+
+        XHRPollingSessionHelper handler = createHelper(session);
+        handler.connect(resource, atmosphereHandler);
+        return session;
+    }
+
+    @Override
+    protected SocketIOSession connect(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException {
+        return connect(null, resource, atmosphereHandler, sessionFactory);
+    }
 }

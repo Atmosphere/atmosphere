@@ -45,7 +45,7 @@ public abstract class SocketIOAtmosphereHandler implements AtmosphereHandler {
      *
      * @param handler The SocketOutbound associated with the connection
      */
-    abstract void onConnect(AtmosphereResource event, SocketIOSessionOutbound handler) throws IOException;
+    abstract public void onConnect(AtmosphereResource event, SocketIOSessionOutbound handler) throws IOException;
 
     /**
      * Called when the socket connection is disconnected.
@@ -54,7 +54,7 @@ public abstract class SocketIOAtmosphereHandler implements AtmosphereHandler {
      * @param handler outbound handler to broadcast response
      * @param reason  The reason for the disconnect.
      */
-    abstract void onDisconnect(AtmosphereResource event, SocketIOSessionOutbound handler, DisconnectReason reason);
+    abstract public void onDisconnect(AtmosphereResource event, SocketIOSessionOutbound handler, DisconnectReason reason);
 
     /**
      * Called for each message received.
@@ -63,7 +63,7 @@ public abstract class SocketIOAtmosphereHandler implements AtmosphereHandler {
      * @param handler outbound handler to broadcast response
      * @param message message received
      */
-    abstract void onMessage(AtmosphereResource event, SocketIOSessionOutbound handler, String message);
+    abstract public void onMessage(AtmosphereResource event, SocketIOSessionOutbound handler, String message);
 
     /**
      * {@inheritDoc}

@@ -16,150 +16,140 @@
 package org.atmosphere.socketio;
 
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.transport.DisconnectReason;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public interface SocketIOSession {
-	
-	/**
-	 * Generate the session id
-	 * @param length session id length
-	 * @return
-	 */
-	String generateRandomString(int length);
-	
-	/**
-	 * 
-	 * @return the session id for this session
-	 */
-	String getSessionId();
 
-	/**
-	 * 
-	 * @return
-	 */
-	SocketIOAtmosphereHandler getSocketIOAtmosphereHandler();
-	
-	/**
-	 * 
-	 * @return
-	 */
-	AtmosphereResourceImpl getAtmosphereResourceImpl();
-	
-	/**
-	 * 
-	 * @param resource
-	 */
-	void setAtmosphereResourceImpl(AtmosphereResourceImpl resource);
+    /**
+     * Generate the session id
+     *
+     * @param length session id length
+     * @return
+     */
+    String generateRandomString(int length);
 
-	/**
-	 * 
-	 * @return
-	 */
-	SocketIOSessionOutbound getTransportHandler();
-	
-	/**
-	 * 
-	 * @param delay
-	 */
-	void setHeartbeat(long delay);
-	
-	/**
-	 * 
-	 * @return
-	 */
-	long getHeartbeat();
-	
-	/**
-	 * 
-	 */
-	void sendHeartBeat();
-	
-	/**
-	 * 
-	 * @param timeout
-	 */
-	void setTimeout(long timeout);
-	
-	/**
-	 * 
-	 * @return
-	 */
-	long getTimeout();
-	
-	/**
-	 * 
-	 */
-	void timeout();
+    /**
+     * @return the session id for this session
+     */
+    String getSessionId();
 
-	/**
-	 * 
-	 */
-	void startTimeoutTimer();
-	
-	/**
-	 * 
-	 */
-	void clearTimeoutTimer();
+    /**
+     * @return
+     */
+    SocketIOAtmosphereHandler getSocketIOAtmosphereHandler();
 
-	/**
-	 * 
-	 */
-	void startHeartbeatTimer();
-	
-	/**
-	 * 
-	 */
-	void clearHeartbeatTimer();
-	
-	/**
-	 * 
-	 * @param suspendTime
-	 */
-	void setRequestSuspendTime(long suspendTime);
-	
-	/**
-	 * 
-	 * @return
-	 */
-	long getRequestSuspendTime();
+    /**
+     * @return
+     */
+    AtmosphereResourceImpl getAtmosphereResourceImpl();
 
-	/**
-	 * Initiate close.
-	 */
-	void startClose();
+    /**
+     * @param resource
+     */
+    void setAtmosphereResourceImpl(AtmosphereResourceImpl resource);
 
-	/**
-	 * 
-	 * @param data
-	 */
-	void onClose(String data);
+    /**
+     * @return
+     */
+    SocketIOSessionOutbound getTransportHandler();
 
-	/**
-	 * @param handler The handler or null if the connection failed.
-	 */
-	void onConnect(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler);
-	
-	/**
-	 * Pass message through to contained SocketIOInbound
-	 * If a timeout timer is set, then it will be reset.
-	 * @param message
-	 */
-	void onMessage(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler, String message);
-	
-	/**
-	 * Pass disconnect through to contained SocketIOInbound and update any internal state.
-	 * @param reason
-	 */
-	void onDisconnect(DisconnectReason reason);
+    /**
+     * @param delay
+     */
+    void setHeartbeat(long delay);
 
-	/**
-	 * Called by handler to report that it is done and the session can be cleaned up.
-	 * If onDisconnect has not been called yet, then it will be called with DisconnectReason.ERROR.
-	 */
-	void onShutdown();
+    /**
+     * @return
+     */
+    long getHeartbeat();
+
+    /**
+     *
+     */
+    void sendHeartBeat();
+
+    /**
+     * @param timeout
+     */
+    void setTimeout(long timeout);
+
+    /**
+     * @return
+     */
+    long getTimeout();
+
+    /**
+     *
+     */
+    void timeout();
+
+    /**
+     *
+     */
+    void startTimeoutTimer();
+
+    /**
+     *
+     */
+    void clearTimeoutTimer();
+
+    /**
+     *
+     */
+    void startHeartbeatTimer();
+
+    /**
+     *
+     */
+    void clearHeartbeatTimer();
+
+    /**
+     * @param suspendTime
+     */
+    void setRequestSuspendTime(long suspendTime);
+
+    /**
+     * @return
+     */
+    long getRequestSuspendTime();
+
+    /**
+     * Initiate close.
+     */
+    void startClose();
+
+    /**
+     * @param data
+     */
+    void onClose(String data);
+
+    /**
+     * @param handler The handler or null if the connection failed.
+     */
+    void onConnect(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler);
+
+    /**
+     * Pass message through to contained SocketIOInbound
+     * If a timeout timer is set, then it will be reset.
+     *
+     * @param message
+     */
+    void onMessage(AtmosphereResourceImpl resource, SocketIOSessionOutbound handler, String message);
+
+    /**
+     * Pass disconnect through to contained SocketIOInbound and update any internal state.
+     *
+     * @param reason
+     */
+    void onDisconnect(DisconnectReason reason);
+
+    /**
+     * Called by handler to report that it is done and the session can be cleaned up.
+     * If onDisconnect has not been called yet, then it will be called with DisconnectReason.ERROR.
+     */
+    void onShutdown();
 }

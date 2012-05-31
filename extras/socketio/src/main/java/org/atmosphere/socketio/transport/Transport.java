@@ -15,37 +15,35 @@
  */
 package org.atmosphere.socketio.transport;
 
-import java.io.IOException;
-
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.SocketIOAtmosphereHandler;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.atmosphere.socketio.SocketIOSessionFactory;
+import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
+
+import java.io.IOException;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public interface Transport {
 
-	/**
-	 * @return The name of the transport instance.
-	 */
-	String getName();
+    /**
+     * @return The name of the transport instance.
+     */
+    String getName();
 
-	/**
-	 * 
-	 */
-	void destroy();
+    /**
+     *
+     */
+    void destroy();
 
-	/**
-	 * 
-	 * @param resource
-	 * @param atmosphereHandler
-	 * @param sessionFactory
-	 * @return
-	 * @throws IOException
-	 */
-	Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
+    /**
+     * @param resource
+     * @param atmosphereHandler
+     * @param sessionFactory
+     * @return
+     * @throws IOException
+     */
+    Action handle(AtmosphereResourceImpl resource, SocketIOAtmosphereHandler atmosphereHandler, SocketIOSessionFactory sessionFactory) throws IOException;
 }

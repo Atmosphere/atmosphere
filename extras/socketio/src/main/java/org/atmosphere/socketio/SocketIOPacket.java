@@ -16,12 +16,10 @@
 package org.atmosphere.socketio;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public interface SocketIOPacket {
-	
-	String toString();
-	
+
+    String toString();
+
 }

@@ -16,26 +16,24 @@
 package org.atmosphere.socketio;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public class SocketIOClosedException extends SocketIOException {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SocketIOClosedException() {
-		super();
-	}
+    public SocketIOClosedException() {
+        super();
+    }
 
-	public SocketIOClosedException(String message) {
-		super(message);
-	}
+    public SocketIOClosedException(String message) {
+        super(message);
+    }
 
-	public SocketIOClosedException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public SocketIOClosedException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public SocketIOClosedException(Throwable cause) {
-		super(cause);
-	}
+    public SocketIOClosedException(Throwable cause) {
+        super(cause);
+    }
 }

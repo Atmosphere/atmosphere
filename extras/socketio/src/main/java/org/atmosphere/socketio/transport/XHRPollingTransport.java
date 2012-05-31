@@ -15,68 +15,67 @@
  */
 package org.atmosphere.socketio.transport;
 
-import java.io.IOException;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.atmosphere.socketio.SocketIOSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public class XHRPollingTransport extends XHRTransport {
-	
-	private static final Logger logger = LoggerFactory.getLogger(XHRPollingTransport.class);
-	
-	public static final String TRANSPORT_NAME = "xhr-polling";
 
-	public XHRPollingTransport(int bufferSize) {
-		super(bufferSize);
-	}
+    private static final Logger logger = LoggerFactory.getLogger(XHRPollingTransport.class);
 
-	@Override
-	public String getName() {
-		return TRANSPORT_NAME;
-	}
+    public static final String TRANSPORT_NAME = "xhr-polling";
 
-	protected XHRPollingSessionHelper createHelper(SocketIOSession session) {
-		return new XHRPollingSessionHelper(session);
-	}
-	
-	protected class XHRPollingSessionHelper extends XHRSessionHelper {
+    public XHRPollingTransport(int bufferSize) {
+        super(bufferSize);
+    }
 
-		XHRPollingSessionHelper(SocketIOSession session) {
-			super(session, false);
-		}
+    @Override
+    public String getName() {
+        return TRANSPORT_NAME;
+    }
 
-		protected void startSend(HttpServletResponse response) throws IOException {
-			response.setContentType("text/plain; charset=UTF-8");
-			response.setCharacterEncoding("UTF-8");
-		}
+    protected XHRPollingSessionHelper createHelper(SocketIOSession session) {
+        return new XHRPollingSessionHelper(session);
+    }
 
-		@Override
-		protected void writeData(HttpServletResponse response, String data) throws IOException {
-			logger.debug("Response HashCode=" + response.hashCode());
-			logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
-			response.getOutputStream().write(data.getBytes("UTF-8"));
-			logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
-		}
+    protected class XHRPollingSessionHelper extends XHRSessionHelper {
 
-		protected void finishSend(HttpServletResponse response) throws IOException {
-			response.flushBuffer();
-			response.getOutputStream().flush();
-		};
+        XHRPollingSessionHelper(SocketIOSession session) {
+            super(session, false);
+        }
 
-		protected void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException {
-			startSend(response);
-			writeData(response, "1::");
-		}
+        protected void startSend(HttpServletResponse response) throws IOException {
+            response.setContentType("text/plain; charset=UTF-8");
+            response.setCharacterEncoding("UTF-8");
+        }
 
-	}
+        @Override
+        protected void writeData(HttpServletResponse response, String data) throws IOException {
+            logger.debug("Response HashCode=" + response.hashCode());
+            logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+            response.getOutputStream().write(data.getBytes("UTF-8"));
+            logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
+        }
+
+        protected void finishSend(HttpServletResponse response) throws IOException {
+            response.flushBuffer();
+            response.getOutputStream().flush();
+        }
+
+        ;
+
+        protected void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException {
+            startSend(response);
+            writeData(response, "1::");
+        }
+
+    }
 
 }

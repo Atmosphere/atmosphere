@@ -107,7 +107,7 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
             try {
                 messages = SocketIOPacketImpl.parse(event.message());
             } catch (SocketIOException e) {
-                e.printStackTrace();
+                logger.warn("", e);
             }
 
             if (messages != null && !messages.isEmpty()) {
@@ -143,8 +143,6 @@ public class SocketIOWebSocketEventListener implements WebSocketEventListener {
         logger.trace("calling from " + this.getClass().getName() + " : " + "onConnect");
 
         sessionWrapper.setWebSocket(event.webSocket());
-
-
         try {
             event.webSocket().write(new SocketIOPacketImpl(PacketType.CONNECT).toString());
         } catch (IOException e) {

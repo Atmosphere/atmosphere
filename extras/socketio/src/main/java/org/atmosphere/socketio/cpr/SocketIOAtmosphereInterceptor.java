@@ -35,7 +35,6 @@ import org.atmosphere.socketio.transport.XHRPollingTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -96,7 +95,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                 // find the transport
                 String path = request.getPathInfo();
                 if (path == null || path.length() == 0 || "/".equals(path)) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing SocketIO transport");
+                    response.sendError(AtmosphereResponse.SC_BAD_REQUEST, "Missing SocketIO transport");
                     return null;
                 }
 

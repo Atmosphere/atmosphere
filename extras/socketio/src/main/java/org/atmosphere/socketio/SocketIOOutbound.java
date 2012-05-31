@@ -15,18 +15,16 @@
  */
 package org.atmosphere.socketio;
 
+import org.atmosphere.socketio.transport.SocketIOPacketImpl;
+
 import java.util.List;
 
-import org.atmosphere.socketio.protocol1.transport.SocketIOPacketImpl;
-
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public interface SocketIOOutbound {
-    
-	/**
+
+    /**
      * disconnect the current connection
      */
     void disconnect();
@@ -44,21 +42,21 @@ public interface SocketIOOutbound {
      * @throws SocketIOException
      */
     void sendMessage(String message) throws SocketIOException;
-    
+
     /**
      * Send a message to the client formatted is SocketIO format. If the session is still active, the message will be cached if the connection is closed.
      *
-     * @param message The message to send
+     * @param packet The message to send
      * @throws SocketIOException
      */
     void sendMessage(SocketIOPacket packet) throws SocketIOException;
-    
+
     /**
      * Send messages to the client. If the session is still active, the messages will be cached if the connection is closed.
      *
-     * @param message The message to send
+     * @param packet The message to send
      * @throws SocketIOException
      */
     void sendMessage(List<SocketIOPacketImpl> messages) throws SocketIOException;
-    
+
 }

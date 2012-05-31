@@ -18,26 +18,24 @@ package org.atmosphere.socketio;
 import java.io.IOException;
 
 /**
- * 
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
- *
  */
 public class SocketIOException extends IOException {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SocketIOException() {
-		super();
-	}
+    public SocketIOException() {
+        super();
+    }
 
-	public SocketIOException(String message) {
-		super(message);
-	}
+    public SocketIOException(String message) {
+        super(message);
+    }
 
-	public SocketIOException(Throwable cause) {
-		super(cause);
-	}
+    public SocketIOException(Throwable cause) {
+        super(cause);
+    }
 
-	public SocketIOException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public SocketIOException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

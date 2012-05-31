@@ -26,9 +26,8 @@
 					<instructions>
 						<Import-Package>*</Import-Package>
 						<Export-Package>
-							org.atmosphere.protocol.*,
-							org.atmosphere.transport.socketio.*
-						</Export-Package>
+                            org.atmosphere.socketio.*
+                        </Export-Package>
 					</instructions>
 				</configuration>
 				<executions>
