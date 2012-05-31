@@ -47,6 +47,7 @@ import java.util.Map;
  * SocketIO implementation.
  *
  * @author Sebastien Dionne
+ * @@author Jeanfrancois Arcand
  */
 @AtmosphereInterceptorService
 public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
@@ -89,8 +90,8 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
             // find the transport
             String path = request.getPathInfo();
             if (path == null || path.length() == 0 || "/".equals(path)) {
-                response.sendError(AtmosphereResponse.SC_BAD_REQUEST, "Missing SocketIO transport");
-                return null;
+                logger.debug("Not a SocketIO client");
+                return Action.CONTINUE;
             }
 
             if (path.startsWith("/")) {
@@ -104,7 +105,8 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
             // find protocol's version
             if (parts.length == 0) {
-                return null;
+                logger.debug("Not a SocketIO protocol supported");
+                return Action.CONTINUE;
             } else if (parts.length == 1) {
 
                 // is protocol's version ?
@@ -132,7 +134,8 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
             }
 
             if (protocol == null && version == null) {
-                return null;
+                logger.debug("Not a SocketIO protocol supported");
+                return Action.CONTINUE;
             } else if (protocol == null && version != null) {
                 // create a session and send the available transports to the client
                 response.setStatus(200);

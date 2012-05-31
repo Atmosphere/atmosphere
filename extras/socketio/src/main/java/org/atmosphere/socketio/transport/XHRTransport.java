@@ -43,6 +43,7 @@ import java.util.List;
 
 /**
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
+ * @author Jeanfrancois Arcand
  */
 public abstract class XHRTransport extends AbstractTransport {
 
