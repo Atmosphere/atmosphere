@@ -176,7 +176,7 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
-        public void onMessage(List messages) {
+        public void onMessage(List<?> messages) {
             StringBuilder result = new StringBuilder();
             for (Object obj : messages) {
                 result.append(obj.toString()).append("<br/>");

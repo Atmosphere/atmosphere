@@ -231,7 +231,7 @@ public class GWTDemo implements EntryPoint {
         }
 
         @Override
-        public void onMessage(List messages) {
+        public void onMessage(List<?> messages) {
             for (Object obj : messages) {
                 if (obj instanceof Event) {
                     Event e = (Event)obj;

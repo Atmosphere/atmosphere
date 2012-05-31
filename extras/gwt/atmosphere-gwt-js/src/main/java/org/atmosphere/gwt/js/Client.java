@@ -119,7 +119,7 @@ public class Client implements Exportable {
         }
 
         @Override
-        public void onMessage(List messages) {
+        public void onMessage(List<?> messages) {
             if (onMessage != null) {
                 for (Object m : messages) {
                     onMessage.execute(decodeJSON((String) m));
