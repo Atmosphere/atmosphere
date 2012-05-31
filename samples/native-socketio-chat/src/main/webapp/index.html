@@ -49,9 +49,7 @@
             }
         });
 
-        socket.on('user message', function (msg) {
-            message(msg);
-        });
+        socket.on('user message', message);
 
         socket.on('reconnect', function () {
             $('#lines').remove();
