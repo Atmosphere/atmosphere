@@ -27,7 +27,7 @@
         <module>gwt-demo</module>
         <module>gwt-jsdemo</module>
         <module>gwt-conn-share</module>
-		<module>gwt-chat</module>
+        <module>gwt-chat</module>
 
         <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
@@ -45,6 +45,7 @@
         <module>jquery-multirequest</module>
         <module>spring-websocket</module>
         <module>spring-tiles</module>
+        <module>socketio-chat</module>
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>
