@@ -331,10 +331,12 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
                     resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, handler);
 
                     startHeartbeatTimer();
-                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
-                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onConnect(resource, handler);
-                    } else {
-                        atmosphereHandler.onRequest(resource);
+                    synchronized (atmosphereHandler) {
+                        if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                            SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onConnect(resource, handler);
+                        } else {
+                            atmosphereHandler.onRequest(resource);
+                        }
                     }
                 } catch (Throwable e) {
                     logger.error("Session[" + sessionId + "]: Exception thrown by SocketIOInbound.onConnect()", e);
@@ -352,15 +354,17 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
             if (atmosphereHandler != null && message != null) {
                 try {
-                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
-                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onMessage(resource, outbound, message);
-                    } else {
-                        SocketIOProtocol p = mapper.readValue(message, SocketIOProtocol.class);
+                    synchronized (atmosphereHandler) {
+                        if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                            SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onMessage(resource, outbound, message);
+                        } else {
+                            SocketIOProtocol p = mapper.readValue(message, SocketIOProtocol.class);
 
-                        for (String msg : p.getArgs()) {
-                            AtmosphereRequest r = resource.getRequest();
-                            r.body(msg).method("POST");
-                            atmosphereHandler.onRequest(resource);
+                            for (String msg : p.getArgs()) {
+                                AtmosphereRequest r = resource.getRequest();
+                                r.body(msg).method("POST");
+                                atmosphereHandler.onRequest(resource);
+                            }
                         }
                     }
                 } catch (Throwable e) {
@@ -377,10 +381,12 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
             if (atmosphereHandler != null) {
                 state = ConnectionState.CLOSED;
                 try {
-                    if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
-                        SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onDisconnect(resource, handler, reason);
-                    } else {
-                        atmosphereHandler.onStateChange(new AtmosphereResourceEventImpl(resource, true, false));
+                    synchronized (atmosphereHandler) {
+                        if (SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
+                            SocketIOAtmosphereHandler.class.cast(atmosphereHandler).onDisconnect(resource, handler, reason);
+                        } else {
+                            atmosphereHandler.onStateChange(new AtmosphereResourceEventImpl(resource, true, false));
+                        }
                     }
                 } catch (Throwable e) {
                     logger.error("Session[" + sessionId + "]: Exception thrown by SocketIOInbound.onDisconnect()", e);
