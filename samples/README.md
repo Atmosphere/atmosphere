@@ -55,7 +55,7 @@ If you plan to use Spring or GWT, take a look at their specific samples.
     </tr>
     <tr>
         <td>[gwt-demo](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-gwt-demo%22)</td>
-        <td>This samples demonstrates the use of the Atmosphere GWT extension.</td>
+        <td>This samples demonstrates the use of the Atmosphere GWT extension. To start type "mvn gwt:run"</td>
         <td>[GWT](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-demo/src/main/java/org/atmosphere/samples/server/AtmosphereHandler.java)</td>
         <td>[GWT](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-demo/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
     </tr>
@@ -67,13 +67,13 @@ If you plan to use Spring or GWT, take a look at their specific samples.
     </tr>
     <tr>
         <td>[gwt-chat](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-gwt-chat%22)</td>
-        <td>This sample demonstrates the use of the GWT Javascript client to create multiple chatrooms. It shows how to use the connection url and broadcasters to seperate messages into different communication channels</td>
+        <td>This sample demonstrates the use of the GWT Javascript client to create multiple chatrooms. It shows how to use the connection url and broadcasters to seperate messages into different communication channels. To start type "mvn gwt:run"</td>
         <td>[ChatHandler (AtmosphereGwtHandler)](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-chat/src/main/java/org/atmosphere/samples/server/ChatHandler.java)</td>
         <td>[GWT Chat Code](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-chat/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
     </tr>
     <tr>
         <td>[gwt-conn-share](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-gwt-connection-sharing%22)</td>
-        <td>This sample demonstrates the use of the AtmosphereProxy on the client. It is an intelligent wrapper for the AtmosphereClient connection that is able to share the connection between multiple windows. It detects this automatically and is able to detect when a window is closed and the master connection needs to be reestablished from another window. All incoming and outgoing events are bubbled to all the client windows. Outgoing events are routed to the correct window that has the master connection. It is also possible to broadcast messages locally, which means the message gets send to all the client windows, but not to the server.</td>
+        <td>This sample demonstrates the use of the AtmosphereProxy on the client. It is an intelligent wrapper for the AtmosphereClient connection that is able to share the connection between multiple windows. It detects this automatically and is able to detect when a window is closed and the master connection needs to be reestablished from another window. All incoming and outgoing events are bubbled to all the client windows. Outgoing events are routed to the correct window that has the master connection. It is also possible to broadcast messages locally, which means the message gets send to all the client windows, but not to the server. To start type "mvn gwt:run"</td>
         <td>[AtmosphereGwtHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-conn-share/src/main/java/org/atmosphere/samples/server/AtmosphereHandler.java)</td>
         <td>[GWT Code](https://github.com/Atmosphere/atmosphere/blob/master/samples/gwt-conn-share/src/main/java/org/atmosphere/samples/client/GWTDemo.java)</td>
     </tr>
