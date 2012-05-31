@@ -51,6 +51,9 @@ org.atmosphere.samples.pubsub.utils
 org.atmosphere.samples.server
 org.atmosphere.samples.twitter
 org.atmosphere.samples.wicket
+org.atmosphere.socketio
+org.atmosphere.socketio.cpr
+org.atmosphere.socketio.transport
 org.atmosphere.spring
 org.atmosphere.util
 org.atmosphere.util.uri

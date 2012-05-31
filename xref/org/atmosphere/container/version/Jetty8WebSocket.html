@@ -159,7 +159,7 @@
 <a class="jxr_linenumber" name="149" href="#149">149</a>     @Override
 <a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="151" href="#151">151</a>         logger.trace(<span class="jxr_string">"WebSocket.close()"</span>);
-<a class="jxr_linenumber" name="152" href="#152">152</a>         connection.disconnect();
+<a class="jxr_linenumber" name="152" href="#152">152</a>         connection.close();
 <a class="jxr_linenumber" name="153" href="#153">153</a>     }
 <a class="jxr_linenumber" name="154" href="#154">154</a> 
 <a class="jxr_linenumber" name="155" href="#155">155</a>     <em class="jxr_javadoccomment">/**</em>
