@@ -66,7 +66,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResource extends AtmosphereEventLifecycle {
+public interface AtmosphereResource {
 
     enum TRANSPORT {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED, SSE, AJAX}
 
@@ -78,12 +78,14 @@ public interface AtmosphereResource extends AtmosphereEventLifecycle {
 
     /**
      * Set to true to resume the response once after the first broadcast. False by default.
+     *
      * @param resumeOnBroadcast
      */
     AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast);
 
     /**
      * Return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
+     *
      * @return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
      */
     boolean isSuspended();
@@ -95,12 +97,14 @@ public interface AtmosphereResource extends AtmosphereEventLifecycle {
 
     /**
      * Return true if this object has been resumed.
+     *
      * @return true if this object has been resumed.
      */
     boolean isResumed();
 
     /**
      * Return true if this object has been cancelled.
+     *
      * @return true if this object has been cancelled.
      */
     boolean isCancelled();
@@ -305,7 +309,39 @@ public interface AtmosphereResource extends AtmosphereEventLifecycle {
 
     /**
      * Return the unique ID associated with this AtmosphereResource.
+     *
      * @return the unique ID associated with this AtmosphereResource.
      */
     String uuid();
+
+    /**
+     * Add a {@link AtmosphereResourceEventListener}.
+     *
+     * @param e an instance of AtmosphereResourceEventListener
+     */
+    AtmosphereResource addEventListener(AtmosphereResourceEventListener e);
+
+    /**
+     * Remove a{@link AtmosphereResourceEventListener}.
+     *
+     * @param e
+     */
+    AtmosphereResource removeEventListener(AtmosphereResourceEventListener e);
+
+    /**
+     * Remove all {@link AtmosphereResourceEventListener}.
+     */
+    AtmosphereResource removeEventListeners();
+
+    /**
+     * Notify {@link AtmosphereResourceEventListener}.
+     *
+     * @param e an instance of AtmosphereResourceEvent
+     */
+    AtmosphereResource notifyListeners(AtmosphereResourceEvent e);
+
+    /**
+     * Notify All {@link AtmosphereResourceEventListener}.
+     */
+    AtmosphereResource notifyListeners();
 }

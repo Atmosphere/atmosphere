@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.client.MessageLengthInterceptor;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -263,4 +264,9 @@ public interface ApplicationConfig {
      * received in one chunk. Default is '<||>'
      */
     String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
+    /**
+     * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
+     * is used
+     */
+    String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = AtmosphereResourceLifecycleInterceptor.class.getName() + ".method";
 }

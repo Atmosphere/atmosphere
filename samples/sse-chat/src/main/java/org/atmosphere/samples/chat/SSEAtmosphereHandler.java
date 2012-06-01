@@ -21,29 +21,24 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 
 import java.io.IOException;
 import java.util.Date;
 
 /**
- * Simple AtmosphereHandler that implement the logic to build a Chat application.
+ * Simple AtmosphereHandler that implement the logic to build a Server Side Events Chat application.
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(path = "/chat")
-public class ChatAtmosphereHandler implements AtmosphereHandler {
+@AtmosphereHandlerService(path = "/chat", interceptors= {"org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor"})
+public class SSEAtmosphereHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource r) throws IOException {
 
         AtmosphereRequest req = r.getRequest();
-
-        // First, tell Atmosphere to allow bi-directional communication by suspending.
-        if (req.getMethod().equalsIgnoreCase("GET")) {
-            // We are using HTTP long-polling with an invite timeout
-            r.suspend();
-        // Second, broadcast message to all connected users.
-        } else if (req.getMethod().equalsIgnoreCase("POST")) {
+        if (req.getMethod().equalsIgnoreCase("POST")) {
             r.getBroadcaster().broadcast(req.getReader().readLine().trim());
         }
     }
@@ -62,15 +57,6 @@ public class ChatAtmosphereHandler implements AtmosphereHandler {
             String message = body.substring(body.lastIndexOf(":") + 2, body.length() - 2);
 
             res.getWriter().write(new Data(author, message).toString());
-            switch (r.transport()) {
-                case JSONP:
-                case LONG_POLLING:
-                    event.getResource().resume();
-                    break;
-                default:
-                    res.getWriter().flush();
-                    break;
-            }
         } else if (!event.isResuming()){
             event.broadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
         }

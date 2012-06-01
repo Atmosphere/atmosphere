@@ -65,4 +65,8 @@ public @interface AtmosphereHandlerService {
      */
     String[] atmosphereConfig() default {};
 
+    /**
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install
+     */
+    String[] interceptors() default {};
 }

@@ -152,6 +152,10 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
+    public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
     public String toString() {
         return "SSE Interceptor Support";
     }

@@ -192,6 +192,10 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
+    public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
     public void configure(AtmosphereConfig config) {
         String s = config.getInitParameter(SOCKETIO_TRANSPORT);
         availableTransports = s;

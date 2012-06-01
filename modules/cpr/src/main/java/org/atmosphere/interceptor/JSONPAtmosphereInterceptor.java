@@ -126,6 +126,10 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
+    public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
     public String toString() {
         return "JSONP Interceptor Support";
     }

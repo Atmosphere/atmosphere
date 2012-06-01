@@ -88,16 +88,26 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         framework.setDefaultBroadcasterClassName(a.broadcasterClassName());
 
                         for (String s : a.properties()) {
-                            String[] nv = s.split(",");
+                            String[] nv = s.split("=");
                             IntrospectionUtils.setProperty(handler, nv[0], nv[1]);
                             IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
                         }
 
                         for (String s : a.atmosphereConfig()) {
-                            String[] nv = s.split(",");
+                            String[] nv = s.split("=");
                             framework.addInitParameter(nv[0], nv[1]);
                         }
 
+                        String[] interceptors = a.interceptors();
+                        for (String i : interceptors) {
+                            try {
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) cl.loadClass(i).newInstance();
+                                ai.configure(framework.getAtmosphereConfig());
+                                framework.interceptor(ai);
+                            } catch (Throwable e) {
+                                logger.warn("", e);
+                            }
+                        }
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

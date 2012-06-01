@@ -131,6 +131,10 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
+    public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
     public String toString() {
         return "<||> End Message Interceptor";
     }

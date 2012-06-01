@@ -241,6 +241,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throw t;
         }
 
+        for (AtmosphereInterceptor arc : c) {
+            arc.postInspect(resource);
+        }
+
         if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, resource);

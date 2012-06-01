@@ -82,6 +82,10 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                 return Action.CONTINUE;
             }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
         });
 
         assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
@@ -101,6 +105,10 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                 return Action.CONTINUE;
             }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
         });
 
         assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
@@ -114,6 +122,10 @@ public class AtmosphereInterceptorTest {
                 // Default is CREATED
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CREATED);
                 return Action.CONTINUE;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
             }
         });
         assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
@@ -131,6 +143,10 @@ public class AtmosphereInterceptorTest {
             public Action inspect(AtmosphereResource r) {
                 return Action.CANCELLED;
             }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
         });
 
         assertEquals(Action.CANCELLED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
@@ -147,6 +163,10 @@ public class AtmosphereInterceptorTest {
             @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CREATED;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
             }
         });
 
