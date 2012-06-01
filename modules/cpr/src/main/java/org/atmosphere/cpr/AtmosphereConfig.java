@@ -94,7 +94,7 @@ public class AtmosphereConfig {
      * @return an instance of a {@link DefaultBroadcasterFactory}
      */
     public BroadcasterFactory getBroadcasterFactory() {
-        return framework.getBroadcasterFactory();
+        return BroadcasterFactory.getDefault();
     }
 
     public String getDispatcherName() {

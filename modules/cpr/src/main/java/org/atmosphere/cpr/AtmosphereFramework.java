@@ -113,7 +113,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
 
-
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final List<String> broadcasterFilters = new ArrayList<String>();
@@ -711,6 +710,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         broadcasterFactory.destroy();
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
 
         addAtmosphereHandler(mapping, rsp, b);
@@ -1104,7 +1104,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws ServletException
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-        req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
+        req.setAttribute(BROADCASTER_FACTORY, BroadcasterFactory.getDefault());
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
