@@ -258,15 +258,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action.type(Action.TYPE.RESUME);
                 isResumed = true;
 
-                try {
-                    logger.debug("Resuming {}", getRequest(false));
-                } catch (Throwable ex) {
-                    // Jetty NPE toString()
-                    // Ignore
-                    // Stop here as the request object as becomes invalid.
-                    return this;
-                }
-
                 // We need it as Jetty doesn't support timeout
                 Broadcaster b = getBroadcaster(false);
                 if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
