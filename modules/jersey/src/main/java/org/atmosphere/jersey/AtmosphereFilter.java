@@ -136,12 +136,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
     public final static String RESUME_UUID = AtmosphereFilter.class.getName() + ".uuid";
     public final static String RESUME_CANDIDATES = AtmosphereFilter.class.getName() + ".resumeCandidates";
     public final static String INJECTED_BROADCASTER = AtmosphereFilter.class.getName() + "injectedBroadcaster";
-    public final static String INJECTED_TRACKABLE = AtmosphereFilter.class.getName() + "injectedTrackable";
 
     protected enum Action {
         SUSPEND, RESUME, BROADCAST, SUSPEND_RESUME,
         SCHEDULE_RESUME, RESUME_ON_BROADCAST, NONE, SCHEDULE, SUSPEND_RESPONSE,
-        SUSPEND_TRACKABLE, SUBSCRIBE, SUBSCRIBE_TRACKABLE, PUBLISH, ASYNCHRONOUS
+        SUBSCRIBE, PUBLISH, ASYNCHRONOUS
     }
 
     private
@@ -409,10 +408,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope(), s.writeEntity());
 
                     break;
-                case SUBSCRIBE_TRACKABLE:
                 case SUBSCRIBE:
                 case SUSPEND:
-                case SUSPEND_TRACKABLE:
                 case SUSPEND_RESUME:
                     outputJunk = outputJunk(r, outputComments);
                     resumeOnBroadcast = resumeOnBroadcast((action == Action.SUSPEND_RESUME));
