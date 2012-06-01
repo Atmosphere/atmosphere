@@ -128,7 +128,7 @@ public class MeteorTest {
                 public void onSuspend(AtmosphereResourceEvent event) {
                     event.getResource().getBroadcaster().broadcast("resume");
                 }
-            }).suspend(20000, false).resumeOnBroadcast(true);
+            }).resumeOnBroadcast(true).suspend(20000, false);
 
             if (servletLatch != null) {
                 servletLatch.countDown();
