@@ -43,7 +43,7 @@ import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
  *
  * @author Jeanfrancois Arcand
  */
-@MeteorService("/*")
+@MeteorService(path = "/*", interceptors = {"org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor"})
 public class MeteorChat extends HttpServlet {
 
     /**

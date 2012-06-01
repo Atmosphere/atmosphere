@@ -119,8 +119,27 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         r.setServletClassName(className);
 
                         Class<Servlet> s = (Class<Servlet>) cl.loadClass(className);
-                        String mapping = s.getAnnotation(MeteorService.class).value();
+                        MeteorService m = s.getAnnotation(MeteorService.class);
+
+                        String mapping = m.path();
                         framework.addAtmosphereHandler(mapping, r);
+                        framework.setDefaultBroadcasterClassName(m.broadcasterClassName());
+
+                        for (String i : m.atmosphereConfig()) {
+                            String[] nv = i.split("=");
+                            framework.addInitParameter(nv[0], nv[1]);
+                        }
+
+                        String[] interceptors = m.interceptors();
+                        for (String i : interceptors) {
+                            try {
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) cl.loadClass(i).newInstance();
+                                ai.configure(framework.getAtmosphereConfig());
+                                framework.interceptor(ai);
+                            } catch (Throwable e) {
+                                logger.warn("", e);
+                            }
+                        }
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
