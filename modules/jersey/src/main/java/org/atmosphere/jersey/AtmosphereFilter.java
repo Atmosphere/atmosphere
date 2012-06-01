@@ -203,7 +203,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                          Class<BroadcastFilter>[] filters,
                          String topic,
                          boolean writeEntity) {
-           this(action, timeout, waitFor, scope, outputComments, filters, topic, writeEntity, null);
+            this(action, timeout, waitFor, scope, outputComments, filters, topic, writeEntity, null);
         }
 
         protected Filter(Action action,
@@ -333,9 +333,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                 try {
                                     AtmosphereResourceEventListener el = listener.newInstance();
                                     InjectorProvider.getInjector().inject(el);
-                                    if (r instanceof AtmosphereEventLifecycle) {
-                                        r.addEventListener(el);
-                                    }
+                                    r.addEventListener(el);
                                 } catch (Throwable t) {
                                     throw new WebApplicationException(
                                             new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
@@ -380,7 +378,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                 if (Callable.class.isAssignableFrom(entity.getClass())) {
                                     entity = Callable.class.cast(entity).call();
                                 }
-                                synchronized(response) {
+                                synchronized (response) {
                                     response.setEntity(entity);
                                     response.write();
                                 }
@@ -400,9 +398,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     boolean resumeOnBroadcast = resumeOnBroadcast(s.resumeOnBroadcast());
 
                     for (AtmosphereResourceEventListener el : s.listeners()) {
-                        if (r instanceof AtmosphereEventLifecycle) {
-                            r.addEventListener(el);
-                        }
+                        r.addEventListener(el);
                     }
 
                     Broadcaster bc = s.broadcaster();
@@ -427,9 +423,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             try {
                                 AtmosphereResourceEventListener el = listener.newInstance();
                                 InjectorProvider.getInjector().inject(el);
-                                if (r instanceof AtmosphereEventLifecycle) {
-                                    ((AtmosphereEventLifecycle) r).addEventListener(el);
-                                }
+                                r.addEventListener(el);
                             } catch (Throwable t) {
                                 throw new WebApplicationException(
                                         new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener, t));
@@ -448,7 +442,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                         broadcaster = BroadcasterFactory.getDefault().lookup(c, topic, true);
                     }
-               
+
                     suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
                             broadcaster, r, scope, writeEntity);
 
@@ -456,7 +450,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 case RESUME:
                     if (response.getEntity() != null) {
                         try {
-                            synchronized(response) {
+                            synchronized (response) {
                                 response.write();
                             }
                         } catch (IOException ex) {
@@ -502,7 +496,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     broadcast(response, r, timeout);
                     if (!writeEntity) {
-                        synchronized(response) {
+                        synchronized (response) {
                             response.setEntity(null);
                         }
                     }
@@ -864,7 +858,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         location = null;
                     }
 
-                    synchronized(response) {
+                    synchronized (response) {
                         response.setResponse(b.entity(paddingData).build());
                         response.write();
                     }
@@ -884,7 +878,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         b = b.header(HttpHeaders.LOCATION, location);
                     }
 
-                    synchronized(response) {
+                    synchronized (response) {
                         response.setResponse(b.entity(entity).build());
                         response.write();
                     }
