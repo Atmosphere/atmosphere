@@ -161,11 +161,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     public void suspend(int timeout) throws IOException {
         if (!suspended) {
-            atmResource.setSerializer(serializer);
-            if (atmResource instanceof AtmosphereEventLifecycle) {
-                AtmosphereEventLifecycle ael = (AtmosphereEventLifecycle) atmResource;
-                ael.addEventListener(eventListener);
-            }
+            atmResource.setSerializer(serializer).addEventListener(eventListener);
             writer.suspend();
             atmResource.suspend(timeout, false);
         }
