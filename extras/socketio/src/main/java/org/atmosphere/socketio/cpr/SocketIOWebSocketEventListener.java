@@ -41,10 +41,6 @@ public class SocketIOWebSocketEventListener extends WebSocketEventListenerAdapte
         this.sessionWrapper = sessionWrapper;
     }
 
-    public SocketIOWebSocketSessionWrapper getSessionWrapper() {
-        return sessionWrapper;
-    }
-
     @Override
     public void onMessage(WebSocketEvent event) {
         logger.trace("calling from " + this.getClass().getName() + " : " + "onMessage");

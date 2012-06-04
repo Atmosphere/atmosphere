@@ -16,6 +16,8 @@
 package org.atmosphere.socketio.transport;
 
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -29,6 +31,7 @@ import java.util.List;
  * @author Sebastien Dionne  : sebastien.dionne@gmail.com
  */
 public abstract class AbstractTransport implements Transport {
+    private static final Logger logger = LoggerFactory.getLogger(XHRTransport.class);
 
     public static final String SESSION_KEY = AbstractTransport.class.getName() + ".Session";
     public static final String POST_MESSAGE_RECEIVED = "POST_MESSAGE_RECEIVED";
@@ -68,7 +71,6 @@ public abstract class AbstractTransport implements Transport {
     public static String extractString(Reader reader) {
 
         String output = null;
-
         try {
             Writer writer = new StringWriter();
 
@@ -77,19 +79,15 @@ public abstract class AbstractTransport implements Transport {
             while ((n = reader.read(buffer)) != -1) {
                 writer.write(buffer, 0, n);
             }
-
             output = writer.toString();
-
         } catch (Exception e) {
         }
-
         return output;
 
     }
 
     @Override
     public void destroy() {
-
     }
 
     protected String decodePostData(String contentType, String data) {
@@ -129,11 +127,9 @@ public abstract class AbstractTransport implements Transport {
     protected boolean isDisconnectRequest(AtmosphereRequest request) {
 
         if ("GET".equals(request.getMethod())) {
-
             if (request.getParameterMap().containsKey("disconnect")) {
                 return true;
             }
-
         } else if ("POST".equals(request.getMethod())) {
             try {
                 String data = decodePostData(request.getContentType(), extractString(request.getReader()));
@@ -145,14 +141,11 @@ public abstract class AbstractTransport implements Transport {
                             return true;
                         }
                     }
-
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.trace("", e);
             }
-
         }
-
         return false;
     }
 }

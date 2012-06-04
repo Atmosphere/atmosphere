@@ -39,6 +39,7 @@ import org.atmosphere.socketio.transport.XHRPollingTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -159,45 +160,56 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                             if (outbound != null) {
                                 outbound.sendMessage(new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.MESSAGE, data));
                             } else {
-                                r.getResponse().getWriter().write(data);
+                                write(r, data.getBytes(r.getResponse().getCharacterEncoding()));
                             }
                             return this;
                         }
 
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
-                            write(new String(data));
+                            r.getResponse().getOutputStream().write(data);
                             return this;
                         }
 
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-                            return write(new String(data, offset, length));
-                        }
+                            r.getResponse().getOutputStream().write(data, offset, length);
+                            return this;                        }
 
                         @Override
                         public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
+                            try {
+                                r.getResponse().getOutputStream().flush();
+                            } catch (IllegalStateException ex) {
+                                r.getResponse().getWriter().flush();
+                            }
+                            return this;
+                        }
+
+                        @Override
+                        public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+                            ((HttpServletResponse)r.getResponse()).sendError(errorCode, message);
                             return this;
                         }
 
                         @Override
                         public void close(AtmosphereResponse r) throws IOException {
                             try {
-                                r.getResponse().getWriter().close();
-                            } catch (IOException ex) {
                                 r.getResponse().getOutputStream().close();
+                            } catch (IllegalStateException ex) {
+                                r.getResponse().getWriter().close();
                             }
                         }
                     });
                 }
-                return transport.handle((AtmosphereResourceImpl) r, atmosphereHandler, getSessionManager(version));
+                transport.handle((AtmosphereResourceImpl) r, atmosphereHandler, getSessionManager(version));
             } else {
                 logger.error("Protocol not supported : " + protocol);
             }
         } catch (Exception e) {
             logger.error("", e);
         }
-        return Action.CANCELLED;
+        return Action.CONTINUE;
     }
 
     @Override

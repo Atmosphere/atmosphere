@@ -16,16 +16,15 @@
 package org.atmosphere.socketio.transport;
 
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.socketio.SocketIOSession;
 import org.atmosphere.socketio.SocketIOSessionFactory;
 import org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -44,11 +43,11 @@ public class JSONPPollingTransport extends XHRTransport {
             super(session, false);
         }
 
-        protected void startSend(HttpServletResponse response) throws IOException {
+        protected void startSend(AtmosphereResponse response) throws IOException {
         }
 
         @Override
-        protected void writeData(HttpServletResponse response, String data) throws IOException {
+        protected void writeData(AtmosphereResponse response, String data) throws IOException {
             logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
 
             response.setContentType("text/javascript; charset=UTF-8");
@@ -58,12 +57,12 @@ public class JSONPPollingTransport extends XHRTransport {
 
         }
 
-        protected void finishSend(HttpServletResponse response) throws IOException {
+        protected void finishSend(AtmosphereResponse response) throws IOException {
             response.flushBuffer();
         }
 
-        protected void customConnect(HttpServletRequest request,
-                                     HttpServletResponse response) throws IOException {
+        protected void customConnect(AtmosphereRequest request,
+                                     AtmosphereResponse response) throws IOException {
 
             if (request.getParameter("i") != null) {
                 jsonpIndex = Integer.parseInt(request.getParameter("i"));
@@ -95,13 +94,10 @@ public class JSONPPollingTransport extends XHRTransport {
         if (session == null) {
             session = sessionFactory.createSession(resource, atmosphereHandler);
             resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_ID, session.getSessionId());
-
-            // for the Broadcaster
-            resource.getRequest().setAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND, atmosphereHandler);
         }
 
         XHRPollingSessionHelper handler = createHelper(session);
-        handler.connect(resource, atmosphereHandler);
+        handler.connect(resource);
         return session;
     }
 

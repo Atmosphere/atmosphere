@@ -15,6 +15,8 @@
  */
 package org.atmosphere.socketio.transport;
 
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.socketio.SocketIOSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,24 +53,24 @@ public class XHRPollingTransport extends XHRTransport {
             super(session, false);
         }
 
-        protected void startSend(HttpServletResponse response) throws IOException {
+        protected void startSend(AtmosphereResponse response) throws IOException {
             response.setContentType("text/plain; charset=UTF-8");
             response.setCharacterEncoding("UTF-8");
         }
 
         @Override
-        protected void writeData(HttpServletResponse response, String data) throws IOException {
+        protected void writeData(AtmosphereResponse response, String data) throws IOException {
             logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
             response.getOutputStream().write(data.getBytes("UTF-8"));
             logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
         }
 
-        protected void finishSend(HttpServletResponse response) throws IOException {
+        protected void finishSend(AtmosphereResponse response) throws IOException {
             response.flushBuffer();
             response.getOutputStream().flush();
         };
 
-        protected void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        protected void customConnect(AtmosphereRequest request, AtmosphereResponse response) throws IOException {
             startSend(response);
             writeData(response, "1::");
         }
