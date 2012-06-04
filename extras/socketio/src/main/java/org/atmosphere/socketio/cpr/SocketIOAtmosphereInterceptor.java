@@ -179,6 +179,15 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                         public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
                             return this;
                         }
+
+                        @Override
+                        public void close(AtmosphereResponse r) throws IOException {
+                            try {
+                                r.getResponse().getWriter().close();
+                            } catch (IOException ex) {
+                                r.getResponse().getOutputStream().close();
+                            }
+                        }
                     });
                 }
                 return transport.handle((AtmosphereResourceImpl) r, atmosphereHandler, getSessionManager(version));
