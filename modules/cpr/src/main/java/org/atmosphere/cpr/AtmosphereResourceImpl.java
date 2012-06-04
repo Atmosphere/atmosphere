@@ -101,6 +101,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean isCancelled = false;
     private boolean resumeOnBroadcast = false;
     private Object writeOnTimeout = null;
+    private boolean disableSuspend = false;
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -343,7 +344,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public AtmosphereResource suspend(long timeout, boolean flushComment) {
 
-        if (event.isSuspended()) return this;
+        if (event.isSuspended() || disableSuspend) return this;
 
         if (config.isSupportSession()
                 && req.getSession(false) != null
@@ -864,4 +865,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 '}';
     }
 
+    public AtmosphereResourceImpl disableSuspend(boolean disableSuspend) {
+        this.disableSuspend = disableSuspend;
+        return this;
+    }
 }
