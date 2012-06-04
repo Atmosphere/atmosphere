@@ -45,7 +45,7 @@ public class SocketIOPacketImpl implements SocketIOPacket {
     }
 
     public SocketIOPacketImpl(PacketType frameType, String data, boolean padding) {
-        this(frameType, null, null, data, false);
+        this(frameType, null, null, data, padding);
     }
 
     public SocketIOPacketImpl(PacketType frameType, String id, String endpoint, String data) {

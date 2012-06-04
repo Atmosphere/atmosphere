@@ -35,7 +35,6 @@ public class SocketIOChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource r) throws IOException {
-
         r.getBroadcaster().broadcast(r.getRequest().getReader().readLine());
     }
 

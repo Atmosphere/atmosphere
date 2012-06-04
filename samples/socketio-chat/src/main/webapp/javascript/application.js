@@ -21,9 +21,7 @@ $(function () {
         });
     });
 
-    socket.on('message', function(msg) {
-        message(msg);
-    });
+    socket.on('chat message', message);
 
     socket.on('reconnect', function () {
         console.log('System', 'Reconnected to the server');
@@ -48,7 +46,7 @@ $(function () {
                 author = msg;
             }
 
-            socket.emit('', $.stringifyJSON({ author: author, message: msg }));
+            socket.emit('chat message', $.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');

@@ -41,8 +41,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.atmosphere.socketio.transport.SocketIOSessionManagerImpl.mapper;
 
 /**
  * SocketIO implementation.
@@ -157,24 +161,42 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                         public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
                             SocketIOSessionOutbound outbound = (SocketIOSessionOutbound)
                                     request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND);
+                            SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
+                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+
+                            String msg = p == null ? data : mapper.writeValueAsString(p.clearArgs().addArgs(data));
+
                             if (outbound != null) {
-                                outbound.sendMessage(new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.MESSAGE, data));
+                                outbound.sendMessage(new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.EVENT, msg));
                             } else {
-                                write(r, data.getBytes(r.getResponse().getCharacterEncoding()));
+                                r.getResponse().getOutputStream().write(msg.getBytes(r.getCharacterEncoding()));
                             }
                             return this;
                         }
 
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
-                            r.getResponse().getOutputStream().write(data);
+                            SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
+                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+                            if (p == null) {
+                                r.getResponse().getOutputStream().write(data);
+                            } else {
+                                write(new String(data, r.request().getCharacterEncoding()));
+                            }
                             return this;
                         }
 
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-                            r.getResponse().getOutputStream().write(data, offset, length);
-                            return this;                        }
+                            SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
+                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+                            if (p == null) {
+                                r.getResponse().getOutputStream().write(data, offset, length);
+                            } else {
+                                write(new String(data, offset, length, r.request().getCharacterEncoding()));
+                            }
+                            return this;
+                        }
 
                         @Override
                         public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
@@ -188,7 +210,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
                         @Override
                         public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-                            ((HttpServletResponse)r.getResponse()).sendError(errorCode, message);
+                            ((HttpServletResponse) r.getResponse()).sendError(errorCode, message);
                             return this;
                         }
 

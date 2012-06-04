@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.security.SecureRandom;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -57,7 +58,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
     private long heartbeatInterval = 15;
     private long timeout = 2500;
     private long requestSuspendTime = 20000; // 20 sec.
-    private static final ObjectMapper mapper = new ObjectMapper();
+    public static final ObjectMapper mapper = new ObjectMapper();
 
     private static String generateRandomString(int length) {
 
@@ -369,6 +370,7 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
                             for (String msg : p.getArgs()) {
                                 AtmosphereRequest r = resource.getRequest();
+                                r.setAttribute(SocketIOProtocol.class.getName(), p);
                                 r.body(msg).method("POST");
                                 resource.disableSuspend(true);
                                 atmosphereHandler.onRequest(resource);
@@ -488,6 +490,19 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
         public void setName(String name) {
             this.name = name;
+        }
+
+        public SocketIOProtocol addArgs(String s) {
+            if (args == null) {
+                args = new LinkedList<String>();
+            }
+            args.add(s);
+            return this;
+        }
+
+        public SocketIOProtocol clearArgs(){
+            args.clear();
+            return this;
         }
 
         @Override
