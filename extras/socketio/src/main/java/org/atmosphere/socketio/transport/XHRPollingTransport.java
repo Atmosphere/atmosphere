@@ -58,7 +58,6 @@ public class XHRPollingTransport extends XHRTransport {
 
         @Override
         protected void writeData(HttpServletResponse response, String data) throws IOException {
-            logger.debug("Response HashCode=" + response.hashCode());
             logger.trace("calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
             response.getOutputStream().write(data.getBytes("UTF-8"));
             logger.trace("WRITE SUCCESS calling from " + this.getClass().getName() + " : " + "writeData(string) = " + data);
@@ -67,9 +66,7 @@ public class XHRPollingTransport extends XHRTransport {
         protected void finishSend(HttpServletResponse response) throws IOException {
             response.flushBuffer();
             response.getOutputStream().flush();
-        }
-
-        ;
+        };
 
         protected void customConnect(HttpServletRequest request, HttpServletResponse response) throws IOException {
             startSend(response);
