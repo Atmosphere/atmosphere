@@ -23,15 +23,6 @@ $(function () {
 
     socket.on('chat message', message);
 
-    socket.on('reconnect', function () {
-        console.log('System', 'Reconnected to the server');
-    });
-
-    socket.on('disconnect', function () {
-        content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
-            + 'socket or the server is down' }));
-    });
-
     socket.on('error', function (e) {
         content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
             + 'socket or the server is down' }));
