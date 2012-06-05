@@ -32,11 +32,11 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### Latest Publications
 
+[Using Socket.IO with Atmosphere](http://jfarcand.wordpress.com/2012/06/04/writing-socket-io-application-that-runs-on-the-jvm/)
+
 [Grails Events Bus and sample](http://groovyflow.com/posts/489#.T8TxDpl1DvU)
 
 [Introducing SwaggerSocket](http://jfarcand.wordpress.com/2012/04/26/transparently-adding-websockets-to-your-application-using-swaggersocket/)
-
-[Which Atmosphere API should I use for my project?](http://jfarcand.wordpress.com/2011/11/07/hitchiker-guide-to-the-atmosphere-framework-using-websocket-long-polling-and-http-streaming/)
 
 [Writing HTML5 Server Side Events using Atmosphere](http://jfarcand.wordpress.com/2012/05/14/writing-portable-html5-server-side-evens-application-using-the-atmosphere-framework/)
 
