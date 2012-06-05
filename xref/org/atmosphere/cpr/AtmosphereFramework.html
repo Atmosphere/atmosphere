@@ -123,604 +123,604 @@
 <a class="jxr_linenumber" name="113" href="#113">113</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String DEFAULT_LIB_PATH = <span class="jxr_string">"/WEB-INF/lib/"</span>;
 <a class="jxr_linenumber" name="114" href="#114">114</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String MAPPING_REGEX = <span class="jxr_string">"[a-zA-Z0-9-&amp;.*=;&#92;&#92;?]+"</span>;
 <a class="jxr_linenumber" name="115" href="#115">115</a> 
-<a class="jxr_linenumber" name="116" href="#116">116</a> 
-<a class="jxr_linenumber" name="117" href="#117">117</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(AtmosphereFramework.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="118" href="#118">118</a> 
-<a class="jxr_linenumber" name="119" href="#119">119</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> List&lt;String&gt; broadcasterFilters = <strong class="jxr_keyword">new</strong> ArrayList&lt;String&gt;();
-<a class="jxr_linenumber" name="120" href="#120">120</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> List&lt;AsyncSupportListener&gt; asyncSupportListeners = <strong class="jxr_keyword">new</strong> ArrayList&lt;AsyncSupportListener&gt;();
-<a class="jxr_linenumber" name="121" href="#121">121</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ArrayList&lt;String&gt; possibleComponentsCandidate = <strong class="jxr_keyword">new</strong> ArrayList&lt;String&gt;();
-<a class="jxr_linenumber" name="122" href="#122">122</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> HashMap&lt;String, String&gt; initParams = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
-<a class="jxr_linenumber" name="123" href="#123">123</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
-<a class="jxr_linenumber" name="124" href="#124">124</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean isCometSupportConfigured = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
-<a class="jxr_linenumber" name="125" href="#125">125</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> isFilter;
-<a class="jxr_linenumber" name="126" href="#126">126</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> Map&lt;String, AtmosphereHandlerWrapper&gt; atmosphereHandlers = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, AtmosphereHandlerWrapper&gt;();
-<a class="jxr_linenumber" name="127" href="#127">127</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ConcurrentLinkedQueue&lt;String&gt; broadcasterTypes = <strong class="jxr_keyword">new</strong> ConcurrentLinkedQueue&lt;String&gt;();
-<a class="jxr_linenumber" name="128" href="#128">128</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">EventLogger</a> eLogger = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">EventLogger</a>();
-<a class="jxr_linenumber" name="129" href="#129">129</a> 
-<a class="jxr_linenumber" name="130" href="#130">130</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useNativeImplementation = false;
-<a class="jxr_linenumber" name="131" href="#131">131</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useBlockingImplementation = false;
-<a class="jxr_linenumber" name="132" href="#132">132</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useStreamForFlushingComments = false;
-<a class="jxr_linenumber" name="133" href="#133">133</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> asyncSupport;
-<a class="jxr_linenumber" name="134" href="#134">134</a>     <strong class="jxr_keyword">protected</strong> String broadcasterClassName = DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="135" href="#135">135</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isCometSupportSpecified = false;
-<a class="jxr_linenumber" name="136" href="#136">136</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isBroadcasterSpecified = false;
-<a class="jxr_linenumber" name="137" href="#137">137</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isSessionSupportSpecified = false;
-<a class="jxr_linenumber" name="138" href="#138">138</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> broadcasterFactory;
-<a class="jxr_linenumber" name="139" href="#139">139</a>     <strong class="jxr_keyword">protected</strong> String broadcasterFactoryClassName;
-<a class="jxr_linenumber" name="140" href="#140">140</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> String broadcasterCacheClassName;
-<a class="jxr_linenumber" name="141" href="#141">141</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> webSocketEnabled = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="142" href="#142">142</a>     <strong class="jxr_keyword">protected</strong> String broadcasterLifeCyclePolicy = <span class="jxr_string">"NEVER"</span>;
-<a class="jxr_linenumber" name="143" href="#143">143</a>     <strong class="jxr_keyword">protected</strong> String webSocketProtocolClassName = SimpleHttpProtocol.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="144" href="#144">144</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/websocket/WebSocketProtocol.html">WebSocketProtocol</a> webSocketProtocol;
-<a class="jxr_linenumber" name="145" href="#145">145</a>     <strong class="jxr_keyword">protected</strong> String handlersPath = <span class="jxr_string">"/WEB-INF/classes/"</span>;
-<a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">protected</strong> ServletConfig servletConfig;
-<a class="jxr_linenumber" name="147" href="#147">147</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> autoDetectHandlers = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="148" href="#148">148</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> hasNewWebSocketProtocol = false;
-<a class="jxr_linenumber" name="149" href="#149">149</a>     <strong class="jxr_keyword">protected</strong> String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
-<a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> LinkedList&lt;AtmosphereInterceptor&gt; interceptors = <strong class="jxr_keyword">new</strong> LinkedList&lt;AtmosphereInterceptor&gt;();
-<a class="jxr_linenumber" name="151" href="#151">151</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> scanDone = false;
-<a class="jxr_linenumber" name="152" href="#152">152</a>     <strong class="jxr_keyword">protected</strong> String annotationProcessorClassName = <span class="jxr_string">"org.atmosphere.cpr.DefaultAnnotationProcessor"</span>;
-<a class="jxr_linenumber" name="153" href="#153">153</a> 
-<a class="jxr_linenumber" name="154" href="#154">154</a>     @Override
-<a class="jxr_linenumber" name="155" href="#155">155</a>     <strong class="jxr_keyword">public</strong> ServletContext getServletContext() {
-<a class="jxr_linenumber" name="156" href="#156">156</a>         <strong class="jxr_keyword">return</strong> servletConfig.getServletContext();
-<a class="jxr_linenumber" name="157" href="#157">157</a>     }
-<a class="jxr_linenumber" name="158" href="#158">158</a> 
-<a class="jxr_linenumber" name="159" href="#159">159</a>     <strong class="jxr_keyword">public</strong> ServletConfig getServletConfig() {
-<a class="jxr_linenumber" name="160" href="#160">160</a>         <strong class="jxr_keyword">return</strong> servletConfig;
-<a class="jxr_linenumber" name="161" href="#161">161</a>     }
-<a class="jxr_linenumber" name="162" href="#162">162</a> 
-<a class="jxr_linenumber" name="163" href="#163">163</a>     <strong class="jxr_keyword">public</strong> List&lt;String&gt; broadcasterFilters() {
-<a class="jxr_linenumber" name="164" href="#164">164</a>         <strong class="jxr_keyword">return</strong> broadcasterFilters;
-<a class="jxr_linenumber" name="165" href="#165">165</a>     }
-<a class="jxr_linenumber" name="166" href="#166">166</a> 
-<a class="jxr_linenumber" name="167" href="#167">167</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> {
-<a class="jxr_linenumber" name="168" href="#168">168</a> 
-<a class="jxr_linenumber" name="169" href="#169">169</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler;
-<a class="jxr_linenumber" name="170" href="#170">170</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster;
-<a class="jxr_linenumber" name="171" href="#171">171</a>         <strong class="jxr_keyword">public</strong> String mapping;
-<a class="jxr_linenumber" name="172" href="#172">172</a> 
-<a class="jxr_linenumber" name="173" href="#173">173</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(<a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler, String mapping) {
-<a class="jxr_linenumber" name="174" href="#174">174</a>             <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
-<a class="jxr_linenumber" name="175" href="#175">175</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="176" href="#176">176</a>                 <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="177" href="#177">177</a>                     <strong class="jxr_keyword">this</strong>.broadcaster = BroadcasterFactory.getDefault().get(mapping);
-<a class="jxr_linenumber" name="178" href="#178">178</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="179" href="#179">179</a>                     <strong class="jxr_keyword">this</strong>.mapping = mapping;
-<a class="jxr_linenumber" name="180" href="#180">180</a>                 }
-<a class="jxr_linenumber" name="181" href="#181">181</a>             } <strong class="jxr_keyword">catch</strong> (Exception t) {
-<a class="jxr_linenumber" name="182" href="#182">182</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(t);
-<a class="jxr_linenumber" name="183" href="#183">183</a>             }
-<a class="jxr_linenumber" name="184" href="#184">184</a>         }
-<a class="jxr_linenumber" name="185" href="#185">185</a> 
-<a class="jxr_linenumber" name="186" href="#186">186</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(<a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler, <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
-<a class="jxr_linenumber" name="187" href="#187">187</a>             <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
-<a class="jxr_linenumber" name="188" href="#188">188</a>             <strong class="jxr_keyword">this</strong>.broadcaster = broadcaster;
-<a class="jxr_linenumber" name="189" href="#189">189</a>         }
-<a class="jxr_linenumber" name="190" href="#190">190</a> 
-<a class="jxr_linenumber" name="191" href="#191">191</a>         @Override
-<a class="jxr_linenumber" name="192" href="#192">192</a>         <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="193" href="#193">193</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereHandlerWrapper{ atmosphereHandler="</span> + atmosphereHandler + <span class="jxr_string">", broadcaster="</span> +
-<a class="jxr_linenumber" name="194" href="#194">194</a>                     broadcaster + <span class="jxr_string">" }"</span>;
-<a class="jxr_linenumber" name="195" href="#195">195</a>         }
-<a class="jxr_linenumber" name="196" href="#196">196</a>     }
-<a class="jxr_linenumber" name="197" href="#197">197</a> 
-<a class="jxr_linenumber" name="198" href="#198">198</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="199" href="#199">199</a> <em class="jxr_javadoccomment">     * Return a configured instance of {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="200" href="#200">200</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="201" href="#201">201</a> <em class="jxr_javadoccomment">     * @return a configured instance of {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="202" href="#202">202</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="203" href="#203">203</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
-<a class="jxr_linenumber" name="204" href="#204">204</a>         <strong class="jxr_keyword">return</strong> config;
-<a class="jxr_linenumber" name="205" href="#205">205</a>     }
-<a class="jxr_linenumber" name="206" href="#206">206</a> 
-<a class="jxr_linenumber" name="207" href="#207">207</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="208" href="#208">208</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework.</em>
-<a class="jxr_linenumber" name="209" href="#209">209</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="210" href="#210">210</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>() {
-<a class="jxr_linenumber" name="211" href="#211">211</a>         <strong class="jxr_keyword">this</strong>(false, <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="212" href="#212">212</a>     }
-<a class="jxr_linenumber" name="213" href="#213">213</a> 
-<a class="jxr_linenumber" name="214" href="#214">214</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="215" href="#215">215</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}</em>
-<a class="jxr_linenumber" name="216" href="#216">216</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="217" href="#217">217</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
-<a class="jxr_linenumber" name="218" href="#218">218</a>         <strong class="jxr_keyword">this</strong>(false, <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="219" href="#219">219</a>         init(sc);
-<a class="jxr_linenumber" name="220" href="#220">220</a>     }
-<a class="jxr_linenumber" name="221" href="#221">221</a> 
-<a class="jxr_linenumber" name="222" href="#222">222</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework.</em>
-<a class="jxr_linenumber" name="224" href="#224">224</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="225" href="#225">225</a> <em class="jxr_javadoccomment">     * @param isFilter true if this instance is used as an {@link AtmosphereFilter}</em>
-<a class="jxr_linenumber" name="226" href="#226">226</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="227" href="#227">227</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>(<strong class="jxr_keyword">boolean</strong> isFilter, <strong class="jxr_keyword">boolean</strong> autoDetectHandlers) {
-<a class="jxr_linenumber" name="228" href="#228">228</a>         <strong class="jxr_keyword">this</strong>.isFilter = isFilter;
-<a class="jxr_linenumber" name="229" href="#229">229</a>         <strong class="jxr_keyword">this</strong>.autoDetectHandlers = autoDetectHandlers;
-<a class="jxr_linenumber" name="230" href="#230">230</a>         readSystemProperties();
-<a class="jxr_linenumber" name="231" href="#231">231</a>         populateBroadcasterType();
-<a class="jxr_linenumber" name="232" href="#232">232</a>         config = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a>(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="233" href="#233">233</a>     }
-<a class="jxr_linenumber" name="234" href="#234">234</a> 
-<a class="jxr_linenumber" name="235" href="#235">235</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     * The order of addition is quite important here.</em>
-<a class="jxr_linenumber" name="237" href="#237">237</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="238" href="#238">238</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> populateBroadcasterType() {
-<a class="jxr_linenumber" name="239" href="#239">239</a>         broadcasterTypes.add(HAZELCAST_BROADCASTER);
-<a class="jxr_linenumber" name="240" href="#240">240</a>         broadcasterTypes.add(XMPP_BROADCASTER);
-<a class="jxr_linenumber" name="241" href="#241">241</a>         broadcasterTypes.add(REDIS_BROADCASTER);
-<a class="jxr_linenumber" name="242" href="#242">242</a>         broadcasterTypes.add(JGROUPS_BROADCASTER);
-<a class="jxr_linenumber" name="243" href="#243">243</a>         broadcasterTypes.add(JMS_BROADCASTER);
-<a class="jxr_linenumber" name="244" href="#244">244</a>     }
-<a class="jxr_linenumber" name="245" href="#245">245</a> 
-<a class="jxr_linenumber" name="246" href="#246">246</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="247" href="#247">247</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
-<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
-<a class="jxr_linenumber" name="249" href="#249">249</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="250" href="#250">250</a> <em class="jxr_javadoccomment">     * @param mapping The servlet mapping (servlet path)</em>
-<a class="jxr_linenumber" name="251" href="#251">251</a> <em class="jxr_javadoccomment">     * @param h       implementation of an {@link AtmosphereHandler}</em>
-<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="253" href="#253">253</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h) {
-<a class="jxr_linenumber" name="254" href="#254">254</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="255" href="#255">255</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
-<a class="jxr_linenumber" name="256" href="#256">256</a>         }
-<a class="jxr_linenumber" name="257" href="#257">257</a> 
-<a class="jxr_linenumber" name="258" href="#258">258</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, mapping);
-<a class="jxr_linenumber" name="259" href="#259">259</a>         addMapping(mapping, w);
-<a class="jxr_linenumber" name="260" href="#260">260</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
-<a class="jxr_linenumber" name="261" href="#261">261</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="262" href="#262">262</a>     }
-<a class="jxr_linenumber" name="263" href="#263">263</a> 
-<a class="jxr_linenumber" name="264" href="#264">264</a>     <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addMapping(String path, <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w) {
-<a class="jxr_linenumber" name="265" href="#265">265</a>         <em class="jxr_comment">// We are using JAXRS mapping algorithm.</em>
-<a class="jxr_linenumber" name="266" href="#266">266</a>         <strong class="jxr_keyword">if</strong> (path.contains(<span class="jxr_string">"*"</span>)) {
-<a class="jxr_linenumber" name="267" href="#267">267</a>             path = path.replace(<span class="jxr_string">"*"</span>, MAPPING_REGEX);
-<a class="jxr_linenumber" name="268" href="#268">268</a>         }
-<a class="jxr_linenumber" name="269" href="#269">269</a> 
-<a class="jxr_linenumber" name="270" href="#270">270</a>         <strong class="jxr_keyword">if</strong> (path.endsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="271" href="#271">271</a>             path = path + MAPPING_REGEX;
-<a class="jxr_linenumber" name="272" href="#272">272</a>         }
-<a class="jxr_linenumber" name="273" href="#273">273</a> 
-<a class="jxr_linenumber" name="274" href="#274">274</a>         atmosphereHandlers.put(path, w);
-<a class="jxr_linenumber" name="275" href="#275">275</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="276" href="#276">276</a>     }
-<a class="jxr_linenumber" name="277" href="#277">277</a> 
-<a class="jxr_linenumber" name="278" href="#278">278</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="279" href="#279">279</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
-<a class="jxr_linenumber" name="280" href="#280">280</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
-<a class="jxr_linenumber" name="281" href="#281">281</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="282" href="#282">282</a> <em class="jxr_javadoccomment">     * @param mapping       The servlet mapping (servlet path)</em>
-<a class="jxr_linenumber" name="283" href="#283">283</a> <em class="jxr_javadoccomment">     * @param h             implementation of an {@link AtmosphereHandler}</em>
-<a class="jxr_linenumber" name="284" href="#284">284</a> <em class="jxr_javadoccomment">     * @param broadcasterId The {@link Broadcaster#getID} value.</em>
-<a class="jxr_linenumber" name="285" href="#285">285</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="286" href="#286">286</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h, String broadcasterId) {
-<a class="jxr_linenumber" name="287" href="#287">287</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="288" href="#288">288</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
-<a class="jxr_linenumber" name="289" href="#289">289</a>         }
-<a class="jxr_linenumber" name="290" href="#290">290</a> 
-<a class="jxr_linenumber" name="291" href="#291">291</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, mapping);
-<a class="jxr_linenumber" name="292" href="#292">292</a>         w.broadcaster.setID(broadcasterId);
-<a class="jxr_linenumber" name="293" href="#293">293</a>         addMapping(mapping, w);
-<a class="jxr_linenumber" name="294" href="#294">294</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
-<a class="jxr_linenumber" name="295" href="#295">295</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="296" href="#296">296</a>     }
-<a class="jxr_linenumber" name="297" href="#297">297</a> 
-<a class="jxr_linenumber" name="298" href="#298">298</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="299" href="#299">299</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
-<a class="jxr_linenumber" name="300" href="#300">300</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
-<a class="jxr_linenumber" name="301" href="#301">301</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="302" href="#302">302</a> <em class="jxr_javadoccomment">     * @param mapping     The servlet mapping (servlet path)</em>
-<a class="jxr_linenumber" name="303" href="#303">303</a> <em class="jxr_javadoccomment">     * @param h           implementation of an {@link AtmosphereHandler}</em>
-<a class="jxr_linenumber" name="304" href="#304">304</a> <em class="jxr_javadoccomment">     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.</em>
-<a class="jxr_linenumber" name="305" href="#305">305</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="306" href="#306">306</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h, <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
-<a class="jxr_linenumber" name="307" href="#307">307</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="308" href="#308">308</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
-<a class="jxr_linenumber" name="309" href="#309">309</a>         }
-<a class="jxr_linenumber" name="310" href="#310">310</a> 
-<a class="jxr_linenumber" name="311" href="#311">311</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, broadcaster);
-<a class="jxr_linenumber" name="312" href="#312">312</a>         addMapping(mapping, w);
-<a class="jxr_linenumber" name="313" href="#313">313</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
-<a class="jxr_linenumber" name="314" href="#314">314</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="315" href="#315">315</a>     }
-<a class="jxr_linenumber" name="316" href="#316">316</a> 
-<a class="jxr_linenumber" name="317" href="#317">317</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="318" href="#318">318</a> <em class="jxr_javadoccomment">     * Remove an {@link AtmosphereHandler}</em>
-<a class="jxr_linenumber" name="319" href="#319">319</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="320" href="#320">320</a> <em class="jxr_javadoccomment">     * @param mapping the mapping used when invoking {@link #addAtmosphereHandler(String, AtmosphereHandler)};</em>
-<a class="jxr_linenumber" name="321" href="#321">321</a> <em class="jxr_javadoccomment">     * @return true if removed</em>
-<a class="jxr_linenumber" name="322" href="#322">322</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="323" href="#323">323</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAtmosphereHandler(String mapping) {
-<a class="jxr_linenumber" name="324" href="#324">324</a> 
-<a class="jxr_linenumber" name="325" href="#325">325</a>         <strong class="jxr_keyword">if</strong> (mapping.endsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="326" href="#326">326</a>             mapping += MAPPING_REGEX;
-<a class="jxr_linenumber" name="327" href="#327">327</a>         }
-<a class="jxr_linenumber" name="328" href="#328">328</a> 
-<a class="jxr_linenumber" name="329" href="#329">329</a>         atmosphereHandlers.remove(mapping);
-<a class="jxr_linenumber" name="330" href="#330">330</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="331" href="#331">331</a>     }
-<a class="jxr_linenumber" name="332" href="#332">332</a> 
-<a class="jxr_linenumber" name="333" href="#333">333</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="334" href="#334">334</a> <em class="jxr_javadoccomment">     * Remove all {@link AtmosphereHandler}</em>
-<a class="jxr_linenumber" name="335" href="#335">335</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="336" href="#336">336</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAllAtmosphereHandler() {
-<a class="jxr_linenumber" name="337" href="#337">337</a>         atmosphereHandlers.clear();
-<a class="jxr_linenumber" name="338" href="#338">338</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="339" href="#339">339</a>     }
-<a class="jxr_linenumber" name="340" href="#340">340</a> 
-<a class="jxr_linenumber" name="341" href="#341">341</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="342" href="#342">342</a> <em class="jxr_javadoccomment">     * Remove all init parameters.</em>
-<a class="jxr_linenumber" name="343" href="#343">343</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="344" href="#344">344</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAllInitParams() {
-<a class="jxr_linenumber" name="345" href="#345">345</a>         initParams.clear();
-<a class="jxr_linenumber" name="346" href="#346">346</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="347" href="#347">347</a>     }
-<a class="jxr_linenumber" name="348" href="#348">348</a> 
-<a class="jxr_linenumber" name="349" href="#349">349</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="350" href="#350">350</a> <em class="jxr_javadoccomment">     * Add init-param like if they were defined in web.xml</em>
-<a class="jxr_linenumber" name="351" href="#351">351</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="352" href="#352">352</a> <em class="jxr_javadoccomment">     * @param name  The name</em>
-<a class="jxr_linenumber" name="353" href="#353">353</a> <em class="jxr_javadoccomment">     * @param value The value</em>
-<a class="jxr_linenumber" name="354" href="#354">354</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="355" href="#355">355</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addInitParameter(String name, String value) {
-<a class="jxr_linenumber" name="356" href="#356">356</a>         initParams.put(name, value);
-<a class="jxr_linenumber" name="357" href="#357">357</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="358" href="#358">358</a>     }
-<a class="jxr_linenumber" name="359" href="#359">359</a> 
-<a class="jxr_linenumber" name="360" href="#360">360</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> readSystemProperties() {
-<a class="jxr_linenumber" name="361" href="#361">361</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(PROPERTY_NATIVE_COMETSUPPORT) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="362" href="#362">362</a>             useNativeImplementation = Boolean
-<a class="jxr_linenumber" name="363" href="#363">363</a>                     .parseBoolean(System.getProperty(PROPERTY_NATIVE_COMETSUPPORT));
-<a class="jxr_linenumber" name="364" href="#364">364</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="365" href="#365">365</a>         }
-<a class="jxr_linenumber" name="366" href="#366">366</a> 
-<a class="jxr_linenumber" name="367" href="#367">367</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(PROPERTY_BLOCKING_COMETSUPPORT) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="368" href="#368">368</a>             useBlockingImplementation = Boolean
-<a class="jxr_linenumber" name="369" href="#369">369</a>                     .parseBoolean(System.getProperty(PROPERTY_BLOCKING_COMETSUPPORT));
-<a class="jxr_linenumber" name="370" href="#370">370</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="371" href="#371">371</a>         }
-<a class="jxr_linenumber" name="372" href="#372">372</a>         atmosphereDotXmlPath = System.getProperty(PROPERTY_ATMOSPHERE_XML, atmosphereDotXmlPath);
-<a class="jxr_linenumber" name="373" href="#373">373</a> 
-<a class="jxr_linenumber" name="374" href="#374">374</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(DISABLE_ONSTATE_EVENT) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="375" href="#375">375</a>             initParams.put(DISABLE_ONSTATE_EVENT, System.getProperty(DISABLE_ONSTATE_EVENT));
-<a class="jxr_linenumber" name="376" href="#376">376</a>         }
-<a class="jxr_linenumber" name="377" href="#377">377</a>     }
-<a class="jxr_linenumber" name="378" href="#378">378</a> 
-<a class="jxr_linenumber" name="379" href="#379">379</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="380" href="#380">380</a> <em class="jxr_javadoccomment">     * Path specific container using their own property.</em>
-<a class="jxr_linenumber" name="381" href="#381">381</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="382" href="#382">382</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> patchContainer() {
-<a class="jxr_linenumber" name="383" href="#383">383</a>         System.setProperty(<span class="jxr_string">"org.apache.catalina.STRICT_SERVLET_COMPLIANCE"</span>, <span class="jxr_string">"false"</span>);
-<a class="jxr_linenumber" name="384" href="#384">384</a>     }
-<a class="jxr_linenumber" name="385" href="#385">385</a> 
-<a class="jxr_linenumber" name="386" href="#386">386</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="387" href="#387">387</a> <em class="jxr_javadoccomment">     * Load the {@link AtmosphereHandler} associated with this AtmosphereServlet.</em>
-<a class="jxr_linenumber" name="388" href="#388">388</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="389" href="#389">389</a> <em class="jxr_javadoccomment">     * @param sc the {@link ServletContext}</em>
-<a class="jxr_linenumber" name="390" href="#390">390</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="391" href="#391">391</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> init(<strong class="jxr_keyword">final</strong> ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
-<a class="jxr_linenumber" name="392" href="#392">392</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="393" href="#393">393</a>             ServletContextHolder.register(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="394" href="#394">394</a> 
-<a class="jxr_linenumber" name="395" href="#395">395</a>             ServletConfig scFacade = <strong class="jxr_keyword">new</strong> ServletConfig() {
-<a class="jxr_linenumber" name="396" href="#396">396</a> 
-<a class="jxr_linenumber" name="397" href="#397">397</a>                 <strong class="jxr_keyword">public</strong> String getServletName() {
-<a class="jxr_linenumber" name="398" href="#398">398</a>                     <strong class="jxr_keyword">return</strong> sc.getServletName();
-<a class="jxr_linenumber" name="399" href="#399">399</a>                 }
-<a class="jxr_linenumber" name="400" href="#400">400</a> 
-<a class="jxr_linenumber" name="401" href="#401">401</a>                 <strong class="jxr_keyword">public</strong> ServletContext getServletContext() {
-<a class="jxr_linenumber" name="402" href="#402">402</a>                     <strong class="jxr_keyword">return</strong> sc.getServletContext();
-<a class="jxr_linenumber" name="403" href="#403">403</a>                 }
-<a class="jxr_linenumber" name="404" href="#404">404</a> 
-<a class="jxr_linenumber" name="405" href="#405">405</a>                 <strong class="jxr_keyword">public</strong> String getInitParameter(String name) {
-<a class="jxr_linenumber" name="406" href="#406">406</a>                     String param = sc.getInitParameter(name);
-<a class="jxr_linenumber" name="407" href="#407">407</a>                     <strong class="jxr_keyword">if</strong> (param == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="408" href="#408">408</a>                         <strong class="jxr_keyword">return</strong> initParams.get(name);
-<a class="jxr_linenumber" name="409" href="#409">409</a>                     }
-<a class="jxr_linenumber" name="410" href="#410">410</a>                     <strong class="jxr_keyword">return</strong> param;
-<a class="jxr_linenumber" name="411" href="#411">411</a>                 }
-<a class="jxr_linenumber" name="412" href="#412">412</a> 
-<a class="jxr_linenumber" name="413" href="#413">413</a>                 <strong class="jxr_keyword">public</strong> Enumeration&lt;String&gt; getInitParameterNames() {
-<a class="jxr_linenumber" name="414" href="#414">414</a>                     Enumeration en = sc.getInitParameterNames();
-<a class="jxr_linenumber" name="415" href="#415">415</a>                     <strong class="jxr_keyword">while</strong> (en.hasMoreElements()) {
-<a class="jxr_linenumber" name="416" href="#416">416</a>                         String name = (String) en.nextElement();
-<a class="jxr_linenumber" name="417" href="#417">417</a>                         <strong class="jxr_keyword">if</strong> (!initParams.containsKey(name)) {
-<a class="jxr_linenumber" name="418" href="#418">418</a>                             initParams.put(name, name);
-<a class="jxr_linenumber" name="419" href="#419">419</a>                         }
-<a class="jxr_linenumber" name="420" href="#420">420</a>                     }
-<a class="jxr_linenumber" name="421" href="#421">421</a>                     <strong class="jxr_keyword">return</strong> Collections.enumeration(initParams.keySet());
-<a class="jxr_linenumber" name="422" href="#422">422</a>                 }
-<a class="jxr_linenumber" name="423" href="#423">423</a>             };
-<a class="jxr_linenumber" name="424" href="#424">424</a>             <strong class="jxr_keyword">this</strong>.servletConfig = scFacade;
-<a class="jxr_linenumber" name="425" href="#425">425</a>             asyncSupportListener(eLogger);
-<a class="jxr_linenumber" name="426" href="#426">426</a> 
-<a class="jxr_linenumber" name="427" href="#427">427</a>             autoConfigureService(scFacade.getServletContext());
-<a class="jxr_linenumber" name="428" href="#428">428</a>             patchContainer();
-<a class="jxr_linenumber" name="429" href="#429">429</a>             doInitParams(scFacade);
-<a class="jxr_linenumber" name="430" href="#430">430</a>             doInitParamsForWebSocket(scFacade);
-<a class="jxr_linenumber" name="431" href="#431">431</a>             configureBroadcaster();
-<a class="jxr_linenumber" name="432" href="#432">432</a>             loadConfiguration(scFacade);
-<a class="jxr_linenumber" name="433" href="#433">433</a> 
-<a class="jxr_linenumber" name="434" href="#434">434</a>             autoDetectContainer();
-<a class="jxr_linenumber" name="435" href="#435">435</a>             configureWebDotXmlAtmosphereHandler(sc);
-<a class="jxr_linenumber" name="436" href="#436">436</a>             initWebSocketProtocol();
-<a class="jxr_linenumber" name="437" href="#437">437</a>             asyncSupport.init(scFacade);
-<a class="jxr_linenumber" name="438" href="#438">438</a>             initAtmosphereHandler(scFacade);
-<a class="jxr_linenumber" name="439" href="#439">439</a>             configureAtmosphereInterceptor(sc);
-<a class="jxr_linenumber" name="440" href="#440">440</a> 
-<a class="jxr_linenumber" name="441" href="#441">441</a>             <strong class="jxr_keyword">if</strong> (broadcasterCacheClassName == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="442" href="#442">442</a>                 logger.warn(<span class="jxr_string">"No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. "</span> +
-<a class="jxr_linenumber" name="443" href="#443">443</a>                         <span class="jxr_string">"It is recommended to configure the HeaderBroadcasterCache."</span>);
-<a class="jxr_linenumber" name="444" href="#444">444</a>             }
-<a class="jxr_linenumber" name="445" href="#445">445</a> 
-<a class="jxr_linenumber" name="446" href="#446">446</a>             <em class="jxr_comment">// http://java.net/jira/browse/ATMOSPHERE-157</em>
-<a class="jxr_linenumber" name="447" href="#447">447</a>             <strong class="jxr_keyword">if</strong> (sc.getServletContext() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="448" href="#448">448</a>                 sc.getServletContext().setAttribute(BroadcasterFactory.<strong class="jxr_keyword">class</strong>.getName(), broadcasterFactory);
-<a class="jxr_linenumber" name="449" href="#449">449</a>             }
-<a class="jxr_linenumber" name="450" href="#450">450</a> 
-<a class="jxr_linenumber" name="451" href="#451">451</a>             logger.info(<span class="jxr_string">"Using BroadcasterFactory class: {}"</span>, BroadcasterFactory.getDefault().getClass().getName());
-<a class="jxr_linenumber" name="452" href="#452">452</a>             logger.info(<span class="jxr_string">"Using Broadcaster class: {}"</span>, broadcasterClassName);
-<a class="jxr_linenumber" name="453" href="#453">453</a>             logger.info(<span class="jxr_string">"Atmosphere Framework {} started."</span>, Version.getRawVersion());
-<a class="jxr_linenumber" name="454" href="#454">454</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="455" href="#455">455</a>             logger.error(<span class="jxr_string">"Failed to initialize Atmosphere Framework"</span>, t);
-<a class="jxr_linenumber" name="456" href="#456">456</a> 
-<a class="jxr_linenumber" name="457" href="#457">457</a>             <strong class="jxr_keyword">if</strong> (t instanceof ServletException) {
-<a class="jxr_linenumber" name="458" href="#458">458</a>                 <strong class="jxr_keyword">throw</strong> (ServletException) t;
-<a class="jxr_linenumber" name="459" href="#459">459</a>             }
-<a class="jxr_linenumber" name="460" href="#460">460</a> 
-<a class="jxr_linenumber" name="461" href="#461">461</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> ServletException(t);
-<a class="jxr_linenumber" name="462" href="#462">462</a>         }
-<a class="jxr_linenumber" name="463" href="#463">463</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="464" href="#464">464</a>     }
-<a class="jxr_linenumber" name="465" href="#465">465</a> 
-<a class="jxr_linenumber" name="466" href="#466">466</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="467" href="#467">467</a> <em class="jxr_javadoccomment">     * Configure the list of {@link AtmosphereInterceptor}.</em>
-<a class="jxr_linenumber" name="468" href="#468">468</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="469" href="#469">469</a> <em class="jxr_javadoccomment">     * @param sc a ServletConfig</em>
-<a class="jxr_linenumber" name="470" href="#470">470</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="471" href="#471">471</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureAtmosphereInterceptor(ServletConfig sc) {
-<a class="jxr_linenumber" name="472" href="#472">472</a>         String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
-<a class="jxr_linenumber" name="473" href="#473">473</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="474" href="#474">474</a>             String[] list = s.split(<span class="jxr_string">","</span>);
-<a class="jxr_linenumber" name="475" href="#475">475</a>             <strong class="jxr_keyword">for</strong> (String a : list) {
-<a class="jxr_linenumber" name="476" href="#476">476</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="477" href="#477">477</a>                     <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-<a class="jxr_linenumber" name="478" href="#478">478</a>                             .loadClass(a.trim()).newInstance();
-<a class="jxr_linenumber" name="479" href="#479">479</a>                     ai.configure(config);
-<a class="jxr_linenumber" name="480" href="#480">480</a>                     interceptor(ai);
-<a class="jxr_linenumber" name="481" href="#481">481</a>                 } <strong class="jxr_keyword">catch</strong> (InstantiationException e) {
-<a class="jxr_linenumber" name="482" href="#482">482</a>                     logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="483" href="#483">483</a>                 } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e) {
-<a class="jxr_linenumber" name="484" href="#484">484</a>                     logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="485" href="#485">485</a>                 } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e) {
-<a class="jxr_linenumber" name="486" href="#486">486</a>                     logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="487" href="#487">487</a>                 }
-<a class="jxr_linenumber" name="488" href="#488">488</a>             }
-<a class="jxr_linenumber" name="489" href="#489">489</a>         }
-<a class="jxr_linenumber" name="490" href="#490">490</a> 
-<a class="jxr_linenumber" name="491" href="#491">491</a>         <em class="jxr_comment">// Add SSE support</em>
-<a class="jxr_linenumber" name="492" href="#492">492</a>         interceptors.addLast(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/SSEAtmosphereInterceptor.html">SSEAtmosphereInterceptor</a>());
-<a class="jxr_linenumber" name="493" href="#493">493</a>         <em class="jxr_comment">// ADD JSONP support</em>
-<a class="jxr_linenumber" name="494" href="#494">494</a>         interceptors.addLast(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/JSONPAtmosphereInterceptor.html">JSONPAtmosphereInterceptor</a>());
-<a class="jxr_linenumber" name="495" href="#495">495</a>         logger.info(<span class="jxr_string">"Installed AtmosphereInterceptor {}"</span>, interceptors);
-<a class="jxr_linenumber" name="496" href="#496">496</a>     }
-<a class="jxr_linenumber" name="497" href="#497">497</a> 
-<a class="jxr_linenumber" name="498" href="#498">498</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
-<a class="jxr_linenumber" name="499" href="#499">499</a>         String s = sc.getInitParameter(ATMOSPHERE_HANDLER);
-<a class="jxr_linenumber" name="500" href="#500">500</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="501" href="#501">501</a>             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-<a class="jxr_linenumber" name="502" href="#502">502</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="503" href="#503">503</a> 
-<a class="jxr_linenumber" name="504" href="#504">504</a>                 String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
-<a class="jxr_linenumber" name="505" href="#505">505</a>                 <strong class="jxr_keyword">if</strong> (mapping == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="506" href="#506">506</a>                     mapping = <span class="jxr_string">"/*"</span>;
-<a class="jxr_linenumber" name="507" href="#507">507</a>                 }
-<a class="jxr_linenumber" name="508" href="#508">508</a>                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
-<a class="jxr_linenumber" name="509" href="#509">509</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="510" href="#510">510</a>                 logger.warn(<span class="jxr_string">"Unable to load WebSocketHandle instance"</span>, ex);
-<a class="jxr_linenumber" name="511" href="#511">511</a>             }
-<a class="jxr_linenumber" name="512" href="#512">512</a>         }
-<a class="jxr_linenumber" name="513" href="#513">513</a>     }
-<a class="jxr_linenumber" name="514" href="#514">514</a> 
-<a class="jxr_linenumber" name="515" href="#515">515</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureBroadcaster() {
-<a class="jxr_linenumber" name="516" href="#516">516</a> 
-<a class="jxr_linenumber" name="517" href="#517">517</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="518" href="#518">518</a>             <strong class="jxr_keyword">if</strong> (broadcasterFactoryClassName != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="519" href="#519">519</a>                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
-<a class="jxr_linenumber" name="520" href="#520">520</a>                         .loadClass(broadcasterFactoryClassName).newInstance();
-<a class="jxr_linenumber" name="521" href="#521">521</a>             }
-<a class="jxr_linenumber" name="522" href="#522">522</a> 
-<a class="jxr_linenumber" name="523" href="#523">523</a>             <strong class="jxr_keyword">if</strong> (broadcasterFactory == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="524" href="#524">524</a>                 Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; bc =
-<a class="jxr_linenumber" name="525" href="#525">525</a>                         (Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt;) Thread.currentThread().getContextClassLoader()
-<a class="jxr_linenumber" name="526" href="#526">526</a>                                 .loadClass(broadcasterClassName);
-<a class="jxr_linenumber" name="527" href="#527">527</a>                 broadcasterFactory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(bc, broadcasterLifeCyclePolicy, config);
-<a class="jxr_linenumber" name="528" href="#528">528</a>             }
-<a class="jxr_linenumber" name="529" href="#529">529</a> 
-<a class="jxr_linenumber" name="530" href="#530">530</a>             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-<a class="jxr_linenumber" name="531" href="#531">531</a>             InjectorProvider.getInjector().inject(broadcasterFactory);
-<a class="jxr_linenumber" name="532" href="#532">532</a> 
-<a class="jxr_linenumber" name="533" href="#533">533</a>             Iterator&lt;Entry&lt;String, AtmosphereHandlerWrapper&gt;&gt; i = atmosphereHandlers.entrySet().iterator();
-<a class="jxr_linenumber" name="534" href="#534">534</a>             <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w;
-<a class="jxr_linenumber" name="535" href="#535">535</a>             Entry&lt;String, AtmosphereHandlerWrapper&gt; e;
-<a class="jxr_linenumber" name="536" href="#536">536</a>             <strong class="jxr_keyword">while</strong> (i.hasNext()) {
-<a class="jxr_linenumber" name="537" href="#537">537</a>                 e = i.next();
-<a class="jxr_linenumber" name="538" href="#538">538</a>                 w = e.getValue();
-<a class="jxr_linenumber" name="539" href="#539">539</a>                 <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> broadcasterConfig = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a>(broadcasterFilters, config);
-<a class="jxr_linenumber" name="540" href="#540">540</a> 
-<a class="jxr_linenumber" name="541" href="#541">541</a>                 <strong class="jxr_keyword">if</strong> (w.broadcaster == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="542" href="#542">542</a>                     w.broadcaster = broadcasterFactory.get(w.mapping);
-<a class="jxr_linenumber" name="543" href="#543">543</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="544" href="#544">544</a>                     w.broadcaster.setBroadcasterConfig(broadcasterConfig);
-<a class="jxr_linenumber" name="545" href="#545">545</a>                     <strong class="jxr_keyword">if</strong> (broadcasterCacheClassName != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="546" href="#546">546</a>                         <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-<a class="jxr_linenumber" name="547" href="#547">547</a>                                 .loadClass(broadcasterCacheClassName).newInstance();
-<a class="jxr_linenumber" name="548" href="#548">548</a>                         InjectorProvider.getInjector().inject(cache);
-<a class="jxr_linenumber" name="549" href="#549">549</a>                         broadcasterConfig.setBroadcasterCache(cache);
-<a class="jxr_linenumber" name="550" href="#550">550</a>                     }
-<a class="jxr_linenumber" name="551" href="#551">551</a>                 }
-<a class="jxr_linenumber" name="552" href="#552">552</a>             }
-<a class="jxr_linenumber" name="553" href="#553">553</a>         } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="554" href="#554">554</a>             logger.error(<span class="jxr_string">"Unable to configure Broadcaster/Factory/Cache"</span>, ex);
-<a class="jxr_linenumber" name="555" href="#555">555</a>         }
-<a class="jxr_linenumber" name="556" href="#556">556</a>     }
-<a class="jxr_linenumber" name="557" href="#557">557</a> 
-<a class="jxr_linenumber" name="558" href="#558">558</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> doInitParamsForWebSocket(ServletConfig sc) {
-<a class="jxr_linenumber" name="559" href="#559">559</a>         String s = sc.getInitParameter(WEBSOCKET_SUPPORT);
-<a class="jxr_linenumber" name="560" href="#560">560</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="561" href="#561">561</a>             webSocketEnabled = Boolean.parseBoolean(s);
-<a class="jxr_linenumber" name="562" href="#562">562</a>             sessionSupport(false);
-<a class="jxr_linenumber" name="563" href="#563">563</a>         }
-<a class="jxr_linenumber" name="564" href="#564">564</a>         s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
-<a class="jxr_linenumber" name="565" href="#565">565</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="566" href="#566">566</a>             webSocketProtocolClassName = s;
-<a class="jxr_linenumber" name="567" href="#567">567</a>         }
-<a class="jxr_linenumber" name="568" href="#568">568</a>     }
-<a class="jxr_linenumber" name="569" href="#569">569</a> 
-<a class="jxr_linenumber" name="570" href="#570">570</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="571" href="#571">571</a> <em class="jxr_javadoccomment">     * Read init param from web.xml and apply them.</em>
-<a class="jxr_linenumber" name="572" href="#572">572</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="573" href="#573">573</a> <em class="jxr_javadoccomment">     * @param sc {@link ServletConfig}</em>
-<a class="jxr_linenumber" name="574" href="#574">574</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="575" href="#575">575</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> doInitParams(ServletConfig sc) {
-<a class="jxr_linenumber" name="576" href="#576">576</a>         String s = sc.getInitParameter(PROPERTY_NATIVE_COMETSUPPORT);
-<a class="jxr_linenumber" name="577" href="#577">577</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="578" href="#578">578</a>             useNativeImplementation = Boolean.parseBoolean(s);
-<a class="jxr_linenumber" name="579" href="#579">579</a>             <strong class="jxr_keyword">if</strong> (useNativeImplementation) isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="580" href="#580">580</a>         }
-<a class="jxr_linenumber" name="581" href="#581">581</a>         s = sc.getInitParameter(PROPERTY_BLOCKING_COMETSUPPORT);
-<a class="jxr_linenumber" name="582" href="#582">582</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="583" href="#583">583</a>             useBlockingImplementation = Boolean.parseBoolean(s);
-<a class="jxr_linenumber" name="584" href="#584">584</a>             <strong class="jxr_keyword">if</strong> (useBlockingImplementation) isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="585" href="#585">585</a>         }
-<a class="jxr_linenumber" name="586" href="#586">586</a>         s = sc.getInitParameter(PROPERTY_USE_STREAM);
-<a class="jxr_linenumber" name="587" href="#587">587</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="588" href="#588">588</a>             useStreamForFlushingComments = Boolean.parseBoolean(s);
-<a class="jxr_linenumber" name="589" href="#589">589</a>         }
-<a class="jxr_linenumber" name="590" href="#590">590</a>         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
-<a class="jxr_linenumber" name="591" href="#591">591</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="592" href="#592">592</a>             asyncSupport = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultAsyncSupportResolver.html">DefaultAsyncSupportResolver</a>(config).newCometSupport(s);
-<a class="jxr_linenumber" name="593" href="#593">593</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="594" href="#594">594</a>         }
-<a class="jxr_linenumber" name="595" href="#595">595</a>         s = sc.getInitParameter(BROADCASTER_CLASS);
-<a class="jxr_linenumber" name="596" href="#596">596</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="597" href="#597">597</a>             broadcasterClassName = s;
-<a class="jxr_linenumber" name="598" href="#598">598</a>             isBroadcasterSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="599" href="#599">599</a>         }
-<a class="jxr_linenumber" name="600" href="#600">600</a>         s = sc.getInitParameter(BROADCASTER_CACHE);
-<a class="jxr_linenumber" name="601" href="#601">601</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="602" href="#602">602</a>             broadcasterCacheClassName = s;
-<a class="jxr_linenumber" name="603" href="#603">603</a>         }
-<a class="jxr_linenumber" name="604" href="#604">604</a>         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
-<a class="jxr_linenumber" name="605" href="#605">605</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="606" href="#606">606</a>             config.setSupportSession(Boolean.valueOf(s));
-<a class="jxr_linenumber" name="607" href="#607">607</a>             isSessionSupportSpecified = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="608" href="#608">608</a>         }
-<a class="jxr_linenumber" name="609" href="#609">609</a>         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
-<a class="jxr_linenumber" name="610" href="#610">610</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="611" href="#611">611</a>             initParams.put(DISABLE_ONSTATE_EVENT, s);
-<a class="jxr_linenumber" name="612" href="#612">612</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="613" href="#613">613</a>             initParams.put(DISABLE_ONSTATE_EVENT, <span class="jxr_string">"false"</span>);
-<a class="jxr_linenumber" name="614" href="#614">614</a>         }
-<a class="jxr_linenumber" name="615" href="#615">615</a>         s = sc.getInitParameter(RESUME_AND_KEEPALIVE);
-<a class="jxr_linenumber" name="616" href="#616">616</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="617" href="#617">617</a>             initParams.put(RESUME_AND_KEEPALIVE, s);
-<a class="jxr_linenumber" name="618" href="#618">618</a>         }
-<a class="jxr_linenumber" name="619" href="#619">619</a>         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
-<a class="jxr_linenumber" name="620" href="#620">620</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="621" href="#621">621</a>             broadcasterFilters.addAll(Arrays.asList(s.split(<span class="jxr_string">","</span>)));
-<a class="jxr_linenumber" name="622" href="#622">622</a>             logger.info(<span class="jxr_string">"Installing BroadcastFilter class(es) {}"</span>, s);
-<a class="jxr_linenumber" name="623" href="#623">623</a>         }
-<a class="jxr_linenumber" name="624" href="#624">624</a>         s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
-<a class="jxr_linenumber" name="625" href="#625">625</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="626" href="#626">626</a>             broadcasterLifeCyclePolicy = s;
-<a class="jxr_linenumber" name="627" href="#627">627</a>         }
-<a class="jxr_linenumber" name="628" href="#628">628</a>         s = sc.getInitParameter(BROADCASTER_FACTORY);
-<a class="jxr_linenumber" name="629" href="#629">629</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="630" href="#630">630</a>             broadcasterFactoryClassName = s;
-<a class="jxr_linenumber" name="631" href="#631">631</a>         }
-<a class="jxr_linenumber" name="632" href="#632">632</a>         s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
-<a class="jxr_linenumber" name="633" href="#633">633</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="634" href="#634">634</a>             handlersPath = s;
-<a class="jxr_linenumber" name="635" href="#635">635</a>         }
-<a class="jxr_linenumber" name="636" href="#636">636</a>         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
-<a class="jxr_linenumber" name="637" href="#637">637</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="638" href="#638">638</a>             atmosphereDotXmlPath = s;
-<a class="jxr_linenumber" name="639" href="#639">639</a>         }
-<a class="jxr_linenumber" name="640" href="#640">640</a>     }
-<a class="jxr_linenumber" name="641" href="#641">641</a> 
-<a class="jxr_linenumber" name="642" href="#642">642</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> loadConfiguration(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
-<a class="jxr_linenumber" name="643" href="#643">643</a> 
-<a class="jxr_linenumber" name="644" href="#644">644</a>         <strong class="jxr_keyword">if</strong> (!autoDetectHandlers) <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="645" href="#645">645</a> 
-<a class="jxr_linenumber" name="646" href="#646">646</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="647" href="#647">647</a>             URL url = sc.getServletContext().getResource(handlersPath);
-<a class="jxr_linenumber" name="648" href="#648">648</a>             URLClassLoader urlC = <strong class="jxr_keyword">new</strong> URLClassLoader(<strong class="jxr_keyword">new</strong> URL[]{url},
-<a class="jxr_linenumber" name="649" href="#649">649</a>                     Thread.currentThread().getContextClassLoader());
-<a class="jxr_linenumber" name="650" href="#650">650</a>             loadAtmosphereDotXml(sc.getServletContext().
-<a class="jxr_linenumber" name="651" href="#651">651</a>                     getResourceAsStream(atmosphereDotXmlPath), urlC);
-<a class="jxr_linenumber" name="652" href="#652">652</a> 
-<a class="jxr_linenumber" name="653" href="#653">653</a>             <strong class="jxr_keyword">if</strong> (atmosphereHandlers.size() == 0) {
-<a class="jxr_linenumber" name="654" href="#654">654</a>                 autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
-<a class="jxr_linenumber" name="655" href="#655">655</a> 
-<a class="jxr_linenumber" name="656" href="#656">656</a>                 <strong class="jxr_keyword">if</strong> (atmosphereHandlers.size() == 0) {
-<a class="jxr_linenumber" name="657" href="#657">657</a>                     detectSupportedFramework(sc);
-<a class="jxr_linenumber" name="658" href="#658">658</a>                 }
-<a class="jxr_linenumber" name="659" href="#659">659</a>             }
-<a class="jxr_linenumber" name="660" href="#660">660</a> 
-<a class="jxr_linenumber" name="661" href="#661">661</a>             autoDetectWebSocketHandler(sc.getServletContext(), urlC);
-<a class="jxr_linenumber" name="662" href="#662">662</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="663" href="#663">663</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> ServletException(t);
-<a class="jxr_linenumber" name="664" href="#664">664</a>         }
-<a class="jxr_linenumber" name="665" href="#665">665</a>     }
-<a class="jxr_linenumber" name="666" href="#666">666</a> 
-<a class="jxr_linenumber" name="667" href="#667">667</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="668" href="#668">668</a> <em class="jxr_javadoccomment">     * Auto-detect Jersey when no atmosphere.xml file are specified.</em>
-<a class="jxr_linenumber" name="669" href="#669">669</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="670" href="#670">670</a> <em class="jxr_javadoccomment">     * @param sc {@link ServletConfig}</em>
-<a class="jxr_linenumber" name="671" href="#671">671</a> <em class="jxr_javadoccomment">     * @return true if Jersey classes are detected</em>
-<a class="jxr_linenumber" name="672" href="#672">672</a> <em class="jxr_javadoccomment">     * @throws ClassNotFoundException</em>
-<a class="jxr_linenumber" name="673" href="#673">673</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="674" href="#674">674</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> detectSupportedFramework(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ClassNotFoundException, IllegalAccessException,
-<a class="jxr_linenumber" name="675" href="#675">675</a>             InstantiationException, NoSuchMethodException, InvocationTargetException {
-<a class="jxr_linenumber" name="676" href="#676">676</a> 
-<a class="jxr_linenumber" name="677" href="#677">677</a>         ClassLoader cl = Thread.currentThread().getContextClassLoader();
-<a class="jxr_linenumber" name="678" href="#678">678</a>         String broadcasterClassNameTmp = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="679" href="#679">679</a> 
-<a class="jxr_linenumber" name="680" href="#680">680</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="681" href="#681">681</a>             cl.loadClass(JERSEY_CONTAINER);
-<a class="jxr_linenumber" name="682" href="#682">682</a> 
-<a class="jxr_linenumber" name="683" href="#683">683</a>             <strong class="jxr_keyword">if</strong> (!isBroadcasterSpecified) {
-<a class="jxr_linenumber" name="684" href="#684">684</a>                 broadcasterClassNameTmp = lookupDefaultBroadcasterType();
-<a class="jxr_linenumber" name="685" href="#685">685</a> 
-<a class="jxr_linenumber" name="686" href="#686">686</a>                 cl.loadClass(broadcasterClassNameTmp);
-<a class="jxr_linenumber" name="687" href="#687">687</a>             }
-<a class="jxr_linenumber" name="688" href="#688">688</a>             useStreamForFlushingComments = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="689" href="#689">689</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="690" href="#690">690</a>             logger.trace(<span class="jxr_string">""</span>, t);
-<a class="jxr_linenumber" name="691" href="#691">691</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="692" href="#692">692</a>         }
-<a class="jxr_linenumber" name="693" href="#693">693</a> 
-<a class="jxr_linenumber" name="694" href="#694">694</a>         logger.warn(<span class="jxr_string">"Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey"</span>);
-<a class="jxr_linenumber" name="695" href="#695">695</a> 
-<a class="jxr_linenumber" name="696" href="#696">696</a>         <em class="jxr_comment">// Jersey will handle itself the headers.</em>
-<a class="jxr_linenumber" name="697" href="#697">697</a>         initParams.put(WRITE_HEADERS, <span class="jxr_string">"false"</span>);
-<a class="jxr_linenumber" name="698" href="#698">698</a> 
-<a class="jxr_linenumber" name="699" href="#699">699</a>         <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> rsp = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a>();
-<a class="jxr_linenumber" name="700" href="#700">700</a>         <strong class="jxr_keyword">if</strong> (broadcasterClassNameTmp != <strong class="jxr_keyword">null</strong>) broadcasterClassName = broadcasterClassNameTmp;
-<a class="jxr_linenumber" name="701" href="#701">701</a>         rsp.setServletClassName(JERSEY_CONTAINER);
-<a class="jxr_linenumber" name="702" href="#702">702</a>         sessionSupport(false);
-<a class="jxr_linenumber" name="703" href="#703">703</a>         initParams.put(DISABLE_ONSTATE_EVENT, <span class="jxr_string">"true"</span>);
-<a class="jxr_linenumber" name="704" href="#704">704</a> 
-<a class="jxr_linenumber" name="705" href="#705">705</a>         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
-<a class="jxr_linenumber" name="706" href="#706">706</a>         <strong class="jxr_keyword">if</strong> (mapping == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="707" href="#707">707</a>             mapping = <span class="jxr_string">"/*"</span>;
-<a class="jxr_linenumber" name="708" href="#708">708</a>         }
-<a class="jxr_linenumber" name="709" href="#709">709</a>         Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; bc = (Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt;) cl.loadClass(broadcasterClassName);
-<a class="jxr_linenumber" name="710" href="#710">710</a> 
-<a class="jxr_linenumber" name="711" href="#711">711</a>         broadcasterFactory.destroy();
-<a class="jxr_linenumber" name="712" href="#712">712</a> 
-<a class="jxr_linenumber" name="713" href="#713">713</a>         broadcasterFactory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(bc, broadcasterLifeCyclePolicy, config);
+<a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(AtmosphereFramework.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="117" href="#117">117</a> 
+<a class="jxr_linenumber" name="118" href="#118">118</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> List&lt;String&gt; broadcasterFilters = <strong class="jxr_keyword">new</strong> ArrayList&lt;String&gt;();
+<a class="jxr_linenumber" name="119" href="#119">119</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> List&lt;AsyncSupportListener&gt; asyncSupportListeners = <strong class="jxr_keyword">new</strong> ArrayList&lt;AsyncSupportListener&gt;();
+<a class="jxr_linenumber" name="120" href="#120">120</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ArrayList&lt;String&gt; possibleComponentsCandidate = <strong class="jxr_keyword">new</strong> ArrayList&lt;String&gt;();
+<a class="jxr_linenumber" name="121" href="#121">121</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> HashMap&lt;String, String&gt; initParams = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
+<a class="jxr_linenumber" name="122" href="#122">122</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
+<a class="jxr_linenumber" name="123" href="#123">123</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean isCometSupportConfigured = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
+<a class="jxr_linenumber" name="124" href="#124">124</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> isFilter;
+<a class="jxr_linenumber" name="125" href="#125">125</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> Map&lt;String, AtmosphereHandlerWrapper&gt; atmosphereHandlers = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, AtmosphereHandlerWrapper&gt;();
+<a class="jxr_linenumber" name="126" href="#126">126</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ConcurrentLinkedQueue&lt;String&gt; broadcasterTypes = <strong class="jxr_keyword">new</strong> ConcurrentLinkedQueue&lt;String&gt;();
+<a class="jxr_linenumber" name="127" href="#127">127</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">EventLogger</a> eLogger = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">EventLogger</a>();
+<a class="jxr_linenumber" name="128" href="#128">128</a> 
+<a class="jxr_linenumber" name="129" href="#129">129</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useNativeImplementation = false;
+<a class="jxr_linenumber" name="130" href="#130">130</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useBlockingImplementation = false;
+<a class="jxr_linenumber" name="131" href="#131">131</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> useStreamForFlushingComments = false;
+<a class="jxr_linenumber" name="132" href="#132">132</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> asyncSupport;
+<a class="jxr_linenumber" name="133" href="#133">133</a>     <strong class="jxr_keyword">protected</strong> String broadcasterClassName = DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="134" href="#134">134</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isCometSupportSpecified = false;
+<a class="jxr_linenumber" name="135" href="#135">135</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isBroadcasterSpecified = false;
+<a class="jxr_linenumber" name="136" href="#136">136</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isSessionSupportSpecified = false;
+<a class="jxr_linenumber" name="137" href="#137">137</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> broadcasterFactory;
+<a class="jxr_linenumber" name="138" href="#138">138</a>     <strong class="jxr_keyword">protected</strong> String broadcasterFactoryClassName;
+<a class="jxr_linenumber" name="139" href="#139">139</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> String broadcasterCacheClassName;
+<a class="jxr_linenumber" name="140" href="#140">140</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> webSocketEnabled = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="141" href="#141">141</a>     <strong class="jxr_keyword">protected</strong> String broadcasterLifeCyclePolicy = <span class="jxr_string">"NEVER"</span>;
+<a class="jxr_linenumber" name="142" href="#142">142</a>     <strong class="jxr_keyword">protected</strong> String webSocketProtocolClassName = SimpleHttpProtocol.<strong class="jxr_keyword">class</strong>.getName();
+<a class="jxr_linenumber" name="143" href="#143">143</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/websocket/WebSocketProtocol.html">WebSocketProtocol</a> webSocketProtocol;
+<a class="jxr_linenumber" name="144" href="#144">144</a>     <strong class="jxr_keyword">protected</strong> String handlersPath = <span class="jxr_string">"/WEB-INF/classes/"</span>;
+<a class="jxr_linenumber" name="145" href="#145">145</a>     <strong class="jxr_keyword">protected</strong> ServletConfig servletConfig;
+<a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> autoDetectHandlers = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="147" href="#147">147</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> hasNewWebSocketProtocol = false;
+<a class="jxr_linenumber" name="148" href="#148">148</a>     <strong class="jxr_keyword">protected</strong> String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
+<a class="jxr_linenumber" name="149" href="#149">149</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> LinkedList&lt;AtmosphereInterceptor&gt; interceptors = <strong class="jxr_keyword">new</strong> LinkedList&lt;AtmosphereInterceptor&gt;();
+<a class="jxr_linenumber" name="150" href="#150">150</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> scanDone = false;
+<a class="jxr_linenumber" name="151" href="#151">151</a>     <strong class="jxr_keyword">protected</strong> String annotationProcessorClassName = <span class="jxr_string">"org.atmosphere.cpr.DefaultAnnotationProcessor"</span>;
+<a class="jxr_linenumber" name="152" href="#152">152</a> 
+<a class="jxr_linenumber" name="153" href="#153">153</a>     @Override
+<a class="jxr_linenumber" name="154" href="#154">154</a>     <strong class="jxr_keyword">public</strong> ServletContext getServletContext() {
+<a class="jxr_linenumber" name="155" href="#155">155</a>         <strong class="jxr_keyword">return</strong> servletConfig.getServletContext();
+<a class="jxr_linenumber" name="156" href="#156">156</a>     }
+<a class="jxr_linenumber" name="157" href="#157">157</a> 
+<a class="jxr_linenumber" name="158" href="#158">158</a>     <strong class="jxr_keyword">public</strong> ServletConfig getServletConfig() {
+<a class="jxr_linenumber" name="159" href="#159">159</a>         <strong class="jxr_keyword">return</strong> servletConfig;
+<a class="jxr_linenumber" name="160" href="#160">160</a>     }
+<a class="jxr_linenumber" name="161" href="#161">161</a> 
+<a class="jxr_linenumber" name="162" href="#162">162</a>     <strong class="jxr_keyword">public</strong> List&lt;String&gt; broadcasterFilters() {
+<a class="jxr_linenumber" name="163" href="#163">163</a>         <strong class="jxr_keyword">return</strong> broadcasterFilters;
+<a class="jxr_linenumber" name="164" href="#164">164</a>     }
+<a class="jxr_linenumber" name="165" href="#165">165</a> 
+<a class="jxr_linenumber" name="166" href="#166">166</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> {
+<a class="jxr_linenumber" name="167" href="#167">167</a> 
+<a class="jxr_linenumber" name="168" href="#168">168</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler;
+<a class="jxr_linenumber" name="169" href="#169">169</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster;
+<a class="jxr_linenumber" name="170" href="#170">170</a>         <strong class="jxr_keyword">public</strong> String mapping;
+<a class="jxr_linenumber" name="171" href="#171">171</a> 
+<a class="jxr_linenumber" name="172" href="#172">172</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(<a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler, String mapping) {
+<a class="jxr_linenumber" name="173" href="#173">173</a>             <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
+<a class="jxr_linenumber" name="174" href="#174">174</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="175" href="#175">175</a>                 <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="176" href="#176">176</a>                     <strong class="jxr_keyword">this</strong>.broadcaster = BroadcasterFactory.getDefault().get(mapping);
+<a class="jxr_linenumber" name="177" href="#177">177</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="178" href="#178">178</a>                     <strong class="jxr_keyword">this</strong>.mapping = mapping;
+<a class="jxr_linenumber" name="179" href="#179">179</a>                 }
+<a class="jxr_linenumber" name="180" href="#180">180</a>             } <strong class="jxr_keyword">catch</strong> (Exception t) {
+<a class="jxr_linenumber" name="181" href="#181">181</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(t);
+<a class="jxr_linenumber" name="182" href="#182">182</a>             }
+<a class="jxr_linenumber" name="183" href="#183">183</a>         }
+<a class="jxr_linenumber" name="184" href="#184">184</a> 
+<a class="jxr_linenumber" name="185" href="#185">185</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(<a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler, <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
+<a class="jxr_linenumber" name="186" href="#186">186</a>             <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
+<a class="jxr_linenumber" name="187" href="#187">187</a>             <strong class="jxr_keyword">this</strong>.broadcaster = broadcaster;
+<a class="jxr_linenumber" name="188" href="#188">188</a>         }
+<a class="jxr_linenumber" name="189" href="#189">189</a> 
+<a class="jxr_linenumber" name="190" href="#190">190</a>         @Override
+<a class="jxr_linenumber" name="191" href="#191">191</a>         <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="192" href="#192">192</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereHandlerWrapper{ atmosphereHandler="</span> + atmosphereHandler + <span class="jxr_string">", broadcaster="</span> +
+<a class="jxr_linenumber" name="193" href="#193">193</a>                     broadcaster + <span class="jxr_string">" }"</span>;
+<a class="jxr_linenumber" name="194" href="#194">194</a>         }
+<a class="jxr_linenumber" name="195" href="#195">195</a>     }
+<a class="jxr_linenumber" name="196" href="#196">196</a> 
+<a class="jxr_linenumber" name="197" href="#197">197</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="198" href="#198">198</a> <em class="jxr_javadoccomment">     * Return a configured instance of {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="199" href="#199">199</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="200" href="#200">200</a> <em class="jxr_javadoccomment">     * @return a configured instance of {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="201" href="#201">201</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="202" href="#202">202</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
+<a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">return</strong> config;
+<a class="jxr_linenumber" name="204" href="#204">204</a>     }
+<a class="jxr_linenumber" name="205" href="#205">205</a> 
+<a class="jxr_linenumber" name="206" href="#206">206</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="207" href="#207">207</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework.</em>
+<a class="jxr_linenumber" name="208" href="#208">208</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="209" href="#209">209</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>() {
+<a class="jxr_linenumber" name="210" href="#210">210</a>         <strong class="jxr_keyword">this</strong>(false, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="211" href="#211">211</a>     }
+<a class="jxr_linenumber" name="212" href="#212">212</a> 
+<a class="jxr_linenumber" name="213" href="#213">213</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="214" href="#214">214</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}</em>
+<a class="jxr_linenumber" name="215" href="#215">215</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="216" href="#216">216</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
+<a class="jxr_linenumber" name="217" href="#217">217</a>         <strong class="jxr_keyword">this</strong>(false, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="218" href="#218">218</a>         init(sc);
+<a class="jxr_linenumber" name="219" href="#219">219</a>     }
+<a class="jxr_linenumber" name="220" href="#220">220</a> 
+<a class="jxr_linenumber" name="221" href="#221">221</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="222" href="#222">222</a> <em class="jxr_javadoccomment">     * Create an AtmosphereFramework.</em>
+<a class="jxr_linenumber" name="223" href="#223">223</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="224" href="#224">224</a> <em class="jxr_javadoccomment">     * @param isFilter true if this instance is used as an {@link AtmosphereFilter}</em>
+<a class="jxr_linenumber" name="225" href="#225">225</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="226" href="#226">226</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a>(<strong class="jxr_keyword">boolean</strong> isFilter, <strong class="jxr_keyword">boolean</strong> autoDetectHandlers) {
+<a class="jxr_linenumber" name="227" href="#227">227</a>         <strong class="jxr_keyword">this</strong>.isFilter = isFilter;
+<a class="jxr_linenumber" name="228" href="#228">228</a>         <strong class="jxr_keyword">this</strong>.autoDetectHandlers = autoDetectHandlers;
+<a class="jxr_linenumber" name="229" href="#229">229</a>         readSystemProperties();
+<a class="jxr_linenumber" name="230" href="#230">230</a>         populateBroadcasterType();
+<a class="jxr_linenumber" name="231" href="#231">231</a>         config = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a>(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="232" href="#232">232</a>     }
+<a class="jxr_linenumber" name="233" href="#233">233</a> 
+<a class="jxr_linenumber" name="234" href="#234">234</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="235" href="#235">235</a> <em class="jxr_javadoccomment">     * The order of addition is quite important here.</em>
+<a class="jxr_linenumber" name="236" href="#236">236</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="237" href="#237">237</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> populateBroadcasterType() {
+<a class="jxr_linenumber" name="238" href="#238">238</a>         broadcasterTypes.add(HAZELCAST_BROADCASTER);
+<a class="jxr_linenumber" name="239" href="#239">239</a>         broadcasterTypes.add(XMPP_BROADCASTER);
+<a class="jxr_linenumber" name="240" href="#240">240</a>         broadcasterTypes.add(REDIS_BROADCASTER);
+<a class="jxr_linenumber" name="241" href="#241">241</a>         broadcasterTypes.add(JGROUPS_BROADCASTER);
+<a class="jxr_linenumber" name="242" href="#242">242</a>         broadcasterTypes.add(JMS_BROADCASTER);
+<a class="jxr_linenumber" name="243" href="#243">243</a>     }
+<a class="jxr_linenumber" name="244" href="#244">244</a> 
+<a class="jxr_linenumber" name="245" href="#245">245</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="246" href="#246">246</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
+<a class="jxr_linenumber" name="247" href="#247">247</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
+<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="249" href="#249">249</a> <em class="jxr_javadoccomment">     * @param mapping The servlet mapping (servlet path)</em>
+<a class="jxr_linenumber" name="250" href="#250">250</a> <em class="jxr_javadoccomment">     * @param h       implementation of an {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="251" href="#251">251</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="252" href="#252">252</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h) {
+<a class="jxr_linenumber" name="253" href="#253">253</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="254" href="#254">254</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
+<a class="jxr_linenumber" name="255" href="#255">255</a>         }
+<a class="jxr_linenumber" name="256" href="#256">256</a> 
+<a class="jxr_linenumber" name="257" href="#257">257</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, mapping);
+<a class="jxr_linenumber" name="258" href="#258">258</a>         addMapping(mapping, w);
+<a class="jxr_linenumber" name="259" href="#259">259</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
+<a class="jxr_linenumber" name="260" href="#260">260</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="261" href="#261">261</a>     }
+<a class="jxr_linenumber" name="262" href="#262">262</a> 
+<a class="jxr_linenumber" name="263" href="#263">263</a>     <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addMapping(String path, <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w) {
+<a class="jxr_linenumber" name="264" href="#264">264</a>         <em class="jxr_comment">// We are using JAXRS mapping algorithm.</em>
+<a class="jxr_linenumber" name="265" href="#265">265</a>         <strong class="jxr_keyword">if</strong> (path.contains(<span class="jxr_string">"*"</span>)) {
+<a class="jxr_linenumber" name="266" href="#266">266</a>             path = path.replace(<span class="jxr_string">"*"</span>, MAPPING_REGEX);
+<a class="jxr_linenumber" name="267" href="#267">267</a>         }
+<a class="jxr_linenumber" name="268" href="#268">268</a> 
+<a class="jxr_linenumber" name="269" href="#269">269</a>         <strong class="jxr_keyword">if</strong> (path.endsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="270" href="#270">270</a>             path = path + MAPPING_REGEX;
+<a class="jxr_linenumber" name="271" href="#271">271</a>         }
+<a class="jxr_linenumber" name="272" href="#272">272</a> 
+<a class="jxr_linenumber" name="273" href="#273">273</a>         atmosphereHandlers.put(path, w);
+<a class="jxr_linenumber" name="274" href="#274">274</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="275" href="#275">275</a>     }
+<a class="jxr_linenumber" name="276" href="#276">276</a> 
+<a class="jxr_linenumber" name="277" href="#277">277</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="278" href="#278">278</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
+<a class="jxr_linenumber" name="279" href="#279">279</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
+<a class="jxr_linenumber" name="280" href="#280">280</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="281" href="#281">281</a> <em class="jxr_javadoccomment">     * @param mapping       The servlet mapping (servlet path)</em>
+<a class="jxr_linenumber" name="282" href="#282">282</a> <em class="jxr_javadoccomment">     * @param h             implementation of an {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="283" href="#283">283</a> <em class="jxr_javadoccomment">     * @param broadcasterId The {@link Broadcaster#getID} value.</em>
+<a class="jxr_linenumber" name="284" href="#284">284</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="285" href="#285">285</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h, String broadcasterId) {
+<a class="jxr_linenumber" name="286" href="#286">286</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="287" href="#287">287</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
+<a class="jxr_linenumber" name="288" href="#288">288</a>         }
+<a class="jxr_linenumber" name="289" href="#289">289</a> 
+<a class="jxr_linenumber" name="290" href="#290">290</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, mapping);
+<a class="jxr_linenumber" name="291" href="#291">291</a>         w.broadcaster.setID(broadcasterId);
+<a class="jxr_linenumber" name="292" href="#292">292</a>         addMapping(mapping, w);
+<a class="jxr_linenumber" name="293" href="#293">293</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
+<a class="jxr_linenumber" name="294" href="#294">294</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="295" href="#295">295</a>     }
+<a class="jxr_linenumber" name="296" href="#296">296</a> 
+<a class="jxr_linenumber" name="297" href="#297">297</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="298" href="#298">298</a> <em class="jxr_javadoccomment">     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}</em>
+<a class="jxr_linenumber" name="299" href="#299">299</a> <em class="jxr_javadoccomment">     * This API is exposed to allow embedding an Atmosphere application.</em>
+<a class="jxr_linenumber" name="300" href="#300">300</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="301" href="#301">301</a> <em class="jxr_javadoccomment">     * @param mapping     The servlet mapping (servlet path)</em>
+<a class="jxr_linenumber" name="302" href="#302">302</a> <em class="jxr_javadoccomment">     * @param h           implementation of an {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="303" href="#303">303</a> <em class="jxr_javadoccomment">     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.</em>
+<a class="jxr_linenumber" name="304" href="#304">304</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="305" href="#305">305</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addAtmosphereHandler(String mapping, <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> h, <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> broadcaster) {
+<a class="jxr_linenumber" name="306" href="#306">306</a>         <strong class="jxr_keyword">if</strong> (!mapping.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="307" href="#307">307</a>             mapping = <span class="jxr_string">"/"</span> + mapping;
+<a class="jxr_linenumber" name="308" href="#308">308</a>         }
+<a class="jxr_linenumber" name="309" href="#309">309</a> 
+<a class="jxr_linenumber" name="310" href="#310">310</a>         <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a>(h, broadcaster);
+<a class="jxr_linenumber" name="311" href="#311">311</a>         addMapping(mapping, w);
+<a class="jxr_linenumber" name="312" href="#312">312</a>         logger.info(<span class="jxr_string">"Installed AtmosphereHandler {} mapped to context-path: {}"</span>, h.getClass().getName(), mapping);
+<a class="jxr_linenumber" name="313" href="#313">313</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="314" href="#314">314</a>     }
+<a class="jxr_linenumber" name="315" href="#315">315</a> 
+<a class="jxr_linenumber" name="316" href="#316">316</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="317" href="#317">317</a> <em class="jxr_javadoccomment">     * Remove an {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="318" href="#318">318</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="319" href="#319">319</a> <em class="jxr_javadoccomment">     * @param mapping the mapping used when invoking {@link #addAtmosphereHandler(String, AtmosphereHandler)};</em>
+<a class="jxr_linenumber" name="320" href="#320">320</a> <em class="jxr_javadoccomment">     * @return true if removed</em>
+<a class="jxr_linenumber" name="321" href="#321">321</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="322" href="#322">322</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAtmosphereHandler(String mapping) {
+<a class="jxr_linenumber" name="323" href="#323">323</a> 
+<a class="jxr_linenumber" name="324" href="#324">324</a>         <strong class="jxr_keyword">if</strong> (mapping.endsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="325" href="#325">325</a>             mapping += MAPPING_REGEX;
+<a class="jxr_linenumber" name="326" href="#326">326</a>         }
+<a class="jxr_linenumber" name="327" href="#327">327</a> 
+<a class="jxr_linenumber" name="328" href="#328">328</a>         atmosphereHandlers.remove(mapping);
+<a class="jxr_linenumber" name="329" href="#329">329</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="330" href="#330">330</a>     }
+<a class="jxr_linenumber" name="331" href="#331">331</a> 
+<a class="jxr_linenumber" name="332" href="#332">332</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="333" href="#333">333</a> <em class="jxr_javadoccomment">     * Remove all {@link AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="334" href="#334">334</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="335" href="#335">335</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAllAtmosphereHandler() {
+<a class="jxr_linenumber" name="336" href="#336">336</a>         atmosphereHandlers.clear();
+<a class="jxr_linenumber" name="337" href="#337">337</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="338" href="#338">338</a>     }
+<a class="jxr_linenumber" name="339" href="#339">339</a> 
+<a class="jxr_linenumber" name="340" href="#340">340</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="341" href="#341">341</a> <em class="jxr_javadoccomment">     * Remove all init parameters.</em>
+<a class="jxr_linenumber" name="342" href="#342">342</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="343" href="#343">343</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> removeAllInitParams() {
+<a class="jxr_linenumber" name="344" href="#344">344</a>         initParams.clear();
+<a class="jxr_linenumber" name="345" href="#345">345</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="346" href="#346">346</a>     }
+<a class="jxr_linenumber" name="347" href="#347">347</a> 
+<a class="jxr_linenumber" name="348" href="#348">348</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="349" href="#349">349</a> <em class="jxr_javadoccomment">     * Add init-param like if they were defined in web.xml</em>
+<a class="jxr_linenumber" name="350" href="#350">350</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="351" href="#351">351</a> <em class="jxr_javadoccomment">     * @param name  The name</em>
+<a class="jxr_linenumber" name="352" href="#352">352</a> <em class="jxr_javadoccomment">     * @param value The value</em>
+<a class="jxr_linenumber" name="353" href="#353">353</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="354" href="#354">354</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> addInitParameter(String name, String value) {
+<a class="jxr_linenumber" name="355" href="#355">355</a>         initParams.put(name, value);
+<a class="jxr_linenumber" name="356" href="#356">356</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="357" href="#357">357</a>     }
+<a class="jxr_linenumber" name="358" href="#358">358</a> 
+<a class="jxr_linenumber" name="359" href="#359">359</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> readSystemProperties() {
+<a class="jxr_linenumber" name="360" href="#360">360</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(PROPERTY_NATIVE_COMETSUPPORT) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="361" href="#361">361</a>             useNativeImplementation = Boolean
+<a class="jxr_linenumber" name="362" href="#362">362</a>                     .parseBoolean(System.getProperty(PROPERTY_NATIVE_COMETSUPPORT));
+<a class="jxr_linenumber" name="363" href="#363">363</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="364" href="#364">364</a>         }
+<a class="jxr_linenumber" name="365" href="#365">365</a> 
+<a class="jxr_linenumber" name="366" href="#366">366</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(PROPERTY_BLOCKING_COMETSUPPORT) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="367" href="#367">367</a>             useBlockingImplementation = Boolean
+<a class="jxr_linenumber" name="368" href="#368">368</a>                     .parseBoolean(System.getProperty(PROPERTY_BLOCKING_COMETSUPPORT));
+<a class="jxr_linenumber" name="369" href="#369">369</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="370" href="#370">370</a>         }
+<a class="jxr_linenumber" name="371" href="#371">371</a>         atmosphereDotXmlPath = System.getProperty(PROPERTY_ATMOSPHERE_XML, atmosphereDotXmlPath);
+<a class="jxr_linenumber" name="372" href="#372">372</a> 
+<a class="jxr_linenumber" name="373" href="#373">373</a>         <strong class="jxr_keyword">if</strong> (System.getProperty(DISABLE_ONSTATE_EVENT) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="374" href="#374">374</a>             initParams.put(DISABLE_ONSTATE_EVENT, System.getProperty(DISABLE_ONSTATE_EVENT));
+<a class="jxr_linenumber" name="375" href="#375">375</a>         }
+<a class="jxr_linenumber" name="376" href="#376">376</a>     }
+<a class="jxr_linenumber" name="377" href="#377">377</a> 
+<a class="jxr_linenumber" name="378" href="#378">378</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="379" href="#379">379</a> <em class="jxr_javadoccomment">     * Path specific container using their own property.</em>
+<a class="jxr_linenumber" name="380" href="#380">380</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="381" href="#381">381</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> patchContainer() {
+<a class="jxr_linenumber" name="382" href="#382">382</a>         System.setProperty(<span class="jxr_string">"org.apache.catalina.STRICT_SERVLET_COMPLIANCE"</span>, <span class="jxr_string">"false"</span>);
+<a class="jxr_linenumber" name="383" href="#383">383</a>     }
+<a class="jxr_linenumber" name="384" href="#384">384</a> 
+<a class="jxr_linenumber" name="385" href="#385">385</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="386" href="#386">386</a> <em class="jxr_javadoccomment">     * Load the {@link AtmosphereHandler} associated with this AtmosphereServlet.</em>
+<a class="jxr_linenumber" name="387" href="#387">387</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="388" href="#388">388</a> <em class="jxr_javadoccomment">     * @param sc the {@link ServletContext}</em>
+<a class="jxr_linenumber" name="389" href="#389">389</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="390" href="#390">390</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> init(<strong class="jxr_keyword">final</strong> ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
+<a class="jxr_linenumber" name="391" href="#391">391</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="392" href="#392">392</a>             ServletContextHolder.register(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="393" href="#393">393</a> 
+<a class="jxr_linenumber" name="394" href="#394">394</a>             ServletConfig scFacade = <strong class="jxr_keyword">new</strong> ServletConfig() {
+<a class="jxr_linenumber" name="395" href="#395">395</a> 
+<a class="jxr_linenumber" name="396" href="#396">396</a>                 <strong class="jxr_keyword">public</strong> String getServletName() {
+<a class="jxr_linenumber" name="397" href="#397">397</a>                     <strong class="jxr_keyword">return</strong> sc.getServletName();
+<a class="jxr_linenumber" name="398" href="#398">398</a>                 }
+<a class="jxr_linenumber" name="399" href="#399">399</a> 
+<a class="jxr_linenumber" name="400" href="#400">400</a>                 <strong class="jxr_keyword">public</strong> ServletContext getServletContext() {
+<a class="jxr_linenumber" name="401" href="#401">401</a>                     <strong class="jxr_keyword">return</strong> sc.getServletContext();
+<a class="jxr_linenumber" name="402" href="#402">402</a>                 }
+<a class="jxr_linenumber" name="403" href="#403">403</a> 
+<a class="jxr_linenumber" name="404" href="#404">404</a>                 <strong class="jxr_keyword">public</strong> String getInitParameter(String name) {
+<a class="jxr_linenumber" name="405" href="#405">405</a>                     String param = sc.getInitParameter(name);
+<a class="jxr_linenumber" name="406" href="#406">406</a>                     <strong class="jxr_keyword">if</strong> (param == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="407" href="#407">407</a>                         <strong class="jxr_keyword">return</strong> initParams.get(name);
+<a class="jxr_linenumber" name="408" href="#408">408</a>                     }
+<a class="jxr_linenumber" name="409" href="#409">409</a>                     <strong class="jxr_keyword">return</strong> param;
+<a class="jxr_linenumber" name="410" href="#410">410</a>                 }
+<a class="jxr_linenumber" name="411" href="#411">411</a> 
+<a class="jxr_linenumber" name="412" href="#412">412</a>                 <strong class="jxr_keyword">public</strong> Enumeration&lt;String&gt; getInitParameterNames() {
+<a class="jxr_linenumber" name="413" href="#413">413</a>                     Enumeration en = sc.getInitParameterNames();
+<a class="jxr_linenumber" name="414" href="#414">414</a>                     <strong class="jxr_keyword">while</strong> (en.hasMoreElements()) {
+<a class="jxr_linenumber" name="415" href="#415">415</a>                         String name = (String) en.nextElement();
+<a class="jxr_linenumber" name="416" href="#416">416</a>                         <strong class="jxr_keyword">if</strong> (!initParams.containsKey(name)) {
+<a class="jxr_linenumber" name="417" href="#417">417</a>                             initParams.put(name, name);
+<a class="jxr_linenumber" name="418" href="#418">418</a>                         }
+<a class="jxr_linenumber" name="419" href="#419">419</a>                     }
+<a class="jxr_linenumber" name="420" href="#420">420</a>                     <strong class="jxr_keyword">return</strong> Collections.enumeration(initParams.keySet());
+<a class="jxr_linenumber" name="421" href="#421">421</a>                 }
+<a class="jxr_linenumber" name="422" href="#422">422</a>             };
+<a class="jxr_linenumber" name="423" href="#423">423</a>             <strong class="jxr_keyword">this</strong>.servletConfig = scFacade;
+<a class="jxr_linenumber" name="424" href="#424">424</a>             asyncSupportListener(eLogger);
+<a class="jxr_linenumber" name="425" href="#425">425</a> 
+<a class="jxr_linenumber" name="426" href="#426">426</a>             autoConfigureService(scFacade.getServletContext());
+<a class="jxr_linenumber" name="427" href="#427">427</a>             patchContainer();
+<a class="jxr_linenumber" name="428" href="#428">428</a>             doInitParams(scFacade);
+<a class="jxr_linenumber" name="429" href="#429">429</a>             doInitParamsForWebSocket(scFacade);
+<a class="jxr_linenumber" name="430" href="#430">430</a>             configureBroadcaster();
+<a class="jxr_linenumber" name="431" href="#431">431</a>             loadConfiguration(scFacade);
+<a class="jxr_linenumber" name="432" href="#432">432</a> 
+<a class="jxr_linenumber" name="433" href="#433">433</a>             autoDetectContainer();
+<a class="jxr_linenumber" name="434" href="#434">434</a>             configureWebDotXmlAtmosphereHandler(sc);
+<a class="jxr_linenumber" name="435" href="#435">435</a>             initWebSocketProtocol();
+<a class="jxr_linenumber" name="436" href="#436">436</a>             asyncSupport.init(scFacade);
+<a class="jxr_linenumber" name="437" href="#437">437</a>             initAtmosphereHandler(scFacade);
+<a class="jxr_linenumber" name="438" href="#438">438</a>             configureAtmosphereInterceptor(sc);
+<a class="jxr_linenumber" name="439" href="#439">439</a> 
+<a class="jxr_linenumber" name="440" href="#440">440</a>             <strong class="jxr_keyword">if</strong> (broadcasterCacheClassName == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="441" href="#441">441</a>                 logger.warn(<span class="jxr_string">"No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. "</span> +
+<a class="jxr_linenumber" name="442" href="#442">442</a>                         <span class="jxr_string">"It is recommended to configure the HeaderBroadcasterCache."</span>);
+<a class="jxr_linenumber" name="443" href="#443">443</a>             }
+<a class="jxr_linenumber" name="444" href="#444">444</a> 
+<a class="jxr_linenumber" name="445" href="#445">445</a>             <em class="jxr_comment">// http://java.net/jira/browse/ATMOSPHERE-157</em>
+<a class="jxr_linenumber" name="446" href="#446">446</a>             <strong class="jxr_keyword">if</strong> (sc.getServletContext() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="447" href="#447">447</a>                 sc.getServletContext().setAttribute(BroadcasterFactory.<strong class="jxr_keyword">class</strong>.getName(), broadcasterFactory);
+<a class="jxr_linenumber" name="448" href="#448">448</a>             }
+<a class="jxr_linenumber" name="449" href="#449">449</a> 
+<a class="jxr_linenumber" name="450" href="#450">450</a>             logger.info(<span class="jxr_string">"Using BroadcasterFactory class: {}"</span>, BroadcasterFactory.getDefault().getClass().getName());
+<a class="jxr_linenumber" name="451" href="#451">451</a>             logger.info(<span class="jxr_string">"Using Broadcaster class: {}"</span>, broadcasterClassName);
+<a class="jxr_linenumber" name="452" href="#452">452</a>             logger.info(<span class="jxr_string">"Atmosphere Framework {} started."</span>, Version.getRawVersion());
+<a class="jxr_linenumber" name="453" href="#453">453</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="454" href="#454">454</a>             logger.error(<span class="jxr_string">"Failed to initialize Atmosphere Framework"</span>, t);
+<a class="jxr_linenumber" name="455" href="#455">455</a> 
+<a class="jxr_linenumber" name="456" href="#456">456</a>             <strong class="jxr_keyword">if</strong> (t instanceof ServletException) {
+<a class="jxr_linenumber" name="457" href="#457">457</a>                 <strong class="jxr_keyword">throw</strong> (ServletException) t;
+<a class="jxr_linenumber" name="458" href="#458">458</a>             }
+<a class="jxr_linenumber" name="459" href="#459">459</a> 
+<a class="jxr_linenumber" name="460" href="#460">460</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> ServletException(t);
+<a class="jxr_linenumber" name="461" href="#461">461</a>         }
+<a class="jxr_linenumber" name="462" href="#462">462</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="463" href="#463">463</a>     }
+<a class="jxr_linenumber" name="464" href="#464">464</a> 
+<a class="jxr_linenumber" name="465" href="#465">465</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="466" href="#466">466</a> <em class="jxr_javadoccomment">     * Configure the list of {@link AtmosphereInterceptor}.</em>
+<a class="jxr_linenumber" name="467" href="#467">467</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="468" href="#468">468</a> <em class="jxr_javadoccomment">     * @param sc a ServletConfig</em>
+<a class="jxr_linenumber" name="469" href="#469">469</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="470" href="#470">470</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureAtmosphereInterceptor(ServletConfig sc) {
+<a class="jxr_linenumber" name="471" href="#471">471</a>         String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
+<a class="jxr_linenumber" name="472" href="#472">472</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="473" href="#473">473</a>             String[] list = s.split(<span class="jxr_string">","</span>);
+<a class="jxr_linenumber" name="474" href="#474">474</a>             <strong class="jxr_keyword">for</strong> (String a : list) {
+<a class="jxr_linenumber" name="475" href="#475">475</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="476" href="#476">476</a>                     <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
+<a class="jxr_linenumber" name="477" href="#477">477</a>                             .loadClass(a.trim()).newInstance();
+<a class="jxr_linenumber" name="478" href="#478">478</a>                     ai.configure(config);
+<a class="jxr_linenumber" name="479" href="#479">479</a>                     interceptor(ai);
+<a class="jxr_linenumber" name="480" href="#480">480</a>                 } <strong class="jxr_keyword">catch</strong> (InstantiationException e) {
+<a class="jxr_linenumber" name="481" href="#481">481</a>                     logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="482" href="#482">482</a>                 } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e) {
+<a class="jxr_linenumber" name="483" href="#483">483</a>                     logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="484" href="#484">484</a>                 } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e) {
+<a class="jxr_linenumber" name="485" href="#485">485</a>                     logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="486" href="#486">486</a>                 }
+<a class="jxr_linenumber" name="487" href="#487">487</a>             }
+<a class="jxr_linenumber" name="488" href="#488">488</a>         }
+<a class="jxr_linenumber" name="489" href="#489">489</a> 
+<a class="jxr_linenumber" name="490" href="#490">490</a>         <em class="jxr_comment">// ADD JSONP support</em>
+<a class="jxr_linenumber" name="491" href="#491">491</a>         interceptors.addFirst(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/JSONPAtmosphereInterceptor.html">JSONPAtmosphereInterceptor</a>());
+<a class="jxr_linenumber" name="492" href="#492">492</a>         <em class="jxr_comment">// Add SSE support</em>
+<a class="jxr_linenumber" name="493" href="#493">493</a>         interceptors.addFirst(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/SSEAtmosphereInterceptor.html">SSEAtmosphereInterceptor</a>());
+<a class="jxr_linenumber" name="494" href="#494">494</a>         logger.info(<span class="jxr_string">"Installed AtmosphereInterceptor {}"</span>, interceptors);
+<a class="jxr_linenumber" name="495" href="#495">495</a>     }
+<a class="jxr_linenumber" name="496" href="#496">496</a> 
+<a class="jxr_linenumber" name="497" href="#497">497</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
+<a class="jxr_linenumber" name="498" href="#498">498</a>         String s = sc.getInitParameter(ATMOSPHERE_HANDLER);
+<a class="jxr_linenumber" name="499" href="#499">499</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="500" href="#500">500</a>             ClassLoader cl = Thread.currentThread().getContextClassLoader();
+<a class="jxr_linenumber" name="501" href="#501">501</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="502" href="#502">502</a> 
+<a class="jxr_linenumber" name="503" href="#503">503</a>                 String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
+<a class="jxr_linenumber" name="504" href="#504">504</a>                 <strong class="jxr_keyword">if</strong> (mapping == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="505" href="#505">505</a>                     mapping = <span class="jxr_string">"/*"</span>;
+<a class="jxr_linenumber" name="506" href="#506">506</a>                 }
+<a class="jxr_linenumber" name="507" href="#507">507</a>                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
+<a class="jxr_linenumber" name="508" href="#508">508</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="509" href="#509">509</a>                 logger.warn(<span class="jxr_string">"Unable to load WebSocketHandle instance"</span>, ex);
+<a class="jxr_linenumber" name="510" href="#510">510</a>             }
+<a class="jxr_linenumber" name="511" href="#511">511</a>         }
+<a class="jxr_linenumber" name="512" href="#512">512</a>     }
+<a class="jxr_linenumber" name="513" href="#513">513</a> 
+<a class="jxr_linenumber" name="514" href="#514">514</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> configureBroadcaster() {
+<a class="jxr_linenumber" name="515" href="#515">515</a> 
+<a class="jxr_linenumber" name="516" href="#516">516</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="517" href="#517">517</a>             <strong class="jxr_keyword">if</strong> (broadcasterFactoryClassName != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="518" href="#518">518</a>                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
+<a class="jxr_linenumber" name="519" href="#519">519</a>                         .loadClass(broadcasterFactoryClassName).newInstance();
+<a class="jxr_linenumber" name="520" href="#520">520</a>             }
+<a class="jxr_linenumber" name="521" href="#521">521</a> 
+<a class="jxr_linenumber" name="522" href="#522">522</a>             <strong class="jxr_keyword">if</strong> (broadcasterFactory == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="523" href="#523">523</a>                 Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; bc =
+<a class="jxr_linenumber" name="524" href="#524">524</a>                         (Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt;) Thread.currentThread().getContextClassLoader()
+<a class="jxr_linenumber" name="525" href="#525">525</a>                                 .loadClass(broadcasterClassName);
+<a class="jxr_linenumber" name="526" href="#526">526</a>                 broadcasterFactory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(bc, broadcasterLifeCyclePolicy, config);
+<a class="jxr_linenumber" name="527" href="#527">527</a>             }
+<a class="jxr_linenumber" name="528" href="#528">528</a> 
+<a class="jxr_linenumber" name="529" href="#529">529</a>             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+<a class="jxr_linenumber" name="530" href="#530">530</a>             InjectorProvider.getInjector().inject(broadcasterFactory);
+<a class="jxr_linenumber" name="531" href="#531">531</a> 
+<a class="jxr_linenumber" name="532" href="#532">532</a>             Iterator&lt;Entry&lt;String, AtmosphereHandlerWrapper&gt;&gt; i = atmosphereHandlers.entrySet().iterator();
+<a class="jxr_linenumber" name="533" href="#533">533</a>             <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereHandlerWrapper</a> w;
+<a class="jxr_linenumber" name="534" href="#534">534</a>             Entry&lt;String, AtmosphereHandlerWrapper&gt; e;
+<a class="jxr_linenumber" name="535" href="#535">535</a>             <strong class="jxr_keyword">while</strong> (i.hasNext()) {
+<a class="jxr_linenumber" name="536" href="#536">536</a>                 e = i.next();
+<a class="jxr_linenumber" name="537" href="#537">537</a>                 w = e.getValue();
+<a class="jxr_linenumber" name="538" href="#538">538</a>                 <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> broadcasterConfig = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a>(broadcasterFilters, config);
+<a class="jxr_linenumber" name="539" href="#539">539</a> 
+<a class="jxr_linenumber" name="540" href="#540">540</a>                 <strong class="jxr_keyword">if</strong> (w.broadcaster == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="541" href="#541">541</a>                     w.broadcaster = broadcasterFactory.get(w.mapping);
+<a class="jxr_linenumber" name="542" href="#542">542</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="543" href="#543">543</a>                     w.broadcaster.setBroadcasterConfig(broadcasterConfig);
+<a class="jxr_linenumber" name="544" href="#544">544</a>                     <strong class="jxr_keyword">if</strong> (broadcasterCacheClassName != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="545" href="#545">545</a>                         <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+<a class="jxr_linenumber" name="546" href="#546">546</a>                                 .loadClass(broadcasterCacheClassName).newInstance();
+<a class="jxr_linenumber" name="547" href="#547">547</a>                         InjectorProvider.getInjector().inject(cache);
+<a class="jxr_linenumber" name="548" href="#548">548</a>                         broadcasterConfig.setBroadcasterCache(cache);
+<a class="jxr_linenumber" name="549" href="#549">549</a>                     }
+<a class="jxr_linenumber" name="550" href="#550">550</a>                 }
+<a class="jxr_linenumber" name="551" href="#551">551</a>             }
+<a class="jxr_linenumber" name="552" href="#552">552</a>         } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="553" href="#553">553</a>             logger.error(<span class="jxr_string">"Unable to configure Broadcaster/Factory/Cache"</span>, ex);
+<a class="jxr_linenumber" name="554" href="#554">554</a>         }
+<a class="jxr_linenumber" name="555" href="#555">555</a>     }
+<a class="jxr_linenumber" name="556" href="#556">556</a> 
+<a class="jxr_linenumber" name="557" href="#557">557</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> doInitParamsForWebSocket(ServletConfig sc) {
+<a class="jxr_linenumber" name="558" href="#558">558</a>         String s = sc.getInitParameter(WEBSOCKET_SUPPORT);
+<a class="jxr_linenumber" name="559" href="#559">559</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="560" href="#560">560</a>             webSocketEnabled = Boolean.parseBoolean(s);
+<a class="jxr_linenumber" name="561" href="#561">561</a>             sessionSupport(false);
+<a class="jxr_linenumber" name="562" href="#562">562</a>         }
+<a class="jxr_linenumber" name="563" href="#563">563</a>         s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
+<a class="jxr_linenumber" name="564" href="#564">564</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="565" href="#565">565</a>             webSocketProtocolClassName = s;
+<a class="jxr_linenumber" name="566" href="#566">566</a>         }
+<a class="jxr_linenumber" name="567" href="#567">567</a>     }
+<a class="jxr_linenumber" name="568" href="#568">568</a> 
+<a class="jxr_linenumber" name="569" href="#569">569</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="570" href="#570">570</a> <em class="jxr_javadoccomment">     * Read init param from web.xml and apply them.</em>
+<a class="jxr_linenumber" name="571" href="#571">571</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="572" href="#572">572</a> <em class="jxr_javadoccomment">     * @param sc {@link ServletConfig}</em>
+<a class="jxr_linenumber" name="573" href="#573">573</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="574" href="#574">574</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> doInitParams(ServletConfig sc) {
+<a class="jxr_linenumber" name="575" href="#575">575</a>         String s = sc.getInitParameter(PROPERTY_NATIVE_COMETSUPPORT);
+<a class="jxr_linenumber" name="576" href="#576">576</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="577" href="#577">577</a>             useNativeImplementation = Boolean.parseBoolean(s);
+<a class="jxr_linenumber" name="578" href="#578">578</a>             <strong class="jxr_keyword">if</strong> (useNativeImplementation) isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="579" href="#579">579</a>         }
+<a class="jxr_linenumber" name="580" href="#580">580</a>         s = sc.getInitParameter(PROPERTY_BLOCKING_COMETSUPPORT);
+<a class="jxr_linenumber" name="581" href="#581">581</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="582" href="#582">582</a>             useBlockingImplementation = Boolean.parseBoolean(s);
+<a class="jxr_linenumber" name="583" href="#583">583</a>             <strong class="jxr_keyword">if</strong> (useBlockingImplementation) isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="584" href="#584">584</a>         }
+<a class="jxr_linenumber" name="585" href="#585">585</a>         s = sc.getInitParameter(PROPERTY_USE_STREAM);
+<a class="jxr_linenumber" name="586" href="#586">586</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="587" href="#587">587</a>             useStreamForFlushingComments = Boolean.parseBoolean(s);
+<a class="jxr_linenumber" name="588" href="#588">588</a>         }
+<a class="jxr_linenumber" name="589" href="#589">589</a>         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
+<a class="jxr_linenumber" name="590" href="#590">590</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="591" href="#591">591</a>             asyncSupport = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultAsyncSupportResolver.html">DefaultAsyncSupportResolver</a>(config).newCometSupport(s);
+<a class="jxr_linenumber" name="592" href="#592">592</a>             isCometSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="593" href="#593">593</a>         }
+<a class="jxr_linenumber" name="594" href="#594">594</a>         s = sc.getInitParameter(BROADCASTER_CLASS);
+<a class="jxr_linenumber" name="595" href="#595">595</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="596" href="#596">596</a>             broadcasterClassName = s;
+<a class="jxr_linenumber" name="597" href="#597">597</a>             isBroadcasterSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="598" href="#598">598</a>         }
+<a class="jxr_linenumber" name="599" href="#599">599</a>         s = sc.getInitParameter(BROADCASTER_CACHE);
+<a class="jxr_linenumber" name="600" href="#600">600</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="601" href="#601">601</a>             broadcasterCacheClassName = s;
+<a class="jxr_linenumber" name="602" href="#602">602</a>         }
+<a class="jxr_linenumber" name="603" href="#603">603</a>         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
+<a class="jxr_linenumber" name="604" href="#604">604</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="605" href="#605">605</a>             config.setSupportSession(Boolean.valueOf(s));
+<a class="jxr_linenumber" name="606" href="#606">606</a>             isSessionSupportSpecified = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="607" href="#607">607</a>         }
+<a class="jxr_linenumber" name="608" href="#608">608</a>         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
+<a class="jxr_linenumber" name="609" href="#609">609</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="610" href="#610">610</a>             initParams.put(DISABLE_ONSTATE_EVENT, s);
+<a class="jxr_linenumber" name="611" href="#611">611</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="612" href="#612">612</a>             initParams.put(DISABLE_ONSTATE_EVENT, <span class="jxr_string">"false"</span>);
+<a class="jxr_linenumber" name="613" href="#613">613</a>         }
+<a class="jxr_linenumber" name="614" href="#614">614</a>         s = sc.getInitParameter(RESUME_AND_KEEPALIVE);
+<a class="jxr_linenumber" name="615" href="#615">615</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="616" href="#616">616</a>             initParams.put(RESUME_AND_KEEPALIVE, s);
+<a class="jxr_linenumber" name="617" href="#617">617</a>         }
+<a class="jxr_linenumber" name="618" href="#618">618</a>         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
+<a class="jxr_linenumber" name="619" href="#619">619</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="620" href="#620">620</a>             broadcasterFilters.addAll(Arrays.asList(s.split(<span class="jxr_string">","</span>)));
+<a class="jxr_linenumber" name="621" href="#621">621</a>             logger.info(<span class="jxr_string">"Installing BroadcastFilter class(es) {}"</span>, s);
+<a class="jxr_linenumber" name="622" href="#622">622</a>         }
+<a class="jxr_linenumber" name="623" href="#623">623</a>         s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
+<a class="jxr_linenumber" name="624" href="#624">624</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="625" href="#625">625</a>             broadcasterLifeCyclePolicy = s;
+<a class="jxr_linenumber" name="626" href="#626">626</a>         }
+<a class="jxr_linenumber" name="627" href="#627">627</a>         s = sc.getInitParameter(BROADCASTER_FACTORY);
+<a class="jxr_linenumber" name="628" href="#628">628</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="629" href="#629">629</a>             broadcasterFactoryClassName = s;
+<a class="jxr_linenumber" name="630" href="#630">630</a>         }
+<a class="jxr_linenumber" name="631" href="#631">631</a>         s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
+<a class="jxr_linenumber" name="632" href="#632">632</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="633" href="#633">633</a>             handlersPath = s;
+<a class="jxr_linenumber" name="634" href="#634">634</a>         }
+<a class="jxr_linenumber" name="635" href="#635">635</a>         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
+<a class="jxr_linenumber" name="636" href="#636">636</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="637" href="#637">637</a>             atmosphereDotXmlPath = s;
+<a class="jxr_linenumber" name="638" href="#638">638</a>         }
+<a class="jxr_linenumber" name="639" href="#639">639</a>     }
+<a class="jxr_linenumber" name="640" href="#640">640</a> 
+<a class="jxr_linenumber" name="641" href="#641">641</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> loadConfiguration(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
+<a class="jxr_linenumber" name="642" href="#642">642</a> 
+<a class="jxr_linenumber" name="643" href="#643">643</a>         <strong class="jxr_keyword">if</strong> (!autoDetectHandlers) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="644" href="#644">644</a> 
+<a class="jxr_linenumber" name="645" href="#645">645</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="646" href="#646">646</a>             URL url = sc.getServletContext().getResource(handlersPath);
+<a class="jxr_linenumber" name="647" href="#647">647</a>             URLClassLoader urlC = <strong class="jxr_keyword">new</strong> URLClassLoader(<strong class="jxr_keyword">new</strong> URL[]{url},
+<a class="jxr_linenumber" name="648" href="#648">648</a>                     Thread.currentThread().getContextClassLoader());
+<a class="jxr_linenumber" name="649" href="#649">649</a>             loadAtmosphereDotXml(sc.getServletContext().
+<a class="jxr_linenumber" name="650" href="#650">650</a>                     getResourceAsStream(atmosphereDotXmlPath), urlC);
+<a class="jxr_linenumber" name="651" href="#651">651</a> 
+<a class="jxr_linenumber" name="652" href="#652">652</a>             <strong class="jxr_keyword">if</strong> (atmosphereHandlers.size() == 0) {
+<a class="jxr_linenumber" name="653" href="#653">653</a>                 autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
+<a class="jxr_linenumber" name="654" href="#654">654</a> 
+<a class="jxr_linenumber" name="655" href="#655">655</a>                 <strong class="jxr_keyword">if</strong> (atmosphereHandlers.size() == 0) {
+<a class="jxr_linenumber" name="656" href="#656">656</a>                     detectSupportedFramework(sc);
+<a class="jxr_linenumber" name="657" href="#657">657</a>                 }
+<a class="jxr_linenumber" name="658" href="#658">658</a>             }
+<a class="jxr_linenumber" name="659" href="#659">659</a> 
+<a class="jxr_linenumber" name="660" href="#660">660</a>             autoDetectWebSocketHandler(sc.getServletContext(), urlC);
+<a class="jxr_linenumber" name="661" href="#661">661</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="662" href="#662">662</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> ServletException(t);
+<a class="jxr_linenumber" name="663" href="#663">663</a>         }
+<a class="jxr_linenumber" name="664" href="#664">664</a>     }
+<a class="jxr_linenumber" name="665" href="#665">665</a> 
+<a class="jxr_linenumber" name="666" href="#666">666</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="667" href="#667">667</a> <em class="jxr_javadoccomment">     * Auto-detect Jersey when no atmosphere.xml file are specified.</em>
+<a class="jxr_linenumber" name="668" href="#668">668</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="669" href="#669">669</a> <em class="jxr_javadoccomment">     * @param sc {@link ServletConfig}</em>
+<a class="jxr_linenumber" name="670" href="#670">670</a> <em class="jxr_javadoccomment">     * @return true if Jersey classes are detected</em>
+<a class="jxr_linenumber" name="671" href="#671">671</a> <em class="jxr_javadoccomment">     * @throws ClassNotFoundException</em>
+<a class="jxr_linenumber" name="672" href="#672">672</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="673" href="#673">673</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> detectSupportedFramework(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ClassNotFoundException, IllegalAccessException,
+<a class="jxr_linenumber" name="674" href="#674">674</a>             InstantiationException, NoSuchMethodException, InvocationTargetException {
+<a class="jxr_linenumber" name="675" href="#675">675</a> 
+<a class="jxr_linenumber" name="676" href="#676">676</a>         ClassLoader cl = Thread.currentThread().getContextClassLoader();
+<a class="jxr_linenumber" name="677" href="#677">677</a>         String broadcasterClassNameTmp = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="678" href="#678">678</a> 
+<a class="jxr_linenumber" name="679" href="#679">679</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="680" href="#680">680</a>             cl.loadClass(JERSEY_CONTAINER);
+<a class="jxr_linenumber" name="681" href="#681">681</a> 
+<a class="jxr_linenumber" name="682" href="#682">682</a>             <strong class="jxr_keyword">if</strong> (!isBroadcasterSpecified) {
+<a class="jxr_linenumber" name="683" href="#683">683</a>                 broadcasterClassNameTmp = lookupDefaultBroadcasterType();
+<a class="jxr_linenumber" name="684" href="#684">684</a> 
+<a class="jxr_linenumber" name="685" href="#685">685</a>                 cl.loadClass(broadcasterClassNameTmp);
+<a class="jxr_linenumber" name="686" href="#686">686</a>             }
+<a class="jxr_linenumber" name="687" href="#687">687</a>             useStreamForFlushingComments = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="688" href="#688">688</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="689" href="#689">689</a>             logger.trace(<span class="jxr_string">""</span>, t);
+<a class="jxr_linenumber" name="690" href="#690">690</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="691" href="#691">691</a>         }
+<a class="jxr_linenumber" name="692" href="#692">692</a> 
+<a class="jxr_linenumber" name="693" href="#693">693</a>         logger.warn(<span class="jxr_string">"Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey"</span>);
+<a class="jxr_linenumber" name="694" href="#694">694</a> 
+<a class="jxr_linenumber" name="695" href="#695">695</a>         <em class="jxr_comment">// Jersey will handle itself the headers.</em>
+<a class="jxr_linenumber" name="696" href="#696">696</a>         initParams.put(WRITE_HEADERS, <span class="jxr_string">"false"</span>);
+<a class="jxr_linenumber" name="697" href="#697">697</a> 
+<a class="jxr_linenumber" name="698" href="#698">698</a>         <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> rsp = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a>();
+<a class="jxr_linenumber" name="699" href="#699">699</a>         <strong class="jxr_keyword">if</strong> (broadcasterClassNameTmp != <strong class="jxr_keyword">null</strong>) broadcasterClassName = broadcasterClassNameTmp;
+<a class="jxr_linenumber" name="700" href="#700">700</a>         rsp.setServletClassName(JERSEY_CONTAINER);
+<a class="jxr_linenumber" name="701" href="#701">701</a>         sessionSupport(false);
+<a class="jxr_linenumber" name="702" href="#702">702</a>         initParams.put(DISABLE_ONSTATE_EVENT, <span class="jxr_string">"true"</span>);
+<a class="jxr_linenumber" name="703" href="#703">703</a> 
+<a class="jxr_linenumber" name="704" href="#704">704</a>         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
+<a class="jxr_linenumber" name="705" href="#705">705</a>         <strong class="jxr_keyword">if</strong> (mapping == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="706" href="#706">706</a>             mapping = <span class="jxr_string">"/*"</span>;
+<a class="jxr_linenumber" name="707" href="#707">707</a>         }
+<a class="jxr_linenumber" name="708" href="#708">708</a>         Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; bc = (Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt;) cl.loadClass(broadcasterClassName);
+<a class="jxr_linenumber" name="709" href="#709">709</a> 
+<a class="jxr_linenumber" name="710" href="#710">710</a>         broadcasterFactory.destroy();
+<a class="jxr_linenumber" name="711" href="#711">711</a> 
+<a class="jxr_linenumber" name="712" href="#712">712</a>         broadcasterFactory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(bc, broadcasterLifeCyclePolicy, config);
+<a class="jxr_linenumber" name="713" href="#713">713</a>         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
 <a class="jxr_linenumber" name="714" href="#714">714</a>         <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = BroadcasterFactory.getDefault().get(bc, mapping);
 <a class="jxr_linenumber" name="715" href="#715">715</a> 
 <a class="jxr_linenumber" name="716" href="#716">716</a>         addAtmosphereHandler(mapping, rsp, b);
@@ -1114,7 +1114,7 @@
 <a class="jxr_linenumber" name="1104" href="#1104">1104</a> <em class="jxr_javadoccomment">     * @throws ServletException</em>
 <a class="jxr_linenumber" name="1105" href="#1105">1105</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="1106" href="#1106">1106</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> doCometSupport(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
-<a class="jxr_linenumber" name="1107" href="#1107">1107</a>         req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
+<a class="jxr_linenumber" name="1107" href="#1107">1107</a>         req.setAttribute(BROADCASTER_FACTORY, BroadcasterFactory.getDefault());
 <a class="jxr_linenumber" name="1108" href="#1108">1108</a>         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
 <a class="jxr_linenumber" name="1109" href="#1109">1109</a>         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
 <a class="jxr_linenumber" name="1110" href="#1110">1110</a>         req.setAttribute(ATMOSPHERE_CONFIG, config);
