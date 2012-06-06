@@ -12,34 +12,10 @@
         <param-value>org.cometd.bayeux,org.cometd.oort.Oort</param-value>
     </context-param>
 
-    <!-- Portability Filter, needed only to run on non Jetty or non Servlet-3.0 containers -->
-    <!--
-    <filter>
-        <filter-name>continuation</filter-name>
-        <filter-class>org.eclipse.jetty.continuation.ContinuationFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>continuation</filter-name>
-        <url-pattern>/cometd/*</url-pattern>
-    </filter-mapping>
-    -->
-
-    <!-- Filter to support cross domain requests -->
-    <filter>
-        <filter-name>cross-origin</filter-name>
-        <filter-class>org.eclipse.jetty.servlets.CrossOriginFilter</filter-class>
-        <!--async-supported>true</async-supported-->
-    </filter>
-    <filter-mapping>
-        <filter-name>cross-origin</filter-name>
-        <url-pattern>/cometd/*</url-pattern>
-    </filter-mapping>
-
     <!-- Cometd Servlet -->
     <servlet>
         <servlet-name>cometd</servlet-name>
         <servlet-class>org.atmosphere.cometd.CometdServlet</servlet-class>
-        <async-supported>true</async-supported>
         <init-param>
             <param-name>timeout</param-name>
             <param-value>20000</param-value>
@@ -73,43 +49,12 @@
             <param-value>org.cometd.examples.ChatService</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
+        <async-supported>true</async-supported>
     </servlet>
     <servlet-mapping>
         <servlet-name>cometd</servlet-name>
         <url-pattern>/cometd/*</url-pattern>
     </servlet-mapping>
-
-    <servlet>
-        <servlet-name>cometdDemo</servlet-name>
-        <servlet-class>org.atmosphere.cometd.CometdServlet</servlet-class>
-        <load-on-startup>2</load-on-startup>
-    </servlet>
-
-    <!-- Configure Oort Cloud, used by Auction demo -->
-    <servlet>
-        <servlet-name>oort</servlet-name>
-        <servlet-class>org.cometd.oort.OortMulticastConfigServlet</servlet-class>
-        <init-param>
-            <param-name>oort.url</param-name>
-            <param-value>http://localhost:8080/cometd</param-value>
-        </init-param>
-        <load-on-startup>3</load-on-startup>
-    </servlet>
-
-    <!-- Configure Seti ID management, used by Auction demo -->
-    <servlet>
-        <servlet-name>seti</servlet-name>
-        <servlet-class>org.cometd.oort.SetiServlet</servlet-class>
-        <load-on-startup>4</load-on-startup>
-    </servlet>
-
-    <!-- Auction demo Servlet-->
-    <servlet>
-        <servlet-name>auctionDemo</servlet-name>
-        <servlet-class>org.webtide.demo.auction.AuctionServlet</servlet-class>
-        <load-on-startup>5</load-on-startup>
-    </servlet>
-
 </web-app>
 
 

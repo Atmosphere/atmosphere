@@ -52,9 +52,7 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
             }
         }
 
-        if (request.getAttribute(Continuation.ATTRIBUTE) == null) {
-            request.setAttribute(Continuation.ATTRIBUTE, new AtmosphereContinuation(r));
-        }
+        request.setAttribute(Continuation.ATTRIBUTE, new AtmosphereContinuation(r));
 
         return Action.CONTINUE;
     }
