@@ -95,7 +95,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         if (c == null || c.isInitial()) {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
-                c = ContinuationSupport.getContinuation(req);
+                c = getContinuation(req);
                 req.setAttribute(Continuation.class.getName(), c);
 
                 if (action.timeout() != -1) {
@@ -164,6 +164,10 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
             }
         }
         return action;
+    }
+
+    protected Continuation getContinuation(AtmosphereRequest req) {
+        return ContinuationSupport.getContinuation(req);
     }
 
     @Override
