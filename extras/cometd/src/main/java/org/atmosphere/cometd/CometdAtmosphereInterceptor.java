@@ -23,9 +23,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.websocket.WebSocket;
-import org.cometd.bayeux.server.BayeuxServer;
-import org.cometd.server.BayeuxServerImpl;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationListener;
 import org.eclipse.jetty.continuation.ContinuationThrowable;
@@ -38,7 +35,7 @@ import java.io.IOException;
 
 public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
 
-    private static final Logger logger = LoggerFactory.getLogger(CometdAsyncSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(JettyAsyncSupport.class);
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -95,7 +92,7 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
             } catch (IOException e) {
                 logger.warn("",e);
             } catch (ServletException e) {
-                logger.warn("",e);
+                logger.warn("", e);
             }
             r.resume();
         }
@@ -150,9 +147,9 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
                         try {
                             r.getAtmosphereConfig().framework().doCometSupport(r.getRequest(), r.getResponse());
                         } catch (IOException e) {
-                            logger.warn("",e);
+                            logger.warn("", e);
                         } catch (ServletException e) {
-                            logger.warn("",e);
+                            logger.warn("", e);
                         }
                         listener.onTimeout(AtmosphereContinuation.this);
                     }

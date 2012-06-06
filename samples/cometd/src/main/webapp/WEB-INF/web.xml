@@ -39,7 +39,7 @@
     <servlet>
         <servlet-name>cometd</servlet-name>
         <servlet-class>org.atmosphere.cometd.CometdServlet</servlet-class>
-        <!--async-supported>true</async-supported-->
+        <async-supported>true</async-supported>
         <init-param>
             <param-name>timeout</param-name>
             <param-value>20000</param-value>

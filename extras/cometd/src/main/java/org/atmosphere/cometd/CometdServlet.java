@@ -44,7 +44,11 @@ public class CometdServlet extends AtmosphereServlet {
     public void init(final ServletConfig sc) throws ServletException {
         framework().interceptor(new CometdAtmosphereInterceptor());
         framework().setUseStreamForFlushingComments(false);
-        framework().setAsyncSupport(new CometdAsyncSupport(framework().getAtmosphereConfig()));
+
+        if (sc.getServletContext().getServerInfo().contains("jetty")) {
+            framework().setAsyncSupport(new JettyAsyncSupport(framework().getAtmosphereConfig()));
+        }
+
         framework().addInitParameter("transports", WebSocketTransport.class.getName());
         framework().addInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE, "application/json");
         super.init(sc);

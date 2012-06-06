@@ -30,12 +30,12 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-public class CometdAsyncSupport extends Jetty7CometSupport {
+public class JettyAsyncSupport extends Jetty7CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(CometdAsyncSupport.class);
+    private static final Logger logger = LoggerFactory.getLogger(JettyAsyncSupport.class);
     private final WebSocketFactory webSocketFactory;
 
-    public CometdAsyncSupport(AtmosphereConfig config) {
+    public JettyAsyncSupport(AtmosphereConfig config) {
         super(config);
 
         WebSocketFactory wsf;
