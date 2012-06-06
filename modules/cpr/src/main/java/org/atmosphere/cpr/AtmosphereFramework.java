@@ -402,9 +402,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
 
                 public String getInitParameter(String name) {
-                    String param = sc.getInitParameter(name);
+                    String param = initParams.get(name);
                     if (param == null) {
-                        return initParams.get(name);
+                        return sc.getInitParameter(name);
                     }
                     return param;
                 }
@@ -414,7 +414,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     while (en.hasMoreElements()) {
                         String name = (String) en.nextElement();
                         if (!initParams.containsKey(name)) {
-                            initParams.put(name, name);
+                            initParams.put(name, sc.getInitParameter(name));
                         }
                     }
                     return Collections.enumeration(initParams.keySet());
