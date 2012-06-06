@@ -173,3 +173,14 @@ If you plan to use Spring or GWT, take a look at their specific samples.
         <td>[Meteor](https://github.com/Atmosphere/atmosphere/blob/master/samples/wicket-clock/src/main/java/org/atmosphere/samples/wicket/PushPage.java#L40)</td>
         <td>[Wicket](https://github.com/Atmosphere/atmosphere/blob/master/samples/wicket-clock/src/main/java/org/atmosphere/samples/wicket/ClockPanel.java)</td>
     </tr>
+    <tr>
+        <td>[socketio-chat](http://search.maven.org/#search|gav|1|g%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-socketio%22)</td>
+        <td>This sample demonstrates how the SocketIO library can be used, trsnaparently, using an AtmosphereHandler</td>
+        <td>[AtmosphereHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/socketio-chat/src/main/java/org/atmosphere/samples/chat/SocketIOChatAtmos-        <td>[SocketIO](https://github.com/Atmosphere/atmosphere/blob/master/samples/socketio-chat/src/main/webapp/javascript/application.js#L1)</td>
+    </tr>
+    </tr>
+        <tr>
+        <td>[native-socketio-chat](http://search.maven.org/#search|gav|1|g%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-socketio%22)</td>
+        <td>This sample demonstrates how the SocketIO library and natively extending the SocketIO protocol on the server side</td>
+        <td>[AtmosphereHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/native-socketio-chat/src/main/java/org/atmosphere/samples/chat/ChatAtmosp-        <td>[SocketIO](https://github.com/Atmosphere/atmosphere/blob/master/samples/native-socketio-chat/src/main/webapp/index.html#L1)</td>
+    </tr>
