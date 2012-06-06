@@ -740,7 +740,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param sc the {@link ServletConfig}
      * @throws javax.servlet.ServletException
      */
-    void initAtmosphereHandler(ServletConfig sc) throws ServletException {
+    public void initAtmosphereHandler(ServletConfig sc) throws ServletException {
         AtmosphereHandler a;
         AtmosphereHandlerWrapper w;
         for (Entry<String, AtmosphereHandlerWrapper> h : atmosphereHandlers.entrySet()) {
