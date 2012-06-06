@@ -50,6 +50,9 @@
         <module>socketio-chat</module>
         <module>native-socketio-chat</module>
 
+        <!-- Cometd -->
+        <module>cometd</module>
+
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>
