@@ -584,7 +584,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession(boolean create) {
-        return b.request.getSession(create);
+        try {
+            return b.request.getSession(create);
+        } catch (java.lang.IllegalStateException ex) {
+            //UGLY
+            if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
+                return b.hackedJettySession;
+            }
+            throw ex;
+        }
     }
 
     /**
@@ -906,6 +914,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
+        public HttpSession hackedJettySession;
 
         public Builder() {
         }
@@ -1051,7 +1060,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 request = new NoOpsRequest();
             }
 
-            NoOpsRequest.class.cast(request).fake = session;
+            if (NoOpsRequest.class.isAssignableFrom(request.getClass()) ) {
+                NoOpsRequest.class.cast(request).fake = session;
+            } else {
+                hackedJettySession = session;
+            }
             return this;
         }
     }
