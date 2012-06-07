@@ -55,7 +55,7 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
                 InputStream inputStream = r.getRequest().getInputStream();
                 if (inputStream != null) {
                     bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                    char[] charBuffer = new char[128];
+                    char[] charBuffer = new char[8192];
                     int bytesRead = -1;
                     while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
                         stringBuilder.append(charBuffer, 0, bytesRead);
