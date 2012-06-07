@@ -69,7 +69,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream bis;
     private BufferedReader br;
-    private HttpSession session;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
@@ -577,19 +576,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        if (session == null) {
-            session = createSession();
-        } else {
-            //check if session is valid
-            try {
-                session.getLastAccessedTime();
-            } catch (IllegalStateException e) {
-                //session is not valid
-                LoggerFactory.getLogger(this.getClass()).debug("Discarding invalid session");
-                session = createSession();
-            }
-        }
-        return session;
+        return b.request.getSession(false);
     }
 
     /**
@@ -597,16 +584,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession(boolean create) {
-        if (create) {
-            return getSession();
-        }
-        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
-    }
-
-    private HttpSession createSession() {
-        return !isNotNoOps() ?
-                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                b.session != null ? b.session : b.request.getSession();
+        return b.request.getSession(create);
     }
 
     /**
@@ -928,7 +906,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
-        private HttpSession session;
 
         public Builder() {
         }
@@ -1070,7 +1047,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public Builder session(HttpSession session) {
-            this.session = session;
+            if (request == null) {
+                request = new NoOpsRequest();
+            }
+
+            NoOpsRequest.class.cast(request).fake = session;
             return this;
         }
     }
@@ -1123,6 +1104,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     private final static class NoOpsRequest implements HttpServletRequest {
+
+        public HttpSession fake;
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
@@ -1201,12 +1184,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getRemoteUser() {
-            return null;
+            return "";
         }
 
         @Override
         public String getRequestedSessionId() {
-            return null;
+            return "";
         }
 
         @Override
@@ -1226,12 +1209,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public HttpSession getSession() {
-            return null;
+            return fake;
         }
 
         @Override
         public HttpSession getSession(boolean create) {
-            return null;
+            if (create) {
+                fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1);
+            }
+            return fake;
         }
 
         @Override
@@ -1456,6 +1442,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     /**
      * Create an instance of this class without an associated {@link HttpServletRequest}
+     *
      * @return an instance of this class without an associated {@link HttpServletRequest}
      */
     public final static AtmosphereRequest create() {
@@ -1550,7 +1537,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b != null ? !b.equals(that.b) : that.b != null) return false;
         if (bis != null ? !bis.equals(that.bis) : that.bis != null) return false;
         if (br != null ? !br.equals(that.br) : that.br != null) return false;
-        if (session != null ? !session.equals(that.session) : that.session != null) return false;
 
         return true;
     }
@@ -1559,7 +1545,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public int hashCode() {
         int result = bis != null ? bis.hashCode() : 0;
         result = 31 * result + (br != null ? br.hashCode() : 0);
-        result = 31 * result + (session != null ? session.hashCode() : 0);
         result = 31 * result + (b != null ? b.hashCode() : 0);
         return result;
     }
