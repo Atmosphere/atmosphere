@@ -191,4 +191,5 @@ If you plan to use Spring or GWT, take a look at their specific samples.
         <td>[cometd/bayeux protocol](https://oss.sonatype.org/content/repositories/snapshots/org/atmosphere/samples/atmosphere-cometd-demo/)</td>
         <td>This sample deploy the [Cometd official](http://cometd.org/) demo on top of Atmosphere</td>
         <td></td>
+        <td></td>
     </tr>
