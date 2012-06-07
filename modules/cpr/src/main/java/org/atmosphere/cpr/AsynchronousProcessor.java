@@ -324,6 +324,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         if (atmosphereHandlerWrapper == null) {
+            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", path, config.handlers());
             throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + path);
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
