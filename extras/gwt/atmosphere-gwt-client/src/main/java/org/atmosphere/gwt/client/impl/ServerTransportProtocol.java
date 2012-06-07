@@ -19,7 +19,6 @@ package org.atmosphere.gwt.client.impl;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.SerializationException;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,7 +32,7 @@ abstract public class ServerTransportProtocol implements ServerTransport {
 
     abstract String serialize(Object message) throws SerializationException;
 
-    private Logger logger = Logger.getLogger(getClass().getName());
+    private static final Logger logger = Logger.getLogger(ServerTransportProtocol.class.getName());
 
     private AsyncCallback<Void> defaultCallback = new AsyncCallback<Void>() {
         @Override

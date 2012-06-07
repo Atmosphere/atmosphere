@@ -62,7 +62,7 @@ public abstract class BaseCometTransport implements CometTransport {
     protected AtmosphereListener listener;
     protected ServerTransport serverTransport;
     protected int connectionId;
-    protected final Logger logger = Logger.getLogger(getClass().getName());
+    private static final Logger logger = Logger.getLogger(BaseCometTransport.class.getName());
 
     @Override
     public void disconnect() {
@@ -109,6 +109,7 @@ public abstract class BaseCometTransport implements CometTransport {
         void send(String message, final AsyncCallback<Void> callback) {
             RequestBuilder request = new RequestBuilder(RequestBuilder.POST, serviceUrl());
             try {
+                logger.fine("Sending message to server: " + message);
                 request.sendRequest(message, new RequestCallback() {
                     @Override
                     public void onResponseReceived(Request request, Response response) {

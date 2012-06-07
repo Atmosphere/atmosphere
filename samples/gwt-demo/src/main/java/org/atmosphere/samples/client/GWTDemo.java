@@ -156,8 +156,6 @@ public class GWTDemo implements EntryPoint {
                 statuscode = ((StatusCodeException) exception).getStatusCode();
             }
             logger.log(Level.SEVERE, "comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
-            client.stop();
-            toggleStartStop(false);
         }
 
         @Override

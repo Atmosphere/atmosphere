@@ -212,7 +212,6 @@ public class GWTDemo implements EntryPoint {
             }
             logger.log(Level.SEVERE, "comet.error [connected=" + connected + "] (" + statuscode + ")", exception);
             addChatLine(MESSAGE_ROOM_ERROR + exception.getMessage(), COLOR_SYSTEM_MESSAGE);
-            client.stop();
         }
 
         @Override

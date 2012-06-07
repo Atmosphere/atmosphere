@@ -286,7 +286,12 @@ public class AtmosphereClient {
                     throw new IllegalStateException("Unexpected refresh state");
                 }
             } else {
-                throw new IllegalStateException("Unexpected connection from primairyTransport");
+                // refreshed connection after connection failed
+                if (refreshState != RefreshState.CONNECTING) {
+                    throw new IllegalStateException("Unexpected refresh state");
+                }
+                refreshState = null;
+                listener.onAfterRefresh();
             }
         } else {
             listener.onConnected(heartbeat, connectionID);
@@ -576,11 +581,20 @@ public class AtmosphereClient {
 
         private Timer createReconnectionTimer() {
             return new Timer() {
+                int count = 0;
                 @Override
                 public void run() {
-                    if (running) {
+                    if (count++ > 5) {
+                        stop();
+                    } else if (running) {
+                        refreshState = RefreshState.CONNECTING;
                         doConnect();
                     }
+                }
+                @Override
+                public void cancel() {
+                    super.cancel();
+                    count = 0;
                 }
             };
         }
