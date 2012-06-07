@@ -321,7 +321,6 @@ public class WebSocketTransport extends LongPollingTransport {
         }
         builder.append("[").append(message.getJSON()).append("]");
         writer.append(builder.toString());
-        request.setAttribute("org.cometd.scheduler", null);
         return writer;
     }
 
