@@ -269,4 +269,8 @@ public interface ApplicationConfig {
      * is used
      */
     String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = AtmosphereResourceLifecycleInterceptor.class.getName() + ".method";
+    /**
+     * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}
+     */
+    String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disabled";
 }

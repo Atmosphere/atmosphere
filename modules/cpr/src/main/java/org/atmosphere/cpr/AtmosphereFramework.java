@@ -487,10 +487,13 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
 
-        // ADD JSONP support
-        interceptors.addFirst(new JSONPAtmosphereInterceptor());
-        // Add SSE support
-        interceptors.addFirst(new SSEAtmosphereInterceptor());
+        s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
+        if (s == null) {
+            // ADD JSONP support
+            interceptors.addFirst(new JSONPAtmosphereInterceptor());
+            // Add SSE support
+            interceptors.addFirst(new SSEAtmosphereInterceptor());
+        }
         logger.info("Installed AtmosphereInterceptor {}", interceptors);
     }
 
