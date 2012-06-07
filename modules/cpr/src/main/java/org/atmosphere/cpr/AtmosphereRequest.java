@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
