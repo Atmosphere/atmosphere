@@ -29,7 +29,7 @@ import java.io.InputStreamReader;
 
 /**
  * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
- * The broadcast always happens AFTER the request has been delivered to an {@link AtmosphereHandler}
+ * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}
  *
  * @author Jeanfrancois Arcand
  */
