@@ -161,7 +161,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param config the {@link AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
      */
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config) {
         return new BroadcasterConfig(config.framework().broadcasterFilters, config);
     }
 
@@ -705,7 +705,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
-                resources.remove(r);
+                removeAtmosphereResource(r);
                 lostCandidate = true;
                 return;
             }
@@ -795,7 +795,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         List<?> missedMsg = broadcasterCache.retrieveFromCache(r);
-        if (missedMsg!=null && !missedMsg.isEmpty()) {
+        if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
         }
@@ -1075,22 +1075,14 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        if (!resources.contains(r)) {
-            return this;
-        }
-        // Prevent two thread to mix operation
-        boolean removed = resources.remove(r);
-
-        if (removed) {
-            // Will help preventing OOM.
-            if (resources.isEmpty()) {
-                notifyEmptyListener();
-                if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
-                    releaseExternalResources();
-                } else if (scope == SCOPE.REQUEST || lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
-                    BroadcasterFactory.getDefault().remove(this, name);
-                    destroy();
-                }
+        resources.remove(r);
+        if (resources.isEmpty()) {
+            notifyEmptyListener();
+            if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
+                releaseExternalResources();
+            } else if (scope == SCOPE.REQUEST || lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
+                BroadcasterFactory.getDefault().remove(this, name);
+                destroy();
             }
         }
         return this;
