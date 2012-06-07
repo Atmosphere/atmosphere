@@ -29,7 +29,7 @@ import org.atmosphere.websocket.WebSocketResponseFilter;
 import java.io.IOException;
 
 /**
- * An {@link AtmosphereInterceptor} that add a special String "<||>" at the end of a message, allowing the
+ * An {@link AtmosphereInterceptor} that add a special String "|" at the end of a message, allowing the
  * atmosphere.js to detect if one or several messages where aggregated in one write operations.
  *
  * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
