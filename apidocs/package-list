@@ -3,6 +3,7 @@ org.apache.catalina.comet
 org.atmosphere.annotation
 org.atmosphere.cache
 org.atmosphere.client
+org.atmosphere.cometd
 org.atmosphere.commons.util
 org.atmosphere.config
 org.atmosphere.config.service

@@ -222,42 +222,41 @@
 <a class="jxr_linenumber" name="212" href="#212">212</a>             }
 <a class="jxr_linenumber" name="213" href="#213">213</a>             logger.log(Level.SEVERE, <span class="jxr_string">"comet.error [connected="</span> + connected + <span class="jxr_string">"] ("</span> + statuscode + <span class="jxr_string">")"</span>, exception);
 <a class="jxr_linenumber" name="214" href="#214">214</a>             addChatLine(MESSAGE_ROOM_ERROR + exception.getMessage(), COLOR_SYSTEM_MESSAGE);
-<a class="jxr_linenumber" name="215" href="#215">215</a>             client.stop();
-<a class="jxr_linenumber" name="216" href="#216">216</a>         }
-<a class="jxr_linenumber" name="217" href="#217">217</a> 
-<a class="jxr_linenumber" name="218" href="#218">218</a>         @Override
-<a class="jxr_linenumber" name="219" href="#219">219</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onHeartbeat() {
-<a class="jxr_linenumber" name="220" href="#220">220</a>             logger.info(<span class="jxr_string">"comet.heartbeat ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
-<a class="jxr_linenumber" name="221" href="#221">221</a>         }
-<a class="jxr_linenumber" name="222" href="#222">222</a> 
-<a class="jxr_linenumber" name="223" href="#223">223</a>         @Override
-<a class="jxr_linenumber" name="224" href="#224">224</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onRefresh() {
-<a class="jxr_linenumber" name="225" href="#225">225</a>             logger.info(<span class="jxr_string">"comet.refresh ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
-<a class="jxr_linenumber" name="226" href="#226">226</a>         }
-<a class="jxr_linenumber" name="227" href="#227">227</a> 
-<a class="jxr_linenumber" name="228" href="#228">228</a>         @Override
-<a class="jxr_linenumber" name="229" href="#229">229</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onAfterRefresh() {
-<a class="jxr_linenumber" name="230" href="#230">230</a>             logger.info(<span class="jxr_string">"comet.afterRefresh ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
-<a class="jxr_linenumber" name="231" href="#231">231</a>         }
-<a class="jxr_linenumber" name="232" href="#232">232</a> 
-<a class="jxr_linenumber" name="233" href="#233">233</a>         @Override
-<a class="jxr_linenumber" name="234" href="#234">234</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(List&lt;?&gt; messages) {
-<a class="jxr_linenumber" name="235" href="#235">235</a>             <strong class="jxr_keyword">for</strong> (Object obj : messages) {
-<a class="jxr_linenumber" name="236" href="#236">236</a>                 <strong class="jxr_keyword">if</strong> (obj instanceof Event) {
-<a class="jxr_linenumber" name="237" href="#237">237</a>                     <a href="../../../../org/atmosphere/samples/client/Event.html">Event</a> e = (Event)obj;
-<a class="jxr_linenumber" name="238" href="#238">238</a>                     String line = timeFormat.format(e.getTime())
-<a class="jxr_linenumber" name="239" href="#239">239</a>                             + <span class="jxr_string">" &lt;b&gt;"</span> + e.getAuthor() + <span class="jxr_string">"&lt;/b&gt; "</span> + e.getMessage();
-<a class="jxr_linenumber" name="240" href="#240">240</a>                     <strong class="jxr_keyword">if</strong> (e.getAuthor().equals(author)) {
-<a class="jxr_linenumber" name="241" href="#241">241</a>                         addChatLine(line, COLOR_MESSAGE_SELF);
-<a class="jxr_linenumber" name="242" href="#242">242</a>                     } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="243" href="#243">243</a>                         addChatLine(line, COLOR_MESSAGE_OTHERS);
-<a class="jxr_linenumber" name="244" href="#244">244</a>                     }
-<a class="jxr_linenumber" name="245" href="#245">245</a>                 }
-<a class="jxr_linenumber" name="246" href="#246">246</a>             }
-<a class="jxr_linenumber" name="247" href="#247">247</a>         }
-<a class="jxr_linenumber" name="248" href="#248">248</a>     }
-<a class="jxr_linenumber" name="249" href="#249">249</a> 
-<a class="jxr_linenumber" name="250" href="#250">250</a> }
+<a class="jxr_linenumber" name="215" href="#215">215</a>         }
+<a class="jxr_linenumber" name="216" href="#216">216</a> 
+<a class="jxr_linenumber" name="217" href="#217">217</a>         @Override
+<a class="jxr_linenumber" name="218" href="#218">218</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onHeartbeat() {
+<a class="jxr_linenumber" name="219" href="#219">219</a>             logger.info(<span class="jxr_string">"comet.heartbeat ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
+<a class="jxr_linenumber" name="220" href="#220">220</a>         }
+<a class="jxr_linenumber" name="221" href="#221">221</a> 
+<a class="jxr_linenumber" name="222" href="#222">222</a>         @Override
+<a class="jxr_linenumber" name="223" href="#223">223</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onRefresh() {
+<a class="jxr_linenumber" name="224" href="#224">224</a>             logger.info(<span class="jxr_string">"comet.refresh ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
+<a class="jxr_linenumber" name="225" href="#225">225</a>         }
+<a class="jxr_linenumber" name="226" href="#226">226</a> 
+<a class="jxr_linenumber" name="227" href="#227">227</a>         @Override
+<a class="jxr_linenumber" name="228" href="#228">228</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onAfterRefresh() {
+<a class="jxr_linenumber" name="229" href="#229">229</a>             logger.info(<span class="jxr_string">"comet.afterRefresh ["</span> + client.getConnectionID() + <span class="jxr_string">"]"</span>);
+<a class="jxr_linenumber" name="230" href="#230">230</a>         }
+<a class="jxr_linenumber" name="231" href="#231">231</a> 
+<a class="jxr_linenumber" name="232" href="#232">232</a>         @Override
+<a class="jxr_linenumber" name="233" href="#233">233</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(List&lt;?&gt; messages) {
+<a class="jxr_linenumber" name="234" href="#234">234</a>             <strong class="jxr_keyword">for</strong> (Object obj : messages) {
+<a class="jxr_linenumber" name="235" href="#235">235</a>                 <strong class="jxr_keyword">if</strong> (obj instanceof Event) {
+<a class="jxr_linenumber" name="236" href="#236">236</a>                     <a href="../../../../org/atmosphere/samples/client/Event.html">Event</a> e = (Event)obj;
+<a class="jxr_linenumber" name="237" href="#237">237</a>                     String line = timeFormat.format(e.getTime())
+<a class="jxr_linenumber" name="238" href="#238">238</a>                             + <span class="jxr_string">" &lt;b&gt;"</span> + e.getAuthor() + <span class="jxr_string">"&lt;/b&gt; "</span> + e.getMessage();
+<a class="jxr_linenumber" name="239" href="#239">239</a>                     <strong class="jxr_keyword">if</strong> (e.getAuthor().equals(author)) {
+<a class="jxr_linenumber" name="240" href="#240">240</a>                         addChatLine(line, COLOR_MESSAGE_SELF);
+<a class="jxr_linenumber" name="241" href="#241">241</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="242" href="#242">242</a>                         addChatLine(line, COLOR_MESSAGE_OTHERS);
+<a class="jxr_linenumber" name="243" href="#243">243</a>                     }
+<a class="jxr_linenumber" name="244" href="#244">244</a>                 }
+<a class="jxr_linenumber" name="245" href="#245">245</a>             }
+<a class="jxr_linenumber" name="246" href="#246">246</a>         }
+<a class="jxr_linenumber" name="247" href="#247">247</a>     }
+<a class="jxr_linenumber" name="248" href="#248">248</a> 
+<a class="jxr_linenumber" name="249" href="#249">249</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

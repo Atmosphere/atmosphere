@@ -157,7 +157,7 @@
 <a class="jxr_linenumber" name="147" href="#147">147</a>             }
 <a class="jxr_linenumber" name="148" href="#148">148</a> 
 <a class="jxr_linenumber" name="149" href="#149">149</a>             <strong class="jxr_keyword">if</strong> (isExecutorShared &amp;&amp; numberOfMessageProcessingThread == 1) {
-<a class="jxr_linenumber" name="150" href="#150">150</a>                 logger.warn(<span class="jxr_string">"Not enought numberOfMessageProcessingThread for a shareable thread pool {}, "</span> +
+<a class="jxr_linenumber" name="150" href="#150">150</a>                 logger.warn(<span class="jxr_string">"Not enough numberOfMessageProcessingThread for a shareable thread pool {}, "</span> +
 <a class="jxr_linenumber" name="151" href="#151">151</a>                         <span class="jxr_string">"Setting it to a newCachedThreadPool"</span>, numberOfMessageProcessingThread);
 <a class="jxr_linenumber" name="152" href="#152">152</a>                 numberOfMessageProcessingThread = -1;
 <a class="jxr_linenumber" name="153" href="#153">153</a>             }
@@ -169,7 +169,7 @@
 <a class="jxr_linenumber" name="159" href="#159">159</a>             }
 <a class="jxr_linenumber" name="160" href="#160">160</a> 
 <a class="jxr_linenumber" name="161" href="#161">161</a>             <strong class="jxr_keyword">if</strong> (isAsyncExecutorShared &amp;&amp; numberOfAsyncThread == 1) {
-<a class="jxr_linenumber" name="162" href="#162">162</a>                 logger.warn(<span class="jxr_string">"Not enought numberOfAsyncThread for a shareable thread pool {}, "</span> +
+<a class="jxr_linenumber" name="162" href="#162">162</a>                 logger.warn(<span class="jxr_string">"Not enough numberOfAsyncThread for a shareable thread pool {}, "</span> +
 <a class="jxr_linenumber" name="163" href="#163">163</a>                         <span class="jxr_string">"Setting it to a newCachedThreadPool"</span>, numberOfAsyncThread);
 <a class="jxr_linenumber" name="164" href="#164">164</a>                 numberOfAsyncThread = -1;
 <a class="jxr_linenumber" name="165" href="#165">165</a>             }
