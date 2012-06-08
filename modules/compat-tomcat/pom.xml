@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0.beta1</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-compat-tomcat</artifactId>
     <packaging>bundle</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0.beta1</version>
     <name>atmosphere-compat-tomcat</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
