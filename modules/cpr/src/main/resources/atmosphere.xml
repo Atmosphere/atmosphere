@@ -4,6 +4,7 @@
 		broadcaster="org.atmosphere.samples.twitter.TwitterBroadcaster"
 		broadcasterCache=""
 		broadcastFilterClasses=""
+        interceptorClasses=""
 		comet-support="">
 		
 		<property name="servletClassName"

@@ -952,7 +952,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
                 if (atmoHandler.getAtmosphereInterceptorClasses() != null) {
-                    for (String a : atmoHandler.getBroadcastFilterClasses()) {
+                    for (String a : atmoHandler.getAtmosphereInterceptorClasses()) {
                         try {
                             AtmosphereInterceptor ai = (AtmosphereInterceptor) c.loadClass(a).newInstance();
                             ai.configure(config);
