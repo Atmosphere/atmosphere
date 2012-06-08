@@ -15,6 +15,11 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -36,7 +41,12 @@ public @interface AtmosphereHandlerService {
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
-    String broadcasterClassName() default "org.atmosphere.cpr.DefaultBroadcaster";
+    Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
+
+    /**
+     * A list of {@link BroadcastFilter}
+     */
+    Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 
     /**
      * The mapping path, or context-root used to map this AtmosphereHandler
@@ -68,5 +78,5 @@ public @interface AtmosphereHandlerService {
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install
      */
-    Class<?>[] interceptors() default {};
+    Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 }

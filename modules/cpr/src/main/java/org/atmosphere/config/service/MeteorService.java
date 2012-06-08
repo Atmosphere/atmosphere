@@ -15,6 +15,11 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -38,11 +43,16 @@ public @interface MeteorService {
     String path() default "/";
 
     /**
+     * A list of {@link org.atmosphere.cpr.BroadcastFilter}
+     */
+    Class<? extends BroadcastFilter>[] broadcastFilters() default {};
+
+    /**
      * The {@link org.atmosphere.cpr.Broadcaster} class name
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
-    String broadcasterClassName() default "org.atmosphere.cpr.DefaultBroadcaster";
+    Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 
     /**
      * Does this {@link org.atmosphere.cpr.AtmosphereHandler} support session
@@ -61,6 +71,6 @@ public @interface MeteorService {
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install
      */
-    Class<?>[] interceptors() default {};
+    Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
 }

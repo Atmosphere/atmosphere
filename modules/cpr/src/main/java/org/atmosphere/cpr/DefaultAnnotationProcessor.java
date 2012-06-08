@@ -85,7 +85,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AtmosphereHandlerService a = handler.getClass().getAnnotation(AtmosphereHandlerService.class);
 
                         framework.addAtmosphereHandler(a.path(), handler);
-                        framework.setDefaultBroadcasterClassName(a.broadcasterClassName());
+                        framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
+                        Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
+                        for (Class<? extends BroadcastFilter> b : bf) {
+                            framework.broadcasterFilters().add(b.getName());
+                        }
 
                         for (String s : a.properties()) {
                             String[] nv = s.split("=");
@@ -123,8 +127,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
                         String mapping = m.path();
                         framework.addAtmosphereHandler(mapping, r);
-                        framework.setDefaultBroadcasterClassName(m.broadcasterClassName());
-
+                        framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
+                        Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
+                        for (Class<? extends BroadcastFilter> b : bf) {
+                            framework.broadcasterFilters().add(b.getName());
+                        }
                         for (String i : m.atmosphereConfig()) {
                             String[] nv = i.split("=");
                             framework.addInitParameter(nv[0], nv[1]);
