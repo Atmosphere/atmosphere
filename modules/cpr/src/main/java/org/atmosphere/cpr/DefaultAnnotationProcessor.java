@@ -98,10 +98,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                             framework.addInitParameter(nv[0], nv[1]);
                         }
 
-                        String[] interceptors = a.interceptors();
-                        for (String i : interceptors) {
+                        Class<?>[] interceptors = a.interceptors();
+                        for (Class i : interceptors) {
                             try {
-                                AtmosphereInterceptor ai = (AtmosphereInterceptor) cl.loadClass(i).newInstance();
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
                                 ai.configure(framework.getAtmosphereConfig());
                                 framework.interceptor(ai);
                             } catch (Throwable e) {
@@ -130,10 +130,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                             framework.addInitParameter(nv[0], nv[1]);
                         }
 
-                        String[] interceptors = m.interceptors();
-                        for (String i : interceptors) {
+                        Class<?>[] interceptors = m.interceptors();
+                        for (Class i : interceptors) {
                             try {
-                                AtmosphereInterceptor ai = (AtmosphereInterceptor) cl.loadClass(i).newInstance();
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
                                 ai.configure(framework.getAtmosphereConfig());
                                 framework.interceptor(ai);
                             } catch (Throwable e) {

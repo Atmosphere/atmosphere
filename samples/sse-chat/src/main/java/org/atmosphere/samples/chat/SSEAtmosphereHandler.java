@@ -31,7 +31,7 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(path = "/chat", interceptors= {"org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor"})
+@AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class})
 public class SSEAtmosphereHandler implements AtmosphereHandler {
 
     @Override

@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.Meteor;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -43,7 +44,7 @@ import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
  *
  * @author Jeanfrancois Arcand
  */
-@MeteorService(path = "/*", interceptors = {"org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor"})
+@MeteorService(path = "/*", interceptors = {AtmosphereResourceLifecycleInterceptor.class})
 public class MeteorChat extends HttpServlet {
 
     /**

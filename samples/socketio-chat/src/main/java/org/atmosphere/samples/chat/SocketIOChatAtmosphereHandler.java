@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 
 import java.io.IOException;
 import java.util.Date;
@@ -30,7 +31,7 @@ import java.util.Date;
  *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
-@AtmosphereHandlerService(path = "/chat", interceptors= {"org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor"})
+@AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class})
 public class SocketIOChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
