@@ -1623,7 +1623,9 @@ jQuery.atmosphere = function() {
 
                     // Invoke global callbacks
                     if (jQuery.atmosphere.callbacks.length > 0) {
-                        jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
+                        if (_request.logLevel == 'debug') {
+                            jQuery.atmosphere.debug("Invoking " + jQuery.atmosphere.callbacks.length + " global callbacks: " + _response.state);
+                        }
                         try {
                             jQuery.each(jQuery.atmosphere.callbacks, call);
                         } catch (e) {
