@@ -32,6 +32,7 @@ public class AtmosphereHandlerConfig {
     private String cometSupport;
 
     private List<String> broadcastFilterClasses = new ArrayList<String>();
+    private List<String> interceptors = new ArrayList<String>();
     private List<AtmosphereHandlerProperty> properties = new ArrayList<AtmosphereHandlerProperty>();
     private List<ApplicationConfiguration> applicationConfig = new ArrayList<ApplicationConfiguration>();
     private List<FrameworkConfiguration> frameworkConfig = new ArrayList<FrameworkConfiguration>();
@@ -102,6 +103,14 @@ public class AtmosphereHandlerConfig {
 
     public List<String> getBroadcastFilterClasses() {
         return broadcastFilterClasses;
+    }
+
+    public void setAtmosphereInterceptorClasses(List<String> interceptors) {
+        this.interceptors = interceptors;
+    }
+
+    public List<String> getAtmosphereInterceptorClasses() {
+        return interceptors;
     }
 
     public void setBroadcastFilterClasses(List<String> broadcastFilterClasses) {

@@ -64,6 +64,7 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -224,14 +225,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
-        LinkedList<AtmosphereInterceptor> c = config.framework().interceptors();
-        Action a;
-        for (AtmosphereInterceptor arc : c) {
-            a = arc.inspect(resource);
-            if (a == null || a.type() != Action.TYPE.CONTINUE) {
-                logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
-                return a;
-            }
+        // Globally defined
+        Action a = invokeInterceptors(config.framework().interceptors(), resource);
+        if (a == null || a.type() != Action.TYPE.CONTINUE) {
+            return a;
+        }
+
+        // Per AtmosphereHandler
+        a = invokeInterceptors(handlerWrapper.interceptors, resource);
+        if (a == null || a.type() != Action.TYPE.CONTINUE) {
+            return a;
         }
 
         try {
@@ -241,15 +244,32 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throw t;
         }
 
-        for (int i = c.size() -1; i > -1; i--) {
-            c.get(i).postInspect(resource);
-        }
+        postInterceptors(config.framework().interceptors(), resource);
+        postInterceptors(handlerWrapper.interceptors, resource);
 
         if (trackActiveRequest && resource.getAtmosphereResourceEvent().isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, resource);
         }
         return resource.action();
+    }
+
+    private Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+        Action a = Action.CONTINUE;
+        for (AtmosphereInterceptor arc : c) {
+            a = arc.inspect(r);
+            if (a == null || a.type() != Action.TYPE.CONTINUE) {
+                logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
+                return a;
+            }
+        }
+        return a;
+    }
+
+    private void postInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+        for (int i = c.size() - 1; i > -1; i--) {
+            c.get(i).postInspect(r);
+        }
     }
 
     /**

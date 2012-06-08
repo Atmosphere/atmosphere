@@ -158,8 +158,12 @@ public class AtmosphereConfigReader {
                     }
                 } else if (attribute.getNodeName().equals("comet-support")) {
                     atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
+                } else if (attribute.getNodeName().equals("interceptorClasses")) {
+                    String[] values = attribute.getFirstChild().getNodeValue().split(",");
+                    for (String value : values) {
+                        atmoHandler.getAtmosphereInterceptorClasses().add(value);
+                    }
                 }
-
             }
 
             NodeList list = root.getChildNodes();
