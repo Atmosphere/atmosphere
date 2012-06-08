@@ -272,5 +272,5 @@ public interface ApplicationConfig {
     /**
      * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}
      */
-    String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disabled";
+    String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disableDefaults";
 }
