@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
@@ -66,6 +68,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
+    private Logger logger = LoggerFactory.getLogger(AtmosphereRequest.class);
     private ServletInputStream bis;
     private BufferedReader br;
     private final Builder b;
@@ -78,7 +81,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
-                byte[] b2 = b.data.getBytes();
+                byte[] b2 = new byte[0];
+                try {
+                    b2 = b.data.getBytes("UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    logger.error("", b2);
+                }
                 configureStream(b2, 0, b2.length, "UTF-8");
             }
         } else {

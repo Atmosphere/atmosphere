@@ -114,7 +114,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             if (message instanceof List) {
                 for (String s : (List<String>) message) {
                     if (isUsingStream) {
-                        event.getResource().getResponse().getOutputStream().write(s.getBytes());
+                        event.getResource().getResponse().getOutputStream().write(s.getBytes("UTF-8"));
                         event.getResource().getResponse().getOutputStream().flush();
                     } else {
                         event.getResource().getResponse().getWriter().write(s);
@@ -123,7 +123,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                 }
             } else {
                 if (isUsingStream) {
-                    event.getResource().getResponse().getOutputStream().write(message.toString().getBytes());
+                    event.getResource().getResponse().getOutputStream().write(message.toString().getBytes("UTF-8"));
                     event.getResource().getResponse().getOutputStream().flush();
                 } else {
                     event.getResource().getResponse().getWriter().write(message.toString());
