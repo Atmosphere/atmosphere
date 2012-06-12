@@ -583,7 +583,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        return getSession(false);
+        return getSession(true);
     }
 
     /**
