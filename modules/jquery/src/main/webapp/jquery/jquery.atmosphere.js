@@ -936,9 +936,7 @@ jQuery.atmosphere = function() {
                             }
 
                             _response.state = "error";
-                            _invokeCallback();
-                            ajaxRequest.abort();
-                            _activeRequest = null;
+                            _reconnect(ajaxRequest, rq, true);
                         };
                     }
 
