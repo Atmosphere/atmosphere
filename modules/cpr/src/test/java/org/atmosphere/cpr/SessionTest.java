@@ -31,7 +31,8 @@ public class SessionTest {
     public void basicSessionTest() throws IOException, ServletException, ExecutionException, InterruptedException {
         AtmosphereRequest request = new AtmosphereRequest.Builder().build();
 
-        assertNull(request.getSession());
+        assertNull(request.getSession(false));
+        assertNotNull(request.getSession());
         assertNotNull(request.getSession(true));
         assertNotNull(request.getSession());
 
