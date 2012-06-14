@@ -39,10 +39,6 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
     public void configure(AtmosphereConfig config) {
-        if (config.getServletContext().getServerInfo().contains("jetty")) {
-            config.framework().setAsyncSupport(new JettyAsyncSupport(
-                    config));
-        }
     }
 
     @Override
