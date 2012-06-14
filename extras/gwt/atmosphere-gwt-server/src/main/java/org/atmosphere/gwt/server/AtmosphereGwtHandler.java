@@ -252,34 +252,33 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                 if (logger.isTraceEnabled()) {
                     logger.trace("[" + connectionID + "] Server message received: " + event + ";" + action);
                 }
-                if (event.equals("o")) {
+                if (event.equals("o") || event.equals("s")) {
                     int length = Integer.parseInt(data.readLine());
                     char[] messageData = new char[length];
-                    if (data.read(messageData, 0, length) != length) {
-                        throw new IllegalStateException("Corrupt message received");
-                    }
-                    if (action.equals("p")) {
-                        Serializable message = deserialize(messageData, serialMode);
-                        if (message != null) {
-                            postMessages.add(message);
+                    int totalRead = 0;
+                    int read = 0;
+                    while ((read = data.read(messageData, totalRead, length - totalRead)) != -1) {
+                        totalRead += read;
+                        if (totalRead == length) {
+                            break;
                         }
-                    } else if (action.equals("b")) {
-                        Serializable message = deserialize(messageData, serialMode);
-                        broadcast(message, resource);
                     }
-
-                } else if (event.equals("s")) {
-                    int length = Integer.parseInt(data.readLine());
-                    char[] messageData = new char[length];
-                    if (data.read(messageData, 0, length) != length) {
+                    if (totalRead != length) {
                         throw new IllegalStateException("Corrupt message received");
                     }
-                    if (action.equals("p")) {
-                        postMessages.add(String.copyValueOf(messageData));
-                    } else if (action.equals("b")) {
-                        broadcast(String.copyValueOf(messageData), resource);
+                    Serializable message;
+                    if (event.equals("o")) {
+                        message = deserialize(messageData, serialMode);
+                    } else {
+                        message = String.copyValueOf(messageData);
                     }
-
+                    if (message != null) {
+                        if (action.equals("p")) {
+                            postMessages.add(message);
+                        } else if (action.equals("b")) {
+                            broadcast(message, resource);
+                        }
+                    }
                 } else if (event.equals("c")) {
                     if (action.equals("d")) {
                         disconnect(resource);
