@@ -58,6 +58,8 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     private final static Logger logger = Logger.getLogger(WebSocketCometTransport.class.getName());
     
+    ServerTransportProtocol transport = null;
+    
     @Override
     public void connect(int connectionCount) {
         disconnect();
@@ -80,17 +82,23 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     @Override
     protected ServerTransport getServerTransport() {
-        return new ServerTransportProtocol() {
-            @Override
-            void send(String message, AsyncCallback<Void> callback) {
-                socket.send(message);
-                callback.onSuccess(null);
-            }
-            @Override
-            String serialize(Object message) throws SerializationException {
-                return client.getSerializer().serialize(message);
-            }
-        };
+    	if (transport==null)
+    	{
+	        transport = new ServerTransportProtocol() 
+	        {
+	            @Override
+	            void send(String message, AsyncCallback<Void> callback) {
+	                socket.send(message);
+	                callback.onSuccess(null);
+	            }
+	            @Override
+	            String serialize(Object message) throws SerializationException {
+	                return client.getSerializer().serialize(message);
+	            }
+	        };
+    	}
+    	
+    	return transport;
     }
 
     public static boolean hasWebSocketSupport() {
