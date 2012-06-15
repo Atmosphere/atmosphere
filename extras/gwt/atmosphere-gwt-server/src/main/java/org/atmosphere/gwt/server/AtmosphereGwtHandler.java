@@ -104,11 +104,6 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    @Deprecated
-    protected Broadcaster getBroadcaster(GwtAtmosphereResource resource) {
-        return resource.getBroadcaster();
-    }
-
     /**
      * This can be used to lookup a resource for instance if you are implementing a remote service call
      * You will need to pass the connectionID, which you can pass as an url parameter {getConnectionID()} or
