@@ -48,11 +48,4 @@
         </dependency>
     </dependencies>
 
-    <repositories> 
-      <repository> 
-        <id>gwtprojsonserializer</id> 
-        <url>http://gwtprojsonserializer.googlecode.com/svn/repo</url> 
-      </repository>
-    </repositories> 
-    
 </project>
