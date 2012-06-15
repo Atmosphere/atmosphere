@@ -43,8 +43,6 @@ import com.google.gwt.core.client.JsArrayString;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.client.rpc.StatusCodeException;
-import java.io.Serializable;
-import java.util.List;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereClientException;
 
@@ -57,8 +55,6 @@ import java.util.logging.Logger;
 public class WebSocketCometTransport extends BaseCometTransport {
 
     private final static Logger logger = Logger.getLogger(WebSocketCometTransport.class.getName());
-    
-    ServerTransportProtocol transport = null;
     
     @Override
     public void connect(int connectionCount) {
@@ -82,10 +78,8 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     @Override
     protected ServerTransport getServerTransport() {
-    	if (transport==null)
-    	{
-	        transport = new ServerTransportProtocol() 
-	        {
+    	if (serverTransport==null) {
+	        serverTransport = new ServerTransportProtocol() {
 	            @Override
 	            void send(String message, AsyncCallback<Void> callback) {
 	                socket.send(message);
@@ -98,7 +92,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
 	        };
     	}
     	
-    	return transport;
+    	return serverTransport;
     }
 
     public static boolean hasWebSocketSupport() {
