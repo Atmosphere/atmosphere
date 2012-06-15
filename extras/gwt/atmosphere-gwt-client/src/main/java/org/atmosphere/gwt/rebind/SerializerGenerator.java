@@ -162,42 +162,6 @@ public class SerializerGenerator extends GeneratorExt {
                 sourceWriter.println("  return serialize" + annotation.pushMode().name() + "(message);}");
                 sourceWriter.commit(logger);
 
-                if (annotation.mode() == SerialMode.DE_RPC) {
-                    RpcDataArtifact data = new RpcDataArtifact(type.getQualifiedSourceName());
-                    for (JType t : typesSentToBrowser.getSerializableTypes()) {
-                        if (!(t instanceof JClassType)) {
-                            continue;
-                        }
-                        JField[] serializableFields = SerializationUtils.getSerializableFields(context.getTypeOracle(), (JClassType) t);
-
-                        List<String> names = Lists.create();
-                        for (int i = 0, j = serializableFields.length; i < j; i++) {
-                            names = Lists.add(names, serializableFields[i].getName());
-                        }
-
-                        data.setFields(SerializationUtils.getRpcTypeName(t), names);
-                    }
-
-                    context.commitArtifact(logger, data);
-                }
-                if (annotation.pushMode() == SerialMode.DE_RPC) {
-                    RpcDataArtifact data = new RpcDataArtifact(type.getQualifiedSourceName());
-                    for (JType t : typesSentFromBrowser.getSerializableTypes()) {
-                        if (!(t instanceof JClassType)) {
-                            continue;
-                        }
-                        JField[] serializableFields = SerializationUtils.getSerializableFields(context.getTypeOracle(), (JClassType) t);
-
-                        List<String> names = Lists.create();
-                        for (int i = 0, j = serializableFields.length; i < j; i++) {
-                            names = Lists.add(names, serializableFields[i].getName());
-                        }
-
-                        data.setFields(SerializationUtils.getRpcTypeName(t), names);
-                    }
-
-                    context.commitArtifact(logger, data);
-                }
             } catch (NotFoundException e) {
                 logger.log(TreeLogger.ERROR, "", e);
                 throw new UnableToCompleteException();

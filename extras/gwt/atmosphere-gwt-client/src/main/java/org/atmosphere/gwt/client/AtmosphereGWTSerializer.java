@@ -85,14 +85,6 @@ public abstract class AtmosphereGWTSerializer {
             throw new SerializationException(e);
         }
     }
-    protected Object deserializeDE_RPC(String message) throws SerializationException {
-        try {
-            SerializationStreamReader reader = ClientWriterFactory.createReader(message);
-            return reader.readObject();
-        } catch (RuntimeException e) {
-            throw new SerializationException(e);
-        }
-    }
     protected Object deserializeJSON(String message) throws SerializationException {
         return JsonSerializerUtil.deserialize(jsonSerializer, message);
     }
@@ -113,15 +105,6 @@ public abstract class AtmosphereGWTSerializer {
             } catch (RuntimeException e) {
                 throw new SerializationException(e);
             }
-    }
-    protected String serializeDE_RPC(Object message) throws SerializationException {
-        // TODO This only works in the Development Mode shell
-        // DE_RPC is deprecated, we should look into the possibility of using the AutoBean framework
-        // AtmosphereProxy already does this
-        // This will open the possibility to send JSON to the server
-        SerializationStreamWriter writer = new CommandToStringWriter(null);
-        writer.writeObject(message);
-        return writer.toString();
     }
     protected String serializeJSON(Object message) throws SerializationException {
         return jsonSerializer.serialize(message);

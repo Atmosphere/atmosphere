@@ -319,11 +319,6 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
                 streamWriter.writeObject(message);
                 return streamWriter.toString();
                 
-            case DE_RPC:
-                ByteArrayOutputStream result = new ByteArrayOutputStream();
-                RPC.streamResponseForSuccess(clientOracle, result, message);
-                return new String(result.toByteArray(), "UTF-8");
-                
             case JSON:
                 throw new UnsupportedOperationException("Not implemented yet");
                 

@@ -166,10 +166,6 @@ public abstract class BaseCometTransport implements CometTransport {
     public String getUrl(int connectionCount) {
         String url = client.getUrl();
         if (client.getSerializer() != null) {
-            if (client.getSerializer().getMode() == SerialMode.DE_RPC) {
-                url = addUrlParameter(url, Constants.MODULE_BASE_PARAMETER, 
-                    GWT.getModuleBaseURL() + '&' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName());
-            }
             url = addUrlParameter(url, Constants.CLIENT_DESERIALZE_MODE_PARAMETER, client.getSerializer().getMode().name());
             url = addUrlParameter(url, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
         }

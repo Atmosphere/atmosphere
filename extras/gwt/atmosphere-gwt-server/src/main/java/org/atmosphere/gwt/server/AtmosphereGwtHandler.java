@@ -317,7 +317,6 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                     logger.error("Failed to deserialize message", ex);
                     return null;
                 }
-            case DE_RPC:
             case JSON:
                 throw new UnsupportedOperationException("Not implemented");
                 

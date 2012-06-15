@@ -33,27 +33,7 @@ public interface GwtAtmosphereResource {
 
     public int getHeartBeatInterval();
 
-    /**
-     * Deprecated because the name is deceiving.
-     * Use post instead
-     *
-     * @param message
-     * @deprecated
-     */
-    @Deprecated
-    public void broadcast(Serializable message);
-
     public void post(Serializable message);
-
-    /**
-     * Deprecated because the name is deceiving.
-     * Use post instead
-     *
-     * @param messages
-     * @deprecated
-     */
-    @Deprecated
-    public void broadcast(List<Serializable> messages);
 
     public void post(List<Serializable> messages);
 

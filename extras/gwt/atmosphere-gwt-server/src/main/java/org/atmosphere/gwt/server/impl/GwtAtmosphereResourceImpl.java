@@ -80,16 +80,6 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
-    public void broadcast(Serializable message) {
-        getBroadcaster().broadcast(message, atmResource);
-    }
-
-    @Override
-    public void broadcast(List<Serializable> messages) {
-        getBroadcaster().broadcast(messages, atmResource);
-    }
-
-    @Override
     public void post(Serializable message) {
         getBroadcaster().broadcast(message, atmResource);
     }
@@ -258,7 +248,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         @Override
         public void run() {
             if (isAlive()) {
-                broadcast(HEARTBEAT_MESSAGE);
+                post(HEARTBEAT_MESSAGE);
             }
         }
     };
