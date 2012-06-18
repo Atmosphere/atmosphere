@@ -17,11 +17,11 @@ package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 
 import java.io.IOException;
 import java.util.Date;
@@ -31,8 +31,9 @@ import java.util.Date;
  *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
-@AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class})
-public class SocketIOChatAtmosphereHandler implements AtmosphereHandler {
+@AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class
+/*, BroadcastOnPostAtmosphereInterceptor.class*/})
+public class ChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource r) throws IOException {

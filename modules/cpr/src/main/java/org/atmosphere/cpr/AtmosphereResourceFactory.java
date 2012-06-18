@@ -15,6 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+
+import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -24,6 +27,12 @@ import java.util.Collection;
  * @author Jeanfrancois Arcand
  */
 public final class AtmosphereResourceFactory {
+
+    private final static AtmosphereHandler voidAtmosphereHandler = new AbstractReflectorAtmosphereHandler() {
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+        }
+    };
 
     /**
      * Create an {@link AtmosphereResourceImpl}
@@ -54,7 +63,7 @@ public final class AtmosphereResourceFactory {
     public final static AtmosphereResource create(AtmosphereConfig config,
                                                   AtmosphereResponse response,
                                                   AsyncSupport<?> a) {
-        return new AtmosphereResourceImpl(config, null, response.request(), response, a, null);
+        return new AtmosphereResourceImpl(config, null, response.request(), response, a, voidAtmosphereHandler);
     }
 
     /**
