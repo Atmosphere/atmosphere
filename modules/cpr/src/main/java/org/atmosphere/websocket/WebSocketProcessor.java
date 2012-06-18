@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.VoidExecutorService;
@@ -106,6 +107,9 @@ public class WebSocketProcessor implements Serializable {
         request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
+        if (r.getBroadcaster() == null) {
+            r.setBroadcaster(BroadcasterFactory.getDefault().lookup("/*"));
+        }
 
         dispatch(request, wsr);
         request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
@@ -195,9 +199,7 @@ public class WebSocketProcessor implements Serializable {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher or equal than 400", r));
         }
 
-        if (webSocket.resource() == null) {
-            webSocket.resource(resource);
-        }
+        webSocket.resource(resource);
     }
 
     public WebSocket webSocket() {

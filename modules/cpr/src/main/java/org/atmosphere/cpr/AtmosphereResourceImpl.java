@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -671,6 +672,18 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
         if (listeners.contains(e)) return this;
         listeners.add(e);
+        return this;
+    }
+
+    /**
+     * Add a {@link AtmosphereResourceEventListener}.
+     *
+     * @param e an instance of AtmosphereResourceEventListener
+     */
+    public AtmosphereResource addEventListeners(Collection<AtmosphereResourceEventListener> c) {
+        for(AtmosphereResourceEventListener e : c) {
+          listeners.add(e);
+        }
         return this;
     }
 

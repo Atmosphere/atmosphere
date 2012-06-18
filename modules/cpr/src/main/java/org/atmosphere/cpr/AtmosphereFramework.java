@@ -815,8 +815,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
                 @Override
                 public void onRequest(AtmosphereResource r) throws IOException {
-                    logger.error("HTTP Protocol not supported. Is your application WebSocket enabled only?");
-                    r.getResponse().sendError(500);
+                    logger.debug("No AtmosphereHandler defined.");
                 }
 
                 @Override

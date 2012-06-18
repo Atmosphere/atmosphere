@@ -146,4 +146,9 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
         }
     }
 
+    /**
+     * By default this method does nothing.
+     */
+    @Override
+    public void destroy() {}
 }

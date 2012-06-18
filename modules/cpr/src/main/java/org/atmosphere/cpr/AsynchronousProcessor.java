@@ -218,10 +218,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // TODO: cast is dangerous
             resource = (AtmosphereResourceImpl)
                     AtmosphereResourceFactory.create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
-        } else {
-            resource.setBroadcaster(handlerWrapper.broadcaster).atmosphereHandler(handlerWrapper.atmosphereHandler);
         }
-
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
 
