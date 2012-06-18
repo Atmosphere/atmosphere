@@ -1229,11 +1229,11 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     public String toString() {
-        return new StringBuilder(this.getClass().getName()).append("@").append(this.hashCode()).append("\n")
-                .append("\n\tName: ").append(name).append("\n")
+        return new StringBuilder().append("\nName: ").append(name).append("\n")
                 .append("\n\tScope: ").append(scope).append("\n")
                 .append("\n\tBroasdcasterCache ").append(broadcasterCache).append("\n")
                 .append("\n\tAtmosphereResource: ").append(resources.size()).append("\n")
+                .append(this.getClass().getName()).append("@").append(this.hashCode())
                 .toString();
     }
 
