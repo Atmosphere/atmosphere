@@ -32,6 +32,10 @@ public final class AtmosphereResourceFactory {
         @Override
         public void onRequest(AtmosphereResource resource) throws IOException {
         }
+
+        @Override
+        public void destroy() {
+        }
     };
 
     /**
