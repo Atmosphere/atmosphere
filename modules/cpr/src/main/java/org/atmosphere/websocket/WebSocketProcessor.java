@@ -107,9 +107,6 @@ public class WebSocketProcessor implements Serializable {
         request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
-        if (r.getBroadcaster() == null) {
-            r.setBroadcaster(BroadcasterFactory.getDefault().lookup("/*"));
-        }
 
         dispatch(request, wsr);
         request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);

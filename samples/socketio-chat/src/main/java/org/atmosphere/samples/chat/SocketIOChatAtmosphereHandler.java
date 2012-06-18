@@ -33,7 +33,7 @@ import java.util.Date;
  */
 @AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class
 /*, BroadcastOnPostAtmosphereInterceptor.class*/})
-public class ChatAtmosphereHandler implements AtmosphereHandler {
+public class SocketIOChatAtmosphereHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource r) throws IOException {
