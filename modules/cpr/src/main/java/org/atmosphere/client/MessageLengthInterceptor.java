@@ -71,7 +71,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                     @Override
                     public AsyncIOWriter write(String data) throws IOException {
-                        response.write(data + END);
+                        response.write(data + end);
                         return this;
                     }
 
@@ -103,7 +103,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                  @Override
                  public String filter(AtmosphereResponse r, String message) {
-                     return message + END;
+                     return message + end;
                  }
 
                  @Override
@@ -136,6 +136,6 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
     @Override
     public String toString() {
-        return END + " End Message Interceptor";
+        return end + " End Message Interceptor";
     }
 }
