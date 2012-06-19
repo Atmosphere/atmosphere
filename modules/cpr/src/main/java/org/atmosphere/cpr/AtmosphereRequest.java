@@ -483,8 +483,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public AtmosphereRequest body(String body) {
-        byte[] b = body.getBytes();
-        configureStream(b, 0, b.length, "ISO-8859-1");
+        br = new BufferedReader(new StringReader(body));
         return this;
     }
 
