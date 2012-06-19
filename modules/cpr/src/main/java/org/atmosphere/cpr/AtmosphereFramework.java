@@ -1234,7 +1234,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 notify(Action.TYPE.DESTROYED, req, res);
             }
         }
-        return null;
+        return a;
     }
 
     /**
