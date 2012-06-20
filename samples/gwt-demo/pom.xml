@@ -15,16 +15,20 @@
 
     <properties>
         <gwtModule>org.atmosphere.samples.GWTDemo</gwtModule>
-        <war.target>${basedir}/src/main/webapp</war.target>
         <gwt.compiler.force>false</gwt.compiler.force>
-        <gwt.draftCompile>false</gwt.draftCompile>
+        <gwt.draftCompile>true</gwt.draftCompile>
         <gwt.style>PRETTY</gwt.style>
-        <outputDir>${war.target}/WEB-INF/classes</outputDir>
-        <netbeans.hint.deploy.server>Tomcat70</netbeans.hint.deploy.server>
+        <!-- currently copyWebapp is broken and will not create subdirectories.
+        see: https://github.com/gwt-maven-plugin/gwt-maven-plugin/issues/38
+        to workaround run the demo with 'mvn war:explode gwt:run'
+        -->
+        <gwt.copyWebapp>false</gwt.copyWebapp> 
+        <gwt.inplace>false</gwt.inplace>
+        <logLevel>DEBUG</logLevel>
     </properties>
 
     <build>
-        <outputDirectory>${outputDir}</outputDirectory>
+        <outputDirectory>${project.build.directory}/${project.build.finalName}/WEB-INF/classes</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -36,7 +40,6 @@
                     <runTarget>http://localhost:8888/gwtDemo/gwtDemo.jsp</runTarget>
                     <noServer>false</noServer>
                     <sourcesOnPath>true</sourcesOnPath>
-                    <hostedWebapp>${war.target}</hostedWebapp>
                 </configuration>
                 <executions>
                     <execution>
@@ -65,21 +68,6 @@
                 <version>2.4</version>
                 <configuration>
                     <filesets>
-                        <fileset>
-                            <directory>${outputDir}</directory>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/gwtDemo</directory>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/WEB-INF/lib</directory>
-                            <includes>
-                                <include>*.jar</include>
-                            </includes>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/WEB-INF/deploy</directory>
-                        </fileset>
                         <fileset>
                             <directory>${basedir}/src/main</directory>
                             <includes>
