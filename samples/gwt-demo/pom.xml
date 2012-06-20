@@ -20,7 +20,7 @@
         <gwt.style>PRETTY</gwt.style>
         <!-- currently copyWebapp is broken and will not create subdirectories.
         see: https://github.com/gwt-maven-plugin/gwt-maven-plugin/issues/38
-        to workaround run the demo with 'mvn war:explode gwt:run'
+        to workaround add the exploded goal to the compile phase of the war plugin
         -->
         <gwt.copyWebapp>false</gwt.copyWebapp> 
         <gwt.inplace>false</gwt.inplace>
@@ -62,7 +62,20 @@
                     <target>1.6</target>
                 </configuration>
             </plugin>
-
+            
+            <plugin>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>2.1.1</version>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>exploded</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>2.4</version>
