@@ -28,7 +28,7 @@ import java.util.List;
  */
 abstract public class StreamingProtocolResponseWriter extends ManagedStreamResponseWriter {
 
-    private static final int MAX_PADDING_REQUIRED = 2048;
+    protected static final int MAX_PADDING_REQUIRED = 4096;
     private static final String PADDING_STRING;
 
     static {

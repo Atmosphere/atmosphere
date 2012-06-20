@@ -29,7 +29,11 @@ public class HTTPRequestResponseWriter extends StreamingProtocolResponseWriter {
 
     @Override
     protected int getPaddingRequired() {
-        return 0;
+        if (resource.getRequest().getHeader("User-Agent").toLowerCase().contains("android 2.")) {
+            return MAX_PADDING_REQUIRED;
+        } else {
+            return 0;
+        }
     }
 
     @Override
