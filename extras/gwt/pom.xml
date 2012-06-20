@@ -21,7 +21,7 @@
     <modules>
         <!-- not needed any as of 2.3.0 <module>gwt-exporter</module> -->
         <module>atmosphere-gwt-client</module>
-		<module>atmosphere-gwt-client-extra</module>
+	<module>atmosphere-gwt-extra</module>
         <module>atmosphere-gwt-common</module>
         <module>atmosphere-gwt-js</module>
         <module>atmosphere-gwt-poll</module>
