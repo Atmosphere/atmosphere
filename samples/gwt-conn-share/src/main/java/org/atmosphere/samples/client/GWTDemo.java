@@ -52,6 +52,13 @@ public class GWTDemo implements EntryPoint {
 
     @Override
     public void onModuleLoad() {
+        
+        GWT.setUncaughtExceptionHandler(new GWT.UncaughtExceptionHandler() {
+            @Override
+            public void onUncaughtException(Throwable e) {
+                logger.log(Level.SEVERE, "Uncaught exception", e);
+            }
+        });
 
         Button broadcast = new Button("Broadcast");
         broadcast.addClickHandler(new ClickHandler() {

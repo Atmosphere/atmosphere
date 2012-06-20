@@ -15,16 +15,19 @@
 
     <properties>
         <gwtModule>org.atmosphere.samples.GWTDemo</gwtModule>
-        <war.target>${basedir}/src/main/webapp</war.target>
         <gwt.compiler.force>false</gwt.compiler.force>
         <gwt.draftCompile>false</gwt.draftCompile>
         <gwt.style>PRETTY</gwt.style>
-        <outputDir>${war.target}/WEB-INF/classes</outputDir>
-        <netbeans.hint.deploy.server>Tomcat70</netbeans.hint.deploy.server>
+        <!-- currently copyWebapp is broken and will not create subdirectories.
+        see: https://github.com/gwt-maven-plugin/gwt-maven-plugin/issues/38
+        to workaround add the exploded goal to the compile phase of the war plugin
+        -->
+        <gwt.copyWebapp>false</gwt.copyWebapp> 
+        <gwt.inplace>false</gwt.inplace>
     </properties>
 
     <build>
-        <outputDirectory>${outputDir}</outputDirectory>
+        <outputDirectory>${project.build.directory}/${project.build.finalName}/WEB-INF/classes</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -36,7 +39,6 @@
                     <runTarget>http://localhost:8888/gwtDemo/gwtDemo.jsp</runTarget>
                     <noServer>false</noServer>
                     <sourcesOnPath>true</sourcesOnPath>
-                    <hostedWebapp>${war.target}</hostedWebapp>
                 </configuration>
                 <executions>
                     <execution>
@@ -61,25 +63,23 @@
             </plugin>
 
             <plugin>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>2.1.1</version>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>exploded</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>2.4</version>
                 <configuration>
                     <filesets>
-                        <fileset>
-                            <directory>${outputDir}</directory>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/gwtDemo</directory>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/WEB-INF/lib</directory>
-                            <includes>
-                                <include>*.jar</include>
-                            </includes>
-                        </fileset>
-                        <fileset>
-                            <directory>${war.target}/WEB-INF/deploy</directory>
-                        </fileset>
                         <fileset>
                             <directory>${basedir}/src/main</directory>
                             <includes>
@@ -102,7 +102,7 @@
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-gwt-client</artifactId>
+            <artifactId>atmosphere-gwt-extra</artifactId>
             <version>1.0.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>

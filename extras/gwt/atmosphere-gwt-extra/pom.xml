@@ -9,9 +9,9 @@
     </parent>
 
     <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-gwt-client</artifactId>
+    <artifactId>atmosphere-gwt-extra</artifactId>
     <packaging>jar</packaging>
-    <name>atmosphere-gwt-client</name>
+    <name>atmosphere-gwt-extra</name>
 
     <build>
         <resources>
@@ -30,15 +30,17 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-gwt-common</artifactId>
+            <artifactId>atmosphere-gwt-client</artifactId>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>
             <artifactId>gwt-user</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.google.gwt</groupId>
-            <artifactId>gwt-dev</artifactId>
+        <dependency> 
+           <groupId>com.kfuntak.gwt.json</groupId> 
+           <artifactId>gwtprojsonserializer</artifactId> 
+           <version>1.0.4</version> 
         </dependency>
     </dependencies>
     

@@ -7,16 +7,19 @@ import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.Window.ClosingHandler;
+import com.google.gwt.user.client.rpc.SerializationException;
 import com.kfuntak.gwt.json.serialization.client.JsonSerializable;
 import com.kfuntak.gwt.json.serialization.client.Serializer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
 
+import org.atmosphere.gwt.client.ObjectSerializer;
 import org.atmosphere.gwt.client.extra.AtmosphereProxyEvent.EventType;
 
 /**
@@ -30,7 +33,7 @@ public class AtmosphereProxy {
     
     private AtmosphereListener clientListener;
     private AtmosphereGWTSerializer serializer;
-    private Serializer jsonSerializer = GWT.create(Serializer.class);
+    private ObjectSerializer jsonSerializer = new JSONObjectSerializerGWTPro();
     private AtmosphereClient masterConnection = null;
     private String url;
     private WindowSocket eventSocket;
@@ -307,7 +310,11 @@ public class AtmosphereProxy {
     protected String serialize(AtmosphereProxyEvent event) {
         String data;
         if (event.getData() != null) {
-            data = jsonSerializer.serialize(event.getData());
+            try {
+                data = jsonSerializer.serialize(event.getData());
+            } catch (SerializationException ex) {
+                throw new IllegalStateException(ex);
+            }
         } else {
             data = "";
         }
@@ -328,7 +335,11 @@ public class AtmosphereProxy {
          int pos = data.indexOf(";");
          event.setEventType(EventType.valueOf(data.substring(0, pos)));
          if (pos + 1 < data.length()) {
-            event.setData(JsonSerializerUtil.deserialize(jsonSerializer, data.substring(pos+1)));
+            try {
+                event.setData(jsonSerializer.deserialize(data.substring(pos+1)));
+            } catch (SerializationException ex) {
+                throw new IllegalStateException(ex);
+            }
          }
          return event;
     }

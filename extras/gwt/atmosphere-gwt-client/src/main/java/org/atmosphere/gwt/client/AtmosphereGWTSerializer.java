@@ -33,15 +33,10 @@ package org.atmosphere.gwt.client;
 
 import org.atmosphere.gwt.shared.SerialMode;
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.rpc.client.impl.ClientWriterFactory;
-import com.google.gwt.rpc.client.impl.CommandToStringWriter;
 import com.google.gwt.user.client.rpc.SerializationException;
-import com.google.gwt.user.client.rpc.SerializationStreamReader;
-import com.google.gwt.user.client.rpc.SerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamReader;
 import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.Serializer;
-import org.atmosphere.gwt.client.extra.JsonSerializerUtil;
 
 /**
  * The base class for comet serializers. To instantiate this class follow this example:
@@ -60,12 +55,12 @@ import org.atmosphere.gwt.client.extra.JsonSerializerUtil;
  */
 public abstract class AtmosphereGWTSerializer {
     
-    protected com.kfuntak.gwt.json.serialization.client.Serializer jsonSerializer;
+    protected ObjectSerializer jsonSerializer;
 
     public AtmosphereGWTSerializer() {
         if (getMode() == SerialMode.JSON
             || getPushMode() == SerialMode.JSON) {
-            jsonSerializer = GWT.create(com.kfuntak.gwt.json.serialization.client.Serializer.class);
+            jsonSerializer = GWT.create(JSONObjectSerializer.class);
         }
     }
     
@@ -86,7 +81,7 @@ public abstract class AtmosphereGWTSerializer {
         }
     }
     protected Object deserializeJSON(String message) throws SerializationException {
-        return JsonSerializerUtil.deserialize(jsonSerializer, message);
+        return jsonSerializer.deserialize(message);
     }
     protected Object deserializePLAIN(String message) throws SerializationException {
         return message;
