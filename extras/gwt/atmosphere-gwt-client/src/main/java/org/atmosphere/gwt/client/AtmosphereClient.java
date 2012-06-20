@@ -128,6 +128,15 @@ public class AtmosphereClient {
 
     }
 
+    public boolean isWebSocketsEnabled() {
+        return webSocketsEnabled;
+    }
+
+    public void setWebSocketsEnabled(boolean webSocketsEnabled) {
+        this.webSocketsEnabled = webSocketsEnabled;
+    }
+    
+
     public String getUrl() {
         return url;
     }
