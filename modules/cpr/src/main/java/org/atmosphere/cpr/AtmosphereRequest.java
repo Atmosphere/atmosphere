@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
@@ -47,6 +48,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -66,9 +68,9 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
+    private Logger logger = LoggerFactory.getLogger(AtmosphereRequest.class);
     private ServletInputStream bis;
     private BufferedReader br;
-    private HttpSession session;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
@@ -79,12 +81,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
-                byte[] b2 = b.data.getBytes();
-                configureStream(b2, 0, b2.length, "UTF-8");
+                br = new BufferedReader(new StringReader(b.data));
             }
         } else {
             bis = new IS(b.inputStream);
-            br = new BufferedReader(new InputStreamReader(b.inputStream));
+            br = new BufferedReader(new StringReader(b.data));
         }
 
         if (b.request == null) b.request(new NoOpsRequest());
@@ -302,7 +303,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        return b.request.getCookies();
+        return isNotNoOps() ? b.request.getCookies() : b.cookies.toArray(new Cookie[]{});
     }
 
     /**
@@ -476,8 +477,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public AtmosphereRequest body(String body) {
-        byte[] b = body.getBytes();
-        configureStream(b, 0, b.length, "ISO-8859-1");
+        br = new BufferedReader(new StringReader(body));
         return this;
     }
 
@@ -576,19 +576,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        if (session == null) {
-            session = createSession();
-        } else {
-            //check if session is valid
-            try {
-                session.getLastAccessedTime();
-            } catch (IllegalStateException e) {
-                //session is not valid
-                LoggerFactory.getLogger(this.getClass()).debug("Discarding invalid session");
-                session = createSession();
-            }
-        }
-        return session;
+        return getSession(true);
     }
 
     /**
@@ -596,16 +584,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession(boolean create) {
-        if (create) {
-            return getSession();
+        try {
+            return b.request.getSession(create);
+        } catch (java.lang.IllegalStateException ex) {
+            //UGLY
+            if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
+                return b.hackedJettySession;
+            }
+            throw ex;
         }
-        return session == null && isNotNoOps() ? b.request.getSession(false) : session;
-    }
-
-    private HttpSession createSession() {
-        return !isNotNoOps() ?
-                new FakeHttpSession("", null, System.currentTimeMillis(), -1) :
-                b.session != null ? b.session : b.request.getSession();
     }
 
     /**
@@ -796,6 +783,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.request.getLocale();
     }
 
+    /**
+     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
+     * method will return null.
+     *
+     * @return an {@link AtmosphereResource}, or null.
+     */
+    public AtmosphereResource resource() {
+        return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+    }
 
     /**
      * {@inheritDoc}
@@ -913,11 +909,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
+        private List<Cookie> cookies = new ArrayList<Cookie>();
 
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
-        private HttpSession session;
+        public HttpSession hackedJettySession;
 
         public Builder() {
         }
@@ -929,6 +926,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder headers(Map<String, String> headers) {
             this.headers = Collections.synchronizedMap(headers);
+            return this;
+        }
+
+        public Builder cookies(List<Cookie> cookies) {
+            this.cookies = cookies;
             return this;
         }
 
@@ -1054,7 +1056,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public Builder session(HttpSession session) {
-            this.session = session;
+            if (request == null) {
+                request = new NoOpsRequest();
+            }
+
+            if (NoOpsRequest.class.isAssignableFrom(request.getClass()) ) {
+                NoOpsRequest.class.cast(request).fake = session;
+            } else {
+                hackedJettySession = session;
+            }
             return this;
         }
     }
@@ -1107,6 +1117,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     private final static class NoOpsRequest implements HttpServletRequest {
+
+        public HttpSession fake;
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
@@ -1185,12 +1197,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getRemoteUser() {
-            return null;
+            return "";
         }
 
         @Override
         public String getRequestedSessionId() {
-            return null;
+            return "";
         }
 
         @Override
@@ -1210,12 +1222,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public HttpSession getSession() {
-            return null;
+            return fake;
         }
 
         @Override
         public HttpSession getSession(boolean create) {
-            return null;
+            if (create) {
+                fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1);
+            }
+            return fake;
         }
 
         @Override
@@ -1439,6 +1454,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
+     * Create an instance of this class without an associated {@link HttpServletRequest}
+     *
+     * @return an instance of this class without an associated {@link HttpServletRequest}
+     */
+    public final static AtmosphereRequest create() {
+        return new Builder().build();
+    }
+
+    /**
      * Wrap an {@link HttpServletRequest}.
      *
      * @param request {@link HttpServletRequest}
@@ -1526,7 +1550,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b != null ? !b.equals(that.b) : that.b != null) return false;
         if (bis != null ? !bis.equals(that.bis) : that.bis != null) return false;
         if (br != null ? !br.equals(that.br) : that.br != null) return false;
-        if (session != null ? !session.equals(that.session) : that.session != null) return false;
 
         return true;
     }
@@ -1535,7 +1558,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public int hashCode() {
         int result = bis != null ? bis.hashCode() : 0;
         result = 31 * result + (br != null ? br.hashCode() : 0);
-        result = 31 * result + (session != null ? session.hashCode() : 0);
         result = 31 * result + (b != null ? b.hashCode() : 0);
         return result;
     }
