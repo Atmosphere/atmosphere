@@ -1144,7 +1144,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 res.destroy();
             }
         }
-        return null;
+        return a;
     }
 
     /**
