@@ -29,7 +29,7 @@ import org.atmosphere.websocket.WebSocketResponseFilter;
 import java.io.IOException;
 
 /**
- * An {@link AtmosphereInterceptor} that add a special String "<||>" at the end of a message, allowing the
+ * An {@link AtmosphereInterceptor} that add a special String end at the end of a message, allowing the
  * atmosphere.js to detect if one or several messages where aggregated in one write operations.
  *
  * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
@@ -71,7 +71,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                     @Override
                     public AsyncIOWriter write(String data) throws IOException {
-                        response.write(data + "<||>");
+                        response.write(data + end);
                         return this;
                     }
 
@@ -103,7 +103,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                  @Override
                  public String filter(AtmosphereResponse r, String message) {
-                     return message + "<||>";
+                     return message + end;
                  }
 
                  @Override
@@ -132,6 +132,6 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
     @Override
     public String toString() {
-        return "<||> End Message Interceptor";
+        return end + " End Message Interceptor";
     }
 }
