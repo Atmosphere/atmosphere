@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9.6</version>
+        <version>0.9.7-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-jetty-websocketdraft8</artifactId>
     <packaging>bundle</packaging>
-    <version>0.9.6</version>
+    <version>0.9.7-SNAPSHOT</version>
     <name>atmosphere-jetty-websocketdraft8</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
