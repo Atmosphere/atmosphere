@@ -81,13 +81,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
-                byte[] b2 = new byte[0];
-                try {
-                    b2 = b.data.getBytes("UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                    logger.error("", b2);
-                }
-                configureStream(b2, 0, b2.length, "UTF-8");
+                br = new BufferedReader(new StringReader(b.data));
             }
         } else {
             bis = new IS(b.inputStream);
