@@ -599,7 +599,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
-            //UGLY
+            //UGLY. Required for WebSocket supports.
             if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
                 return b.hackedJettySession;
             }
