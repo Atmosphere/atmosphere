@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-gwt</artifactId>
-        <version>0.9.7</version>
+        <version>0.9.8-SNAPSHOT</version>
     </parent>
 
     <groupId>org.atmosphere</groupId>

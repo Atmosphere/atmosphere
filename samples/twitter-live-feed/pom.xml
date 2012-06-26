@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>0.9.7</version>
+        <version>0.9.8-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-twitter-live-feed</artifactId>
     <packaging>war</packaging>
-    <version>0.9.7</version>
+    <version>0.9.8-SNAPSHOT</version>
     <name>atmosphere-twitter-live-feed</name>
     <dependencies>
         <dependency>

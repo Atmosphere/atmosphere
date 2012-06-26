@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>0.9.7</version>
+        <version>0.9.8-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>acceptance-tests-runtime</artifactId>
     <packaging>jar</packaging>
-    <version>0.9.7</version>
+    <version>0.9.8-SNAPSHOT</version>
     <name>acceptance-tests-runtime</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
