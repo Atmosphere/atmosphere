@@ -132,6 +132,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 public class AtmosphereFilter implements ResourceFilterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereFilter.class);
+    private static final String INSTALLATION_ERROR = "The Atmosphere Framework is not installed properly and unexpected result may occurs.";
     public final static String SUSPENDED_RESOURCE = AtmosphereFilter.class.getName() + ".suspendedResource";
     public final static String RESUME_UUID = AtmosphereFilter.class.getName() + ".uuid";
     public final static String RESUME_CANDIDATES = AtmosphereFilter.class.getName() + ".resumeCandidates";
@@ -268,6 +269,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             // Check first if something was defined in web.xml
             AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+            if (config == null) {
+                logger.error(INSTALLATION_ERROR);
+                throw new WebApplicationException(new IllegalStateException(INSTALLATION_ERROR));
+            }
+
             String p = config.getInitParameter(ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
             ContainerResponseWriter w;
             if (p != null) {
