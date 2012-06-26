@@ -134,5 +134,5 @@ public @interface Suspend {
      * If the @Produces annotation is missing, this value will be used instead.
      * @return the default content-type used if the @Produces annotation is missing.
      */
-    public String contentType() default "text/plain";
+    public String contentType() default "";
 }

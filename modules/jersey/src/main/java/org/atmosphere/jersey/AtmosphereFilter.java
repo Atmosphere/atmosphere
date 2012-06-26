@@ -223,7 +223,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.filters = filters;
             this.topic = topic;
             this.writeEntity = writeEntity;
-            this.defaultContentType = contentType;
+            this.defaultContentType = contentType.equals("") ? null : contentType;
         }
 
         public ContainerRequestFilter getRequestFilter() {
