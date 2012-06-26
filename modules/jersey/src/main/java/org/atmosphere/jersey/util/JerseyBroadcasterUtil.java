@@ -78,6 +78,10 @@ public final class JerseyBroadcasterUtil {
                 }
 
                 if (m == null || m.equalsIgnoreCase("text/event-stream")) {
+                    if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
+                        m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
+                    }
+
                     if (m == null || m.equalsIgnoreCase("application/octet-stream")) {
                         m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
                         if (m == null) {
