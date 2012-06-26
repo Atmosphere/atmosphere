@@ -52,6 +52,9 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
 
@@ -62,6 +65,9 @@ import javax.servlet.http.HttpSession;
  */
 public class SessionBroadcasterCache extends BroadcasterCacheBase {
 
+    private static final Logger logger = LoggerFactory.getLogger(SessionBroadcasterCache.class);
+    private static final String ERROR_MESSAGE = "Session was null. The request has been recycled by the underlying container";
+
     public SessionBroadcasterCache() {
     }
 
@@ -70,7 +76,12 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
      */
     public void cache(final AtmosphereResource r, CachedMessage cm) {
         if (r != null) {
-            r.getRequest().getSession(true).setAttribute(BROADCASTER_CACHE_TRACKER, cm);
+            HttpSession session = AtmosphereResourceImpl.class.cast(r).session();
+            if (session == null) {
+                logger.error(ERROR_MESSAGE);
+                return;
+            }
+            session.setAttribute(BROADCASTER_CACHE_TRACKER, cm);
         }
     }
 
@@ -78,12 +89,11 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
      * {@inheritDoc}
      */
     public CachedMessage retrieveLastMessage(final AtmosphereResource r) {
-
-        HttpSession session = r.getRequest().getSession(false);
+        HttpSession session = AtmosphereResourceImpl.class.cast(r).session();
         if (session == null) {
-            session = r.getRequest().getSession(true);
+            logger.error(ERROR_MESSAGE);
+            return null;
         }
-
         return (CachedMessage) session.getAttribute(BROADCASTER_CACHE_TRACKER);
     }
 }

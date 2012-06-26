@@ -63,6 +63,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.servlet.http.HttpSession;
 
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -114,6 +115,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final boolean writeHeaders;
     private String padding;
     private final String uuid;
+    private HttpSession session;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -153,6 +155,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
         uuid = UUID.randomUUID().toString();
+
+        if (config.isSupportSession()) {
+            //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
+            session = req.getSession(true);
+        }
     }
 
     /**
@@ -881,5 +888,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResourceImpl disableSuspend(boolean disableSuspend) {
         this.disableSuspend = disableSuspend;
         return this;
+    }
+
+    /**
+     * Return the {@link HttpSession} if session support is enabled, or null.
+     * @return the {@link HttpSession} if session support is enabled, or null.
+     */
+    public HttpSession session(){
+        return session;
     }
 }
