@@ -261,6 +261,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
          */
         public ContainerResponse filter(final ContainerRequest request, final ContainerResponse response) {
             if (response.getMappedThrowable() != null) {
+                logger.debug("Unexpected exception", response.getMappedThrowable());
                 return response;
             }
 
