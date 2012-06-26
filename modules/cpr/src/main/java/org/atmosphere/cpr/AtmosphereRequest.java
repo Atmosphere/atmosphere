@@ -81,6 +81,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
+                try {
+                    byte[] bytes = b.data.getBytes("UTF-8");
+                    bis = new ByteInputStream(bytes, 0, bytes.length);
+                } catch (UnsupportedEncodingException e) {
+                    logger.trace("", e);
+                }
                 br = new BufferedReader(new StringReader(b.data));
             }
         } else {
@@ -477,6 +483,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public AtmosphereRequest body(String body) {
+        try {
+            byte[] bytes = body.getBytes("UTF-8");
+            bis = new ByteInputStream(bytes, 0, bytes.length);
+        } catch (UnsupportedEncodingException e) {
+            logger.trace("", e);
+        }
         br = new BufferedReader(new StringReader(body));
         return this;
     }
@@ -1060,7 +1072,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 request = new NoOpsRequest();
             }
 
-            if (NoOpsRequest.class.isAssignableFrom(request.getClass()) ) {
+            if (NoOpsRequest.class.isAssignableFrom(request.getClass())) {
                 NoOpsRequest.class.cast(request).fake = session;
             } else {
                 hackedJettySession = session;
