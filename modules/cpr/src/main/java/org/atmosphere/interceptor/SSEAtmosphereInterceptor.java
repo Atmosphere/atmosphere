@@ -44,9 +44,6 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
     private static final byte[] padding;
     private static final String paddingText;
-
-    private boolean useStream = true;
-
     static {
         StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 2000; i++) {
