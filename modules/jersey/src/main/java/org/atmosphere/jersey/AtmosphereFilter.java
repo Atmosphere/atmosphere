@@ -406,6 +406,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         r.addEventListener(el);
                     }
 
+                    if (s.getEntity() == null && outputJunk) {
+                        //https://github.com/Atmosphere/atmosphere/issues/423
+                        response.setEntity("");
+                    }
+
                     Broadcaster bc = s.broadcaster();
                     if (bc == null && s.scope() != Suspend.SCOPE.REQUEST) {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
