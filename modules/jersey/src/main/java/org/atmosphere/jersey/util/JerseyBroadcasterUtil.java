@@ -82,7 +82,7 @@ public final class JerseyBroadcasterUtil {
                     if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
                         m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
                         if (m == null) {
-                            m = ApplicationConfig.DEFAULT_CONTENT_TYPE;
+                            m = "text/plain";
                         }
                     }
                 }
