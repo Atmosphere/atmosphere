@@ -1535,22 +1535,22 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         @Override
         public void onResume(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Suspended request {} and response {}", request, response);
+            logger.trace("Resume request {} and response {}", request, response);
         }
 
         @Override
         public void onTimeout(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Suspended request {} and response {}", request, response);
+            logger.trace("Timeout request {} and response {}", request, response);
         }
 
         @Override
         public void onClose(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Suspended request {} and response {}", request, response);
+            logger.trace("Closing request {} and response {}", request, response);
         }
 
         @Override
         public void onDestroyed(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Suspended request {} and response {}", request, response);
+            logger.trace("Destroyed request {} and response {}", request, response);
         }
     }
 
