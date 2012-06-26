@@ -26,7 +26,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
@@ -45,15 +44,14 @@ public class JQueryPubSub {
     public SuspendResponse<String> subscribe() {
         return new SuspendResponse.SuspendResponseBuilder<String>()
                 .broadcaster(topic)
-                .type(MediaType.APPLICATION_JSON)
-                .outputComments(false)
+                .outputComments(true)
                 .addListener(new EventsLogger())
                 .build();
     }
 
     @POST
     @Broadcast
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces("text/html;charset=ISO-8859-1")
     public Broadcastable publish(@FormParam("message") String message) {
         return new Broadcastable(message, "", topic);
     }
