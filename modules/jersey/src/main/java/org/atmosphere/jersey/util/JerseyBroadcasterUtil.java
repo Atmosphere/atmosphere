@@ -73,13 +73,12 @@ public final class JerseyBroadcasterUtil {
                 // This is required when you change the response's type
                 String m = null;
 
-                if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
-                    m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
+                if (request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE) != null) {
+                    m = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
                 }
 
-                if (m == null || m.toString().equalsIgnoreCase("text/event-stream")) {
-                    m = request.getHeader(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-                    if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
+                if (m == null || m.equalsIgnoreCase("text/event-stream")) {
+                    if (m == null || m.equalsIgnoreCase("application/octet-stream")) {
                         m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
                         if (m == null) {
                             m = "text/plain";
