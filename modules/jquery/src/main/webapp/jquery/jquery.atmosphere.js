@@ -1185,9 +1185,9 @@ jQuery.atmosphere = function() {
                 if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
                         _open('re-opening', request.transport, request);
-                        rq.id = setTimeout(function() {
+                        request.id = setTimeout(function() {
                             _executeRequest();
-                        }, rq.reconnectTimeout);
+                        }, request.reconnectTimeout);
                     }
                 }
             }
