@@ -76,7 +76,7 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
      */
     public void cache(final AtmosphereResource r, CachedMessage cm) {
         if (r != null) {
-            HttpSession session = AtmosphereResourceImpl.class.cast(r).session();
+            HttpSession session = r.session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return;
@@ -89,7 +89,7 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
      * {@inheritDoc}
      */
     public CachedMessage retrieveLastMessage(final AtmosphereResource r) {
-        HttpSession session = AtmosphereResourceImpl.class.cast(r).session();
+        HttpSession session = r.session();
         if (session == null) {
             logger.error(ERROR_MESSAGE);
             return null;

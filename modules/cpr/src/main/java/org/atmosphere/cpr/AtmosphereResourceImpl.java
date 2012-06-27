@@ -894,6 +894,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * Return the {@link HttpSession} if session support is enabled, or null.
      * @return the {@link HttpSession} if session support is enabled, or null.
      */
+    @Override
     public HttpSession session(){
         return session;
     }
