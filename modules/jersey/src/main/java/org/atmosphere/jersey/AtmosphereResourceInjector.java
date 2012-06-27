@@ -57,6 +57,7 @@ import com.sun.jersey.spi.inject.Injectable;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import javax.ws.rs.core.Context;
@@ -106,7 +107,7 @@ abstract class AtmosphereResourceInjector extends BaseInjectableProvider {
             return new Injectable<AtmosphereResource>() {
                 @Override
                 public AtmosphereResource getValue() {
-                    return getAtmosphereResource(AtmosphereResource.class, false);
+                    return getAtmosphereResource(AtmosphereResourceImpl.class, false);
                 }
             };
         }

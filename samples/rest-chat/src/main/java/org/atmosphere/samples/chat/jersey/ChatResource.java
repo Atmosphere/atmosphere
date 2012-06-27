@@ -17,12 +17,15 @@ package org.atmosphere.samples.chat.jersey;
 
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 
 /**
  * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
@@ -30,7 +33,7 @@ import javax.ws.rs.Produces;
  * @author Jeanfrancois Arcand
  */
 @Path("/")
-public class ResourceChat {
+public class ChatResource {
 
     /**
      * Suspend the response without writing anything back to the client.
@@ -50,7 +53,8 @@ public class ResourceChat {
     @Broadcast(writeEntity = false)
     @POST
     @Produces("application/json")
-    public Response broadcast(Message message) {
+    public Response broadcast(Message message, @Context AtmosphereResource r, @Context Broadcaster b) {
+        b.addAtmosphereResource(r);
         return new Response(message.author, message.message);
     }
 
