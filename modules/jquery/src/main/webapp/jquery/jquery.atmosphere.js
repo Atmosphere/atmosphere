@@ -97,6 +97,7 @@ jQuery.atmosphere = function() {
                 trackMessageLength : false ,
                 messageDelimiter : '|',
                 connectTimeout : -1,
+                reconnectTimeout : 0,
                 dropAtmosphereHeaders : false,
                 onError : function(response) {
                 },
@@ -793,7 +794,9 @@ jQuery.atmosphere = function() {
                 if (_request.reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
-                    _execute();
+                    _request.id = setTimeout(function() {
+                        _execute();
+                    }, _request.reconnectTimeout);
                 }
             }
 
@@ -1182,7 +1185,9 @@ jQuery.atmosphere = function() {
                 if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
                         _open('re-opening', request.transport, request);
-                        _executeRequest();
+                        rq.id = setTimeout(function() {
+                            _executeRequest();
+                        }, rq.reconnectTimeout);
                     }
                 }
             }
