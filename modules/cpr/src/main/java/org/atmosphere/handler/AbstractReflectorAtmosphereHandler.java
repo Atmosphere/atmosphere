@@ -55,6 +55,7 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             throws IOException {
 
         Object message = event.getMessage();
+        AtmosphereResponse r = event.getResource().getResponse();
         if (message == null || event.isCancelled() || event.getResource().getRequest().destroyed()) return;
 
         if (event.getResource().getSerializer() != null) {
@@ -105,7 +107,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
             if (!isUsingStream) {
                 try {
-                    event.getResource().getResponse().getWriter();
+                    r.getWriter();
                 } catch (IllegalStateException e) {
                     isUsingStream = true;
                 }
@@ -114,20 +116,20 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             if (message instanceof List) {
                 for (String s : (List<String>) message) {
                     if (isUsingStream) {
-                        event.getResource().getResponse().getOutputStream().write(s.getBytes("UTF-8"));
-                        event.getResource().getResponse().getOutputStream().flush();
+                       r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
+                       r.getOutputStream().flush();
                     } else {
-                        event.getResource().getResponse().getWriter().write(s);
-                        event.getResource().getResponse().getWriter().flush();
+                       r.getWriter().write(s);
+                       r.getWriter().flush();
                     }
                 }
             } else {
                 if (isUsingStream) {
-                    event.getResource().getResponse().getOutputStream().write(message.toString().getBytes("UTF-8"));
-                    event.getResource().getResponse().getOutputStream().flush();
+                   r.getOutputStream().write(message.toString().getBytes(r.getCharacterEncoding()));
+                   r.getOutputStream().flush();
                 } else {
-                    event.getResource().getResponse().getWriter().write(message.toString());
-                    event.getResource().getResponse().getWriter().flush();
+                   r.getWriter().write(message.toString());
+                   r.getWriter().flush();
                 }
             }
 
