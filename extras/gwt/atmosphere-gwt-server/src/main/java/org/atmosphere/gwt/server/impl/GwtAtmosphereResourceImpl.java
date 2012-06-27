@@ -62,12 +62,18 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     @Override
     public HttpSession getSession() {
-        return atmResource.getRequest().getSession();
+        return atmResource.session();
     }
 
     @Override
     public HttpSession getSession(boolean create) {
-        return atmResource.getRequest().getSession(create);
+        if (atmResource.session() != null) {
+            return atmResource.session();
+        } else if (atmResource.getRequest() != null) {
+            return atmResource.getRequest().getSession(create);
+        } else {
+            return null;
+        }
     }
 
     GwtResponseWriter getResponseWriter() {
