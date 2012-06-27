@@ -60,7 +60,7 @@ import java.util.Collection;
  */
 public abstract class BroadcasterFactory {
 
-    protected static BroadcasterFactory factory = new DefaultBroadcasterFactory();
+    protected static BroadcasterFactory factory;
     protected static AtmosphereConfig config;
 
     /**
