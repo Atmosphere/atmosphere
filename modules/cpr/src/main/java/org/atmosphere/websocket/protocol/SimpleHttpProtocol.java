@@ -59,7 +59,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     public void configure(AtmosphereConfig config) {
         String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
         if (contentType == null) {
-            contentType = "text/html";
+            contentType = "text/plain";
         }
         this.contentType = contentType;
 
