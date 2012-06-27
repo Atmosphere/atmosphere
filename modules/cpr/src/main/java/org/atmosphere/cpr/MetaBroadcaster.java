@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,21 +46,25 @@ public class MetaBroadcaster {
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
 
     protected List<Broadcaster> broadcast(String path, Object message) {
-        Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
+        if (BroadcasterFactory.getDefault() != null) {
+            Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
-        final Map<String, String> m = new HashMap<String, String>();
-        List<Broadcaster> l = new ArrayList<Broadcaster>();
-        logger.debug("Map {}", path);
-        UriTemplate t = new UriTemplate(path);
-        for (Broadcaster b : c) {
-            logger.debug("Trying to map {} to {}", t, b.getID());
-            if (t.match(b.getID(), m)) {
-                b.broadcast(message);
-                l.add(b);
+            final Map<String, String> m = new HashMap<String, String>();
+            List<Broadcaster> l = new ArrayList<Broadcaster>();
+            logger.debug("Map {}", path);
+            UriTemplate t = new UriTemplate(path);
+            for (Broadcaster b : c) {
+                logger.debug("Trying to map {} to {}", t, b.getID());
+                if (t.match(b.getID(), m)) {
+                    b.broadcast(message);
+                    l.add(b);
+                }
+                m.clear();
             }
-            m.clear();
+            return l;
+        } else {
+            return Collections.<Broadcaster>emptyList();
         }
-        return l;
     }
 
     protected List<Broadcaster> map(String path, Object message) {
