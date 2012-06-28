@@ -21,6 +21,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
@@ -32,20 +33,30 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+
 public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
     public final static Action doService(AsynchronousProcessor cometSupport,
-                                                           AtmosphereRequest req,
-                                                           AtmosphereResponse res,
-                                                           WebSocketFactory webSocketFactory) throws IOException, ServletException {
+                                         AtmosphereRequest req,
+                                         AtmosphereResponse res,
+                                         WebSocketFactory webSocketFactory) throws IOException, ServletException {
 
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
         if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
-            return null;
+            if (req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
+                logger.trace("Invalid WebSocket Specification {}", req);
+
+                res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                res.sendError(501, "Websocket protocol not supported");
+                return Action.CANCELLED;
+            } else {
+                return null;
+            }
         } else {
             if (webSocketFactory != null && !b) {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
