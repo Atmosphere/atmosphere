@@ -265,7 +265,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 return response;
             }
 
-            servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
             if (action == Action.NONE) return response;
 
             // Check first if something was defined in web.xml
@@ -790,6 +789,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             ContainerResponse response,
                             boolean flushEntity) {
 
+            servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             configureFilter(r.getBroadcaster());
             if (sessionSupported) {
