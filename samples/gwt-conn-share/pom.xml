@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>1.0.0.beta2a</version>
+        <version>1.0.1.beta2a-SNAPSHOT</version>
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
@@ -98,12 +98,12 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-server</artifactId>
-            <version>1.0.0.beta2a</version>
+            <version>1.0.1.beta2a-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-extra</artifactId>
-            <version>1.0.0.beta2a</version>
+            <version>1.0.1.beta2a-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

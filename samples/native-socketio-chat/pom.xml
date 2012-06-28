@@ -3,14 +3,14 @@
 	<parent>
 		<groupId>org.atmosphere.samples</groupId>
 		<artifactId>atmosphere-samples</artifactId>
-		<version>1.0.0.beta2a</version>
+		<version>1.0.1.beta2a-SNAPSHOT</version>
 
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.atmosphere.samples</groupId>
 	<artifactId>atmosphere-nativesocketio-chat</artifactId>
 	<packaging>war</packaging>
-	<version>1.0.0.beta2a</version>
+	<version>1.0.1.beta2a-SNAPSHOT</version>
 	<name>atmosphere-nativesocketio-chat</name>
 	<url>http://maven.apache.org</url>
 	<dependencies>
