@@ -17,7 +17,7 @@ The Atmosphere's Framework ships with many examples describing how to implements
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>0.9.7</version>
+         <version>1.0.0.beta2</version>
       </dependency>
 ```
       
