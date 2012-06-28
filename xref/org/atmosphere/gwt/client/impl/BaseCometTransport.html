@@ -176,26 +176,22 @@
 <a class="jxr_linenumber" name="166" href="#166">166</a>     <strong class="jxr_keyword">public</strong> String getUrl(<strong class="jxr_keyword">int</strong> connectionCount) {
 <a class="jxr_linenumber" name="167" href="#167">167</a>         String url = client.getUrl();
 <a class="jxr_linenumber" name="168" href="#168">168</a>         <strong class="jxr_keyword">if</strong> (client.getSerializer() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="169" href="#169">169</a>             <strong class="jxr_keyword">if</strong> (client.getSerializer().getMode() == SerialMode.DE_RPC) {
-<a class="jxr_linenumber" name="170" href="#170">170</a>                 url = addUrlParameter(url, Constants.MODULE_BASE_PARAMETER, 
-<a class="jxr_linenumber" name="171" href="#171">171</a>                     GWT.getModuleBaseURL() + '&amp;' + Constants.STRONG_NAME_PARAMETER + '=' + GWT.getPermutationStrongName());
-<a class="jxr_linenumber" name="172" href="#172">172</a>             }
-<a class="jxr_linenumber" name="173" href="#173">173</a>             url = addUrlParameter(url, Constants.CLIENT_DESERIALZE_MODE_PARAMETER, client.getSerializer().getMode().name());
-<a class="jxr_linenumber" name="174" href="#174">174</a>             url = addUrlParameter(url, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
-<a class="jxr_linenumber" name="175" href="#175">175</a>         }
-<a class="jxr_linenumber" name="176" href="#176">176</a>         String className = getClass().getName();
-<a class="jxr_linenumber" name="177" href="#177">177</a>         className = className.substring(className.lastIndexOf('.') + 1);
-<a class="jxr_linenumber" name="178" href="#178">178</a>         String transport = className.substring(0, className.indexOf(<span class="jxr_string">"CometTransport"</span>));
-<a class="jxr_linenumber" name="179" href="#179">179</a>         <strong class="jxr_keyword">return</strong> addUrlParameter(url, <span class="jxr_string">"t"</span>, Integer.toString((<strong class="jxr_keyword">int</strong>) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
-<a class="jxr_linenumber" name="180" href="#180">180</a>                 + <span class="jxr_string">"&amp;c="</span> + connectionCount
-<a class="jxr_linenumber" name="181" href="#181">181</a>                 + <span class="jxr_string">"&amp;tr="</span> + transport);
+<a class="jxr_linenumber" name="169" href="#169">169</a>             url = addUrlParameter(url, Constants.CLIENT_DESERIALZE_MODE_PARAMETER, client.getSerializer().getMode().name());
+<a class="jxr_linenumber" name="170" href="#170">170</a>             url = addUrlParameter(url, Constants.CLIENT_SERIALZE_MODE_PARAMETER, client.getSerializer().getPushMode().name());
+<a class="jxr_linenumber" name="171" href="#171">171</a>         }
+<a class="jxr_linenumber" name="172" href="#172">172</a>         String className = getClass().getName();
+<a class="jxr_linenumber" name="173" href="#173">173</a>         className = className.substring(className.lastIndexOf('.') + 1);
+<a class="jxr_linenumber" name="174" href="#174">174</a>         String transport = className.substring(0, className.indexOf(<span class="jxr_string">"CometTransport"</span>));
+<a class="jxr_linenumber" name="175" href="#175">175</a>         <strong class="jxr_keyword">return</strong> addUrlParameter(url, <span class="jxr_string">"t"</span>, Integer.toString((<strong class="jxr_keyword">int</strong>) (Duration.currentTimeMillis() % Integer.MAX_VALUE), Character.MAX_RADIX).toUpperCase()
+<a class="jxr_linenumber" name="176" href="#176">176</a>                 + <span class="jxr_string">"&amp;c="</span> + connectionCount
+<a class="jxr_linenumber" name="177" href="#177">177</a>                 + <span class="jxr_string">"&amp;tr="</span> + transport);
+<a class="jxr_linenumber" name="178" href="#178">178</a>     }
+<a class="jxr_linenumber" name="179" href="#179">179</a>     
+<a class="jxr_linenumber" name="180" href="#180">180</a>     <strong class="jxr_keyword">public</strong> String addUrlParameter(String url, String name, String value) {
+<a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">return</strong> url + (url.contains(<span class="jxr_string">"?"</span>) ? <span class="jxr_string">"&amp;"</span> : <span class="jxr_string">"?"</span>) + name + <span class="jxr_string">"="</span> + value;
 <a class="jxr_linenumber" name="182" href="#182">182</a>     }
-<a class="jxr_linenumber" name="183" href="#183">183</a>     
-<a class="jxr_linenumber" name="184" href="#184">184</a>     <strong class="jxr_keyword">public</strong> String addUrlParameter(String url, String name, String value) {
-<a class="jxr_linenumber" name="185" href="#185">185</a>         <strong class="jxr_keyword">return</strong> url + (url.contains(<span class="jxr_string">"?"</span>) ? <span class="jxr_string">"&amp;"</span> : <span class="jxr_string">"?"</span>) + name + <span class="jxr_string">"="</span> + value;
-<a class="jxr_linenumber" name="186" href="#186">186</a>     }
-<a class="jxr_linenumber" name="187" href="#187">187</a> 
-<a class="jxr_linenumber" name="188" href="#188">188</a> }
+<a class="jxr_linenumber" name="183" href="#183">183</a> 
+<a class="jxr_linenumber" name="184" href="#184">184</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

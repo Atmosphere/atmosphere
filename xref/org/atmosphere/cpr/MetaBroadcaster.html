@@ -31,83 +31,88 @@
 <a class="jxr_linenumber" name="21" href="#21">21</a>  
 <a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> java.util.ArrayList;
 <a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> java.util.Collection;
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> java.util.List;
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
-<a class="jxr_linenumber" name="27" href="#27">27</a>  
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment"> * Broadcast events to all or a subset of available {@link Broadcaster} based on their{@link org.atmosphere.cpr.Broadcaster#getID()} value.</em>
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment"> * This class allow broadcasting events to a set of broadcaster that maps some String like:</em>
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment"> * &lt;blockquote&gt;&lt;pre&gt;</em>
-<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> *        // Broadcast the event to all Broadcaster ID starting with /hello</em>
-<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> *        broadcast("/hello", event)</em>
-<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> *        // Broadcast the event to all Broadcaster ID</em>
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> *        broaccast("/*", event);</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * &lt;/pre&gt;&lt;/blockquote&gt;</em>
-<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.</em>
-<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="41" href="#41">41</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> {
-<a class="jxr_linenumber" name="42" href="#42">42</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String MAPPING_REGEX = <span class="jxr_string">"[/a-zA-Z0-9-&amp;.*=;&#92;&#92;?]+"</span>;
-<a class="jxr_linenumber" name="43" href="#43">43</a>  
-<a class="jxr_linenumber" name="44" href="#44">44</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(MetaBroadcaster.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="45" href="#45">45</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> metaBroadcaster = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a>();
-<a class="jxr_linenumber" name="46" href="#46">46</a>  
-<a class="jxr_linenumber" name="47" href="#47">47</a>      <strong class="jxr_keyword">protected</strong> List&lt;Broadcaster&gt; broadcast(String path, Object message) {
-<a class="jxr_linenumber" name="48" href="#48">48</a>          Collection&lt;Broadcaster&gt; c = BroadcasterFactory.getDefault().lookupAll();
-<a class="jxr_linenumber" name="49" href="#49">49</a>  
-<a class="jxr_linenumber" name="50" href="#50">50</a>          <strong class="jxr_keyword">final</strong> Map&lt;String, String&gt; m = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
-<a class="jxr_linenumber" name="51" href="#51">51</a>          List&lt;Broadcaster&gt; l = <strong class="jxr_keyword">new</strong> ArrayList&lt;Broadcaster&gt;();
-<a class="jxr_linenumber" name="52" href="#52">52</a>          logger.debug(<span class="jxr_string">"Map {}"</span>, path);
-<a class="jxr_linenumber" name="53" href="#53">53</a>          <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a> t = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a>(path);
-<a class="jxr_linenumber" name="54" href="#54">54</a>          <strong class="jxr_keyword">for</strong> (Broadcaster b : c) {
-<a class="jxr_linenumber" name="55" href="#55">55</a>              logger.debug(<span class="jxr_string">"Trying to map {} to {}"</span>, t, b.getID());
-<a class="jxr_linenumber" name="56" href="#56">56</a>              <strong class="jxr_keyword">if</strong> (t.match(b.getID(), m)) {
-<a class="jxr_linenumber" name="57" href="#57">57</a>                  b.broadcast(message);
-<a class="jxr_linenumber" name="58" href="#58">58</a>                  l.add(b);
-<a class="jxr_linenumber" name="59" href="#59">59</a>              }
-<a class="jxr_linenumber" name="60" href="#60">60</a>              m.clear();
-<a class="jxr_linenumber" name="61" href="#61">61</a>          }
-<a class="jxr_linenumber" name="62" href="#62">62</a>          <strong class="jxr_keyword">return</strong> l;
-<a class="jxr_linenumber" name="63" href="#63">63</a>      }
-<a class="jxr_linenumber" name="64" href="#64">64</a>  
-<a class="jxr_linenumber" name="65" href="#65">65</a>      <strong class="jxr_keyword">protected</strong> List&lt;Broadcaster&gt; map(String path, Object message) {
-<a class="jxr_linenumber" name="66" href="#66">66</a>  
-<a class="jxr_linenumber" name="67" href="#67">67</a>          <strong class="jxr_keyword">if</strong> (path == <strong class="jxr_keyword">null</strong> || path.isEmpty()) {
-<a class="jxr_linenumber" name="68" href="#68">68</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NullPointerException();
-<a class="jxr_linenumber" name="69" href="#69">69</a>          }
-<a class="jxr_linenumber" name="70" href="#70">70</a>  
-<a class="jxr_linenumber" name="71" href="#71">71</a>          <strong class="jxr_keyword">if</strong> (!path.startsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="72" href="#72">72</a>              path = <span class="jxr_string">"/"</span> + path;
-<a class="jxr_linenumber" name="73" href="#73">73</a>          }
-<a class="jxr_linenumber" name="74" href="#74">74</a>  
-<a class="jxr_linenumber" name="75" href="#75">75</a>          <strong class="jxr_keyword">if</strong> (path.contains(<span class="jxr_string">"*"</span>)) {
-<a class="jxr_linenumber" name="76" href="#76">76</a>              path = path.replace(<span class="jxr_string">"*"</span>, MAPPING_REGEX);
-<a class="jxr_linenumber" name="77" href="#77">77</a>          }
-<a class="jxr_linenumber" name="78" href="#78">78</a>  
-<a class="jxr_linenumber" name="79" href="#79">79</a>          <strong class="jxr_keyword">if</strong> (path.equals(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="80" href="#80">80</a>              path += MAPPING_REGEX;
-<a class="jxr_linenumber" name="81" href="#81">81</a>          }
-<a class="jxr_linenumber" name="82" href="#82">82</a>  
-<a class="jxr_linenumber" name="83" href="#83">83</a>          <strong class="jxr_keyword">return</strong> broadcast(path, message);
-<a class="jxr_linenumber" name="84" href="#84">84</a>      }
-<a class="jxr_linenumber" name="85" href="#85">85</a>  
-<a class="jxr_linenumber" name="86" href="#86">86</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="87" href="#87">87</a>  <em class="jxr_javadoccomment">     * Broadcast the message to all Broadcaster whose {@link org.atmosphere.cpr.Broadcaster#getID()} maps the broadcasterID value.</em>
-<a class="jxr_linenumber" name="88" href="#88">88</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="89" href="#89">89</a>  <em class="jxr_javadoccomment">     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}</em>
-<a class="jxr_linenumber" name="90" href="#90">90</a>  <em class="jxr_javadoccomment">     * @param message       a message to be broadcasted</em>
-<a class="jxr_linenumber" name="91" href="#91">91</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="92" href="#92">92</a>      <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; broadcastTo(String broadcasterID, Object message) {
-<a class="jxr_linenumber" name="93" href="#93">93</a>          <strong class="jxr_keyword">return</strong> map(broadcasterID, message);
-<a class="jxr_linenumber" name="94" href="#94">94</a>      }
-<a class="jxr_linenumber" name="95" href="#95">95</a>  
-<a class="jxr_linenumber" name="96" href="#96">96</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> getDefault() {
-<a class="jxr_linenumber" name="97" href="#97">97</a>          <strong class="jxr_keyword">return</strong> metaBroadcaster;
-<a class="jxr_linenumber" name="98" href="#98">98</a>      }
-<a class="jxr_linenumber" name="99" href="#99">99</a>  
-<a class="jxr_linenumber" name="100" href="#100">100</a> }
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> java.util.Collections;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment"> * Broadcast events to all or a subset of available {@link Broadcaster} based on their{@link org.atmosphere.cpr.Broadcaster#getID()} value.</em>
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment"> * This class allow broadcasting events to a set of broadcaster that maps some String like:</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> * &lt;blockquote&gt;&lt;pre&gt;</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> *        // Broadcast the event to all Broadcaster ID starting with /hello</em>
+<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> *        broadcast("/hello", event)</em>
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> *        // Broadcast the event to all Broadcaster ID</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> *        broaccast("/*", event);</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> * &lt;/pre&gt;&lt;/blockquote&gt;</em>
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="42" href="#42">42</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> {
+<a class="jxr_linenumber" name="43" href="#43">43</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String MAPPING_REGEX = <span class="jxr_string">"[/a-zA-Z0-9-&amp;.*=;&#92;&#92;?]+"</span>;
+<a class="jxr_linenumber" name="44" href="#44">44</a>  
+<a class="jxr_linenumber" name="45" href="#45">45</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(MetaBroadcaster.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> metaBroadcaster = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a>();
+<a class="jxr_linenumber" name="47" href="#47">47</a>  
+<a class="jxr_linenumber" name="48" href="#48">48</a>      <strong class="jxr_keyword">protected</strong> List&lt;Broadcaster&gt; broadcast(String path, Object message) {
+<a class="jxr_linenumber" name="49" href="#49">49</a>          <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="50" href="#50">50</a>              Collection&lt;Broadcaster&gt; c = BroadcasterFactory.getDefault().lookupAll();
+<a class="jxr_linenumber" name="51" href="#51">51</a>  
+<a class="jxr_linenumber" name="52" href="#52">52</a>              <strong class="jxr_keyword">final</strong> Map&lt;String, String&gt; m = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
+<a class="jxr_linenumber" name="53" href="#53">53</a>              List&lt;Broadcaster&gt; l = <strong class="jxr_keyword">new</strong> ArrayList&lt;Broadcaster&gt;();
+<a class="jxr_linenumber" name="54" href="#54">54</a>              logger.debug(<span class="jxr_string">"Map {}"</span>, path);
+<a class="jxr_linenumber" name="55" href="#55">55</a>              <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a> t = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a>(path);
+<a class="jxr_linenumber" name="56" href="#56">56</a>              <strong class="jxr_keyword">for</strong> (Broadcaster b : c) {
+<a class="jxr_linenumber" name="57" href="#57">57</a>                  logger.debug(<span class="jxr_string">"Trying to map {} to {}"</span>, t, b.getID());
+<a class="jxr_linenumber" name="58" href="#58">58</a>                  <strong class="jxr_keyword">if</strong> (t.match(b.getID(), m)) {
+<a class="jxr_linenumber" name="59" href="#59">59</a>                      b.broadcast(message);
+<a class="jxr_linenumber" name="60" href="#60">60</a>                      l.add(b);
+<a class="jxr_linenumber" name="61" href="#61">61</a>                  }
+<a class="jxr_linenumber" name="62" href="#62">62</a>                  m.clear();
+<a class="jxr_linenumber" name="63" href="#63">63</a>              }
+<a class="jxr_linenumber" name="64" href="#64">64</a>              <strong class="jxr_keyword">return</strong> l;
+<a class="jxr_linenumber" name="65" href="#65">65</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="66" href="#66">66</a>              <strong class="jxr_keyword">return</strong> Collections.&lt;Broadcaster&gt;emptyList();
+<a class="jxr_linenumber" name="67" href="#67">67</a>          }
+<a class="jxr_linenumber" name="68" href="#68">68</a>      }
+<a class="jxr_linenumber" name="69" href="#69">69</a>  
+<a class="jxr_linenumber" name="70" href="#70">70</a>      <strong class="jxr_keyword">protected</strong> List&lt;Broadcaster&gt; map(String path, Object message) {
+<a class="jxr_linenumber" name="71" href="#71">71</a>  
+<a class="jxr_linenumber" name="72" href="#72">72</a>          <strong class="jxr_keyword">if</strong> (path == <strong class="jxr_keyword">null</strong> || path.isEmpty()) {
+<a class="jxr_linenumber" name="73" href="#73">73</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NullPointerException();
+<a class="jxr_linenumber" name="74" href="#74">74</a>          }
+<a class="jxr_linenumber" name="75" href="#75">75</a>  
+<a class="jxr_linenumber" name="76" href="#76">76</a>          <strong class="jxr_keyword">if</strong> (!path.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="77" href="#77">77</a>              path = <span class="jxr_string">"/"</span> + path;
+<a class="jxr_linenumber" name="78" href="#78">78</a>          }
+<a class="jxr_linenumber" name="79" href="#79">79</a>  
+<a class="jxr_linenumber" name="80" href="#80">80</a>          <strong class="jxr_keyword">if</strong> (path.contains(<span class="jxr_string">"*"</span>)) {
+<a class="jxr_linenumber" name="81" href="#81">81</a>              path = path.replace(<span class="jxr_string">"*"</span>, MAPPING_REGEX);
+<a class="jxr_linenumber" name="82" href="#82">82</a>          }
+<a class="jxr_linenumber" name="83" href="#83">83</a>  
+<a class="jxr_linenumber" name="84" href="#84">84</a>          <strong class="jxr_keyword">if</strong> (path.equals(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="85" href="#85">85</a>              path += MAPPING_REGEX;
+<a class="jxr_linenumber" name="86" href="#86">86</a>          }
+<a class="jxr_linenumber" name="87" href="#87">87</a>  
+<a class="jxr_linenumber" name="88" href="#88">88</a>          <strong class="jxr_keyword">return</strong> broadcast(path, message);
+<a class="jxr_linenumber" name="89" href="#89">89</a>      }
+<a class="jxr_linenumber" name="90" href="#90">90</a>  
+<a class="jxr_linenumber" name="91" href="#91">91</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="92" href="#92">92</a>  <em class="jxr_javadoccomment">     * Broadcast the message to all Broadcaster whose {@link org.atmosphere.cpr.Broadcaster#getID()} maps the broadcasterID value.</em>
+<a class="jxr_linenumber" name="93" href="#93">93</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="94" href="#94">94</a>  <em class="jxr_javadoccomment">     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}</em>
+<a class="jxr_linenumber" name="95" href="#95">95</a>  <em class="jxr_javadoccomment">     * @param message       a message to be broadcasted</em>
+<a class="jxr_linenumber" name="96" href="#96">96</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="97" href="#97">97</a>      <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; broadcastTo(String broadcasterID, Object message) {
+<a class="jxr_linenumber" name="98" href="#98">98</a>          <strong class="jxr_keyword">return</strong> map(broadcasterID, message);
+<a class="jxr_linenumber" name="99" href="#99">99</a>      }
+<a class="jxr_linenumber" name="100" href="#100">100</a> 
+<a class="jxr_linenumber" name="101" href="#101">101</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> getDefault() {
+<a class="jxr_linenumber" name="102" href="#102">102</a>         <strong class="jxr_keyword">return</strong> metaBroadcaster;
+<a class="jxr_linenumber" name="103" href="#103">103</a>     }
+<a class="jxr_linenumber" name="104" href="#104">104</a> 
+<a class="jxr_linenumber" name="105" href="#105">105</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

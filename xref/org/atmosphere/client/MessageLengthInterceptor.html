@@ -81,7 +81,7 @@
 <a class="jxr_linenumber" name="71" href="#71">71</a>  
 <a class="jxr_linenumber" name="72" href="#72">72</a>                      @Override
 <a class="jxr_linenumber" name="73" href="#73">73</a>                      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> write(String data) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="74" href="#74">74</a>                          response.write(data + <span class="jxr_string">"&lt;||&gt;"</span>);
+<a class="jxr_linenumber" name="74" href="#74">74</a>                          response.write(data + end);
 <a class="jxr_linenumber" name="75" href="#75">75</a>                          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="76" href="#76">76</a>                      }
 <a class="jxr_linenumber" name="77" href="#77">77</a>  
@@ -113,7 +113,7 @@
 <a class="jxr_linenumber" name="103" href="#103">103</a> 
 <a class="jxr_linenumber" name="104" href="#104">104</a>                  @Override
 <a class="jxr_linenumber" name="105" href="#105">105</a>                  <strong class="jxr_keyword">public</strong> String filter(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, String message) {
-<a class="jxr_linenumber" name="106" href="#106">106</a>                      <strong class="jxr_keyword">return</strong> message + <span class="jxr_string">"&lt;||&gt;"</span>;
+<a class="jxr_linenumber" name="106" href="#106">106</a>                      <strong class="jxr_keyword">return</strong> message + end;
 <a class="jxr_linenumber" name="107" href="#107">107</a>                  }
 <a class="jxr_linenumber" name="108" href="#108">108</a> 
 <a class="jxr_linenumber" name="109" href="#109">109</a>                  @Override
@@ -146,7 +146,7 @@
 <a class="jxr_linenumber" name="136" href="#136">136</a> 
 <a class="jxr_linenumber" name="137" href="#137">137</a>     @Override
 <a class="jxr_linenumber" name="138" href="#138">138</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="139" href="#139">139</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"&lt;||&gt; End Message Interceptor"</span>;
+<a class="jxr_linenumber" name="139" href="#139">139</a>         <strong class="jxr_keyword">return</strong> end + <span class="jxr_string">" End Message Interceptor"</span>;
 <a class="jxr_linenumber" name="140" href="#140">140</a>     }
 <a class="jxr_linenumber" name="141" href="#141">141</a> }
 </pre>

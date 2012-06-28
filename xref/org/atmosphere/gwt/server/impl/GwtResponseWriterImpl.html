@@ -329,31 +329,26 @@
 <a class="jxr_linenumber" name="319" href="#319">319</a>                 streamWriter.writeObject(message);
 <a class="jxr_linenumber" name="320" href="#320">320</a>                 <strong class="jxr_keyword">return</strong> streamWriter.toString();
 <a class="jxr_linenumber" name="321" href="#321">321</a>                 
-<a class="jxr_linenumber" name="322" href="#322">322</a>             <strong class="jxr_keyword">case</strong> DE_RPC:
-<a class="jxr_linenumber" name="323" href="#323">323</a>                 ByteArrayOutputStream result = <strong class="jxr_keyword">new</strong> ByteArrayOutputStream();
-<a class="jxr_linenumber" name="324" href="#324">324</a>                 RPC.streamResponseForSuccess(clientOracle, result, message);
-<a class="jxr_linenumber" name="325" href="#325">325</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> String(result.toByteArray(), <span class="jxr_string">"UTF-8"</span>);
-<a class="jxr_linenumber" name="326" href="#326">326</a>                 
-<a class="jxr_linenumber" name="327" href="#327">327</a>             <strong class="jxr_keyword">case</strong> JSON:
-<a class="jxr_linenumber" name="328" href="#328">328</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> UnsupportedOperationException(<span class="jxr_string">"Not implemented yet"</span>);
-<a class="jxr_linenumber" name="329" href="#329">329</a>                 
-<a class="jxr_linenumber" name="330" href="#330">330</a>             <strong class="jxr_keyword">default</strong>:
-<a class="jxr_linenumber" name="331" href="#331">331</a>             <strong class="jxr_keyword">case</strong> PLAIN:
-<a class="jxr_linenumber" name="332" href="#332">332</a>                 <strong class="jxr_keyword">return</strong> message.toString();
-<a class="jxr_linenumber" name="333" href="#333">333</a>             }
-<a class="jxr_linenumber" name="334" href="#334">334</a>         } <strong class="jxr_keyword">catch</strong> (SerializationException e) {
-<a class="jxr_linenumber" name="335" href="#335">335</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NotSerializableException(<span class="jxr_string">"Unable to serialize object, message: "</span> + e.getMessage());
-<a class="jxr_linenumber" name="336" href="#336">336</a>         }
-<a class="jxr_linenumber" name="337" href="#337">337</a>     }
-<a class="jxr_linenumber" name="338" href="#338">338</a> 
-<a class="jxr_linenumber" name="339" href="#339">339</a> 
-<a class="jxr_linenumber" name="340" href="#340">340</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> SerializationPolicy serializationPolicy;
-<a class="jxr_linenumber" name="341" href="#341">341</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> ClientOracle clientOracle;
-<a class="jxr_linenumber" name="342" href="#342">342</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> terminated;
-<a class="jxr_linenumber" name="343" href="#343">343</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">long</strong> lastWriteTime;
-<a class="jxr_linenumber" name="344" href="#344">344</a>     <strong class="jxr_keyword">private</strong> ScheduledFuture&lt;?&gt; heartbeatFuture;
-<a class="jxr_linenumber" name="345" href="#345">345</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> AtomicInteger connectionIDs = <strong class="jxr_keyword">new</strong> AtomicInteger(1);
-<a class="jxr_linenumber" name="346" href="#346">346</a> }
+<a class="jxr_linenumber" name="322" href="#322">322</a>             <strong class="jxr_keyword">case</strong> JSON:
+<a class="jxr_linenumber" name="323" href="#323">323</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> UnsupportedOperationException(<span class="jxr_string">"Not implemented yet"</span>);
+<a class="jxr_linenumber" name="324" href="#324">324</a>                 
+<a class="jxr_linenumber" name="325" href="#325">325</a>             <strong class="jxr_keyword">default</strong>:
+<a class="jxr_linenumber" name="326" href="#326">326</a>             <strong class="jxr_keyword">case</strong> PLAIN:
+<a class="jxr_linenumber" name="327" href="#327">327</a>                 <strong class="jxr_keyword">return</strong> message.toString();
+<a class="jxr_linenumber" name="328" href="#328">328</a>             }
+<a class="jxr_linenumber" name="329" href="#329">329</a>         } <strong class="jxr_keyword">catch</strong> (SerializationException e) {
+<a class="jxr_linenumber" name="330" href="#330">330</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> NotSerializableException(<span class="jxr_string">"Unable to serialize object, message: "</span> + e.getMessage());
+<a class="jxr_linenumber" name="331" href="#331">331</a>         }
+<a class="jxr_linenumber" name="332" href="#332">332</a>     }
+<a class="jxr_linenumber" name="333" href="#333">333</a> 
+<a class="jxr_linenumber" name="334" href="#334">334</a> 
+<a class="jxr_linenumber" name="335" href="#335">335</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> SerializationPolicy serializationPolicy;
+<a class="jxr_linenumber" name="336" href="#336">336</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> ClientOracle clientOracle;
+<a class="jxr_linenumber" name="337" href="#337">337</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> terminated;
+<a class="jxr_linenumber" name="338" href="#338">338</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">volatile</strong> <strong class="jxr_keyword">long</strong> lastWriteTime;
+<a class="jxr_linenumber" name="339" href="#339">339</a>     <strong class="jxr_keyword">private</strong> ScheduledFuture&lt;?&gt; heartbeatFuture;
+<a class="jxr_linenumber" name="340" href="#340">340</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> AtomicInteger connectionIDs = <strong class="jxr_keyword">new</strong> AtomicInteger(1);
+<a class="jxr_linenumber" name="341" href="#341">341</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
