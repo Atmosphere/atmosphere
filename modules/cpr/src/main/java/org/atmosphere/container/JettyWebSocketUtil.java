@@ -48,7 +48,7 @@ public class JettyWebSocketUtil {
         if (b == null) b = Boolean.FALSE;
 
         if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
-            if (req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
+            if (req.resource() != null && req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
                 logger.trace("Invalid WebSocket Specification {}", req);
 
                 res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
