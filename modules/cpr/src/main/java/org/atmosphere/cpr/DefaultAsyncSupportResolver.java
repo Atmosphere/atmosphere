@@ -66,6 +66,7 @@ import org.atmosphere.container.JettyServlet30AsyncSupportWithWebSocket;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
+import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.container.TomcatCometSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,7 +158,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         };
     }
 
-    public List<Class<? extends AsyncSupport>> detectWebSocketPresent() {
+    public List<Class<? extends AsyncSupport>> detectWebSocketPresent(boolean useNativeIfPossible) {
+        if (useNativeIfPossible) {
+            return detectServlet3WebSocketPresent();
+        }
+
         List l = new LinkedList<Class<? extends AsyncSupport>>() {
             {
                 if (testClassExists(TOMCAT_WEBSOCKET))
@@ -174,6 +179,19 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         return l;
     }
 
+    public List<Class<? extends AsyncSupport>> detectServlet3WebSocketPresent() {
+        List l = new LinkedList<Class<? extends AsyncSupport>>() {
+            {
+                if (testClassExists(TOMCAT_WEBSOCKET))
+                    add(Tomcat7Servlet30SupportWithWebSocket.class);
+
+                if (testClassExists(JETTY_8))
+                    add(JettyServlet30AsyncSupportWithWebSocket.class);
+            }
+        };
+        return l;
+    }
+
     /**
      * This method is used to determine the default AsyncSupport if all else fails
      *
@@ -182,9 +200,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      */
     public AsyncSupport defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
-            if (detectWebSocketPresent().size() > 0) {
-                return new JettyServlet30AsyncSupportWithWebSocket(config);
-            }
             return new Servlet30CometSupport(config);
         } else {
             return new BlockingIOCometSupport(config);
@@ -246,7 +261,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         if (!useWebsocketIfPossible) {
             cs = resolve(useNativeIfPossible, defaultToBlocking);
         } else {
-            l = detectWebSocketPresent();
+            boolean use30 = false;
+            String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT_SERVLET3);
+            if (s != null) {
+                use30 = Boolean.valueOf(s);
+            }
+
+            l = detectWebSocketPresent(use30);
             if (l.isEmpty()) {
                 return resolve(useNativeIfPossible, defaultToBlocking);
             }

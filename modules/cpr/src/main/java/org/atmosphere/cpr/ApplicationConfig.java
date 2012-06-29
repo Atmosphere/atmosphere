@@ -46,6 +46,10 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_SUPPORT = "org.atmosphere.useWebSocket";
     /**
+     * Force Atmosphere to use WebSocket + Servlet 30 API
+     */
+    String WEBSOCKET_SUPPORT_SERVLET3 = "org.atmosphere.useWebSocketAndServlet3";
+    /**
      * Force Atmosphere to use stream when writing bytes.
      */
     String PROPERTY_USE_STREAM = "org.atmosphere.useStream";
