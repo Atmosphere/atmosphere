@@ -34,7 +34,7 @@ public class AtmosphereConfig {
 
     private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
-    private boolean supportSession = false;
+    private boolean supportSession;
     private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
     private final AtmosphereFramework framework;
     private final Map<String, Object> properties = new HashMap<String, Object>();

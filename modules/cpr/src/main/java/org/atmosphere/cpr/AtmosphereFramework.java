@@ -503,6 +503,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
 
+            logger.info("HttpSession supported: {}", config.isSupportSession());
             logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
             logger.info("Using Broadcaster class: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
