@@ -20,6 +20,8 @@ import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
+import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
@@ -1216,7 +1218,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
                 logger.trace(ex.getMessage(), ex);
 
-                asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7Servlet30SupportWithWebSocket(config) : new BlockingIOCometSupport(config);
+                asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
                 logger.warn("Using " + asyncSupport.getClass().getName());
 
                 a = asyncSupport.service(req, res);
