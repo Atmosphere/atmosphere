@@ -1,0 +1,3 @@
+[submodule "extras/gwt/gwtprojsonserializer"]
+	path = extras/gwt/gwtprojsonserializer
+	url = https://github.com/pierreh/gwtprojsonserializer.git

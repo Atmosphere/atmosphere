@@ -38,7 +38,7 @@
             <artifactId>gwt-user</artifactId>
         </dependency>
         <dependency> 
-           <groupId>com.kfuntak.gwt.json</groupId> 
+           <groupId>org.atmosphere</groupId> 
            <artifactId>gwtprojsonserializer</artifactId> 
            <version>1.0.4</version> 
         </dependency>
