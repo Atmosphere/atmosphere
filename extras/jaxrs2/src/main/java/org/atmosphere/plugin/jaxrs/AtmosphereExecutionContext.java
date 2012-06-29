@@ -61,6 +61,9 @@ public class AtmosphereExecutionContext implements ExecutionContext {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void resume(Object response) throws IllegalStateException {
         JerseyBroadcasterUtil.broadcast(resource,
@@ -69,11 +72,17 @@ public class AtmosphereExecutionContext implements ExecutionContext {
         resource.resume();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void resume(Exception response) throws IllegalStateException {
         throw new IllegalStateException("Not supported");
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void suspend() throws IllegalStateException {
         if (this.unit == null) {
@@ -83,6 +92,9 @@ public class AtmosphereExecutionContext implements ExecutionContext {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void suspend(long millis) throws IllegalStateException {
         if (this.unit == null) {
@@ -101,12 +113,18 @@ public class AtmosphereExecutionContext implements ExecutionContext {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setSuspendTimeout(long time, TimeUnit unit) throws IllegalStateException {
         this.time = time;
         this.unit = unit;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void cancel() {
         try {
@@ -116,26 +134,41 @@ public class AtmosphereExecutionContext implements ExecutionContext {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isSuspended() {
         return resource.isSuspended();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isCancelled() {
         return resource.isCancelled();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isDone() {
         return !isSuspended();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setResponse(Object response) {
         this.response = response;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Response getResponse() {
         return Response.ok(response).build();
