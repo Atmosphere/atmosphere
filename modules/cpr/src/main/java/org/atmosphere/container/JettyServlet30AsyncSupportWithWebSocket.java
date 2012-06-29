@@ -32,12 +32,12 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class Servlet30AsyncSupportWithWebSocket extends Servlet30CometSupport {
+public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(Servlet30AsyncSupportWithWebSocket.class);
+    private static final Logger logger = LoggerFactory.getLogger(JettyServlet30AsyncSupportWithWebSocket.class);
     private final WebSocketFactory webSocketFactory;
 
-    public Servlet30AsyncSupportWithWebSocket(final AtmosphereConfig config) {
+    public JettyServlet30AsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
         boolean isJetty = config.getServletContext().getServerInfo().toLowerCase().startsWith("jetty");

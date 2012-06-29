@@ -62,7 +62,7 @@ import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.NettyCometSupport;
-import org.atmosphere.container.Servlet30AsyncSupportWithWebSocket;
+import org.atmosphere.container.JettyServlet30AsyncSupportWithWebSocket;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
@@ -183,7 +183,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public AsyncSupport defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
             if (detectWebSocketPresent().size() > 0) {
-                return new Servlet30AsyncSupportWithWebSocket(config);
+                return new JettyServlet30AsyncSupportWithWebSocket(config);
             }
             return new Servlet30CometSupport(config);
         } else {
