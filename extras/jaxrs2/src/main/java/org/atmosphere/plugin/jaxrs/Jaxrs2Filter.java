@@ -16,14 +16,22 @@
 package org.atmosphere.plugin.jaxrs;
 
 import com.sun.jersey.api.model.AbstractMethod;
+import com.sun.jersey.spi.container.ContainerRequest;
+import com.sun.jersey.spi.container.ContainerRequestFilter;
+import com.sun.jersey.spi.container.ContainerResponse;
+import com.sun.jersey.spi.container.ContainerResponseFilter;
 import com.sun.jersey.spi.container.ResourceFilter;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.jersey.AtmosphereFilter;
 
 import javax.ws.rs.Suspend;
+import javax.ws.rs.ext.FilterContext;
+import javax.ws.rs.ext.RequestFilter;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class Jaxrs2Filter extends AtmosphereFilter{
+public class Jaxrs2Filter extends AtmosphereFilter {
 
     @Override
     public List<ResourceFilter> create(AbstractMethod am) {
@@ -39,7 +47,28 @@ public class Jaxrs2Filter extends AtmosphereFilter{
             filters.add(f);
         }
 
+        filters.add(new RFilter());
+
         return filters;
+    }
+
+    public final class RFilter implements ResourceFilter, ContainerResponseFilter {
+
+        @Override
+        public ContainerResponse filter(ContainerRequest request, ContainerResponse response) {
+            servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
+            return response;
+        }
+
+        @Override
+        public ContainerRequestFilter getRequestFilter() {
+            return null;
+        }
+
+        @Override
+        public ContainerResponseFilter getResponseFilter() {
+            return this;
+        }
     }
 
 }

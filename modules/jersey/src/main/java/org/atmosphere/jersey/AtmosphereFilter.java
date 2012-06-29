@@ -144,13 +144,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         SUBSCRIBE, PUBLISH, ASYNCHRONOUS
     }
 
-    private
-    @Context
-    HttpServletRequest servletReq;
+    protected @Context HttpServletRequest servletReq;
 
-    private
-    @Context
-    UriInfo uriInfo;
+    private @Context UriInfo uriInfo;
 
     private boolean useResumeAnnotation = false;
 

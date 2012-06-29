@@ -66,7 +66,7 @@ public interface ApplicationConfig {
      */
     String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".asyncSupport";
     /**
-     * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is false.
+     * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}. Default is true.
      */
     String PROPERTY_SESSION_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".sessionSupport";
     /**
