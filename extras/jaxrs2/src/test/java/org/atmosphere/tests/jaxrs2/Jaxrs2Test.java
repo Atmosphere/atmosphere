@@ -88,7 +88,7 @@ public class Jaxrs2Test {
 
     @BeforeMethod(alwaysRun = true)
     public void setUpGlobal() throws Exception {
-        port = findFreePort();
+        port = 8080;
         urlTarget = getUrlTarget(port);
         atmoServlet = new AtmosphereServlet();
         atmoServlet.framework().addInitParameter("com.sun.jersey.config.property.packages", this.getClass().getPackage().getName());
