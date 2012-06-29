@@ -13,24 +13,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.chat.jersey;
+package org.atmosphere.samples.chat.jaxrs2;
 
 import javax.xml.bind.annotation.XmlRootElement;
-import java.util.Date;
 
 @XmlRootElement
-public class Response {
+public class Message {
+    public String author = "";
+    public String message = "";
 
-    public String text;
-    public String author;
-    public long time;
-
-    public Response(String author, String text) {
-        this.author = author;
-        this.text = text;
-        this.time = new Date().getTime();
+    public Message(){
     }
 
-    public Response() {
+    public Message(String author, String message) {
+        this.author = author;
+        this.message = message;
     }
 }
