@@ -158,7 +158,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (config.isSupportSession()) {
             //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
-            session = req.getSession(true);
+            try {
+                session = req.getSession(true);
+            } catch (NullPointerException ex) {
+                // http://java.net/jira/browse/GLASSFISH-18856
+                logger.trace("http://java.net/jira/browse/GLASSFISH-18856", ex);
+            }
         }
     }
 
@@ -896,6 +901,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public HttpSession session(){
+        if (session == null && config.isSupportSession()) {
+            // http://java.net/jira/browse/GLASSFISH-18856
+            session = req.getSession(true);
+        }
         return session;
     }
 }
