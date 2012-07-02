@@ -1007,10 +1007,10 @@ jQuery.atmosphere = function() {
 
                                 if (!_response.isJunkEnded) {
                                     var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLenght = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+                                    var endOfJunkLength = endOfJunk.length;
+                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
 
-                                    if (junkEnd > endOfJunkLenght && junkEnd != text.length) {
+                                    if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
                                     } else {
                                         skipCallbackInvocation = true;
@@ -1219,8 +1219,8 @@ jQuery.atmosphere = function() {
 
                     if (isJunkEnded) {
                         var endOfJunk = "<!-- EOD -->";
-                        var endOfJunkLenght = endOfJunk.length;
-                        var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
+                        var endOfJunkLength = endOfJunk.length;
+                        var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLength;
 
                         responseBody = responseBody.substring(junkEnd + lastIndex);
                         lastIndex += responseBody.length;
@@ -1364,8 +1364,8 @@ jQuery.atmosphere = function() {
 
                                     if (isJunkEnded) {
                                         var endOfJunk = "<!-- EOD -->";
-                                        var endOfJunkLenght = endOfJunk.length;
-                                        var junkEnd = text.indexOf(endOfJunk) + endOfJunkLenght;
+                                        var endOfJunkLength = endOfJunk.length;
+                                        var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
 
                                         text = text.substring(junkEnd);
                                     }
