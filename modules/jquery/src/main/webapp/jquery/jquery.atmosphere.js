@@ -28,7 +28,7 @@
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
 jQuery.atmosphere = function() {
-    jQuery(window).unload(function() {
+	jQuery(window).bind("beforeunload", function() {
         jQuery.atmosphere.unsubscribe();
     });
 
@@ -557,7 +557,7 @@ jQuery.atmosphere = function() {
 
                 _sse.onerror = function(message) {
 
-                    clearTimeout(_request.id)
+                    clearTimeout(_request.id);
                     _response.state = 'closed';
                     _response.responseBody = "";
                     _response.status = !sseOpened ? 501 : 200;
@@ -895,8 +895,8 @@ jQuery.atmosphere = function() {
                     rq = request;
                 }
 
-                // CORS fake using JSONP
-                if ((rq.transport == 'jsonp') || ((rq.enableXDR) && (jQuery.atmosphere.checkCORSSupport()))) {
+               // CORS fake using JSONP
+                if ((rq.transport == 'jsonp') && ((rq.enableXDR) && (jQuery.atmosphere.checkCORSSupport()))) {
                     _jsonp(rq);
                     return;
                 }
@@ -1220,11 +1220,12 @@ jQuery.atmosphere = function() {
                     if (isJunkEnded) {
                         var endOfJunk = "<!-- EOD -->";
                         var endOfJunkLenght = endOfJunk.length;
-                        var junkEnd = responseBody.indexOf(endOfJunk) + endOfJunkLenght;
-
-                        responseBody = responseBody.substring(junkEnd + lastIndex);
+						var junkEnd = responseBody.indexOf(endOfJunk);
+						if (junkEnd !== -1) {
+							responseBody = responseBody.substring(junkEnd + endOfJunkLenght + lastIndex);
                         lastIndex += responseBody.length;
-                    }
+                        }
+					}
 
                     _prepareCallback(responseBody, "messageReceived", 200, transport);
                 };
@@ -1241,6 +1242,7 @@ jQuery.atmosphere = function() {
                         case "PHPSESSID":
                             return url.replace(/\?PHPSESSID=[^&]*&?|\?|$/, "?PHPSESSID=" + match[2] + "&").replace(/&$/, "");
                     }
+	                return url;
                 };
 
                 // Handles open and message event
@@ -1565,6 +1567,37 @@ jQuery.atmosphere = function() {
                 }
             }
 
+	        /**
+             * Проверяем заканчивается ли сообщение знаком messageDelimiter иначе посл сообщение уходит в буффер и добавиться в след раз
+             * @param message
+             * @param request
+             * @param response
+             */
+            function _buffering(message, request, response) {
+                function ends(string, w) {
+                    return w == string.substr(string.length - w.length);
+                }
+
+                if (response.bufferBody)
+                    message = response.bufferBody + message;
+
+                if (!ends(message, request.messageDelimiter)) {
+                    var messages = message.split(_request.messageDelimiter),
+                        lastMessage = messages.pop();
+
+                    response.bufferBody = lastMessage;
+
+                    if (!messages.length) return true;
+
+                    response.responseBody = messages.join(request.messageDelimiter);
+                } else {
+                    response.responseBody = message;
+                    response.bufferBody = '';
+                }
+
+                return false
+            }
+
             function _prepareCallback(messageBody, state, errorCode, transport) {
 
                 if (state == "messageReceived") {
@@ -1622,8 +1655,10 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
+	            if (_response.state == 'messageReceived' && _buffering(_response.responseBody, _request, _response)) return;
+
                 var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
-                for (i = 0; i < messages.length; i++) {
+                for (var i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
                         continue;
@@ -1890,8 +1925,8 @@ jQuery.atmosphere = function() {
 /*
  * jQuery stringifyJSON
  * http://github.com/flowersinthesand/jquery-stringifyJSON
- * 
- * Copyright 2011, Donghwan Kim 
+ *
+ * Copyright 2011, Donghwan Kim
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
