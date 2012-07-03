@@ -59,16 +59,10 @@
                                     $('#content fieldset#' + topicName + ' button.send').data('endpoint', subSocket).click(function() {
                                         var message = $('#content fieldset#' + topicName + ' input').val();
                                         $('#content fieldset#' + topicName + ' input').val('');
-                                        $.atmosphere.request = {
-                                            method: 'POST',
-                                            callback: null,
-                                            contentType: 'application/json',
-                                            data: $.param({
+                                        $(this).data('endpoint').push($.param({
                                                 from: nickname,
                                                 msg: message
-                                            })
-                                        };
-                                        $(this).data('endpoint').push('async/topic/' + topicName);
+                                            }));
                                     });
                                     $('#content fieldset#' + topicName + ' button.close').data('endpoint', subSocket).click(function() {
                                         $.atmosphere.close();
