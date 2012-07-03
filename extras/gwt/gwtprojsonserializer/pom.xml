@@ -23,17 +23,6 @@ This JSON serializer allows easy connecting GWT client side to any standard serv
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <distributionManagement>
-        <repository>
-            <id>googlecode</id>
-            <url>dav:https://gwtprojsonserializer.googlecode.com/svn/repo</url>
-        </repository>
-        <snapshotRepository>
-            <id>googlecode.snapshot</id>
-            <url>dav:https://gwtprojsonserializer.googlecode.com/svn/repo</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
