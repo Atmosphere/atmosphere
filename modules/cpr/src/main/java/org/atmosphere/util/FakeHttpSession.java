@@ -128,7 +128,7 @@ public class FakeHttpSession implements HttpSession {
             k = e.nextElement();
             if (k == null) continue;
 
-            Object o = getAttribute(k);
+            Object o = httpSession.getAttribute(k);
             if (o == null) continue;
 
             attributes.put(k, o);
