@@ -53,8 +53,7 @@ public class ChatResource {
     @Broadcast(writeEntity = false)
     @POST
     @Produces("application/json")
-    public Response broadcast(Message message, @Context AtmosphereResource r, @Context Broadcaster b) {
-        b.addAtmosphereResource(r);
+    public Response broadcast(Message message) {
         return new Response(message.author, message.message);
     }
 
