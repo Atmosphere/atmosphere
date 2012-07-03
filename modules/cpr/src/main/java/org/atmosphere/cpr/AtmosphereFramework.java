@@ -1481,6 +1481,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         String path = sc.getRealPath(handlersPath);
         try {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
+            logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
+
             p.configure(this).scan(new File(path));
 
             String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
