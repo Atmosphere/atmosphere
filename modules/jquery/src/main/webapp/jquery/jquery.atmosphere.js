@@ -1575,7 +1575,7 @@ jQuery.atmosphere = function() {
                 if (response.bufferBody)
                     message = response.bufferBody + message;
 
-                if (!ends(message, request.messageDelimiter)) {
+                if (request.trackMessageLength && !ends(message, request.messageDelimiter)) {
                     var messages = message.split(_request.messageDelimiter), lastMessage = messages.pop();
 
                     response.bufferBody = lastMessage;
