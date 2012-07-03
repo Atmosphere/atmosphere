@@ -19,6 +19,8 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 
 /**
  * Represent a portable WebSocket implementation which can be used to write message.
@@ -57,6 +59,12 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
      * @return this
      */
     public WebSocket resource(AtmosphereResource r) {
+
+        // Make sure we carry what was set at the onOpen stage.
+        if (this.r != null) {
+            // TODO: This is all over the place and quite ugly (the cast). Need to fix this in 1.1
+            AtmosphereResourceImpl.class.cast(r).cloneState(this.r);
+        }
         this.r = r;
         return this;
     }
