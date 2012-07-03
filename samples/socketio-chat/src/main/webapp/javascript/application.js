@@ -9,7 +9,13 @@ $(function () {
     var myName = false;
     var author = null;
     var logged = false;
-    var socket = io.connect('', {'resource': 'chat'});
+    var loginurl = "";
+    var pathname = document.location.pathname;
+    var lastdot = pathname.lastIndexOf("/");
+    if (lastdot > 1) {
+        loginurl = pathname.substr(1, lastdot);
+    }
+    var socket = io.connect('', {'resource':loginurl + 'chat'});
 
     socket.on('connect', function () {
         content.html($('<p>', { text: 'Atmosphere connected using ' + this.socket.transport.name}));
