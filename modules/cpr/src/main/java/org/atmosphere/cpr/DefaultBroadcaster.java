@@ -654,6 +654,13 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg) {
+
+        // A broadcaster#broadcast(msg,Set) may contains null value.
+        if (r == null) {
+            logger.trace("Null AtmosphereResource passed inside a Set");
+            return msg.message;
+        }
+
         Object finalMsg = msg.message;
 
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {

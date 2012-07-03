@@ -588,7 +588,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        return getSession(true);
+        HttpSession session = getSession(true);
+        // The underlying request has been recycled, let's return the original value
+        if (session == null) {
+            session = resource().session();
+        }
+        return session;
     }
 
     /**
