@@ -98,7 +98,7 @@ jQuery.atmosphere = function() {
                 messageDelimiter : '|',
                 connectTimeout : -1,
                 reconnectInterval : 0,
-                dropAtmosphereHeaders : false,
+                dropAtmosphereHeaders : true,
                 onError : function(response) {
                 },
                 onClose : function(response) {
@@ -467,8 +467,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _buildWebSocketUrl() {
-                var url = _request.url;
-                url = _attachHeaders();
+                var url = _attachHeaders(_request);
                 return decodeURI(jQuery('<a href="' + url + '"/>')[0].href.replace(/^http/, "ws"));
             }
 
@@ -479,8 +478,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _buildSSEUrl() {
-                var url = _request.url;
-                url = _attachHeaders();
+                var url = _attachHeaders(_request);
                 return url;
             }
 
@@ -1134,7 +1132,8 @@ jQuery.atmosphere = function() {
              */
             function _doRequest(ajaxRequest, request, create) {
                 // Prevent Android to cache request
-                var url = jQuery.atmosphere.prepareURL(request.url);
+                var url = _attachHeaders(request);
+                url = jQuery.atmosphere.prepareURL(url);
 
                 if (create) {
                     ajaxRequest.open(request.method, url, true);
@@ -1171,14 +1170,14 @@ jQuery.atmosphere = function() {
                         ajaxRequest.setRequestHeader("Content-Type", request.contentType);
                     }
                     ajaxRequest.setRequestHeader("X-Atmosphere-tracking-id", _uuid);
-
-                    jQuery.each(request.headers, function(name, value) {
-                        var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create, _response) : value;
-                        if (h != null) {
-                            ajaxRequest.setRequestHeader(name, h);
-                        }
-                    });
                 }
+
+                jQuery.each(request.headers, function(name, value) {
+                    var h = jQuery.isFunction(value) ? value.call(this, ajaxRequest, request, create, _response) : value;
+                    if (h != null) {
+                        ajaxRequest.setRequestHeader(name, h);
+                    }
+                });
             }
 
             function _reconnect(ajaxRequest, request, force) {
@@ -1525,7 +1524,8 @@ jQuery.atmosphere = function() {
                     maxRequest : 60,
                     logLevel : 'info',
                     requestCount : 0,
-                    transport: 'polling'
+                    transport: 'polling',
+                    attachHeadersAsQueryString: true
                 };
 
                 if (typeof(message) == 'object') {
