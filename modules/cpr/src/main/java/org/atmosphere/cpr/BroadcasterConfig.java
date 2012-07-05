@@ -117,8 +117,14 @@ public class BroadcasterConfig {
     private void configureBroadcasterCache() {
         try {
             if (AtmosphereFramework.broadcasterCacheClassName != null) {
-                BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                        .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                BroadcasterCache cache;
+                try {
+                    cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                } catch (ClassNotFoundException ex) {
+                    cache = (BroadcasterCache) getClass().getClassLoader()
+                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                }
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
             }
@@ -458,7 +464,7 @@ public class BroadcasterConfig {
     /**
      * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link AtmosphereRequest}
      *
-     * @param r {@link AtmosphereResource}
+     * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
