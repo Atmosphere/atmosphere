@@ -25,6 +25,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Broadcast events to all or a subset of available {@link Broadcaster} based on their{@link org.atmosphere.cpr.Broadcaster#getID()} value.
@@ -42,10 +47,10 @@ import java.util.Map;
 public class MetaBroadcaster {
     public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=;\\?]+";
 
-    private static final Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
+    private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
 
-    protected List<Broadcaster> broadcast(String path, Object message) {
+    protected MetaBroadcasterFuture broadcast(String path, Object message) {
         if (BroadcasterFactory.getDefault() != null) {
             Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
@@ -56,18 +61,24 @@ public class MetaBroadcaster {
             for (Broadcaster b : c) {
                 logger.debug("Trying to map {} to {}", t, b.getID());
                 if (t.match(b.getID(), m)) {
-                    b.broadcast(message);
                     l.add(b);
                 }
                 m.clear();
             }
-            return l;
+
+            MetaBroadcasterFuture f = new MetaBroadcasterFuture(l);
+            CompleteListener cl = new CompleteListener(f);
+            for (Broadcaster b : l) {
+                b.addBroadcasterListener(cl).broadcast(message);
+            }
+
+            return f;
         } else {
-            return Collections.<Broadcaster>emptyList();
+            return new MetaBroadcasterFuture(Collections.<Broadcaster>emptyList());
         }
     }
 
-    protected List<Broadcaster> map(String path, Object message) {
+    protected MetaBroadcasterFuture map(String path, Object message) {
 
         if (path == null || path.isEmpty()) {
             throw new NullPointerException();
@@ -93,13 +104,76 @@ public class MetaBroadcaster {
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted
+     * @return a Future.
      */
-    public List<Broadcaster> broadcastTo(String broadcasterID, Object message) {
+    public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message) {
         return map(broadcasterID, message);
     }
 
     public final static MetaBroadcaster getDefault() {
         return metaBroadcaster;
+    }
+
+    private final static class CompleteListener implements BroadcasterListener {
+
+        private final MetaBroadcasterFuture f;
+
+        private CompleteListener(MetaBroadcasterFuture f) {
+            this.f = f;
+        }
+
+        @Override
+        public void onComplete(Broadcaster b) {
+            f.countDown();
+            b.removeBroadcasterListener(this);
+        }
+    }
+
+    private final static class MetaBroadcasterFuture implements Future<List<Broadcaster>> {
+
+        private final CountDownLatch latch;
+        private final List<Broadcaster> l;
+        private boolean isCancelled = false;
+
+        private MetaBroadcasterFuture(List<Broadcaster> l) {
+            this.latch = new CountDownLatch(l.size());
+            this.l = l;
+        }
+
+        @Override
+        public boolean cancel(boolean b) {
+            while (latch.getCount() > 0) {
+                latch.countDown();
+            }
+            isCancelled = true;
+            return isCancelled;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return isCancelled;
+        }
+
+        @Override
+        public boolean isDone() {
+            return latch.getCount() == 0;
+        }
+
+        @Override
+        public List<Broadcaster> get() throws InterruptedException, ExecutionException {
+            latch.await();
+            return l;
+        }
+
+        @Override
+        public List<Broadcaster> get(long t, TimeUnit timeUnit) throws InterruptedException, ExecutionException, TimeoutException {
+            latch.await(t, timeUnit);
+            return l;
+        }
+
+        public void countDown() {
+            latch.countDown();
+        }
     }
 
 }

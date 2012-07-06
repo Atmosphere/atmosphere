@@ -19,6 +19,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.ExecutionException;
+
 import static org.testng.Assert.assertEquals;
 
 public class MetaBroadcasterTest {
@@ -37,50 +39,50 @@ public class MetaBroadcasterTest {
     }
 
     @Test
-    public void wildcardBroadcastTest() {
+    public void wildcardBroadcastTest() throws ExecutionException, InterruptedException {
         factory.get("/a");
         factory.get("/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").size(), 3);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").size(), 0);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").size(), 1);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").size(), 3);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").get().size(), 3);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").get().size(), 0);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 1);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").get().size(), 3);
 
         factory.get("/*");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").size(), 4);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").get().size(), 4);
     }
 
     @Test
-    public void exactBroadcastTest() {
+    public void exactBroadcastTest() throws ExecutionException, InterruptedException {
 
         factory.get("/a");
         factory.get("/a/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get(0).getID(), "/a");
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().get(0).getID(), "/a");
     }
 
     @Test
-    public void traillingBroadcastTest() {
+    public void traillingBroadcastTest() throws ExecutionException, InterruptedException {
 
         factory.get("/a/b");
         factory.get("/b");
         factory.get("/c");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").size(), 1);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").get().size(), 1);
 
     }
 
     @Test
-    public void complexBroadcastTest() {
+    public void complexBroadcastTest() throws ExecutionException, InterruptedException {
         factory.get("/a/b/c/d");
         factory.get("/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").size(), 3);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b/c/d", "yo").size(), 1);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").size(), 0);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/b", "yo").size(), 1);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").get().size(), 3);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b/c/d", "yo").get().size(), 1);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 0);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/b", "yo").get().size(), 1);
 
     }
 }
