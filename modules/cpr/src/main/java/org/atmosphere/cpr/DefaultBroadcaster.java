@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -68,6 +69,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -107,6 +109,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
     protected final BlockingQueue<AsyncWriteToken> asyncWriteQueue = new LinkedBlockingQueue<AsyncWriteToken>();
+    protected final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
@@ -455,6 +458,24 @@ public class DefaultBroadcaster implements Broadcaster {
         return broadcast(t);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Broadcaster addBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.add(b);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Broadcaster removeBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.remove(b);
+        return this;
+    }
+
     public static final class Entry {
 
         public Object message;
@@ -707,6 +728,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
+        r.getRequest().setAttribute(getID(), token.future);
         try {
             event.setMessage(token.msg);
 
@@ -725,7 +747,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
                 logger.trace("", t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
-                removeAtmosphereResource(r);
+                removeAtmosphereResource(r, false);
                 BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
                 event.setCancelled(true);
                 event.setThrowable(t);
@@ -903,14 +925,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
-            return (new BroadcasterFuture<Object>(msg)).done();
+            return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), broadcasterListeners, this);
         messages.offer(new Entry(newMsg, null, f, msg));
         return f;
     }
@@ -937,14 +959,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource<?, ?> r");
-            return (new BroadcasterFuture<Object>(msg)).done();
+            return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), broadcasterListeners, this);
         messages.offer(new Entry(newMsg, r, f, msg));
         return f;
     }
@@ -957,14 +979,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcastOnResume(T msg)");
-            return (new BroadcasterFuture<Object>(msg)).done();
+            return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), broadcasterListeners, this);
         broadcastOnResume.offer(new Entry(newMsg, null, f, msg));
         return f;
     }
@@ -990,14 +1012,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource<?, ?>> subset)");
-            return (new BroadcasterFuture<Object>(msg)).done();
+            return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return (new BroadcasterFuture<Object>(msg)).done();
+        if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size());
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size(), broadcasterListeners, this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -1076,10 +1098,23 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
+        return removeAtmosphereResource(r, true);
+    }
+
+    protected Broadcaster removeAtmosphereResource(AtmosphereResource r, boolean executeDone) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "removeAtmosphereResource(AtmosphereResource r)");
             return this;
+        }
+
+        // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
+        if (executeDone) {
+            BroadcasterFuture f = (BroadcasterFuture) r.getRequest().getAttribute(getID());
+            if (f != null) {
+                r.getRequest().removeAttribute(getID());
+                f.done();
+            }
         }
 
         resources.remove(r);
@@ -1153,7 +1188,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg);
+        final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg, broadcasterListeners, this);
         final Entry e = new Entry(msg, null, future, o);
         Future<T> f;
         if (delay > 0) {
@@ -1182,7 +1217,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }, delay, t);
 
-            e.future = new BroadcasterFuture<Object>(f, msg);
+            e.future = new BroadcasterFuture<Object>(f, msg, broadcasterListeners, this);
         }
         delayedBroadcast.offer(e);
         return future;

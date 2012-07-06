@@ -52,6 +52,7 @@
  */
 package org.atmosphere.cpr;
 
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -67,31 +68,38 @@ import java.util.concurrent.TimeoutException;
 public class BroadcasterFuture<E> implements Future {
 
     private final CountDownLatch latch;
-
     private boolean isCancelled = false;
-
     private boolean isDone = false;
-
     private final E msg;
-
     private final Future<?> innerFuture;
+    private final CopyOnWriteArrayList<BroadcasterListener> listeners;
+    private final Broadcaster broadcaster;
 
-    public BroadcasterFuture(E msg) {
-        this(null, msg);
+    public BroadcasterFuture(E msg, CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(null, msg, listeners, b);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg) {
-        this(innerFuture, msg, 1);
+    public BroadcasterFuture(Future<?> innerFuture, E msg,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(innerFuture, msg, 1, listeners, b);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
+    public BroadcasterFuture(E msg, int latchCount,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(null, msg, latchCount, listeners, b);
+    }
+
+    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
         this.msg = msg;
         this.innerFuture = innerFuture;
+        this.broadcaster = b;
         if (innerFuture == null) {
             latch = new CountDownLatch(latchCount);
         } else {
             latch = null;
         }
+        this.listeners = listeners;
     }
 
     /**
@@ -103,11 +111,11 @@ public class BroadcasterFuture<E> implements Future {
         if (innerFuture != null) {
             return innerFuture.cancel(b);
         }
-
-        if (latch.getCount() == 1) {
+        isCancelled = true;
+        while (latch.getCount() > 0) {
             latch.countDown();
-            isCancelled = true;
         }
+        notifyListener();
         return isCancelled;
     }
 
@@ -146,6 +154,10 @@ public class BroadcasterFuture<E> implements Future {
         if (latch != null) {
             latch.countDown();
         }
+
+        if (latch.getCount() == 0) {
+            notifyListener();
+        }
         return this;
     }
 
@@ -160,6 +172,13 @@ public class BroadcasterFuture<E> implements Future {
 
         latch.await();
         return msg;
+
+    }
+
+    void notifyListener() {
+        for (BroadcasterListener b : listeners) {
+            b.onComplete(broadcaster);
+        }
     }
 
     /**
