@@ -42,6 +42,8 @@ import java.util.concurrent.TimeoutException;
  * </pre></blockquote>
  * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.
  *
+ * NOTE: Broadcaster's name must start with / in order to get retrieved by this class.
+ *
  * @author Jeanfrancois Arcand
  */
 public class MetaBroadcaster {
