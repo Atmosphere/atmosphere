@@ -22,9 +22,6 @@ import com.google.inject.name.Names;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
@@ -36,10 +33,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.util.Map;
 
-import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
-import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
-import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 
 /**
  * Google Guice Integration. To use it, just do in web.xml:
