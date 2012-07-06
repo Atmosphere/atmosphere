@@ -1651,7 +1651,7 @@ jQuery.atmosphere = function() {
                 if (_response.state == 'messageReceived' && _buffering(_response.responseBody, _request, _response)) return;
 
                 var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
-                for (i = 0; i < messages.length; i++) {
+                for (var i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
                         continue;
