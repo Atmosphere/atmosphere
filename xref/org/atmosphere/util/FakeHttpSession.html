@@ -138,7 +138,7 @@
 <a class="jxr_linenumber" name="128" href="#128">128</a>             k = e.nextElement();
 <a class="jxr_linenumber" name="129" href="#129">129</a>             <strong class="jxr_keyword">if</strong> (k == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="130" href="#130">130</a> 
-<a class="jxr_linenumber" name="131" href="#131">131</a>             Object o = getAttribute(k);
+<a class="jxr_linenumber" name="131" href="#131">131</a>             Object o = httpSession.getAttribute(k);
 <a class="jxr_linenumber" name="132" href="#132">132</a>             <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">continue</strong>;
 <a class="jxr_linenumber" name="133" href="#133">133</a> 
 <a class="jxr_linenumber" name="134" href="#134">134</a>             attributes.put(k, o);

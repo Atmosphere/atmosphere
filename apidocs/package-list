@@ -1,3 +1,5 @@
+com.kfuntak.gwt.json.serialization
+com.kfuntak.gwt.json.serialization.client
 org.apache.catalina
 org.apache.catalina.comet
 org.atmosphere.annotation
@@ -34,6 +36,7 @@ org.atmosphere.plugin.jms
 org.atmosphere.plugin.redis
 org.atmosphere.plugin.xmpp
 org.atmosphere.samples.chat
+org.atmosphere.samples.chat.jaxrs2
 org.atmosphere.samples.chat.jersey
 org.atmosphere.samples.client
 org.atmosphere.samples.di.guice

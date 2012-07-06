@@ -115,7 +115,7 @@
 <a class="jxr_linenumber" name="105" href="#105">105</a>                     }
 <a class="jxr_linenumber" name="106" href="#106">106</a> 
 <a class="jxr_linenumber" name="107" href="#107">107</a>                 } <strong class="jxr_keyword">catch</strong> (UnsupportedEncodingException e) {
-<a class="jxr_linenumber" name="108" href="#108">108</a>                     e.printStackTrace();
+<a class="jxr_linenumber" name="108" href="#108">108</a>                     logger.trace(<span class="jxr_string">""</span>,e);
 <a class="jxr_linenumber" name="109" href="#109">109</a>                 }
 <a class="jxr_linenumber" name="110" href="#110">110</a>                 <strong class="jxr_keyword">return</strong> extractedData;
 <a class="jxr_linenumber" name="111" href="#111">111</a>             } <strong class="jxr_keyword">else</strong> {
@@ -144,21 +144,23 @@
 <a class="jxr_linenumber" name="134" href="#134">134</a>             <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="135" href="#135">135</a>                 String data = decodePostData(request.getContentType(), extractString(request.getReader()));
 <a class="jxr_linenumber" name="136" href="#136">136</a>                 request.setAttribute(POST_MESSAGE_RECEIVED, data);
-<a class="jxr_linenumber" name="137" href="#137">137</a>                 <strong class="jxr_keyword">if</strong> (data != <strong class="jxr_keyword">null</strong> &amp;&amp; data.length() &gt; 0) {
-<a class="jxr_linenumber" name="138" href="#138">138</a>                     List&lt;SocketIOPacketImpl&gt; list = SocketIOPacketImpl.parse(data);
-<a class="jxr_linenumber" name="139" href="#139">139</a>                     <strong class="jxr_keyword">if</strong> (!list.isEmpty()) {
-<a class="jxr_linenumber" name="140" href="#140">140</a>                         <strong class="jxr_keyword">if</strong> (SocketIOPacketImpl.PacketType.DISCONNECT.equals(list.get(0).getFrameType())) {
-<a class="jxr_linenumber" name="141" href="#141">141</a>                             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="142" href="#142">142</a>                         }
-<a class="jxr_linenumber" name="143" href="#143">143</a>                     }
-<a class="jxr_linenumber" name="144" href="#144">144</a>                 }
-<a class="jxr_linenumber" name="145" href="#145">145</a>             } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="146" href="#146">146</a>                 logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="147" href="#147">147</a>             }
-<a class="jxr_linenumber" name="148" href="#148">148</a>         }
-<a class="jxr_linenumber" name="149" href="#149">149</a>         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="150" href="#150">150</a>     }
-<a class="jxr_linenumber" name="151" href="#151">151</a> }
+<a class="jxr_linenumber" name="137" href="#137">137</a>                 <em class="jxr_comment">// Set back the body</em>
+<a class="jxr_linenumber" name="138" href="#138">138</a>                 request.body(data);
+<a class="jxr_linenumber" name="139" href="#139">139</a>                 <strong class="jxr_keyword">if</strong> (data != <strong class="jxr_keyword">null</strong> &amp;&amp; data.length() &gt; 0) {
+<a class="jxr_linenumber" name="140" href="#140">140</a>                     List&lt;SocketIOPacketImpl&gt; list = SocketIOPacketImpl.parse(data);
+<a class="jxr_linenumber" name="141" href="#141">141</a>                     <strong class="jxr_keyword">if</strong> (!list.isEmpty()) {
+<a class="jxr_linenumber" name="142" href="#142">142</a>                         <strong class="jxr_keyword">if</strong> (SocketIOPacketImpl.PacketType.DISCONNECT.equals(list.get(0).getFrameType())) {
+<a class="jxr_linenumber" name="143" href="#143">143</a>                             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="144" href="#144">144</a>                         }
+<a class="jxr_linenumber" name="145" href="#145">145</a>                     }
+<a class="jxr_linenumber" name="146" href="#146">146</a>                 }
+<a class="jxr_linenumber" name="147" href="#147">147</a>             } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="148" href="#148">148</a>                 logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="149" href="#149">149</a>             }
+<a class="jxr_linenumber" name="150" href="#150">150</a>         }
+<a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="152" href="#152">152</a>     }
+<a class="jxr_linenumber" name="153" href="#153">153</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

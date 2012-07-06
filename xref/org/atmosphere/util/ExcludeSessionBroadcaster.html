@@ -94,7 +94,7 @@
 <a class="jxr_linenumber" name="84" href="#84">84</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="85" href="#85">85</a>          }
 <a class="jxr_linenumber" name="86" href="#86">86</a>  
-<a class="jxr_linenumber" name="87" href="#87">87</a>          BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="87" href="#87">87</a>          BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="88" href="#88">88</a>          messages.offer(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, sub, f, msg));
 <a class="jxr_linenumber" name="89" href="#89">89</a>          <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="90" href="#90">90</a>      }
@@ -122,7 +122,7 @@
 <a class="jxr_linenumber" name="112" href="#112">112</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="113" href="#113">113</a>         }
 <a class="jxr_linenumber" name="114" href="#114">114</a> 
-<a class="jxr_linenumber" name="115" href="#115">115</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="115" href="#115">115</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="116" href="#116">116</a>         messages.offer(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="117" href="#117">117</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="118" href="#118">118</a>     }
@@ -154,7 +154,7 @@
 <a class="jxr_linenumber" name="144" href="#144">144</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="145" href="#145">145</a>         }
 <a class="jxr_linenumber" name="146" href="#146">146</a> 
-<a class="jxr_linenumber" name="147" href="#147">147</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="147" href="#147">147</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="148" href="#148">148</a>         messages.offer(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="149" href="#149">149</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="150" href="#150">150</a>     }
@@ -189,7 +189,7 @@
 <a class="jxr_linenumber" name="179" href="#179">179</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="180" href="#180">180</a>         }
 <a class="jxr_linenumber" name="181" href="#181">181</a> 
-<a class="jxr_linenumber" name="182" href="#182">182</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="182" href="#182">182</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="183" href="#183">183</a>         messages.offer(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="185" href="#185">185</a>     }

@@ -128,7 +128,7 @@
 <a class="jxr_linenumber" name="118" href="#118">118</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> broadcastReceivedMessage(Object message) {
 <a class="jxr_linenumber" name="119" href="#119">119</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="120" href="#120">120</a>             Object newMsg = filter(message);
-<a class="jxr_linenumber" name="121" href="#121">121</a>             push(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, <strong class="jxr_keyword">null</strong>, <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg), message));
+<a class="jxr_linenumber" name="121" href="#121">121</a>             push(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, <strong class="jxr_keyword">null</strong>, <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>), message));
 <a class="jxr_linenumber" name="122" href="#122">122</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
 <a class="jxr_linenumber" name="123" href="#123">123</a>             logger.error(<span class="jxr_string">"failed to push message: "</span> + message, t);
 <a class="jxr_linenumber" name="124" href="#124">124</a>         }
@@ -148,7 +148,7 @@
 <a class="jxr_linenumber" name="138" href="#138">138</a> 
 <a class="jxr_linenumber" name="139" href="#139">139</a>         Object newMsg = filter(msg);
 <a class="jxr_linenumber" name="140" href="#140">140</a>         <strong class="jxr_keyword">if</strong> (newMsg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="141" href="#141">141</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="141" href="#141">141</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="142" href="#142">142</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="143" href="#143">143</a>             outgoingBroadcast(msg);
 <a class="jxr_linenumber" name="144" href="#144">144</a>             push(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, <strong class="jxr_keyword">null</strong>, f, false));
@@ -172,7 +172,7 @@
 <a class="jxr_linenumber" name="162" href="#162">162</a> 
 <a class="jxr_linenumber" name="163" href="#163">163</a>         Object newMsg = filter(msg);
 <a class="jxr_linenumber" name="164" href="#164">164</a>         <strong class="jxr_keyword">if</strong> (newMsg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="165" href="#165">165</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="165" href="#165">165</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="166" href="#166">166</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="167" href="#167">167</a>             outgoingBroadcast(msg);
 <a class="jxr_linenumber" name="168" href="#168">168</a>             push(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, r, f, false));
@@ -197,7 +197,7 @@
 <a class="jxr_linenumber" name="187" href="#187">187</a>         Object newMsg = filter(msg);
 <a class="jxr_linenumber" name="188" href="#188">188</a>         <strong class="jxr_keyword">if</strong> (newMsg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="189" href="#189">189</a> 
-<a class="jxr_linenumber" name="190" href="#190">190</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg);
+<a class="jxr_linenumber" name="190" href="#190">190</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, broadcasterListeners, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="191" href="#191">191</a>         <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="192" href="#192">192</a>             outgoingBroadcast(msg);
 <a class="jxr_linenumber" name="193" href="#193">193</a>             push(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">Entry</a>(newMsg, subset, f, false));

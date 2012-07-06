@@ -58,7 +58,7 @@
 <a class="jxr_linenumber" name="48" href="#48">48</a>          <strong class="jxr_keyword">if</strong> (b == <strong class="jxr_keyword">null</strong>) b = Boolean.FALSE;
 <a class="jxr_linenumber" name="49" href="#49">49</a>  
 <a class="jxr_linenumber" name="50" href="#50">50</a>          <strong class="jxr_keyword">if</strong> (!Utils.webSocketEnabled(req) &amp;&amp; req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="51" href="#51">51</a>              <strong class="jxr_keyword">if</strong> (req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
+<a class="jxr_linenumber" name="51" href="#51">51</a>              <strong class="jxr_keyword">if</strong> (req.resource() != <strong class="jxr_keyword">null</strong> &amp;&amp; req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
 <a class="jxr_linenumber" name="52" href="#52">52</a>                  logger.trace(<span class="jxr_string">"Invalid WebSocket Specification {}"</span>, req);
 <a class="jxr_linenumber" name="53" href="#53">53</a>  
 <a class="jxr_linenumber" name="54" href="#54">54</a>                  res.addHeader(X_ATMOSPHERE_ERROR, <span class="jxr_string">"Websocket protocol not supported"</span>);
