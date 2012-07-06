@@ -314,4 +314,18 @@ public interface Broadcaster {
      */
     <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit);
 
+    /**
+     * Add a {@link BroadcasterListener}
+     * @param b a {@link BroadcasterListener}
+     * @return this
+     */
+    Broadcaster addBroadcasterListener(BroadcasterListener b);
+
+    /**
+     * Remove a {@link BroadcasterListener}
+     * @param b a {@link BroadcasterListener}
+     * @return this
+     */
+    Broadcaster removeBroadcasterListener(BroadcasterListener b);
+
 }
