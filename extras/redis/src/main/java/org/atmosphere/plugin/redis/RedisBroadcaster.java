@@ -242,7 +242,6 @@ public class RedisBroadcaster extends AbstractBroadcasterProxy {
         if (authToken != null) {
             jedis.auth(authToken);
         }
-        jedis.flushAll();
     }
 
     private void disconnectSubscriber() {
