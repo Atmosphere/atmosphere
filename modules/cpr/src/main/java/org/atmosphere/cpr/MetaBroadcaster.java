@@ -71,7 +71,7 @@ public class MetaBroadcaster {
             MetaBroadcasterFuture f = new MetaBroadcasterFuture(l);
             CompleteListener cl = new CompleteListener(f);
             for (Broadcaster b : l) {
-                if (time > -1) {
+                if (time <= 0) {
                     b.addBroadcasterListener(cl).broadcast(message);
                 } else {
                     b.scheduleFixedBroadcast(message, time, unit);
