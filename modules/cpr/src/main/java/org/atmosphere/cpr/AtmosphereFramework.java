@@ -175,7 +175,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             this.atmosphereHandler = atmosphereHandler;
             try {
                 if (BroadcasterFactory.getDefault() != null) {
-                    this.broadcaster = BroadcasterFactory.getDefault().get(mapping);
+                    this.broadcaster = BroadcasterFactory.getDefault().lookup(mapping, true);
                 } else {
                     this.mapping = mapping;
                 }
