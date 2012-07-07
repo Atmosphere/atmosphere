@@ -52,7 +52,7 @@ public class MetaBroadcaster {
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
 
-    protected MetaBroadcasterFuture broadcast(String path, Object message) {
+    protected MetaBroadcasterFuture broadcast(String path, Object message, int time, TimeUnit unit) {
         if (BroadcasterFactory.getDefault() != null) {
             Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
@@ -71,7 +71,11 @@ public class MetaBroadcaster {
             MetaBroadcasterFuture f = new MetaBroadcasterFuture(l);
             CompleteListener cl = new CompleteListener(f);
             for (Broadcaster b : l) {
-                b.addBroadcasterListener(cl).broadcast(message);
+                if (time > -1) {
+                    b.addBroadcasterListener(cl).broadcast(message);
+                } else {
+                    b.scheduleFixedBroadcast(message, time, unit);
+                }
             }
 
             return f;
@@ -80,7 +84,7 @@ public class MetaBroadcaster {
         }
     }
 
-    protected MetaBroadcasterFuture map(String path, Object message) {
+    protected MetaBroadcasterFuture map(String path, Object message, int time, TimeUnit unit) {
 
         if (path == null || path.isEmpty()) {
             throw new NullPointerException();
@@ -98,7 +102,7 @@ public class MetaBroadcaster {
             path += MAPPING_REGEX;
         }
 
-        return broadcast(path, message);
+        return broadcast(path, message, time, unit);
     }
 
     /**
@@ -109,7 +113,21 @@ public class MetaBroadcaster {
      * @return a Future.
      */
     public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message) {
-        return map(broadcasterID, message);
+        return map(broadcasterID, message, -1, null);
+    }
+
+    /**
+     * Broadcast the message at a fixed rate to all Broadcaster whose {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * maps the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @param time          a time value
+     * @param unit          a {@link TimeUnit}
+     * @return a Future.
+     */
+    public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message,int time, TimeUnit unit) {
+        return map(broadcasterID, message,time, unit);
     }
 
     public final static MetaBroadcaster getDefault() {
