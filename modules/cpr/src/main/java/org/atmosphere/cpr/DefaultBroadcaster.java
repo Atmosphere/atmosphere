@@ -1110,9 +1110,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
         if (executeDone) {
-            BroadcasterFuture f = (BroadcasterFuture) r.getRequest().getAttribute(getID());
-            if (f != null) {
-                r.getRequest().removeAttribute(getID());
+            AtmosphereResourceImpl aImpl = AtmosphereResourceImpl.class.cast(r);
+            BroadcasterFuture f = (BroadcasterFuture) aImpl.getRequest(false).getAttribute(getID());
+            if (f != null && !f.isDone() && !f.isCancelled()) {
+                aImpl.getRequest(false).removeAttribute(getID());
                 f.done();
             }
         }
