@@ -1528,6 +1528,7 @@ jQuery.atmosphere = function() {
                     requestCount : 0,
                     transport: 'polling',
                     attachHeadersAsQueryString: true,
+                    enableXDR: _request.enableXDR,
                     uuid : _request.uuid
                 };
 
