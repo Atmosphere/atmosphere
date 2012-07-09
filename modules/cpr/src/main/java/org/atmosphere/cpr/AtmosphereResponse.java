@@ -66,6 +66,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean destroyable;
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
+    private long uuid = (long) Math.floor(Math.random() * 9000000000L) + 1000000000L;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -1141,7 +1142,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public int hashCode() {
-        return resource() != null ? Integer.valueOf(resource().uuid()) : super.hashCode();
+        return (int) uuid;
     }
 
     @Override
