@@ -529,6 +529,11 @@ jQuery.atmosphere = function() {
                 };
 
                 _sse.onmessage = function(message) {
+                    if (message.origin != "http://" + window.location.host) {
+                        jQuery.atmosphere.log(_request.logLevel, ["Origin was not " + "http://" + window.location.host]);
+                        return;
+                    }
+
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
