@@ -495,8 +495,8 @@ jQuery.atmosphere = function() {
 
                 var location = _buildSSEUrl(_request.url);
 
-                jQuery.atmosphere.log(_request.logLevel, ["Invoking executeSSE"]);
                 if (_request.logLevel == 'debug') {
+                    jQuery.atmosphere.debug("Invoking executeSSE");
                     jQuery.atmosphere.debug("Using URL: " + location);
                 }
 
@@ -593,8 +593,8 @@ jQuery.atmosphere = function() {
                 var location = _buildWebSocketUrl(_request.url);
                 var closed = false;
 
-                jQuery.atmosphere.log(_request.logLevel, ["Invoking executeWebSocket"]);
                 if (_request.logLevel == 'debug') {
+                    jQuery.atmosphere.debug("Invoking executeWebSocket");
                     jQuery.atmosphere.debug("Using URL: " + location);
                 }
 
