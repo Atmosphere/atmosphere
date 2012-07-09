@@ -497,7 +497,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                         "It is recommended to configure the HeaderBroadcasterCache.");
             }  else {
-                logger.info("Using BroadcasterCache class: {}", broadcasterCacheClassName);
+                logger.info("Using BroadcasterCache: {}", broadcasterCacheClassName);
             }
 
             // http://java.net/jira/browse/ATMOSPHERE-157
@@ -506,8 +506,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             logger.info("HttpSession supported: {}", config.isSupportSession());
-            logger.info("Using BroadcasterFactory class: {}", BroadcasterFactory.getDefault().getClass().getName());
-            logger.info("Using Broadcaster class: {}", broadcasterClassName);
+            logger.info("Using BroadcasterFactory: {}", BroadcasterFactory.getDefault().getClass().getName());
+            logger.info("Using Broadcaster: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
