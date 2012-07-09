@@ -61,6 +61,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1188,10 +1189,15 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
+        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        if (s == null || s.equals("0")) {
+            res.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
+        }
+
         Action a = null;
         try {
             boolean skip = true;
-            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
+            s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
             if (s != null) {
                 skip = Boolean.valueOf(s);
             }

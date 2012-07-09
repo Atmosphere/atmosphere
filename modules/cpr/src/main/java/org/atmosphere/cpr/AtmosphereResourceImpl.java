@@ -154,7 +154,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
-        uuid = UUID.randomUUID().toString();
+        uuid = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
 
         if (config.isSupportSession()) {
             //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
