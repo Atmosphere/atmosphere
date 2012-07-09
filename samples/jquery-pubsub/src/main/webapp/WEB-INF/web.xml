@@ -27,8 +27,8 @@
 
         <!-- Uncomment if you want to try XMPP
         <init-param>
-            <param-name>org.atmosphere.plugin.xmpp.XMPPBroadcaster.authorization</param-name>
-            <param-value>me@gmail.com:password</param-value>
+            <param-name>org.atmosphere.cpr.broadcasterClassName/param-name>
+            <param-value>org.atmosphere.plugin.org.atmosphere.plugin.xmpp.XMPPBroadcaster</param-value>
         </init-param>
 
         <init-param>
@@ -38,9 +38,9 @@
         -->
 
         <!-- Uncomment to use Redis
-                <init-param>
-            <param-name>org.atmosphere.plugin.redis.RedisBroadcaster.sharedPool</param-name>
-            <param-value>true</param-value>
+        <init-param>
+            <param-name>org.atmosphere.cpr.broadcasterClassName/param-name>
+            <param-value>org.atmosphere.plugin.org.atmosphere.plugin.redis.RedisBroadcaster</param-value>
         </init-param>
         -->
 
