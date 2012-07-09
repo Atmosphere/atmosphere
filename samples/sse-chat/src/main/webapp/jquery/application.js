@@ -47,6 +47,10 @@ $(function () {
         }
     };
 
+    request.onClose = function(response) {
+        logged = false;
+    }
+
     request.onError = function(response) {
         content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
             + 'socket or the server is down' }));

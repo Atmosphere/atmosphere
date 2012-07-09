@@ -1632,6 +1632,7 @@ jQuery.atmosphere = function() {
                     case "re-opening" :
                         if (typeof(f.onReconnect) != 'undefined') f.onReconnect(_request, response);
                         break;
+                    case "unsubscribe" :
                     case "closed" :
                         if (typeof(f.onClose) != 'undefined') f.onClose(response);
                         break;
