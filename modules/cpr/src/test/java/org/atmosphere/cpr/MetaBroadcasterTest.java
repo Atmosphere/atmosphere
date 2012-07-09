@@ -85,4 +85,16 @@ public class MetaBroadcasterTest {
         assertEquals(MetaBroadcaster.getDefault().broadcastTo("/b", "yo").get().size(), 1);
 
     }
+
+    @Test
+    public void chatTest() throws ExecutionException, InterruptedException {
+        factory.get("/a/chat1");
+        factory.get("/a/chat2");
+        factory.get("/a/chat3");
+
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 0);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/", "yo").get().size(), 0);
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/*", "yo").get().size(), 3);
+
+    }
 }
