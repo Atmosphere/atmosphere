@@ -125,7 +125,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final boolean isFilter;
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
     protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
-    protected final static EventLogger eLogger = new EventLogger();
 
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
@@ -478,7 +477,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             };
             this.servletConfig = scFacade;
-            asyncSupportListener(eLogger);
+            asyncSupportListener(new AsyncSupportListenerAdapter());
 
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
@@ -1530,32 +1529,4 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
     }
-
-    private final static class EventLogger implements AsyncSupportListener {
-        @Override
-        public void onSuspend(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Suspended request {} and response {}", request, response);
-        }
-
-        @Override
-        public void onResume(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Resume request {} and response {}", request, response);
-        }
-
-        @Override
-        public void onTimeout(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Timeout request {} and response {}", request, response);
-        }
-
-        @Override
-        public void onClose(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Closing request {} and response {}", request, response);
-        }
-
-        @Override
-        public void onDestroyed(AtmosphereRequest request, AtmosphereResponse response) {
-            logger.trace("Destroyed request {} and response {}", request, response);
-        }
-    }
-
 }
