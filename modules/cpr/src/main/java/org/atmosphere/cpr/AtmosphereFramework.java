@@ -496,6 +496,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                         "It is recommended to configure the HeaderBroadcasterCache.");
+            }  else {
+                logger.info("Using BroadcasterCache class: {}", broadcasterCacheClassName);
             }
 
             // http://java.net/jira/browse/ATMOSPHERE-157
