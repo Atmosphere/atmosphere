@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -41,7 +42,7 @@ import java.util.concurrent.TimeoutException;
  *        broaccast("/*", event);
  * </pre></blockquote>
  * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.
- *
+ * <p/>
  * NOTE: Broadcaster's name must start with / in order to get retrieved by this class.
  *
  * @author Jeanfrancois Arcand
@@ -51,6 +52,7 @@ public class MetaBroadcaster {
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
+    private static final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
 
     protected MetaBroadcasterFuture broadcast(String path, Object message, int time, TimeUnit unit) {
         if (BroadcasterFactory.getDefault() != null) {
@@ -126,8 +128,8 @@ public class MetaBroadcaster {
      * @param unit          a {@link TimeUnit}
      * @return a Future.
      */
-    public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message,int time, TimeUnit unit) {
-        return map(broadcasterID, message,time, unit);
+    public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message, int time, TimeUnit unit) {
+        return map(broadcasterID, message, time, unit);
     }
 
     public final static MetaBroadcaster getDefault() {
@@ -145,6 +147,9 @@ public class MetaBroadcaster {
         @Override
         public void onComplete(Broadcaster b) {
             f.countDown();
+            for (BroadcasterListener l : broadcasterListeners) {
+                l.onComplete(b);
+            }
             b.removeBroadcasterListener(this);
         }
     }
@@ -196,4 +201,23 @@ public class MetaBroadcaster {
         }
     }
 
+    /**
+     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}. T
+     * @param b {@link BroadcasterListener}
+     * @return this
+     */
+    public MetaBroadcaster addBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.add(b);
+        return this;
+    }
+
+    /**
+     * Remove the {@link BroadcasterListener}.
+     * @param b {@link BroadcasterListener}
+     * @return this
+     */
+    public MetaBroadcaster removeBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.remove(b);
+        return this;
+    }
 }
