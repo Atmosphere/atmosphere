@@ -981,17 +981,15 @@ jQuery.atmosphere = function() {
                         if (update) {
                             var responseText = ajaxRequest.responseText;
 
-                            if (!_request.dropAtmosphereHeaders) {
-                                // Do not fail on trying to retrieve headers. Chrome migth fail with
-                                // Refused to get unsafe header
-                                // Let the failure happens later with a better error message
-                                try {
-                                    var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
-                                    if (tempDate != null || tempDate != undefined) {
-                                        _request.lastTimestamp = tempDate.split(" ").pop();
-                                    }
-                                } catch (e) {
+                            // Do not fail on trying to retrieve headers. Chrome migth fail with
+                            // Refused to get unsafe header
+                            // Let the failure happens later with a better error message
+                            try {
+                                var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                                if (tempDate != null || tempDate != undefined) {
+                                    _request.lastTimestamp = tempDate.split(" ").pop();
                                 }
+                            } catch (e) {
                             }
 
                             this.previousLastIndex = rq.lastIndex;
