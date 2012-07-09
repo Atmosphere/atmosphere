@@ -577,6 +577,11 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void configureBroadcaster() {
 
         try {
+            // Check auto supported one
+            if (broadcasterClassName.equalsIgnoreCase(DefaultBroadcaster.class.getName())) {
+                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
+            }
+
             if (broadcasterFactoryClassName != null) {
                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                         .loadClass(broadcasterFactoryClassName).newInstance();
@@ -743,7 +748,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             cl.loadClass(JERSEY_CONTAINER);
 
             if (!isBroadcasterSpecified) {
-                broadcasterClassNameTmp = lookupDefaultBroadcasterType();
+                broadcasterClassNameTmp = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
 
                 cl.loadClass(broadcasterClassNameTmp);
             }
@@ -780,7 +785,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         return true;
     }
 
-    protected String lookupDefaultBroadcasterType() {
+    protected String lookupDefaultBroadcasterType(String defaultB) {
         for (String b : broadcasterTypes) {
             try {
                 Class.forName(b);
@@ -788,7 +793,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             } catch (ClassNotFoundException e) {
             }
         }
-        return JERSEY_BROADCASTER;
+        return defaultB;
     }
 
     protected void sessionSupport(boolean sessionSupport) {
@@ -905,7 +910,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
-                        broadcasterClassName = lookupDefaultBroadcasterType();
+                        broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
                         broadcasterFactory = null;
                         configureBroadcaster();
                     }
