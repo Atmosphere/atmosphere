@@ -11,6 +11,38 @@ $(function () {
     var logged = false;
     var socket = $.atmosphere;
 
+    <!-- The following code is just here for demonstration purpose and not required -->
+    <!-- Used to demonstrate the request.onTransportFailure callback. Not mandatory -->
+    var sseSupported = false;
+
+    var transports = new Array();
+    transports[0] = "websocket";
+    transports[1] = "sse";
+    transports[2] = "jsonp";
+    transports[3] = "long-polling";
+    transports[4] = "streaming";
+    transports[5] = "ajax";
+
+    $.each(transports, function (index, transport) {
+        var req = new $.atmosphere.AtmosphereRequest();
+
+        req.url = document.location.toString() + 'chat';
+        req.contentType = "application/json";
+        req.transport = transport;
+        req.headers = { "negotiating" : "true" };
+
+        req.onOpen = function(response) {
+            detect.append('<p><span style="color:blue">' + transport + ' supported: '  + '</span>' + (response.transport == transport));
+        }
+
+        req.onReconnect = function(request) {
+            request.close();
+        }
+
+        socket.subscribe(req)
+    });
+    <!-- Below is code that can be re-used -->
+
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
@@ -23,6 +55,15 @@ $(function () {
         content.html($('<p>', { text: 'Atmosphere connected using ' + response.transport }));
         input.removeAttr('disabled').focus();
         status.text('Choose name:');
+    };
+
+    <!-- For demonstration of how you can customize the fallbackTransport based on the browser -->
+    request.onTransportFailure = function(errorMsg, request) {
+        jQuery.atmosphere.info(errorMsg);
+        if ( window.EventSource ) {
+            request.fallbackTransport = "sse";
+        }
+        header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
     };
 
     request.onReconnect = function (request, response) {
