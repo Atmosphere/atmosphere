@@ -27,7 +27,7 @@
 
         <!-- Uncomment if you want to try XMPP
         <init-param>
-            <param-name>org.atmosphere.cpr.broadcasterClassName/param-name>
+            <param-name>org.atmosphere.cpr.broadcasterClassName</param-name>
             <param-value>org.atmosphere.plugin.org.atmosphere.plugin.xmpp.XMPPBroadcaster</param-value>
         </init-param>
 
@@ -39,7 +39,7 @@
 
         <!-- Uncomment to use Redis
         <init-param>
-            <param-name>org.atmosphere.cpr.broadcasterClassName/param-name>
+            <param-name>org.atmosphere.cpr.broadcasterClassName</param-name>
             <param-value>org.atmosphere.plugin.org.atmosphere.plugin.redis.RedisBroadcaster</param-value>
         </init-param>
         -->
