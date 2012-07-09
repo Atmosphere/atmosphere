@@ -54,7 +54,7 @@ public class MetaBroadcaster {
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
     private static final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
 
-    protected MetaBroadcasterFuture broadcast(String path, Object message, int time, TimeUnit unit) {
+    protected MetaBroadcasterFuture broadcast(String path, Object message, int time, TimeUnit unit, boolean delay) {
         if (BroadcasterFactory.getDefault() != null) {
             Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
@@ -75,8 +75,10 @@ public class MetaBroadcaster {
             for (Broadcaster b : l) {
                 if (time <= 0) {
                     b.addBroadcasterListener(cl).broadcast(message);
-                } else {
+                } else if (!delay) {
                     b.scheduleFixedBroadcast(message, time, unit);
+                } else {
+                    b.delayBroadcast(message, time, unit);
                 }
             }
 
@@ -86,7 +88,7 @@ public class MetaBroadcaster {
         }
     }
 
-    protected MetaBroadcasterFuture map(String path, Object message, int time, TimeUnit unit) {
+    protected MetaBroadcasterFuture map(String path, Object message, int time, TimeUnit unit, boolean delay) {
 
         if (path == null || path.isEmpty()) {
             throw new NullPointerException();
@@ -104,7 +106,7 @@ public class MetaBroadcaster {
             path += MAPPING_REGEX;
         }
 
-        return broadcast(path, message, time, unit);
+        return broadcast(path, message, time, unit, delay);
     }
 
     /**
@@ -115,7 +117,7 @@ public class MetaBroadcaster {
      * @return a Future.
      */
     public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message) {
-        return map(broadcasterID, message, -1, null);
+        return map(broadcasterID, message, -1, null, false);
     }
 
     /**
@@ -129,7 +131,21 @@ public class MetaBroadcaster {
      * @return a Future.
      */
     public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message, int time, TimeUnit unit) {
-        return map(broadcasterID, message, time, unit);
+        return map(broadcasterID, message, time, unit, false);
+    }
+
+    /**
+     * Delay the message delivery to {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * maps the broadcasterID value. This operation will invoke {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)} (Object, long, java.util.concurrent.TimeUnit)}}
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @param time          a time value
+     * @param unit          a {@link TimeUnit}
+     * @return a Future.
+     */
+    public Future<List<Broadcaster>> delayTo(String broadcasterID, Object message, int time, TimeUnit unit) {
+        return map(broadcasterID, message, time, unit, true);
     }
 
     public final static MetaBroadcaster getDefault() {
