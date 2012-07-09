@@ -146,7 +146,7 @@ public class BroadcasterConfig {
         }
 
         if (config.properties().get("executorService") == null) {
-            int numberOfMessageProcessingThread = 1;
+            int numberOfMessageProcessingThread = -1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
@@ -158,7 +158,7 @@ public class BroadcasterConfig {
                 numberOfMessageProcessingThread = -1;
             }
 
-            int numberOfAsyncThread = 1;
+            int numberOfAsyncThread = -1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
