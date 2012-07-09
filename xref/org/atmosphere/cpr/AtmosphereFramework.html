@@ -185,7 +185,7 @@
 <a class="jxr_linenumber" name="175" href="#175">175</a>             <strong class="jxr_keyword">this</strong>.atmosphereHandler = atmosphereHandler;
 <a class="jxr_linenumber" name="176" href="#176">176</a>             <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="177" href="#177">177</a>                 <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="178" href="#178">178</a>                     <strong class="jxr_keyword">this</strong>.broadcaster = BroadcasterFactory.getDefault().get(mapping);
+<a class="jxr_linenumber" name="178" href="#178">178</a>                     <strong class="jxr_keyword">this</strong>.broadcaster = BroadcasterFactory.getDefault().lookup(mapping, <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="179" href="#179">179</a>                 } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="180" href="#180">180</a>                     <strong class="jxr_keyword">this</strong>.mapping = mapping;
 <a class="jxr_linenumber" name="181" href="#181">181</a>                 }
