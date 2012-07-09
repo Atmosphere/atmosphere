@@ -518,10 +518,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     try {
                         msg = messages.poll(10, TimeUnit.SECONDS);
                         if (msg == null) {
-                            if (destroyed.get()) {
+                            if (!destroyed.get()) {
+                                bc.getAsyncWriteService().submit(this);
                                 return;
-                            } else {
-                                continue;
                             }
                         }
                         push(msg);
