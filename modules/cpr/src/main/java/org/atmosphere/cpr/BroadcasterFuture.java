@@ -61,6 +61,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple {@link Future} that can be used when awaiting for a {@link Broadcaster} to finish
@@ -78,6 +79,7 @@ public class BroadcasterFuture<E> implements Future {
     private final Future<?> innerFuture;
     private final CopyOnWriteArrayList<BroadcasterListener> listeners;
     private final Broadcaster broadcaster;
+    private final AtomicBoolean notified = new AtomicBoolean();
 
     public BroadcasterFuture(E msg, CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
         this(null, msg, listeners, b);
@@ -158,7 +160,7 @@ public class BroadcasterFuture<E> implements Future {
         isDone = true;
 
         if (latch != null) {
-            if (latch.getCount() -1 <= 0) {
+            if (latch.getCount() - 1 <= 0) {
                 notifyListener();
             }
             latch.countDown();
@@ -183,11 +185,13 @@ public class BroadcasterFuture<E> implements Future {
     }
 
     void notifyListener() {
-        for (BroadcasterListener b : listeners) {
-            try {
-                b.onComplete(broadcaster);
-            } catch (Exception ex) {
-                logger.warn("", ex);
+        if (!notified.getAndSet(true)) {
+            for (BroadcasterListener b : listeners) {
+                try {
+                    b.onComplete(broadcaster);
+                } catch (Exception ex) {
+                    logger.warn("", ex);
+                }
             }
         }
     }
