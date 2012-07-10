@@ -20,7 +20,6 @@ import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
@@ -1364,8 +1363,16 @@ public class AtmosphereFramework implements ServletContextProvider {
         String s;
         while (e.hasMoreElements()) {
             s = e.nextElement();
+            if (s.equalsIgnoreCase("Content-Type")) {
+                // Use the one set by the user first.
+                if (request.getContentType() == null ||
+                        !request.getContentType().equalsIgnoreCase(request.getParameter(s))) {
+                    request.contentType(request.getParameter(s));
+                }
+            }
             headers.put(s, request.getParameter(s));
         }
+        logger.trace("Query String translated to headers {}", headers);
         return headers;
     }
 

@@ -48,7 +48,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -180,6 +179,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * {@inheritDoc}
      */
+
     @Override
     public String getContentType() {
         return b.contentType != null ? b.contentType : b.request.getContentType();
@@ -483,6 +483,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     public AtmosphereRequest method(String m) {
         b.method(m);
+        return this;
+    }
+
+    public AtmosphereRequest contentType(String m) {
+        b.contentType(m);
         return this;
     }
 
