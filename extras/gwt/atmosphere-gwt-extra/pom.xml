@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-gwt</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0.beta3</version>
     </parent>
 
     <groupId>org.atmosphere</groupId>
@@ -40,7 +40,7 @@
         <dependency> 
            <groupId>org.atmosphere</groupId> 
            <artifactId>gwtprojsonserializer</artifactId> 
-           <version>1.0.4</version> 
+           <version>1.0.0.beta3</version> 
         </dependency>
     </dependencies>
     

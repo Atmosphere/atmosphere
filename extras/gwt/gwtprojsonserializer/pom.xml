@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-gwt</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0.beta3</version>
     </parent>
 
     <groupId>org.atmosphere</groupId>
@@ -15,7 +15,7 @@
 It is crucial functionality when there is no GWT-RPC on server side.
 This JSON serializer allows easy connecting GWT client side to any standard server side technology.
     </description>
-    <version>1.0.4</version>
+    <version>1.0.0.beta3</version>
     <url>http://gwtprojsonserializer.googlecode.com</url>
     <scm>
         <connection>scm:svn:http://gwtprojsonserializer.googlecode.com/svn/tags/gwtprojsonserializer-1.0.4</connection>
