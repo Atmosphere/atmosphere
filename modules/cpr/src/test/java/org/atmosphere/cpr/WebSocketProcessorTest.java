@@ -36,7 +36,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -210,6 +209,7 @@ public class WebSocketProcessorTest {
         public WebSocket flush(AtmosphereResponse r) throws IOException {
             return this;
         }
+
 
     }
 }
