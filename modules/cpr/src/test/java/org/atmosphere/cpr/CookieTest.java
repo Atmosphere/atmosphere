@@ -24,9 +24,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -65,11 +65,10 @@ public class CookieTest {
         });
     }
 
-
     @Test
     public void basicHandlerTest() throws IOException, ServletException, ExecutionException, InterruptedException {
         final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
-        final AtomicReference<AtmosphereResource>  r = new AtomicReference<AtmosphereResource>();
+        final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
 
         framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
 
@@ -89,7 +88,7 @@ public class CookieTest {
             public void destroy() {
             }
         });
-        List<Cookie> c = new ArrayList<Cookie>();
+        Set<Cookie> c = new HashSet<Cookie>();
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
@@ -97,7 +96,9 @@ public class CookieTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
-        assertEquals(c.get(0).getName(), cValue.get().getName());
-        assertEquals(c.get(0).getValue(), cValue.get().getValue());
+
+        Cookie i = c.iterator().next();
+        assertEquals(i.getName(), cValue.get().getName());
+        assertEquals(i.getValue(), cValue.get().getValue());
     }
 }

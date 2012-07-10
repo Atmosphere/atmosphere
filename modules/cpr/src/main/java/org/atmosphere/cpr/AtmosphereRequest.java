@@ -309,7 +309,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        return isNotNoOps() ? b.request.getCookies() : b.cookies.toArray(new Cookie[]{});
+        Cookie[] c = b.request.getCookies();
+        if (c != null && c.length > 0) {
+            b.cookies.addAll(Arrays.asList(c));
+        }
+        return b.cookies.toArray(new Cookie[]{});
     }
 
     /**
@@ -926,7 +930,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private List<Cookie> cookies = new ArrayList<Cookie>();
+        private Set<Cookie> cookies = new HashSet<Cookie>();
 
         private String contextPath = "";
         private String serverName = "";
@@ -946,7 +950,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public Builder cookies(List<Cookie> cookies) {
+        public Builder cookies(Set<Cookie> cookies) {
             this.cookies = cookies;
             return this;
         }

@@ -47,9 +47,9 @@ import java.util.Map;
 public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleHttpProtocol.class);
-    private String contentType;
-    private String methodType;
-    private String delimiter;
+    private String contentType = "text/plain";
+    private String methodType = "POST";
+    private String delimiter = "@@";
     private boolean destroyable;
 
     /**
