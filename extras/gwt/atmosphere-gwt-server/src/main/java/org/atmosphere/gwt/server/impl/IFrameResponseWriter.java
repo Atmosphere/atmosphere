@@ -16,8 +16,6 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -28,8 +26,8 @@ import java.util.List;
  */
 public class IFrameResponseWriter extends ManagedStreamResponseWriter {
 
-    public IFrameResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public IFrameResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
     }
 
     // IE requires padding to start processing the page.

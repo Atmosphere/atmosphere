@@ -15,8 +15,7 @@
  */
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
+import javax.servlet.ServletContext;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -58,6 +57,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     @Override
     public Broadcaster getBroadcaster() {
         return atmResource.getBroadcaster();
+    }
+
+    @Override
+    public ServletContext getServletContext() {
+        return atmosphereHandler.getServletContext();
     }
 
     @Override
@@ -214,28 +218,25 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     private GwtResponseWriterImpl createResponseWriter() throws IOException {
 
-        ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
-        SerializationPolicy serializationPolicy = clientOracle == null ? RPCUtil.createSimpleSerializationPolicy() : null;
-
         String transport = atmResource.getRequest().getParameter("tr");
         if ("WebSocket".equals(transport)) {
             logger.debug("atmosphere-gwt Using websocket");
-            return new WebsocketResponseWriter(this, serializationPolicy, clientOracle);
+            return new WebsocketResponseWriter(this);
         } else if ("HTTPRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using XMLHttpRequest");
-            return new HTTPRequestResponseWriter(this, serializationPolicy, clientOracle);
+            return new HTTPRequestResponseWriter(this);
         } else if ("IFrame".equals(transport)) {
             logger.debug("atmosphere-gwt Using streaming IFrame");
-            return new IFrameResponseWriter(this, serializationPolicy, clientOracle);
+            return new IFrameResponseWriter(this);
         } else if ("OperaEventSource".equals(transport)) {
             logger.debug("atmosphere-gwt Using Opera EventSource");
-            return new OperaEventSourceResponseWriter(this, serializationPolicy, clientOracle);
+            return new OperaEventSourceResponseWriter(this);
         } else if ("IEXDomainRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE XDomainRequest");
-            return new IEXDomainRequestResponseWriter(this, serializationPolicy, clientOracle);
+            return new IEXDomainRequestResponseWriter(this);
         } else if ("IEHTMLFile".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE html file iframe");
-            return new IEHTMLFileResponseWriter(this, serializationPolicy, clientOracle);
+            return new IEHTMLFileResponseWriter(this);
         } else {
             throw new IllegalStateException("Failed to determine responsewriter");
         }
@@ -246,7 +247,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private final GwtResponseWriterImpl writer;
     private AtmosphereResource atmResource;
     private final int heartBeatInterval;
-    private AtmosphereGwtHandler atmosphereHandler;
+    AtmosphereGwtHandler atmosphereHandler;
     private boolean suspended = false;
     private Logger logger = LoggerFactory.getLogger(getClass());
 

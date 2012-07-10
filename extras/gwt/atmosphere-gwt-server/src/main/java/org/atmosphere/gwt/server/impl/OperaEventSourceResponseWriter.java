@@ -16,8 +16,6 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -28,8 +26,8 @@ import java.util.List;
  */
 public class OperaEventSourceResponseWriter extends GwtResponseWriterImpl {
 
-    public OperaEventSourceResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public OperaEventSourceResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
     }
 
     @Override

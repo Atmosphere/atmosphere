@@ -15,11 +15,6 @@
  */
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.rpc.server.RPC;
-import com.google.gwt.user.client.rpc.SerializationException;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
-import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamWriter;
 import org.atmosphere.gwt.server.GwtResponseWriter;
 import org.atmosphere.gwt.server.deflate.DeflaterOutputStream;
 import org.slf4j.Logger;
@@ -28,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.OutputStream;
@@ -54,13 +48,15 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     protected final GwtAtmosphereResourceImpl resource;
     protected final int connectionID;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
+    private GwtRpcSerializer gwtRpc;
 
 
-    protected GwtResponseWriterImpl(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
+    protected GwtResponseWriterImpl(GwtAtmosphereResourceImpl resource) {
         this.resource = resource;
-        this.serializationPolicy = serializationPolicy;
-        this.clientOracle = clientOracle;
         this.connectionID = connectionIDs.getAndIncrement();
+        if (getSerializationMode() == SerialMode.RPC) {
+            gwtRpc = new GwtRpcSerializer(resource.getRequest(), resource.getServletContext());
+        }
     }
 
 
@@ -69,10 +65,6 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         return terminated;
     }
 
-    protected boolean isDeRPC() {
-        return clientOracle != null;
-    }
-    
     protected SerialMode getSerializationMode() {
         String mode = resource.getRequest().getParameter(Constants.CLIENT_DESERIALZE_MODE_PARAMETER);
         if (mode != null) {
@@ -311,29 +303,20 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     }
 
     protected String serialize(Object message) throws NotSerializableException, UnsupportedEncodingException {
-        try {
-            switch (getSerializationMode()) {
-            case RPC:
-                ServerSerializationStreamWriter streamWriter = new ServerSerializationStreamWriter(serializationPolicy);
-                streamWriter.prepareToWrite();
-                streamWriter.writeObject(message);
-                return streamWriter.toString();
-                
-            case JSON:
-                throw new UnsupportedOperationException("Not implemented yet");
-                
-            default:
-            case PLAIN:
-                return message.toString();
-            }
-        } catch (SerializationException e) {
-            throw new NotSerializableException("Unable to serialize object, message: " + e.getMessage());
+        switch (getSerializationMode()) {
+        case RPC:
+            return gwtRpc.serialize(message);
+
+        case JSON:
+            throw new UnsupportedOperationException("Not implemented yet");
+
+        default:
+        case PLAIN:
+            return message.toString();
         }
     }
+    
 
-
-    private final SerializationPolicy serializationPolicy;
-    private final ClientOracle clientOracle;
     private boolean terminated;
     private volatile long lastWriteTime;
     private ScheduledFuture<?> heartbeatFuture;

@@ -16,8 +16,6 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,8 +38,8 @@ abstract public class StreamingProtocolResponseWriter extends ManagedStreamRespo
         PADDING_STRING = new String(padding);
     }
 
-    public StreamingProtocolResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public StreamingProtocolResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
 
     }
 

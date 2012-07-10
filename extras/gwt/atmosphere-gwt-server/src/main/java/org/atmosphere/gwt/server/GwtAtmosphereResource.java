@@ -23,10 +23,13 @@ import org.atmosphere.cpr.Broadcaster;
 import javax.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.util.List;
+import javax.servlet.ServletContext;
 
 public interface GwtAtmosphereResource {
     public Broadcaster getBroadcaster();
 
+    public ServletContext getServletContext();
+    
     public HttpSession getSession();
 
     public HttpSession getSession(boolean create);

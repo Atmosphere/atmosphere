@@ -32,8 +32,8 @@ public class WebsocketResponseWriter extends GwtResponseWriterImpl {
     
     private final static String MESSAGE_SEPERATOR = "#@@#";
 
-    public WebsocketResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public WebsocketResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
     }
 
     @Override

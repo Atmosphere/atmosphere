@@ -16,17 +16,12 @@
 
 package org.atmosphere.gwt.server;
 
-import com.google.gwt.user.client.rpc.SerializationException;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
-import com.google.gwt.user.server.rpc.SerializationPolicyProvider;
-import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamReader;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.gwt.server.impl.GwtAtmosphereResourceImpl;
-import org.atmosphere.gwt.server.impl.RPCUtil;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +44,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.gwt.server.impl.GwtRpcDeserializer;
 import org.atmosphere.gwt.shared.Constants;
 import org.atmosphere.gwt.shared.SerialMode;
 
@@ -66,13 +62,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     private int heartbeat = DEFAULT_HEARTBEAT;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-    protected SerializationPolicyProvider cometSerializationPolicyProvider = new SerializationPolicyProvider() {
-        @Override
-        public SerializationPolicy getSerializationPolicy(String moduleBaseURL, String serializationPolicyStrongName) {
-            return RPCUtil.createSimpleSerializationPolicy();
-        }
-    };
+    private GwtRpcDeserializer gwtRpc;
 
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
@@ -304,20 +294,21 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         switch (mode) {
             default:
             case RPC:
-                try {
-                    ServerSerializationStreamReader reader = new ServerSerializationStreamReader(getClass().getClassLoader(), cometSerializationPolicyProvider);
-                    reader.prepareToRead(data);
-                    return (Serializable) reader.readObject();
-                } catch (SerializationException ex) {
-                    logger.error("Failed to deserialize message", ex);
-                    return null;
-                }
+                return getGwtRpc().deserialize(data);
+                
             case JSON:
                 throw new UnsupportedOperationException("Not implemented");
                 
             case PLAIN:
                 return data;
         }
+    }
+    
+    protected GwtRpcDeserializer getGwtRpc() {
+        if (gwtRpc == null) {
+            gwtRpc = new GwtRpcDeserializer();
+        }
+        return gwtRpc;
     }
 //
 //    protected String serialize(Serializable message) throws SerializationException {
