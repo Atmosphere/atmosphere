@@ -52,6 +52,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -66,6 +69,7 @@ import java.util.concurrent.TimeoutException;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterFuture<E> implements Future {
+    private static final Logger logger = LoggerFactory.getLogger(BroadcasterFuture.class);
 
     private final CountDownLatch latch;
     private boolean isCancelled = false;
@@ -112,10 +116,11 @@ public class BroadcasterFuture<E> implements Future {
             return innerFuture.cancel(b);
         }
         isCancelled = true;
+        notifyListener();
+
         while (latch.getCount() > 0) {
             latch.countDown();
         }
-        notifyListener();
         return isCancelled;
     }
 
@@ -151,13 +156,14 @@ public class BroadcasterFuture<E> implements Future {
      */
     public BroadcasterFuture<E> done() {
         isDone = true;
+
         if (latch != null) {
+            if (latch.getCount() -1 <= 0) {
+                notifyListener();
+            }
             latch.countDown();
         }
 
-        if (latch.getCount() == 0) {
-            notifyListener();
-        }
         return this;
     }
 
@@ -171,13 +177,18 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await();
+        notifyListener();
         return msg;
 
     }
 
     void notifyListener() {
         for (BroadcasterListener b : listeners) {
-            b.onComplete(broadcaster);
+            try {
+                b.onComplete(broadcaster);
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
         }
     }
 
@@ -192,6 +203,7 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await(l, tu);
+        notifyListener();
         return msg;
     }
 }

@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class BroadcasterTest {
 
@@ -143,5 +144,71 @@ public class BroadcasterTest {
         @Override
         public void destroy() {
         }
+    }
+
+    @Test
+    public void testBroadcasterListenerOnPostCreate() {
+
+        final AtomicReference<Boolean> create = new AtomicReference<Boolean>();
+        BroadcasterListener l = new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+                create.set(Boolean.TRUE);
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        };
+        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/a1");
+        assertTrue(create.get());
+    }
+
+    @Test
+    public void testBroadcasterListenerOnPreDestroy() {
+
+        final AtomicReference<Boolean> deleted = new AtomicReference<Boolean>();
+        BroadcasterListener l = new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+                deleted.set(Boolean.TRUE);
+            }
+        };
+        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/b1").destroy();
+        assertTrue(deleted.get());
+    }
+
+    @Test
+    public void testBroadcasterOnComplete() throws ExecutionException, InterruptedException {
+
+        final AtomicReference<Boolean> complete = new AtomicReference<Boolean>(false);
+        BroadcasterListener l = new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                complete.set(Boolean.TRUE);
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        };
+        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/c1").broadcast("").get();
+        assertTrue(complete.get());
     }
 }

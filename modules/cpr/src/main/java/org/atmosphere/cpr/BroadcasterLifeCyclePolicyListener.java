@@ -21,6 +21,7 @@ package org.atmosphere.cpr;
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterLifeCyclePolicyListener {
+
     /**
      * Invoked when a {@link Broadcaster}'s list of {@link AtmosphereResource} becomes empty, e.g
      * the broadcaster has no longer resource associated with it.

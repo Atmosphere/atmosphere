@@ -92,8 +92,6 @@ public class MetaBroadcasterTest {
         factory.get("/a/chat2");
         factory.get("/a/chat3");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 0);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/", "yo").get().size(), 0);
         assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/*", "yo").get().size(), 3);
 
     }

@@ -52,9 +52,9 @@ public class MetaBroadcaster {
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
-    private static final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
+    private final static CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
 
-    protected MetaBroadcasterFuture broadcast(String path, Object message, int time, TimeUnit unit, boolean delay) {
+    protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay) {
         if (BroadcasterFactory.getDefault() != null) {
             Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
@@ -161,12 +161,20 @@ public class MetaBroadcaster {
         }
 
         @Override
+        public void onPostCreate(Broadcaster b) {
+        }
+
+        @Override
         public void onComplete(Broadcaster b) {
             f.countDown();
             for (BroadcasterListener l : broadcasterListeners) {
                 l.onComplete(b);
             }
             b.removeBroadcasterListener(this);
+        }
+
+        @Override
+        public void onPreDestroy(Broadcaster b) {
         }
     }
 
@@ -189,7 +197,7 @@ public class MetaBroadcaster {
 
         @Override
         public boolean cancel(boolean b) {
-            for(Future<?> f: outerFuture) {
+            for (Future<?> f : outerFuture) {
                 f.cancel(b);
             }
 
@@ -229,6 +237,7 @@ public class MetaBroadcaster {
 
     /**
      * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}. T
+     *
      * @param b {@link BroadcasterListener}
      * @return this
      */
@@ -239,6 +248,7 @@ public class MetaBroadcaster {
 
     /**
      * Remove the {@link BroadcasterListener}.
+     *
      * @param b {@link BroadcasterListener}
      * @return this
      */

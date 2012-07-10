@@ -52,6 +52,7 @@
 package org.atmosphere.cpr;
 
 import java.util.Collection;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
@@ -62,6 +63,7 @@ public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
     protected static AtmosphereConfig config;
+    protected final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
 
     /**
      * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
@@ -151,7 +153,6 @@ public abstract class BroadcasterFactory {
      */
     abstract public Broadcaster lookup(Object id, boolean createIfNull);
 
-
     /**
      * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}
      *
@@ -178,6 +179,22 @@ public abstract class BroadcasterFactory {
      */
     public synchronized static BroadcasterFactory getDefault() {
         return factory;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.add(b);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
+        broadcasterListeners.remove(b);
+        return this;
     }
 
     static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {

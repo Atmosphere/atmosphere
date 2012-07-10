@@ -174,6 +174,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public synchronized void destroy() {
         if (destroyed.getAndSet(true)) return;
 
+        notifyOnPreDestroy();
         notifyDestroyListener();
 
         try {
@@ -1332,4 +1333,23 @@ public class DefaultBroadcaster implements Broadcaster {
         return period;
     }
 
+    public void notifyOnPostCreate() {
+        for (BroadcasterListener l : broadcasterListeners) {
+            try {
+                l.onPostCreate(this);
+            } catch (Exception ex) {
+                logger.warn("onPostCreate", ex);
+            }
+        }
+    }
+
+    void notifyOnPreDestroy() {
+        for (BroadcasterListener l : broadcasterListeners) {
+            try {
+                l.onPreDestroy(this);
+            } catch (Exception ex) {
+                logger.warn("onPreDestroy", ex);
+            }
+        }
+    }
 }
