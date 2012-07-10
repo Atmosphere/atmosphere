@@ -30,6 +30,7 @@ public class JsClient implements EntryPoint {
     @Override
     public void onModuleLoad() {
         GWT.create(Client.class);
+        GWT.create(Proxy.class);
         GWT.create(OnConnected.class);
         GWT.create(OnBeforeDisconnected.class);
         GWT.create(OnDisconnected.class);

@@ -88,7 +88,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-gwt-client</artifactId>
+            <artifactId>atmosphere-gwt-extra</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>

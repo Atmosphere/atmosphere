@@ -1,6 +1,6 @@
 <module rename-to="atmosphere_gwt_js">
 
-    <inherits name="org.atmosphere.gwt.Client"/>
+    <inherits name="org.atmosphere.gwt.Extra"/>
     <inherits name="org.timepedia.exporter.Exporter"/>
     <inherits name="com.google.gwt.logging.Logging"/>
     
@@ -13,6 +13,9 @@
 
     <source path="js"/>
     
+    <replace-with class="org.atmosphere.gwt.js.NativeJSONObjectSerializer">
+        <when-type-assignable class="org.atmosphere.gwt.client.JSONObjectSerializer"/>
+    </replace-with>
 
     <entry-point class="org.atmosphere.gwt.js.JsClient"/>
 </module>
