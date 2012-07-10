@@ -18,7 +18,6 @@ package org.atmosphere.gwt.client.impl;
 
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**

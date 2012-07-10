@@ -34,7 +34,6 @@ import com.google.gwt.user.client.rpc.AsyncCallback;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereListener;
 
-import java.io.Serializable;
 import java.util.List;
 
 

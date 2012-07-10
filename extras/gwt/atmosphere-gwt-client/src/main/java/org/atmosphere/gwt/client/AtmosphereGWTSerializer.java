@@ -55,7 +55,7 @@ import com.google.gwt.user.client.rpc.impl.Serializer;
  */
 public abstract class AtmosphereGWTSerializer {
     
-    protected ObjectSerializer jsonSerializer;
+    protected JSONObjectSerializer jsonSerializer;
 
     public AtmosphereGWTSerializer() {
         if (getMode() == SerialMode.JSON
