@@ -74,11 +74,11 @@ public class MetaBroadcaster {
             CompleteListener cl = new CompleteListener(f);
             for (Broadcaster b : l) {
                 if (time <= 0) {
-                    b.addBroadcasterListener(cl).broadcast(message);
+                    f.outerFuture(b.addBroadcasterListener(cl).broadcast(message));
                 } else if (!delay) {
-                    b.scheduleFixedBroadcast(message, time, unit);
+                    f.outerFuture(b.scheduleFixedBroadcast(message, time, unit));
                 } else {
-                    b.delayBroadcast(message, time, unit);
+                    f.outerFuture(b.delayBroadcast(message, time, unit));
                 }
             }
 
@@ -175,14 +175,24 @@ public class MetaBroadcaster {
         private final CountDownLatch latch;
         private final List<Broadcaster> l;
         private boolean isCancelled = false;
+        private final List<Future<?>> outerFuture = new ArrayList<Future<?>>();
 
         private MetaBroadcasterFuture(List<Broadcaster> l) {
             this.latch = new CountDownLatch(l.size());
             this.l = l;
         }
 
+        MetaBroadcasterFuture outerFuture(Future<?> f) {
+            outerFuture.add(f);
+            return this;
+        }
+
         @Override
         public boolean cancel(boolean b) {
+            for(Future<?> f: outerFuture) {
+                f.cancel(b);
+            }
+
             while (latch.getCount() > 0) {
                 latch.countDown();
             }
