@@ -80,15 +80,11 @@ public class WebSocketCometTransport extends BaseCometTransport {
     @Override
     protected ServerTransport getServerTransport() {
     	if (serverTransport==null) {
-	        serverTransport = new ServerTransportProtocol() {
+	        serverTransport = new ServerTransportProtocol(client.getSerializer()) {
 	            @Override
 	            void send(String message, AsyncCallback<Void> callback) {
 	                socket.send(message);
 	                callback.onSuccess(null);
-	            }
-	            @Override
-	            String serialize(Object message) throws SerializationException {
-	                return client.getSerializer().serialize(message);
 	            }
 	        };
     	}
@@ -101,12 +97,6 @@ public class WebSocketCometTransport extends BaseCometTransport {
     }
 
     private boolean connected = false;
-
-    @SuppressWarnings("unused")
-    private final void logError(String message) {
-        listener.onError(new AtmosphereClientException(message), connected);
-    }
-
     private void parseMessage(String message) {
         if (message.startsWith("s;")) {
             // a string message

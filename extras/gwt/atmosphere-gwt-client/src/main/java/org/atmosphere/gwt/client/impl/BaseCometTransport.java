@@ -98,12 +98,16 @@ public abstract class BaseCometTransport implements CometTransport {
 
     protected ServerTransport getServerTransport() {
         if (serverTransport == null) {
-            serverTransport = new RPCServerTransport();
+            serverTransport = new RPCServerTransport(client.getSerializer());
         }
         return serverTransport;
     }
 
     protected class RPCServerTransport extends ServerTransportProtocol {
+
+        public RPCServerTransport(AtmosphereGWTSerializer serializer) {
+            super(serializer);
+        }
 
         @Override
         void send(String message, final AsyncCallback<Void> callback) {
@@ -132,11 +136,6 @@ public abstract class BaseCometTransport implements CometTransport {
             } catch (RequestException ex) {
                 callback.onFailure(ex);
             }
-        }
-
-        @Override
-        public String serialize(Object message) throws SerializationException {
-            return client.getSerializer().serialize(message);
         }
 
         protected String serviceUrl() {

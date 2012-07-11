@@ -22,17 +22,26 @@ import com.google.gwt.user.client.rpc.SerializationException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 
 /**
  * @author p.havelaar
  */
 abstract public class ServerTransportProtocol implements ServerTransport {
 
+    private static final Logger logger = Logger.getLogger(ServerTransportProtocol.class.getName());
+    
+    private final AtmosphereGWTSerializer serializer;
+
+    public ServerTransportProtocol(AtmosphereGWTSerializer serializer) {
+        this.serializer = serializer;
+    }
+
     abstract void send(String message, AsyncCallback<Void> callback);
 
-    abstract String serialize(Object message) throws SerializationException;
-
-    private static final Logger logger = Logger.getLogger(ServerTransportProtocol.class.getName());
+    protected String serialize(Object message) throws SerializationException {
+        return serializer.serialize(message);
+    }
 
     private AsyncCallback<Void> defaultCallback = new AsyncCallback<Void>() {
         @Override
