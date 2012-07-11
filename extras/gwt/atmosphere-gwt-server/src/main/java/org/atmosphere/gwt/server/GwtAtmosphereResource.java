@@ -36,9 +36,9 @@ public interface GwtAtmosphereResource {
 
     public int getHeartBeatInterval();
 
-    public void post(Serializable message);
+    public void post(Object message);
 
-    public void post(List<Serializable> messages);
+    public void post(List<?> messages);
 
     public AtmosphereResource getAtmosphereResource();
 

@@ -24,17 +24,19 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.io.NotSerializableException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.atmosphere.gwt.server.JSONSerializer;
+import org.atmosphere.gwt.server.SerializationException;
+import org.atmosphere.gwt.server.spi.JSONSerializerProvider;
 import org.atmosphere.gwt.shared.Constants;
 import org.atmosphere.gwt.shared.SerialMode;
 
@@ -49,6 +51,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     protected final int connectionID;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     private GwtRpcSerializer gwtRpc;
+    private JSONSerializer jsonSerializer;
 
 
     protected GwtResponseWriterImpl(GwtAtmosphereResourceImpl resource) {
@@ -191,22 +194,23 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     }
 
     @Override
-    public void write(Serializable message) throws IOException {
+    public void write(Serializable message) throws IOException, SerializationException {
         write(Collections.singletonList(message), true);
     }
 
     @Override
-    public void write(Serializable message, boolean flush) throws IOException {
+    public void write(Serializable message, boolean flush) throws IOException, SerializationException {
         write(Collections.singletonList(message), flush);
     }
 
     @Override
-    public void write(List<? extends Serializable> messages) throws IOException {
+    public void write(List<? extends Serializable> messages) throws IOException, SerializationException {
         write(messages, true);
     }
 
     @Override
-    public synchronized void write(List<? extends Serializable> messages, boolean flush) throws IOException {
+    public synchronized void write(List<? extends Serializable> messages, boolean flush) 
+                    throws IOException, SerializationException {
         if (terminated) {
             throw new IOException("CometServletResponse terminated");
         }
@@ -286,7 +290,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
 
     protected abstract void doSuspend() throws IOException;
 
-    protected abstract void doWrite(List<? extends Serializable> messages) throws IOException;
+    protected abstract void doWrite(List<? extends Serializable> messages) throws IOException, SerializationException;
 
     protected abstract void doHeartbeat() throws IOException;
 
@@ -302,13 +306,13 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         return session != null;
     }
 
-    protected String serialize(Object message) throws NotSerializableException, UnsupportedEncodingException {
+    protected String serialize(Object message) throws SerializationException {
         switch (getSerializationMode()) {
         case RPC:
             return gwtRpc.serialize(message);
 
         case JSON:
-            throw new UnsupportedOperationException("Not implemented yet");
+            return getJsonSerializer().serialize(message);
 
         default:
         case PLAIN:
@@ -316,6 +320,30 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         }
     }
     
+    protected JSONSerializer getJsonSerializer() {
+        if (jsonSerializer == null) {
+            ServiceLoader<JSONSerializerProvider> loader = ServiceLoader.load(JSONSerializerProvider.class,
+                    getClass().getClassLoader());
+            if (loader != null && loader.iterator().hasNext()) {
+                jsonSerializer = loader.iterator().next().getSerializer();
+            }
+            
+            if (jsonSerializer == null) {
+                jsonSerializer = new JSONSerializer() {
+                    @Override
+                    public String serialize(Object data) {
+                        return "{\"data\": \"" + 
+                                data.toString()
+                                    .replaceAll("\n", "\\n")
+                                    .replaceAll("\"", "\\\"")
+                                    .replaceAll("'", "\\'")
+                                + "\"}";
+                    }
+                };
+            }
+        }
+        return jsonSerializer;
+    }
 
     private boolean terminated;
     private volatile long lastWriteTime;

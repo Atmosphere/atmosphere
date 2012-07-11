@@ -20,6 +20,7 @@ package org.atmosphere.gwt.server.impl;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -105,7 +106,7 @@ public class IFrameResponseWriter extends ManagedStreamResponseWriter {
     }
 
     @Override
-    protected void doWrite(List<? extends Serializable> messages) throws IOException {
+    protected void doWrite(List<? extends Serializable> messages) throws IOException, SerializationException {
         writer.append("<script>m(");
         boolean first = true;
         for (Serializable message : messages) {

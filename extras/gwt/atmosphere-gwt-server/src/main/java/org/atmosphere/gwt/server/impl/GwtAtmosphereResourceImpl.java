@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -90,12 +91,12 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
-    public void post(Serializable message) {
+    public void post(Object message) {
         getBroadcaster().broadcast(message, atmResource);
     }
 
     @Override
-    public void post(List<Serializable> messages) {
+    public void post(List<?> messages) {
         getBroadcaster().broadcast(messages, atmResource);
     }
 
@@ -271,6 +272,8 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
                         logger.debug("broadcast failed, connection terminated:" + e.getMessage(), e);
                     }
                     throw e;
+                } catch (SerializationException e) {
+                    throw new IOException(e);
                 }
             } else if (o instanceof List) {
                 List<?> list = (List) o;
@@ -278,7 +281,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
                     if (!(list.get(0) instanceof Serializable)) {
                         throw new IOException("Failed to write a list of objects that are not serializable");
                     }
-                    writer.write((List<Serializable>) o);
+                    try {
+                        writer.write((List<Serializable>) o);
+                    } catch (SerializationException ex) {
+                        throw new IOException(ex);
+                    }
                 }
             } else {
                 logger.warn("Failed to write an object that is not serializable");

@@ -16,12 +16,11 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * Modelled after OperaEventSourceResponseWriter
@@ -70,7 +69,7 @@ public class WebsocketResponseWriter extends GwtResponseWriterImpl {
     }
 
     @Override
-    protected void doWrite(List<? extends Serializable> messages) throws IOException {
+    protected void doWrite(List<? extends Serializable> messages) throws IOException, SerializationException {
         for (Serializable message : messages) {
             CharSequence string;
             char event;

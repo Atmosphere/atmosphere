@@ -20,6 +20,7 @@ package org.atmosphere.gwt.server.impl;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -129,7 +130,7 @@ abstract public class StreamingProtocolResponseWriter extends ManagedStreamRespo
     }
 
     @Override
-    protected void doWrite(List<? extends Serializable> messages) throws IOException {
+    protected void doWrite(List<? extends Serializable> messages) throws IOException, SerializationException {
         for (Serializable message : messages) {
             CharSequence string;
             if (message instanceof CharSequence) {

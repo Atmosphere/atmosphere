@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -80,7 +81,8 @@ abstract public class ManagedStreamResponseWriter extends GwtResponseWriterImpl 
     }
 
     @Override
-    public synchronized void write(List<? extends Serializable> messages, boolean flush) throws IOException {
+    public synchronized void write(List<? extends Serializable> messages, boolean flush) 
+                    throws IOException, SerializationException {
         super.write(messages, flush);
         checkLength();
     }
