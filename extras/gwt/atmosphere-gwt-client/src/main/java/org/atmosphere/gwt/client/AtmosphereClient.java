@@ -274,6 +274,12 @@ public class AtmosphereClient {
     private void doConnect() {
         primaryTransport.connect();
     }
+    
+    private void scheduleConnect(CometClientTransportWrapper transport) {
+        if (running && transport == primaryTransport) {
+            primaryTransport.reconnectionTimer.schedule(reconnectionTimeout);
+        }
+    }
 
     private void doDisconnect() {
         refreshState = null;
@@ -330,7 +336,7 @@ public class AtmosphereClient {
             listener.onDisconnected();
 
             if (running) {
-                doConnect();
+                scheduleConnect(transport);
             }
         }
     }
@@ -349,7 +355,7 @@ public class AtmosphereClient {
             refreshQueue.clear();
         }
         doDisconnect();
-        doConnect();
+        scheduleConnect(primaryTransport);
     }
 
     @SuppressWarnings("unchecked")
@@ -415,9 +421,7 @@ public class AtmosphereClient {
 
         listener.onError(exception, connected);
 
-        if (running) {
-            primaryTransport.reconnectionTimer.schedule(reconnectionTimeout);
-        }
+        scheduleConnect(transport);
     }
 
     private void doOnMessage(List<?> messages, CometClientTransportWrapper transport) {
@@ -591,12 +595,16 @@ public class AtmosphereClient {
                 int count = 0;
                 @Override
                 public void run() {
-                    if (count++ > 5) {
+                    if (count++ > 10) {
                         stop();
                     } else if (running) {
                         refreshState = RefreshState.CONNECTING;
                         doConnect();
                     }
+                }
+                @Override
+                public void schedule(int delayMillis) {
+                    super.schedule(delayMillis * count);
                 }
                 @Override
                 public void cancel() {
