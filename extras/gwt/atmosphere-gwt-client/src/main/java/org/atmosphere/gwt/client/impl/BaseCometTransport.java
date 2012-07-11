@@ -31,7 +31,6 @@
 package org.atmosphere.gwt.client.impl;
 
 import com.google.gwt.core.client.Duration;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -43,10 +42,8 @@ import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
-import org.atmosphere.gwt.shared.SerialMode;
 import org.atmosphere.gwt.shared.Constants;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;

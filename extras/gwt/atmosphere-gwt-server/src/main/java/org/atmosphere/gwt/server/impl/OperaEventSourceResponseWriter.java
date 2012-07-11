@@ -16,20 +16,19 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
  */
 public class OperaEventSourceResponseWriter extends GwtResponseWriterImpl {
 
-    public OperaEventSourceResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public OperaEventSourceResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
     }
 
     @Override
@@ -58,7 +57,7 @@ public class OperaEventSourceResponseWriter extends GwtResponseWriterImpl {
     }
 
     @Override
-    protected void doWrite(List<? extends Serializable> messages) throws IOException {
+    protected void doWrite(List<? extends Serializable> messages) throws IOException, SerializationException {
         for (Serializable message : messages) {
             CharSequence string;
             char event;

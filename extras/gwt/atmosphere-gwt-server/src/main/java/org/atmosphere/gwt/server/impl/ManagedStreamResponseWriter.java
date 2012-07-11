@@ -16,13 +16,12 @@
 
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -36,8 +35,8 @@ abstract public class ManagedStreamResponseWriter extends GwtResponseWriterImpl 
 
     protected final boolean chrome;
 
-    public ManagedStreamResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public ManagedStreamResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
 
         String userAgent = resource.getAtmosphereResource().getRequest().getHeader("User-Agent");
         chrome = userAgent != null && userAgent.contains("Chrome");
@@ -82,7 +81,8 @@ abstract public class ManagedStreamResponseWriter extends GwtResponseWriterImpl 
     }
 
     @Override
-    public synchronized void write(List<? extends Serializable> messages, boolean flush) throws IOException {
+    public synchronized void write(List<? extends Serializable> messages, boolean flush) 
+                    throws IOException, SerializationException {
         super.write(messages, flush);
         checkLength();
     }

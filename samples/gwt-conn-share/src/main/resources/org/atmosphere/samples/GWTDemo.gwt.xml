@@ -16,6 +16,12 @@
 
     <!--    <set-property name="user.agent" value="safari" />-->
     <set-property name="locale" value="default"/>
+    
+    <inherits name='com.kfuntak.gwt.json.serialization.GWTProJsonSerializer'/>
+
+    <replace-with class="org.atmosphere.gwt.client.extra.JSONObjectSerializerGWTPro">
+        <when-type-assignable class="org.atmosphere.gwt.client.JSONObjectSerializer"/>
+    </replace-with>
 
     <entry-point class='org.atmosphere.samples.client.GWTDemo'/>
 </module>

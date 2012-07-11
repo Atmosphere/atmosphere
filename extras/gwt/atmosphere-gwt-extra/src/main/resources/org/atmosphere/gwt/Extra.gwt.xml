@@ -13,9 +13,14 @@
 <!-- limitations under the License.                                         -->
 <module rename-to="atmosphere_gwt">
     <inherits name="org.atmosphere.gwt.Client"/>
+    
+    <!-- put these lines in your code if you want to enable the GWT Pro JSON Serializer
+         or you can provide your own implementation -->
+    <!--
     <inherits name='com.kfuntak.gwt.json.serialization.GWTProJsonSerializer'/>
 
     <replace-with class="org.atmosphere.gwt.client.extra.JSONObjectSerializerGWTPro">
         <when-type-assignable class="org.atmosphere.gwt.client.JSONObjectSerializer"/>
     </replace-with>
+    -->
 </module>

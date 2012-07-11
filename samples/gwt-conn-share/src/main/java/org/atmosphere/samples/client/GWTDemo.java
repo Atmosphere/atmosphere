@@ -115,6 +115,7 @@ public class GWTDemo implements EntryPoint {
         AtmosphereGWTSerializer serializer = GWT.create(EventSerializer.class);
 
         proxy = new AtmosphereProxy(GWT.getModuleBaseURL() + "gwtComet", serializer, cometListener);
+        proxy.start();
     }
     
     Event event(long count, String message) {
