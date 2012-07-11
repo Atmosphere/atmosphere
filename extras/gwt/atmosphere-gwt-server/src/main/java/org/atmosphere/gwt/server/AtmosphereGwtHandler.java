@@ -20,22 +20,7 @@ import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 import com.google.gwt.user.server.rpc.SerializationPolicyProvider;
 import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamReader;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereServletProcessor;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.gwt.server.impl.GwtAtmosphereResourceImpl;
-import org.atmosphere.gwt.server.impl.RPCUtil;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,9 +33,26 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServletProcessor;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.gwt.server.impl.GwtAtmosphereResourceImpl;
+import org.atmosphere.gwt.server.impl.RPCUtil;
 import org.atmosphere.gwt.shared.Constants;
 import org.atmosphere.gwt.shared.SerialMode;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author p.havelaar
@@ -64,6 +66,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     private static final int DEFAULT_HEARTBEAT = 15 * 1000; // 15 seconds by default
     private ExecutorService executorService;
     private int heartbeat = DEFAULT_HEARTBEAT;
+    private boolean escapeText = true;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -135,6 +138,11 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (heartbeat != null) {
             this.heartbeat = Integer.parseInt(heartbeat);
         }
+
+        String escText = servletConfig.getInitParameter("escapeText");
+        if (escText != null) {
+            this.escapeText = Boolean.valueOf(escText);
+        }
     }
 
     @Override
@@ -146,6 +154,14 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (scheduler != null) {
             scheduler.shutdown();
         }
+    }
+
+    public boolean isEscapeText() {
+        return escapeText;
+    }
+
+    public void setEscapeText(boolean escapeText) {
+        this.escapeText = escapeText;
     }
 
     public int getHeartbeat() {
@@ -178,37 +194,27 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         String servertransport = request.getParameter("servertransport");
         Object webSocketSubProtocol = resource.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
         if ("rpcprotocol".equals(servertransport)) {
-            
+
             Integer connectionID = Integer.parseInt(request.getParameter("connectionID"));
             doServerMessage(request, resource.getResponse(), connectionID);
             return;
-            
-        } else if (webSocketSubProtocol != null 
+
+        } else if (webSocketSubProtocol != null
                   && webSocketSubProtocol.equals(FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET)) {
-        
-            Integer connectionID = (Integer) request.getAttribute(AtmosphereGwtHandler.class.getName() 
+
+            Integer connectionID = (Integer) request.getAttribute(AtmosphereGwtHandler.class.getName()
                                         + ".connectionID");
             doServerMessage(request, resource.getResponse(), connectionID);
             return;
         }
-        
-        try {
-            int requestHeartbeat = heartbeat;
-            String requestedHeartbeat = request.getParameter("heartbeat");
-            if (requestedHeartbeat != null) {
-                try {
-                    requestHeartbeat = Integer.parseInt(requestedHeartbeat);
-                    if (requestHeartbeat <= 0) {
-                        throw new IOException("invalid heartbeat parameter");
-                    }
-                    requestHeartbeat = computeHeartbeat(requestHeartbeat);
-                } catch (NumberFormatException e) {
-                    throw new IOException("invalid heartbeat parameter");
-                }
-            }
 
-            GwtAtmosphereResourceImpl resourceWrapper = new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat);
-            request.setAttribute(AtmosphereGwtHandler.class.getName() + ".connectionID", 
+        try {
+            int requestHeartbeat = getRequestedHeartbeat(request);
+            boolean requestEscapeText = getRequestedEscapeOfText(request);
+
+            GwtAtmosphereResourceImpl resourceWrapper =
+                    new GwtAtmosphereResourceImpl(resource, this, requestHeartbeat, requestEscapeText);
+            request.setAttribute(AtmosphereGwtHandler.class.getName() + ".connectionID",
                     (Integer) resourceWrapper.getConnectionID());
             doCometImpl(resourceWrapper);
         } catch (IOException e) {
@@ -216,6 +222,32 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             logger.error("Unable to initiated comet" + e.getMessage(), e);
 //			resource.getResponseWriter().sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
+    }
+
+    private boolean getRequestedEscapeOfText(HttpServletRequest request) throws IOException {
+        boolean requestEscapeText = this.escapeText;
+        String requestedEscapeText = request.getParameter("escapeText");
+        if (requestedEscapeText != null) {
+            requestEscapeText = Boolean.valueOf(requestedEscapeText);
+        }
+        return requestEscapeText;
+    }
+
+    private int getRequestedHeartbeat(HttpServletRequest request) throws IOException {
+        int requestHeartbeat = heartbeat;
+        String requestedHeartbeat = request.getParameter("heartbeat");
+        if (requestedHeartbeat != null) {
+            try {
+                requestHeartbeat = Integer.parseInt(requestedHeartbeat);
+                if (requestHeartbeat <= 0) {
+                    throw new IOException("invalid heartbeat parameter");
+                }
+                requestHeartbeat = computeHeartbeat(requestHeartbeat);
+            } catch (NumberFormatException e) {
+                throw new IOException("invalid heartbeat parameter");
+            }
+        }
+        return requestHeartbeat;
     }
 
     /// --- server message handlers
@@ -235,7 +267,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         } else {
             serialMode = SerialMode.RPC;
         }
-        
+
         try {
             while (true) {
                 String event = data.readLine();
@@ -243,7 +275,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                     break;
                 }
                 String action = data.readLine();
-                
+
                 if (logger.isTraceEnabled()) {
                     logger.trace("[" + connectionID + "] Server message received: " + event + ";" + action);
                 }
@@ -314,7 +346,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                 }
             case JSON:
                 throw new UnsupportedOperationException("Not implemented");
-                
+
             case PLAIN:
                 return data;
         }

@@ -135,7 +135,9 @@ abstract public class StreamingProtocolResponseWriter extends ManagedStreamRespo
         for (Serializable message : messages) {
             CharSequence string;
             if (message instanceof CharSequence) {
-                string = escape((CharSequence) message);
+                string = (CharSequence) message;
+                if (this.shouldEscapeText())
+                    string = escape(string);
                 if (string == message) {
                     writer.append('|');
                 } else {

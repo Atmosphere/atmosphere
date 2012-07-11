@@ -151,11 +151,14 @@ public class IFrameResponseWriter extends ManagedStreamResponseWriter {
         }
     }
 
-    private static CharSequence escapeString(CharSequence string) {
-        int length = (string != null) ? string.length() : 0;
+    private CharSequence escapeString(CharSequence string) {
+        if (!this.shouldEscapeText())
+            return string;
+
+        int len = (string != null) ? string.length() : 0;
         int i = 0;
         loop:
-        while (i < length) {
+        while (i < len) {
             char ch = string.charAt(i);
             switch (ch) {
                 case '\'':
@@ -170,12 +173,12 @@ public class IFrameResponseWriter extends ManagedStreamResponseWriter {
             i++;
         }
 
-        if (i == length)
+        if (i == len)
             return string;
 
         StringBuilder str = new StringBuilder(string.length() * 2);
         str.append(string, 0, i);
-        while (i < length) {
+        while (i < len) {
             char ch = string.charAt(i);
             switch (ch) {
                 case '\'':
@@ -210,11 +213,14 @@ public class IFrameResponseWriter extends ManagedStreamResponseWriter {
         return str;
     }
 
-    private static CharSequence escapeObject(CharSequence string) {
-        int length = (string != null) ? string.length() : 0;
+    private CharSequence escapeObject(CharSequence string) {
+        if (!this.shouldEscapeText())
+            return string;
+
+        int len = (string != null) ? string.length() : 0;
         int i = 0;
         loop:
-        while (i < length) {
+        while (i < len) {
             char ch = string.charAt(i);
             switch (ch) {
                 case '\'':
@@ -225,12 +231,12 @@ public class IFrameResponseWriter extends ManagedStreamResponseWriter {
             i++;
         }
 
-        if (i == length)
+        if (i == len)
             return string;
 
         StringBuilder str = new StringBuilder(string.length() * 2);
         str.append(string, 0, i);
-        while (i < length) {
+        while (i < len) {
             char ch = string.charAt(i);
             switch (ch) {
                 case '\'':
