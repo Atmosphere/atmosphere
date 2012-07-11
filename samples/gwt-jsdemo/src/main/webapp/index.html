@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE HTML>
 <html>
 <head>
     <title></title>
@@ -23,7 +23,7 @@
                     stat.innerHTML = "[disconnected]";
                 });
                 client.setOnMessage(function(msg) {
-                    alert("received: " + msg + "\ntype: " + functionName(msg.constructor));
+                    alert("received: " + atmosphere_JSON.encode(msg) + "\ntype: " + functionName(msg.constructor));
                 });
                 client.setOnHeartbeat(function() {
                     var hb = document.getElementById("hb");
@@ -72,6 +72,9 @@
                 alert("Failed to post: " + err);
             }
         }
+        function postArray() {
+            doPost({"array":[1,2,3]});
+        }
     </script>
 </head>
 <body>
@@ -81,7 +84,7 @@
 <div>Last heartbeat: <span id="hb"></span></div>
 <div>Last error: <span id="error"></span></div>
 <button type="button" onclick="doPost('Posted message');">Post</button>
-<button type="button" onclick="doPost([1,2,3]);">Post Array</button>
+<button type="button" onclick="postArray();">Post Array</button>
 <button type="button" onclick="doBroadcast('Broadcasted message');">Broadcast</button>
 </body>
 </html>
