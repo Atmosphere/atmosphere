@@ -96,7 +96,6 @@ public class WebSocketCometTransport extends BaseCometTransport {
         return WebSocket.isSupported();
     }
 
-    private boolean connected = false;
     private void parseMessage(String message) {
         if (message.startsWith("s;")) {
             // a string message
@@ -117,7 +116,6 @@ public class WebSocketCometTransport extends BaseCometTransport {
 
     private void onConnection(String message) {
         if (message.startsWith("c;")) {
-            connected = true;
             String initParameters = message.substring(2);
             try {
                 String[] params = initParameters.split(";");
@@ -165,14 +163,13 @@ public class WebSocketCometTransport extends BaseCometTransport {
         @Override
         public void onClose(WebSocket socket) {
             logger.fine("Websocket connection closed");
-            connected = false;
+            WebSocketCometTransport.this.socket = null;
             listener.onDisconnected();
         }
 
         @Override
         public void onError(WebSocket socket, String message) {
-            connected = false;
-            listener.onError(new IllegalStateException("Websocket Error: " + message), false);
+            listener.onError(new IllegalStateException("Websocket Error: " + message), true);
         }
 
         @Override

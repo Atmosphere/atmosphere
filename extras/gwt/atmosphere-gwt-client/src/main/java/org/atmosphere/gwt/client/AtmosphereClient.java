@@ -70,7 +70,7 @@ import java.util.logging.Logger;
 public class AtmosphereClient {
 
     private enum RefreshState {
-        CONNECTING, PRIMARY_DISCONNECTED, REFRESH_CONNECTED
+        CONNECTING, PRIMARY_DISCONNECTED, REFRESH_CONNECTED, PRIMARY_RECONNECT
     }
 
     private String url;
@@ -91,6 +91,7 @@ public class AtmosphereClient {
 
     private int connectionTimeout = 10000;
     private int reconnectionTimeout = 1000;
+    private int reconnectionCount = -1;
 
     private boolean webSocketsEnabled = false;
 
@@ -167,6 +168,19 @@ public class AtmosphereClient {
 
     public int getReconnectionTimeout() {
         return reconnectionTimeout;
+    }
+
+    public int getReconnectionCount() {
+        return reconnectionCount;
+    }
+
+    /**
+     * Set to -1 to keep trying
+     * 
+     * @param reconnectionCount 
+     */
+    public void setReconnectionCount(int reconnectionCount) {
+        this.reconnectionCount = reconnectionCount;
     }
 
     public boolean isRunning() {
@@ -278,6 +292,8 @@ public class AtmosphereClient {
     private void scheduleConnect(CometClientTransportWrapper transport) {
         if (running && transport == primaryTransport) {
             primaryTransport.reconnectionTimer.schedule(reconnectionTimeout);
+        } else {
+            logger.warning("Schedule for reconnection is called without the primary transport");
         }
     }
 
@@ -302,7 +318,8 @@ public class AtmosphereClient {
                 }
             } else {
                 // refreshed connection after connection failed
-                if (refreshState != RefreshState.CONNECTING) {
+                if (refreshState != RefreshState.CONNECTING 
+                        && refreshState != RefreshState.PRIMARY_RECONNECT) {
                     throw new IllegalStateException("Unexpected refresh state");
                 }
                 refreshState = null;
@@ -323,11 +340,16 @@ public class AtmosphereClient {
     private void doOnDisconnected(CometClientTransportWrapper transport) {
         if (refreshState != null) {
             if (transport == primaryTransport) {
-                if (refreshState != RefreshState.CONNECTING) {
+                if (refreshState != RefreshState.CONNECTING 
+                        && refreshState != RefreshState.PRIMARY_RECONNECT) {
                     throw new IllegalStateException("Unexpected refreshState");
                 }
-                refreshState = RefreshState.PRIMARY_DISCONNECTED;
-                GWT.log("CometClient: primary disconnected before refresh transport was connected");
+                if (refreshState == RefreshState.PRIMARY_RECONNECT) {
+                    scheduleConnect(transport);
+                } else {
+                    refreshState = RefreshState.PRIMARY_DISCONNECTED;
+                    logger.warning("primary disconnected before refresh transport was connected");
+                }
             } else {
                 // the refresh transport has disconnected
                 failedRefresh();
@@ -335,15 +357,13 @@ public class AtmosphereClient {
         } else {
             listener.onDisconnected();
 
-            if (running) {
-                scheduleConnect(transport);
-            }
+            scheduleConnect(transport);
         }
     }
 
     private void failedRefresh() {
         refreshState = null;
-        GWT.log("CometClient: Failed refesh");
+        logger.severe("Failed refesh");
         // dispatch remaining messages;
         if (refreshQueue != null) {
             for (Object object : refreshQueue) {
@@ -369,7 +389,7 @@ public class AtmosphereClient {
 
         if (refreshQueue != null) {
             if (refreshQueue.size() > 0) {
-                GWT.log("CometClient: pushing queued messages");
+                logger.fine("pushing queued messages");
             }
             for (Object object : refreshQueue) {
                 if (object == REFRESH) {
@@ -416,12 +436,10 @@ public class AtmosphereClient {
 
     private void doOnError(Throwable exception, boolean connected, CometClientTransportWrapper transport) {
         if (connected) {
-            doDisconnect();
+            transport.disconnect();
         }
 
         listener.onError(exception, connected);
-
-        scheduleConnect(transport);
     }
 
     private void doOnMessage(List<?> messages, CometClientTransportWrapper transport) {
@@ -444,6 +462,7 @@ public class AtmosphereClient {
         private int heartbeatTimeout;
         private double lastReceivedTime;
         private int connectionID;
+        private int reconnectionCounter = 1;
 
         public CometClientTransportWrapper() {
             // Websocket support not enabled yet
@@ -453,7 +472,7 @@ public class AtmosphereClient {
             } else {
                 transport = GWT.create(CometTransport.class);
             }
-            GWT.log("Created transport: " + transport.getClass().getName());
+            logger.info("Created transport: " + transport.getClass().getName());
             transport.initiate(AtmosphereClient.this, this);
         }
 
@@ -483,7 +502,6 @@ public class AtmosphereClient {
         }
 
         public void disconnect() {
-            cancelTimers();
             transport.disconnect();
         }
 
@@ -496,7 +514,9 @@ public class AtmosphereClient {
                 webSocketSuccessful = true;
             }
 
-            cancelTimers();
+            reconnectionTimer.cancel();
+            reconnectionCounter = 1;
+            connectionTimer.cancel();
             heartbeatTimer.schedule(heartbeatTimeout);
 
             doOnConnected(heartbeat, connectionID, this);
@@ -509,7 +529,8 @@ public class AtmosphereClient {
 
         @Override
         public void onDisconnected() {
-            cancelTimers();
+            heartbeatTimer.cancel();
+            connectionTimer.cancel();
             if (transport instanceof WebSocketCometTransport && webSocketSuccessful == false) {
                 // server doesn't support WebSocket's degrade the connection ...
                 logger.info("Server does not support WebSockets");
@@ -523,7 +544,8 @@ public class AtmosphereClient {
 
         @Override
         public void onError(Throwable exception, boolean connected) {
-            cancelTimers();
+            heartbeatTimer.cancel();
+            connectionTimer.cancel();
             if (transport instanceof WebSocketCometTransport && webSocketSuccessful == false) {
                 if (connected) {
                     transport.disconnect();
@@ -556,12 +578,6 @@ public class AtmosphereClient {
             doOnMessage(messages, this);
         }
 
-        private void cancelTimers() {
-            connectionTimer.cancel();
-            reconnectionTimer.cancel();
-            heartbeatTimer.cancel();
-        }
-
         private Timer createConnectionTimer() {
             return new Timer() {
                 @Override
@@ -592,24 +608,25 @@ public class AtmosphereClient {
 
         private Timer createReconnectionTimer() {
             return new Timer() {
-                int count = 0;
                 @Override
                 public void run() {
-                    if (count++ > 10) {
+                    reconnectionCounter++;
+                    logger.finest("Running reconnect: count="+ (reconnectionCounter - 1));
+                    if (reconnectionCount != -1 && reconnectionCounter - 2 > reconnectionCount) {
+                        logger.info("Reconnection attempts exceeded " + reconnectionCount + ". Giving up...");
                         stop();
                     } else if (running) {
-                        refreshState = RefreshState.CONNECTING;
+                        logger.fine("Starting reconnect");
+                        refreshState = RefreshState.PRIMARY_RECONNECT;
                         doConnect();
                     }
                 }
                 @Override
                 public void schedule(int delayMillis) {
-                    super.schedule(delayMillis * count);
-                }
-                @Override
-                public void cancel() {
+                    int delay = delayMillis * (reconnectionCounter < 30 ? reconnectionCounter : 30);
+                    logger.finest("Scheduling for reconnect, waiting " + (delay / 1000) + "s");
                     super.cancel();
-                    count = 0;
+                    super.schedule(delay);
                 }
             };
         }
