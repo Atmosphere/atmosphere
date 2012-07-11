@@ -199,7 +199,7 @@ public interface Broadcaster {
      * the {@link Broadcaster#broadcast} is invoked.
      *
      * @param resource an {@link AtmosphereResource}
-     * @return {@link AtmosphereResource} if added, or null if it was already there.
+     * @return this
      */
     Broadcaster addAtmosphereResource(AtmosphereResource resource);
 
@@ -208,7 +208,7 @@ public interface Broadcaster {
      * the {@link Broadcaster#broadcast} is invoked.
      *
      * @param resource an {@link AtmosphereResource}
-     * @return {@link AtmosphereResource} if removed, or null if it was not.
+     * @return this
      */
     Broadcaster removeAtmosphereResource(AtmosphereResource resource);
 
@@ -313,5 +313,19 @@ public interface Broadcaster {
      * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} gets invoked.
      */
     <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit);
+
+    /**
+     * Add a {@link BroadcasterListener}
+     * @param b a {@link BroadcasterListener}
+     * @return this
+     */
+    Broadcaster addBroadcasterListener(BroadcasterListener b);
+
+    /**
+     * Remove a {@link BroadcasterListener}
+     * @param b a {@link BroadcasterListener}
+     * @return this
+     */
+    Broadcaster removeBroadcasterListener(BroadcasterListener b);
 
 }

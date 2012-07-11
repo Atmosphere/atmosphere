@@ -359,10 +359,6 @@
             <id>codehaus-snapshots</id>
             <url>http://snapshots.repository.codehaus.org</url>
         </repository>
-        <repository> 
-          <id>gwtprojsonserializer</id> 
-          <url>http://gwtprojsonserializer.googlecode.com/svn/repo</url> 
-        </repository>
     </repositories>
     <dependencies>
         <dependency>
@@ -467,7 +463,7 @@
 
     <properties>
         <jetty-version>6.1.22</jetty-version>
-        <jersey-version>1.10</jersey-version>
+        <jersey-version>1.12</jersey-version>
         <atmosphere-version>0.9-SNAPSHOT</atmosphere-version>
         <jaxb-version>2.1</jaxb-version>
         <jackson-version>1.3.1</jackson-version>

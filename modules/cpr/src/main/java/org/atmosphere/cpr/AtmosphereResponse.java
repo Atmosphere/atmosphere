@@ -66,6 +66,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean destroyable;
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
+    private long uuid = (long) Math.floor(Math.random() * 9000000000L) + 1000000000L;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -1141,23 +1142,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public int hashCode() {
-        int result = cookies != null ? cookies.hashCode() : 0;
-        result = 31 * result + (headers != null ? headers.hashCode() : 0);
-        result = 31 * result + (asyncIOWriter != null ? asyncIOWriter.hashCode() : 0);
-        result = 31 * result + status;
-        result = 31 * result + (statusMessage != null ? statusMessage.hashCode() : 0);
-        result = 31 * result + (charSet != null ? charSet.hashCode() : 0);
-        result = 31 * result + (int) (contentLength ^ (contentLength >>> 32));
-        result = 31 * result + (contentType != null ? contentType.hashCode() : 0);
-        result = 31 * result + (isCommited ? 1 : 0);
-        result = 31 * result + (locale != null ? locale.hashCode() : 0);
-        result = 31 * result + (headerHandled ? 1 : 0);
-        result = 31 * result + (atmosphereRequest != null ? atmosphereRequest.hashCode() : 0);
-        result = 31 * result + (writeStatusAndHeader != null ? writeStatusAndHeader.hashCode() : 0);
-        result = 31 * result + (delegateToNativeResponse ? 1 : 0);
-        result = 31 * result + (destroyable ? 1 : 0);
-        result = 31 * result + (response != null ? response.hashCode() : 0);
-        return result;
+        return (int) uuid;
     }
 
     @Override

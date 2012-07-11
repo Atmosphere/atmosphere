@@ -16,37 +16,32 @@
 package org.atmosphere.samples.chat.jersey;
 
 import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.annotation.Suspend;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.Suspend;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.ExecutionContext;
 
 /**
- * Simple chat resource demonstrating the power of Atmosphere using JAXRS 2 Spec
- * This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
+ * Simple chat resource demonstrating the power of Atmosphere. This resource supports transport like WebSocket, Streaming, JSONP and Long-Polling.
  *
  * @author Jeanfrancois Arcand
  */
 @Path("/")
-@Produces("application/json")
-public class Jaxrs2Chat {
-
-    // You can use that object to suspend as well.
-    @Context
-    ExecutionContext ctx;
+public class ChatResource {
 
     /**
      * Suspend the response without writing anything back to the client.
      * @return a white space
      */
-    @Suspend()
+    @Suspend(contentType = "application/json")
     @GET
     public String suspend() {
-        // ctx.suspend
         return "";
     }
 
@@ -55,8 +50,9 @@ public class Jaxrs2Chat {
      * @param message a {@link Message}
      * @return a {@link Response}
      */
-    @POST
     @Broadcast(writeEntity = false)
+    @POST
+    @Produces("application/json")
     public Response broadcast(Message message) {
         return new Response(message.author, message.message);
     }

@@ -105,7 +105,7 @@ public abstract class AbstractTransport implements Transport {
                     }
 
                 } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                    logger.trace("",e);
                 }
                 return extractedData;
             } else {
@@ -134,6 +134,8 @@ public abstract class AbstractTransport implements Transport {
             try {
                 String data = decodePostData(request.getContentType(), extractString(request.getReader()));
                 request.setAttribute(POST_MESSAGE_RECEIVED, data);
+                // Set back the body
+                request.body(data);
                 if (data != null && data.length() > 0) {
                     List<SocketIOPacketImpl> list = SocketIOPacketImpl.parse(data);
                     if (!list.isEmpty()) {

@@ -117,8 +117,14 @@ public class BroadcasterConfig {
     private void configureBroadcasterCache() {
         try {
             if (AtmosphereFramework.broadcasterCacheClassName != null) {
-                BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                        .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                BroadcasterCache cache;
+                try {
+                    cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                } catch (ClassNotFoundException ex) {
+                    cache = (BroadcasterCache) getClass().getClassLoader()
+                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                }
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
             }
@@ -140,7 +146,7 @@ public class BroadcasterConfig {
         }
 
         if (config.properties().get("executorService") == null) {
-            int numberOfMessageProcessingThread = 1;
+            int numberOfMessageProcessingThread = -1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
@@ -152,7 +158,7 @@ public class BroadcasterConfig {
                 numberOfMessageProcessingThread = -1;
             }
 
-            int numberOfAsyncThread = 1;
+            int numberOfAsyncThread = -1;
             s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
@@ -458,7 +464,7 @@ public class BroadcasterConfig {
     /**
      * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link AtmosphereRequest}
      *
-     * @param r {@link AtmosphereResource}
+     * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.

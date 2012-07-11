@@ -63,6 +63,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.servlet.http.HttpSession;
 
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -114,6 +115,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final boolean writeHeaders;
     private String padding;
     private final String uuid;
+    private HttpSession session;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -152,12 +154,24 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
-        uuid = UUID.randomUUID().toString();
+        String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        uuid = s == null? UUID.randomUUID().toString() : s;
+
+        if (config.isSupportSession()) {
+            //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
+            try {
+                session = req.getSession(true);
+            } catch (NullPointerException ex) {
+                // http://java.net/jira/browse/GLASSFISH-18856
+                logger.trace("http://java.net/jira/browse/GLASSFISH-18856", ex);
+            }
+        }
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResourceEventImpl getAtmosphereResourceEvent() {
         return event;
     }
@@ -252,6 +266,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public synchronized AtmosphereResource resume() {
         // We need to synchronize the method because the resume may occurs at the same time a message is published
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
@@ -313,6 +328,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource suspend() {
         return suspend(-1);
     }
@@ -320,6 +336,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource suspend(long timeout) {
         return suspend(timeout, true);
     }
@@ -327,6 +344,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource suspend(long timeout, TimeUnit timeunit) {
         return suspend(timeout, timeunit, true);
     }
@@ -334,6 +352,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
         long timeoutms = -1;
         if (timeunit != null) {
@@ -347,8 +366,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (event.isSuspended() || disableSuspend) return this;
 
-        if (config.isSupportSession()
-                && req.getSession(false) != null
+        if (req.getSession(false) != null
                 && req.getSession().getMaxInactiveInterval() != -1
                 && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
@@ -495,6 +513,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereRequest getRequest() {
         return getRequest(true);
     }
@@ -502,6 +521,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResponse getResponse() {
         return getResponse(true);
     }
@@ -509,6 +529,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Broadcaster getBroadcaster() {
         return getBroadcaster(true);
     }
@@ -543,6 +564,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
         return this;
@@ -551,6 +573,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
@@ -588,6 +611,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param s
      */
+    @Override
     public AtmosphereResource setSerializer(Serializer s) {
         serializer = s;
         return this;
@@ -596,6 +620,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isResumed() {
         return isResumed;
     }
@@ -603,6 +628,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isCancelled() {
         return isCancelled;
     }
@@ -617,6 +643,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param o  an Object
      * @throws IOException
      */
+    @Override
     public AtmosphereResource write(OutputStream os, Object o) throws IOException {
         if (o == null) throw new IllegalStateException("Object cannot be null");
 
@@ -631,6 +658,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Serializer getSerializer() {
         return serializer;
     }
@@ -676,46 +704,36 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Add a {@link AtmosphereResourceEventListener}.
-     *
-     * @param e an instance of AtmosphereResourceEventListener
+     * {@inheritDoc}
      */
-    public AtmosphereResource addEventListeners(Collection<AtmosphereResourceEventListener> c) {
-        for(AtmosphereResourceEventListener e : c) {
-          listeners.add(e);
-        }
-        return this;
-    }
-
-    /**
-     * Add a {@link AtmosphereResourceEventListener}.
-     *
-     * @param e an instance of AtmosphereResourceEventListener
-     */
+    @Override
     public AtmosphereResource removeEventListener(AtmosphereResourceEventListener e) {
         listeners.remove(e);
         return this;
     }
 
     /**
-     * Remove all {@link AtmosphereResourceEventListener}.
+     * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource removeEventListeners() {
         listeners.clear();
         return this;
     }
 
     /**
-     * Notify {@link AtmosphereResourceEventListener}.
+     * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource notifyListeners() {
         notifyListeners(event);
         return this;
     }
 
     /**
-     * Notify {@link AtmosphereResourceEventListener}.
+     * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.size() > 0) {
             logger.trace("Invoking listener with {}", event);
@@ -880,6 +898,33 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public AtmosphereResourceImpl disableSuspend(boolean disableSuspend) {
         this.disableSuspend = disableSuspend;
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public HttpSession session(){
+        if (session == null && config.isSupportSession()) {
+            // http://java.net/jira/browse/GLASSFISH-18856
+            session = req.getSession(true);
+        }
+        return session;
+    }
+
+    public AtmosphereResourceImpl session(HttpSession session) {
+        this.session = session;
+        return this;
+    }
+
+    public AtmosphereResourceImpl cloneState(AtmosphereResource r) {
+        for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+            addEventListener(l);
+        }
+        AtmosphereResourceImpl.class.cast(r).session(r.session());
+        setBroadcaster(r.getBroadcaster());
+        atmosphereHandler(r.getAtmosphereHandler());
         return this;
     }
 }

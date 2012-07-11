@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -73,13 +74,16 @@ public final class JerseyBroadcasterUtil {
                 // This is required when you change the response's type
                 String m = null;
 
-                if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
-                    m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
+                if (request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE) != null) {
+                    m = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
                 }
 
-                if (m == null || m.toString().equalsIgnoreCase("text/event-stream")) {
-                    m = request.getHeader(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-                    if (m == null || m.toString().equalsIgnoreCase("application/octet-stream")) {
+                if (m == null || m.equalsIgnoreCase("text/event-stream")) {
+                    if (cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE) != null) {
+                        m = cr.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE).toString();
+                    }
+
+                    if (m == null || m.equalsIgnoreCase("application/octet-stream")) {
                         m = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.SSE_CONTENT_TYPE);
                         if (m == null) {
                             m = "text/plain";
@@ -91,8 +95,10 @@ public final class JerseyBroadcasterUtil {
                     cr.setResponse((Response) e.getMessage());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
-                    if (!cr.isCommitted()) {
+                    try {
                         cr.getOutputStream().flush();
+                    } catch (IOException ex) {
+                        logger.trace("", ex);
                     }
                 } else if (e.getMessage() instanceof List) {
                     for (Object msg : (List<Object>) e.getMessage()) {
@@ -101,8 +107,10 @@ public final class JerseyBroadcasterUtil {
                         cr.write();
 
                         // https://github.com/Atmosphere/atmosphere/issues/169
-                        if (!cr.isCommitted()) {
+                        try {
                             cr.getOutputStream().flush();
+                        } catch (IOException ex) {
+                            logger.trace("", ex);
                         }
                     }
                 } else {
@@ -114,8 +122,10 @@ public final class JerseyBroadcasterUtil {
                     cr.setResponse(Response.ok(e.getMessage()).build());
                     cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                     cr.write();
-                    if (!cr.isCommitted()) {
+                    try {
                         cr.getOutputStream().flush();
+                    } catch (IOException ex) {
+                        logger.trace("", ex);
                     }
                 }
             } catch (Throwable t) {

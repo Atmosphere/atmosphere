@@ -21,6 +21,7 @@ import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
+import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.MeteorService;
@@ -68,6 +69,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AtmosphereHandlerService.class,
                         BroadcasterCacheService.class,
                         BroadcasterFilterService.class,
+                        BroadcasterFactory.class,
                         BroadcasterService.class,
                         MeteorService.class,
                         WebSocketHandlerService.class,
@@ -78,6 +80,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 };
             }
 
+            // TODO: Add annotation -> logicHandler callback
             @Override
             public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
                 logger.info("Found Annotation in {} being scanned: {}", className, annotation);
@@ -179,6 +182,13 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 } else if (AsyncSupportListenerService.class.equals(annotation)) {
                     try {
                         framework.asyncSupportListener((AsyncSupportListener) cl.loadClass(className).newInstance());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (BroadcasterFactoryService.class.equals(annotation)) {
+                    try {
+                        Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) cl.loadClass(className);
+                        framework.setBroadcasterFactory(bf.newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

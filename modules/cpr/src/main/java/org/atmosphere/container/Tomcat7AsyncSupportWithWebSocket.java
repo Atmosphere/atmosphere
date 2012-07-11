@@ -45,8 +45,6 @@ import java.io.IOException;
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
  */
 public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implements TomcatWebSocketUtil.Delegate {
-    private static final Logger logger = LoggerFactory.getLogger(Tomcat7AsyncSupportWithWebSocket.class);
-    private static final long serialVersionUID = 1L;
 
     public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
         super(config);

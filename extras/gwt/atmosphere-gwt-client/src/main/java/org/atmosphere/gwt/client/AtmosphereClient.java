@@ -128,6 +128,15 @@ public class AtmosphereClient {
 
     }
 
+    public boolean isWebSocketsEnabled() {
+        return webSocketsEnabled;
+    }
+
+    public void setWebSocketsEnabled(boolean webSocketsEnabled) {
+        this.webSocketsEnabled = webSocketsEnabled;
+    }
+    
+
     public String getUrl() {
         return url;
     }
@@ -512,11 +521,9 @@ public class AtmosphereClient {
         public void onError(Throwable exception, boolean connected) {
             cancelTimers();
             if (transport instanceof WebSocketCometTransport && webSocketSuccessful == false) {
-                // server doesn't support WebSocket's degrade the connection ...
-                logger.info("Server does not support WebSockets");
-                transport = GWT.create(CometTransport.class);
-                transport.initiate(AtmosphereClient.this, this);
-                transport.connect(++connectionCount);
+                if (connected) {
+                    transport.disconnect();
+                }
             } else {
                 doOnError(exception, connected, this);
             }

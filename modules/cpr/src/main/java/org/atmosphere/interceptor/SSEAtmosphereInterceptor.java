@@ -43,14 +43,15 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
 
     private static final byte[] padding;
-
+    private static final String paddingText;
     static {
         StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 2000; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
-        padding = whitespace.toString().getBytes();
+        paddingText = whitespace.toString();
+        padding = paddingText.getBytes();
     }
 
     @Override
@@ -62,18 +63,31 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
 
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("utf-8");
-        OutputStream stream = null;
-        try {
-            stream = response.getOutputStream();
-        } catch (IOException e) {
-            logger.trace("", e);
-        }
+        boolean isUsingStream = (Boolean) response.request().getAttribute(PROPERTY_USE_STREAM);
+        if (isUsingStream) {
+            OutputStream stream = null;
+            try {
+                stream = response.getOutputStream();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
 
-        try {
-            stream.write(padding);
-            stream.flush();
-        } catch (IOException ex) {
-            logger.warn("SSE may not work", ex);
+            try {
+                stream.write(padding);
+                stream.flush();
+            } catch (IOException ex) {
+                logger.warn("SSE may not work", ex);
+            }
+        } else {
+            PrintWriter w = null;
+            try {
+                w = response.getWriter();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+
+            w.println(padding);
+            w.flush();
         }
     }
 
@@ -81,8 +95,8 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        r.getRequest().setAttribute(PROPERTY_USE_STREAM, true);
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
+
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {

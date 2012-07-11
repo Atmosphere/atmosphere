@@ -48,7 +48,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -81,13 +80,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
-                byte[] b2 = new byte[0];
                 try {
-                    b2 = b.data.getBytes("UTF-8");
+                    byte[] bytes = b.data.getBytes("UTF-8");
+                    bis = new ByteInputStream(bytes, 0, bytes.length);
                 } catch (UnsupportedEncodingException e) {
-                    logger.error("", b2);
+                    logger.trace("", e);
                 }
-                configureStream(b2, 0, b2.length, "UTF-8");
+                br = new BufferedReader(new StringReader(b.data));
             }
         } else {
             bis = new IS(b.inputStream);
@@ -180,6 +179,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * {@inheritDoc}
      */
+
     @Override
     public String getContentType() {
         return b.contentType != null ? b.contentType : b.request.getContentType();
@@ -309,7 +309,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        return isNotNoOps() ? b.request.getCookies() : b.cookies.toArray(new Cookie[]{});
+        Cookie[] c = b.request.getCookies();
+        if (c != null && c.length > 0) {
+            b.cookies.addAll(Arrays.asList(c));
+        }
+        return b.cookies.toArray(new Cookie[]{});
     }
 
     /**
@@ -482,7 +486,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest contentType(String m) {
+        b.contentType(m);
+        return this;
+    }
+
     public AtmosphereRequest body(String body) {
+        try {
+            byte[] bytes = body.getBytes("UTF-8");
+            bis = new ByteInputStream(bytes, 0, bytes.length);
+        } catch (UnsupportedEncodingException e) {
+            logger.trace("", e);
+        }
         br = new BufferedReader(new StringReader(body));
         return this;
     }
@@ -582,7 +597,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        return getSession(true);
+        HttpSession session = getSession(true);
+        // The underlying request has been recycled, let's return the original value
+        if (session == null) {
+            session = resource().session();
+        }
+        return session;
     }
 
     /**
@@ -593,7 +613,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
-            //UGLY
+            //UGLY. Required for WebSocket supports.
             if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
                 return b.hackedJettySession;
             }
@@ -915,7 +935,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private List<Cookie> cookies = new ArrayList<Cookie>();
+        private Set<Cookie> cookies = new HashSet<Cookie>();
 
         private String contextPath = "";
         private String serverName = "";
@@ -935,7 +955,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public Builder cookies(List<Cookie> cookies) {
+        public Builder cookies(Set<Cookie> cookies) {
             this.cookies = cookies;
             return this;
         }
@@ -1066,7 +1086,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 request = new NoOpsRequest();
             }
 
-            if (NoOpsRequest.class.isAssignableFrom(request.getClass()) ) {
+            if (NoOpsRequest.class.isAssignableFrom(request.getClass())) {
                 NoOpsRequest.class.cast(request).fake = session;
             } else {
                 hackedJettySession = session;

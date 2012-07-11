@@ -48,6 +48,10 @@ $(function () {
             + 'socket or the server is down' }));
     };
 
+    request.onClose = function(response) {
+        logged = false;
+    }
+
     var subSocket = socket.subscribe(request);
 
     input.keydown(function(e) {

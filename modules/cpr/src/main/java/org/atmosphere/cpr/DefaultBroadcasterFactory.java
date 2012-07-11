@@ -169,6 +169,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
                 DefaultBroadcaster.class.cast(b).start();
             }
+
+            for (BroadcasterListener l : broadcasterListeners) {
+                b.addBroadcasterListener(l);
+            }
+            notifyOnPostCreate(b);
             return b;
         } catch (Throwable t) {
             throw new BroadcasterCreationException(t);
@@ -307,6 +312,16 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
         store.clear();
         factory = null;
+    }
+
+    public void notifyOnPostCreate(Broadcaster b) {
+        for (BroadcasterListener l : broadcasterListeners) {
+            try {
+                l.onPostCreate(b);
+            } catch (Exception ex) {
+                logger.warn("onPostCreate", ex);
+            }
+        }
     }
 
     /**

@@ -72,6 +72,7 @@ public class WebSocketCometTransport extends BaseCometTransport {
         if (socket != null) {
             super.disconnect();
             socket.close();
+            socket.clearListener();
         }
         socket = null;
     }

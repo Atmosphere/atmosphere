@@ -47,7 +47,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.ApplicationConfig.*;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
+import static org.atmosphere.cpr.FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -75,14 +78,14 @@ public class WebSocketProcessor implements Serializable {
         this.framework = framework;
         this.webSocketProtocol = webSocketProtocol;
 
-        String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        String s = framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
         if (s != null && Boolean.valueOf(s)) {
             destroyable = true;
         } else {
             destroyable = false;
         }
 
-        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION);
+        s = framework.getAtmosphereConfig().getInitParameter(WEBSOCKET_PROTOCOL_EXECUTION);
         if (s != null && Boolean.valueOf(s)) {
             executeAsync = true;
         } else {
@@ -104,12 +107,14 @@ public class WebSocketProcessor implements Serializable {
                 wsr,
                 framework.getAsyncSupport());
 
-        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, r);
+        request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
+        request.setAttribute(WEBSOCKET_ATMOSPHERE_RESOURCE, r.uuid());
+
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
         dispatch(request, wsr);
-        request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
+        request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
             final AsynchronousProcessor.AsynchronousProcessorHook hook =

@@ -52,11 +52,16 @@
  */
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple {@link Future} that can be used when awaiting for a {@link Broadcaster} to finish
@@ -65,33 +70,42 @@ import java.util.concurrent.TimeoutException;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterFuture<E> implements Future {
+    private static final Logger logger = LoggerFactory.getLogger(BroadcasterFuture.class);
 
     private final CountDownLatch latch;
-
     private boolean isCancelled = false;
-
     private boolean isDone = false;
-
     private final E msg;
-
     private final Future<?> innerFuture;
+    private final CopyOnWriteArrayList<BroadcasterListener> listeners;
+    private final Broadcaster broadcaster;
+    private final AtomicBoolean notified = new AtomicBoolean();
 
-    public BroadcasterFuture(E msg) {
-        this(null, msg);
+    public BroadcasterFuture(E msg, CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(null, msg, listeners, b);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg) {
-        this(innerFuture, msg, 1);
+    public BroadcasterFuture(Future<?> innerFuture, E msg,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(innerFuture, msg, 1, listeners, b);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
+    public BroadcasterFuture(E msg, int latchCount,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+        this(null, msg, latchCount, listeners, b);
+    }
+
+    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount,
+                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
         this.msg = msg;
         this.innerFuture = innerFuture;
+        this.broadcaster = b;
         if (innerFuture == null) {
             latch = new CountDownLatch(latchCount);
         } else {
             latch = null;
         }
+        this.listeners = listeners;
     }
 
     /**
@@ -103,10 +117,11 @@ public class BroadcasterFuture<E> implements Future {
         if (innerFuture != null) {
             return innerFuture.cancel(b);
         }
+        isCancelled = true;
+        notifyListener();
 
-        if (latch.getCount() == 1) {
+        while (latch.getCount() > 0) {
             latch.countDown();
-            isCancelled = true;
         }
         return isCancelled;
     }
@@ -143,9 +158,14 @@ public class BroadcasterFuture<E> implements Future {
      */
     public BroadcasterFuture<E> done() {
         isDone = true;
+
         if (latch != null) {
+            if (latch.getCount() - 1 <= 0) {
+                notifyListener();
+            }
             latch.countDown();
         }
+
         return this;
     }
 
@@ -159,7 +179,21 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await();
+        notifyListener();
         return msg;
+
+    }
+
+    void notifyListener() {
+        if (!notified.getAndSet(true)) {
+            for (BroadcasterListener b : listeners) {
+                try {
+                    b.onComplete(broadcaster);
+                } catch (Exception ex) {
+                    logger.warn("", ex);
+                }
+            }
+        }
     }
 
     /**
@@ -173,6 +207,7 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await(l, tu);
+        notifyListener();
         return msg;
     }
 }

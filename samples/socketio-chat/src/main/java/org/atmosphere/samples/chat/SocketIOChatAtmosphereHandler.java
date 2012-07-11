@@ -45,7 +45,7 @@ public class SocketIOChatAtmosphereHandler implements AtmosphereHandler {
         AtmosphereResource r = event.getResource();
         AtmosphereResponse res = r.getResponse();
 
-        if (event.isSuspended()) {
+        if (event.isSuspended() && event.getMessage() != null) {
             String body = event.getMessage().toString();
 
             // Simple JSON -- Use Jackson for more complex structure

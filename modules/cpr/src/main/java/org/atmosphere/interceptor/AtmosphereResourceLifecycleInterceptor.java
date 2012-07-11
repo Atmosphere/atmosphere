@@ -30,18 +30,24 @@ import java.io.IOException;
 import static org.atmosphere.cpr.ApplicationConfig.*;
 
 /**
- * This {@link AtmosphereInterceptor} automatically suspend the {@link AtmosphereResource} and take care of
- * managing the response's state (flusing, resuming, etc.). When used, call to {@link AtmosphereResource#suspend}
- * aren't necessary. By default AtmosphereResource are suspended when a GET is received. You can change that
- * value by configuring {@link org.atmosphere.cpr.ApplicationConfig#ATMOSPHERERESOURCE_INTERCEPTOR_METHOD}
+ * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
+ * {@link AtmosphereResource} and takes care of managing the response's state (flusing, resuming,
+ * etc.). When used, {@link AtmosphereHandler} implementations no longer need to make calls to
+ * {@link AtmosphereResource#suspend}.
+ * </p>
+ * 
+ * <p>By default, intercepted {@link AtmosphereResource} instances are suspended when a GET
+ * request is received. You can change the triggering http method by configuring
+ * {@link org.atmosphere.cpr.ApplicationConfig#ATMOSPHERERESOURCE_INTERCEPTOR_METHOD}
  * <p/>
- * Use this class when you don't want to manage the suspend/resume operation from your Atmosphere's API implementation
- * ({@link org.atmosphere.cpr.AtmosphereHandler}, {@link org.atmosphere.websocket.WebSocketHandler},
- * {@link org.atmosphere.cpr.Meteor} or extension like GWT, Jersey, Wicket
- * etc.
- * <br/>
- * <strong>The client must set the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT} header for to make
- * this mechanism to work properly.</strong>
+ *
+ * <p>Use this class when you don't want to manage the suspend/resume operation from your
+ * particular Atmosphere framework implementation classes ({@link org.atmosphere.cpr.AtmosphereHandler},
+ * {@link org.atmosphere.websocket.WebSocketHandler}, or
+ * {@link org.atmosphere.cpr.Meteor} instances) or extensions (GWT, Jersey, Wicket, etc...)
+ * </p>
+ * <strong>For this mechanism to work properly, each client must set the
+ * {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT} header.</strong>
  *
  * @author Jeanfrancois Arcand
  */

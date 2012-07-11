@@ -57,6 +57,7 @@ import static org.atmosphere.socketio.transport.SocketIOSessionManagerImpl.mappe
 @AtmosphereInterceptorService
 public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
+    public final static String SOCKETIO_PACKET = SocketIOSessionManagerImpl.SocketIOProtocol.class.getName();
     private static final Logger logger = LoggerFactory.getLogger(SocketIOAtmosphereInterceptor.class);
     private static final int BUFFER_SIZE_DEFAULT = 8192;
     private SocketIOSessionManager sessionManager = null;
@@ -162,7 +163,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                             SocketIOSessionOutbound outbound = (SocketIOSessionOutbound)
                                     request.getAttribute(SocketIOAtmosphereHandler.SOCKETIO_SESSION_OUTBOUND);
                             SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
-                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+                                    r.request().getAttribute(SOCKETIO_PACKET);
 
                             String msg = p == null ? data : mapper.writeValueAsString(p.clearArgs().addArgs(data));
 
@@ -177,7 +178,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
                             SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
-                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+                                    r.request().getAttribute(SOCKETIO_PACKET);
                             if (p == null) {
                                 r.getResponse().getOutputStream().write(data);
                             } else {
@@ -189,7 +190,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
                             SocketIOSessionManagerImpl.SocketIOProtocol p = (SocketIOSessionManagerImpl.SocketIOProtocol)
-                                    r.request().getAttribute(SocketIOSessionManagerImpl.SocketIOProtocol.class.getName());
+                                    r.request().getAttribute(SOCKETIO_PACKET);
                             if (p == null) {
                                 r.getResponse().getOutputStream().write(data, offset, length);
                             } else {

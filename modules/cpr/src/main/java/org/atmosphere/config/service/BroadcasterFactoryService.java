@@ -13,20 +13,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.samples.chat.jersey;
+package org.atmosphere.config.service;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@XmlRootElement
-public class Message {
-    public String author = "";
-    public String message = "";
-
-    public Message(){
-    }
-
-    public Message(String author, String message) {
-        this.author = author;
-        this.message = message;
-    }
+/**
+ * An annotation for telling Atmosphere which {@link org.atmosphere.cpr.Broadcaster} class to use by default.
+ * @author Jeanfrancois Arcand
+ */
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface BroadcasterFactoryService {
 }

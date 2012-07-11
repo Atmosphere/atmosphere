@@ -57,10 +57,14 @@ public interface FrameworkConfig {
      * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrator and not recommend for normal application.
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
-     /**
+    /**
      * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}
      */
     String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".injected";
+    /**
+     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}
+     */
+    String WEBSOCKET_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".webSocket.handshake";
     /**
      * Tell a {@link AsyncSupport} it can support session or not
      */

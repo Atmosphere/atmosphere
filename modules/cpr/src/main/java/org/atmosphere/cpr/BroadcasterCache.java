@@ -58,7 +58,8 @@ import java.util.List;
  * can always retrieve message that were broadcasted during their "downtime". {@link BroadcasterCache} are useful when
  * a the long polling technique is used and prevent application from loosing event between re-connection.
  * <p/>
- * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)}
+ * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
+ * defining it in your web/application.xml or by using the {@link BroadcasterCacheService}
  *
  */
 public interface BroadcasterCache {

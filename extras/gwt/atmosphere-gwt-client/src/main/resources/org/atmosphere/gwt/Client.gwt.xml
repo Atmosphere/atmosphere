@@ -15,7 +15,10 @@
     <inherits name="com.google.gwt.user.User"/>
     <inherits name="com.google.gwt.rpc.RPC"/>
     <inherits name="org.atmosphere.gwt.Common"/>
-    <inherits name='com.kfuntak.gwt.json.serialization.GWTProJsonSerializer'/>
+    
+    <replace-with class="org.atmosphere.gwt.client.impl.JSONObjectSerializerStub">
+        <when-type-assignable class="org.atmosphere.gwt.client.JSONObjectSerializer"/>
+    </replace-with>
 
     <replace-with class="org.atmosphere.gwt.client.impl.HTTPRequestCometTransport">
         <when-type-is class="org.atmosphere.gwt.client.impl.CometTransport"/>

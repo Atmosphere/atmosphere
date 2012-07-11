@@ -53,6 +53,7 @@
 
 package org.atmosphere.cpr;
 
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
@@ -344,4 +345,10 @@ public interface AtmosphereResource {
      * Notify All {@link AtmosphereResourceEventListener}.
      */
     AtmosphereResource notifyListeners();
+
+    /**
+     * Return the {@link HttpSession} is supported, null if not
+     * @return the {@link HttpSession} is supported, null if not
+     */
+    HttpSession session();
 }

@@ -41,12 +41,14 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
     private final static byte[] END = "|".getBytes();
 
     private byte[] end = END;
+    private String endString = "|";
 
     @Override
     public void configure(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
         if (s != null) {
             end = s.getBytes();
+            endString = s;
         }
     }
 
@@ -71,7 +73,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                     @Override
                     public AsyncIOWriter write(String data) throws IOException {
-                        response.write(data + end);
+                        response.write(data + endString);
                         return this;
                     }
 
@@ -103,7 +105,7 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
                  @Override
                  public String filter(AtmosphereResponse r, String message) {
-                     return message + end;
+                     return message + endString;
                  }
 
                  @Override
@@ -136,6 +138,6 @@ public class MessageLengthInterceptor implements AtmosphereInterceptor {
 
     @Override
     public String toString() {
-        return end + " End Message Interceptor";
+        return endString + " End Message Interceptor";
     }
 }
