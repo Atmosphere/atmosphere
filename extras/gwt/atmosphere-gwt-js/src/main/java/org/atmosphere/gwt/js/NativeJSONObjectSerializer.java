@@ -22,11 +22,11 @@ public class NativeJSONObjectSerializer implements JSONObjectSerializer {
 
             
     private native static String encodeJSON(JavaScriptObject obj) /*-{
-        return atmosphere_JSON.encode(obj);
+        return $wnd.atmosphere_JSON.encode(obj);
     }-*/;
 
     private native static JavaScriptObject decodeJSON(String json) /*-{
-        return atmosphere_JSON.decode(json);
+        return $wnd.atmosphere_JSON.decode(json);
     }-*/;
 
 }

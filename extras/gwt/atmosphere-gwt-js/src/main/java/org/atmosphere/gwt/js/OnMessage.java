@@ -29,5 +29,5 @@ import org.timepedia.exporter.client.Exportable;
 @ExportPackage("atmosphere")
 @ExportClosure
 public interface OnMessage extends Exportable {
-    public void execute(JavaScriptObject message);
+    public void execute(Object message);
 }

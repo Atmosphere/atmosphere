@@ -99,6 +99,7 @@ abstract public class JsUserInterface implements Exportable {
             if (onMessage != null) {
                 for (Object m : messages) {
                     onMessage.execute((JavaScriptObject) m);
+                    onMessage.execute(m);
                 }
             }
         }
