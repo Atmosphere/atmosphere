@@ -27,7 +27,8 @@
         <module>atmosphere-gwt-poll</module>
         <module>atmosphere-gwt-server</module>
         <module>gwtprojsonserializer</module>
-    </modules>
+		<module>atmosphere-gwt-jackson</module>
+  </modules>
 
     <build>
         <pluginManagement>
@@ -69,6 +70,11 @@
                 <artifactId>atmosphere-gwt-extra</artifactId>
                 <version>1.0.0-SNAPSHOT</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.atmosphere</groupId>
+                <artifactId>atmosphere-gwt-server</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>com.google.gwt</groupId>
