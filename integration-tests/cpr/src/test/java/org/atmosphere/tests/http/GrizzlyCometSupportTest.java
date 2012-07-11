@@ -94,9 +94,4 @@ public class GrizzlyCometSupportTest extends BaseTest {
         ws.stop();
     }
 
-    // http://java.net/jira/browse/GRIZZLY-1123
-    @Test(timeOut = 60000, enabled = false)
-    public void testConcurrentBroadcast() {
-    }
-
 }
