@@ -26,6 +26,7 @@ import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
@@ -550,11 +551,24 @@ public class AtmosphereFramework implements ServletContextProvider {
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null) {
             // ADD JSONP support
-            interceptors.addFirst(new JSONPAtmosphereInterceptor());
+            interceptors.addFirst(newAInterceptor(JSONPAtmosphereInterceptor.class));
             // Add SSE support
-            interceptors.addFirst(new SSEAtmosphereInterceptor());
+            interceptors.addFirst(newAInterceptor(SSEAtmosphereInterceptor.class));
+            // Android 2.3.x streaming support
+            interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
         }
         logger.info("Installed AtmosphereInterceptor {}", interceptors);
+    }
+
+    protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
+        AtmosphereInterceptor ai = null;
+        try {
+            ai = (AtmosphereInterceptor) getClass().getClassLoader().loadClass(a.getName()).newInstance();
+            ai.configure(config);
+        } catch (Exception ex) {
+            logger.warn("", ex);
+        }
+        return ai;
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
