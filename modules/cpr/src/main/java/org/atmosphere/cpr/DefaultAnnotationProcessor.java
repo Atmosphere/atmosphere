@@ -23,6 +23,7 @@ import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
+import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -75,6 +76,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         WebSocketHandlerService.class,
                         WebSocketProtocolService.class,
                         AtmosphereInterceptorService.class,
+                        BroadcasterListenerService.class,
                         AsyncSupportService.class,
                         AsyncSupportListenerService.class
                 };
@@ -189,6 +191,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     try {
                         Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) cl.loadClass(className);
                         framework.setBroadcasterFactory(bf.newInstance());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (BroadcasterListenerService.class.equals(annotation)) {
+                    try {
+                        framework.addBroadcastListener((BroadcasterListener) cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

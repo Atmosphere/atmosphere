@@ -149,6 +149,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
+    protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
 
     @Override
     public ServletContext getServletContext() {
@@ -593,6 +594,10 @@ public class AtmosphereFramework implements ServletContextProvider {
                 broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
             }
 
+            for (BroadcasterListener b: broadcasterListeners) {
+                broadcasterFactory.addBroadcasterListener(b);
+            }
+
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
             InjectorProvider.getInjector().inject(broadcasterFactory);
 
@@ -778,6 +783,10 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+        for (BroadcasterListener b: broadcasterListeners) {
+            broadcasterFactory.addBroadcasterListener(b);
+        }
+
         Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
 
         addAtmosphereHandler(mapping, rsp, b);
@@ -1493,6 +1502,15 @@ public class AtmosphereFramework implements ServletContextProvider {
     public List<AsyncSupportListener> asyncSupportListeners() {
         return asyncSupportListeners;
     }
+
+    /**
+     * Add {@link BroadcasterListener} to all created {@link Broadcaster}
+     */
+    public AtmosphereFramework addBroadcastListener(BroadcasterListener b) {
+        broadcasterListeners.add(b);
+        return this;
+    }
+
 
     protected void autoConfigureService(ServletContext sc) throws IOException {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
