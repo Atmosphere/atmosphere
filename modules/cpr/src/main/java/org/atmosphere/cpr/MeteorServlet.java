@@ -95,22 +95,21 @@ public class MeteorServlet extends AtmosphereServlet {
 
         if (servletClass != null) {
             logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? "/*" : mapping);
-
-            if (filterClass != null) {
-                logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
-            }
-
-            ReflectorServletProcessor r = new ReflectorServletProcessor();
-            r.setServletClassName(servletClass);
-            r.setFilterClassName(filterClass);
-            r.setFilterName(filterName);
-
-            if (mapping == null) {
-                mapping = "/*";
-                BroadcasterFactory.getDefault().remove("/*");
-            }
-            framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
         }
+        if (filterClass != null) {
+            logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
+        }
+
+        ReflectorServletProcessor r = new ReflectorServletProcessor();
+        r.setServletClassName(servletClass);
+        r.setFilterClassName(filterClass);
+        r.setFilterName(filterName);
+
+        if (mapping == null) {
+            mapping = "/*";
+            BroadcasterFactory.getDefault().remove("/*");
+        }
+        framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
     }
 
     @Override
