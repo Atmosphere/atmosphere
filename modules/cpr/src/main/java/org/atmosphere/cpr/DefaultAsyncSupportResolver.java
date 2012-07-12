@@ -56,6 +56,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;
+import org.atmosphere.container.Grizzly2CometSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
@@ -93,6 +94,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
+    public final static String GRIZZLY2 = "org.glassfish.grizzly.http.servlet.ServletHandler";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
     public final static String NETTY = "org.jboss.netty.channel.Channel";
@@ -151,6 +153,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(GRIZZLY))
                     add(GrizzlyCometSupport.class);
+
+                if (testClassExists(GRIZZLY2))
+                    add(Grizzly2CometSupport.class);
 
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);

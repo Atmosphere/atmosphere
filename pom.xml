@@ -471,7 +471,8 @@
         <junit-version>3.8.1</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b74b</servlet-version>
-        <grizzly-version>1.9.39</grizzly-version>
+        <grizzly-version>1.9.50</grizzly-version>
+        <grizzly2-version>2.2.10</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.6.0.v20120127</jetty7-version>
