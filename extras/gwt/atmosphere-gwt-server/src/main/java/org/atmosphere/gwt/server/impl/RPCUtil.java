@@ -20,10 +20,7 @@ import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.rpc.server.HostedModeClientOracle;
 import com.google.gwt.rpc.server.WebModeClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
-import org.atmosphere.gwt.shared.Constants;
 
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
@@ -31,6 +28,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+
+import org.atmosphere.gwt.shared.Constants;
 
 /**
  * @author p.havelaar

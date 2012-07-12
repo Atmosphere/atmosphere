@@ -16,19 +16,10 @@
 package org.atmosphere.gwt.server.impl;
 
 import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.rpc.server.RPC;
 import com.google.gwt.user.client.rpc.SerializationException;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
 import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamWriter;
-import org.atmosphere.gwt.server.GwtResponseWriter;
-import org.atmosphere.gwt.server.deflate.DeflaterOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.OutputStream;
@@ -41,8 +32,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.atmosphere.gwt.server.GwtResponseWriter;
+import org.atmosphere.gwt.server.deflate.DeflaterOutputStream;
 import org.atmosphere.gwt.shared.Constants;
 import org.atmosphere.gwt.shared.SerialMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author p.havelaar
@@ -54,6 +54,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     protected final GwtAtmosphereResourceImpl resource;
     protected final int connectionID;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
+    protected boolean shouldEscapeText = true;
 
 
     protected GwtResponseWriterImpl(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
@@ -72,7 +73,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
     protected boolean isDeRPC() {
         return clientOracle != null;
     }
-    
+
     protected SerialMode getSerializationMode() {
         String mode = resource.getRequest().getParameter(Constants.CLIENT_DESERIALZE_MODE_PARAMETER);
         if (mode != null) {
@@ -155,7 +156,7 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
         getRequest().setAttribute("connectionID", connectionID);
         scheduleHeartbeat();
     }
-    
+
     public void suspend() throws IOException {
         try {
             synchronized (this) {
@@ -300,7 +301,13 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
 
     protected abstract void doTerminate() throws IOException;
 
-    
+    protected boolean shouldEscapeText() {
+        return this.shouldEscapeText;
+    }
+    protected void escapeText(boolean escape) {
+        this.shouldEscapeText = escape;
+    }
+
     protected boolean supportsDeflate() {
         return true;
     }
@@ -318,10 +325,10 @@ public abstract class GwtResponseWriterImpl implements GwtResponseWriter {
                 streamWriter.prepareToWrite();
                 streamWriter.writeObject(message);
                 return streamWriter.toString();
-                
+
             case JSON:
                 throw new UnsupportedOperationException("Not implemented yet");
-                
+
             default:
             case PLAIN:
                 return message.toString();

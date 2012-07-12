@@ -63,7 +63,9 @@ public class OperaEventSourceResponseWriter extends GwtResponseWriterImpl {
             CharSequence string;
             char event;
             if (message instanceof CharSequence) {
-                string = HTTPRequestResponseWriter.escape((CharSequence) message);
+                string = (CharSequence) message;
+                if (this.shouldEscapeText())
+                    string = HTTPRequestResponseWriter.escape(string);
                 event = 's';
             } else {
                 string = serialize(message);
