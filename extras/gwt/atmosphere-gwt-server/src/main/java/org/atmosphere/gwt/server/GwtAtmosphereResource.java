@@ -15,14 +15,15 @@
  */
 package org.atmosphere.gwt.server;
 
+import java.io.Serializable;
+import java.util.List;
+
+import javax.servlet.http.HttpSession;
+
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
-
-import javax.servlet.http.HttpSession;
-import java.io.Serializable;
-import java.util.List;
 
 public interface GwtAtmosphereResource {
     public Broadcaster getBroadcaster();
@@ -50,6 +51,6 @@ public interface GwtAtmosphereResource {
     public <T> T getAttribute(String name);
 
     public int getConnectionID();
-    
+
     public boolean isSystemMessage(Serializable message);
 }

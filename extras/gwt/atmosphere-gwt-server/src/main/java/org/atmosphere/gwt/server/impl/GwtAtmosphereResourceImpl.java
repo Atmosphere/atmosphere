@@ -17,6 +17,17 @@ package org.atmosphere.gwt.server.impl;
 
 import com.google.gwt.rpc.server.ClientOracle;
 import com.google.gwt.user.server.rpc.SerializationPolicy;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import javax.servlet.http.HttpSession;
+
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -30,15 +41,6 @@ import org.atmosphere.gwt.server.GwtResponseWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpSession;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author p.havelaar
  */
@@ -48,10 +50,16 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     public GwtAtmosphereResourceImpl(AtmosphereResource resource,
                                      AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
+        this(resource, servlet, heartBeatInterval, true);
+    }
+
+    public GwtAtmosphereResourceImpl(AtmosphereResource resource, AtmosphereGwtHandler servlet,
+                                     int heartBeatInterval, boolean escapeText) throws IOException {
         this.atmosphereHandler = servlet;
         this.atmResource = resource;
         this.heartBeatInterval = heartBeatInterval;
         this.writer = createResponseWriter();
+        this.writer.escapeText(escapeText);
         resource.getRequest().setAttribute(GwtAtmosphereResource.class.getName(), this);
     }
 
@@ -129,7 +137,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     @Override
     public boolean isSystemMessage(Serializable message) {
         return HEARTBEAT_MESSAGE.equals(message);
-    }    
+    }
 
     long getStartTime() {
         return startTime;
