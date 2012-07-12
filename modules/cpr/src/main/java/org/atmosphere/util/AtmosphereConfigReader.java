@@ -142,24 +142,24 @@ public class AtmosphereConfigReader {
                 Node attribute = root.getAttributes().item(j);
 
                 if (attribute.getNodeName().equals("support-session")) {
-                    atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setSupportSession(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("context-root")) {
-                    atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setContextRoot(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("class-name")) {
-                    atmoHandler.setClassName(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setClassName(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("broadcaster")) {
-                    atmoHandler.setBroadcaster(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setBroadcaster(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("broadcasterCache")) {
-                    atmoHandler.setBroadcasterCache(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setBroadcasterCache(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
-                    String[] values = attribute.getFirstChild().getNodeValue().split(",");
+                    String[] values = attribute.getNodeValue().split(",");
                     for (String value : values) {
                         atmoHandler.getBroadcastFilterClasses().add(value);
                     }
                 } else if (attribute.getNodeName().equals("comet-support")) {
-                    atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
+                    atmoHandler.setCometSupport(attribute.getNodeValue());
                 } else if (attribute.getNodeName().equals("interceptorClasses")) {
-                    String[] values = attribute.getFirstChild().getNodeValue().split(",");
+                    String[] values = attribute.getNodeValue().split(",");
                     for (String value : values) {
                         atmoHandler.getAtmosphereInterceptorClasses().add(value);
                     }
@@ -184,10 +184,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getFirstChild().getNodeValue();
+                            param = n2.getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
-                            if (n2.getFirstChild() != null) {
-                                value = n2.getFirstChild().getNodeValue();
+                            if (n2 != null) {
+                                value = n2.getNodeValue();
                             }
                         }
 
@@ -205,10 +205,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getFirstChild().getNodeValue();
+                            param = n2.getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
-                            if (n2.getFirstChild() != null) {
-                                value = n2.getFirstChild().getNodeValue();
+                            if (n2 != null) {
+                                value = n2.getNodeValue();
                             }
                         }
 
