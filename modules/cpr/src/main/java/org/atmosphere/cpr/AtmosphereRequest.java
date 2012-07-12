@@ -1516,7 +1516,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
             isWrapped = true;
-            r = request;
         } else {
             b = new Builder();
             b.request(request);
@@ -1535,9 +1534,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         if (loadInMemory) {
             r = new NoOpsRequest();
-            load(request, b);
             if (isWrapped) {
                 load(b.request, b);
+            } else {
+                load(request, b);
             }
             b.request(r);
         }

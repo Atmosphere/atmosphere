@@ -195,13 +195,9 @@ public class WebSocketProcessor implements Serializable {
             return;
         }
 
-        AtmosphereResource resource = (AtmosphereResource) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-
         if (r.getStatus() >= 400) {
             webSocketProtocol.onError(webSocket, new WebSocketException("Status code higher or equal than 400", r));
         }
-
-        webSocket.resource(resource);
     }
 
     public WebSocket webSocket() {
