@@ -685,7 +685,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
             s.append("<!-- EOD -->");
         } else {
-            for (int i = 0; i < 2048; i++) {
+            for (int i = 0; i < 4096; i++) {
                 s.append(" ");
             }
         }
