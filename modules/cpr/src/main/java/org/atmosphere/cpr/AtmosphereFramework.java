@@ -557,7 +557,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             // Android 2.3.x streaming support
             interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
         }
-        logger.info("Installed AtmosphereInterceptor {}", interceptors);
+        logger.info("Installed Default AtmosphereInterceptor {}. " +
+                "Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
     }
 
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
