@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +65,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean destroyable;
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
-    private long uuid = (long) Math.floor(Math.random() * 9000000000L) + 1000000000L;
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -1107,42 +1105,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public final static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        AtmosphereResponse that = (AtmosphereResponse) o;
-
-        if (contentLength != that.contentLength) return false;
-        if (delegateToNativeResponse != that.delegateToNativeResponse) return false;
-        if (destroyable != that.destroyable) return false;
-        if (headerHandled != that.headerHandled) return false;
-        if (isCommited != that.isCommited) return false;
-        if (status != that.status) return false;
-        if (asyncIOWriter != null ? !asyncIOWriter.equals(that.asyncIOWriter) : that.asyncIOWriter != null)
-            return false;
-        if (atmosphereRequest != null ? !atmosphereRequest.equals(that.atmosphereRequest) : that.atmosphereRequest != null)
-            return false;
-        if (charSet != null ? !charSet.equals(that.charSet) : that.charSet != null) return false;
-        if (contentType != null ? !contentType.equals(that.contentType) : that.contentType != null) return false;
-        if (cookies != null ? !cookies.equals(that.cookies) : that.cookies != null) return false;
-        if (headers != null ? !headers.equals(that.headers) : that.headers != null) return false;
-        if (locale != null ? !locale.equals(that.locale) : that.locale != null) return false;
-        if (response != null ? !response.equals(that.response) : that.response != null) return false;
-        if (statusMessage != null ? !statusMessage.equals(that.statusMessage) : that.statusMessage != null)
-            return false;
-        if (writeStatusAndHeader != null ? !writeStatusAndHeader.equals(that.writeStatusAndHeader) : that.writeStatusAndHeader != null)
-            return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return (int) uuid;
     }
 
     @Override

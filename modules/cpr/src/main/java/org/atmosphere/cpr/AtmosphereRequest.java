@@ -1567,28 +1567,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        AtmosphereRequest that = (AtmosphereRequest) o;
-
-        if (b != null ? !b.equals(that.b) : that.b != null) return false;
-        if (bis != null ? !bis.equals(that.bis) : that.bis != null) return false;
-        if (br != null ? !br.equals(that.br) : that.br != null) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = bis != null ? bis.hashCode() : 0;
-        result = 31 * result + (br != null ? br.hashCode() : 0);
-        result = 31 * result + (b != null ? b.hashCode() : 0);
-        return result;
-    }
-
-    @Override
     public String toString() {
         try {
             return "AtmosphereRequest{" +
