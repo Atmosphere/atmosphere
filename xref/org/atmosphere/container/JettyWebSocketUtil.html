@@ -103,28 +103,28 @@
 <a class="jxr_linenumber" name="93" href="#93">93</a>          <strong class="jxr_keyword">if</strong> (config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="94" href="#94">94</a>              bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
 <a class="jxr_linenumber" name="95" href="#95">95</a>          }
-<a class="jxr_linenumber" name="96" href="#96">96</a>          logger.info(<span class="jxr_string">"WebSocket Buffer side {}"</span>, bufferSize);
+<a class="jxr_linenumber" name="96" href="#96">96</a>          logger.debug(<span class="jxr_string">"WebSocket Buffer side {}"</span>, bufferSize);
 <a class="jxr_linenumber" name="97" href="#97">97</a>          webSocketFactory.setBufferSize(bufferSize);
 <a class="jxr_linenumber" name="98" href="#98">98</a>  
 <a class="jxr_linenumber" name="99" href="#99">99</a>          <strong class="jxr_keyword">int</strong> timeOut = 5 * 60000;
 <a class="jxr_linenumber" name="100" href="#100">100</a>         <strong class="jxr_keyword">if</strong> (config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="101" href="#101">101</a>             timeOut = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
 <a class="jxr_linenumber" name="102" href="#102">102</a>         }
-<a class="jxr_linenumber" name="103" href="#103">103</a>         logger.info(<span class="jxr_string">"WebSocket idle timeout {}"</span>, timeOut);
+<a class="jxr_linenumber" name="103" href="#103">103</a>         logger.debug(<span class="jxr_string">"WebSocket idle timeout {}"</span>, timeOut);
 <a class="jxr_linenumber" name="104" href="#104">104</a>         webSocketFactory.setMaxIdleTime(timeOut);
 <a class="jxr_linenumber" name="105" href="#105">105</a> 
 <a class="jxr_linenumber" name="106" href="#106">106</a>         <strong class="jxr_keyword">int</strong> maxTextBufferSize = 8192;
 <a class="jxr_linenumber" name="107" href="#107">107</a>         <strong class="jxr_keyword">if</strong> (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="108" href="#108">108</a>             maxTextBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE));
 <a class="jxr_linenumber" name="109" href="#109">109</a>         }
-<a class="jxr_linenumber" name="110" href="#110">110</a>         logger.info(<span class="jxr_string">"WebSocket maxTextBufferSize {}"</span>, maxTextBufferSize);
+<a class="jxr_linenumber" name="110" href="#110">110</a>         logger.debug(<span class="jxr_string">"WebSocket maxTextBufferSize {}"</span>, maxTextBufferSize);
 <a class="jxr_linenumber" name="111" href="#111">111</a>         webSocketFactory.setMaxTextMessageSize(maxTextBufferSize);
 <a class="jxr_linenumber" name="112" href="#112">112</a> 
 <a class="jxr_linenumber" name="113" href="#113">113</a>         <strong class="jxr_keyword">int</strong> maxBinaryBufferSize = 8192;
 <a class="jxr_linenumber" name="114" href="#114">114</a>         <strong class="jxr_keyword">if</strong> (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="115" href="#115">115</a>             maxBinaryBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE));
 <a class="jxr_linenumber" name="116" href="#116">116</a>         }
-<a class="jxr_linenumber" name="117" href="#117">117</a>         logger.info(<span class="jxr_string">"WebSocket maxBinaryBufferSize {}"</span>, maxBinaryBufferSize);
+<a class="jxr_linenumber" name="117" href="#117">117</a>         logger.debug(<span class="jxr_string">"WebSocket maxBinaryBufferSize {}"</span>, maxBinaryBufferSize);
 <a class="jxr_linenumber" name="118" href="#118">118</a>         webSocketFactory.setMaxBinaryMessageSize(maxBinaryBufferSize);
 <a class="jxr_linenumber" name="119" href="#119">119</a> 
 <a class="jxr_linenumber" name="120" href="#120">120</a>         <strong class="jxr_keyword">return</strong> webSocketFactory;

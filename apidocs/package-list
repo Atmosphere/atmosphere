@@ -23,9 +23,11 @@ org.atmosphere.gwt.rebind
 org.atmosphere.gwt.server
 org.atmosphere.gwt.server.deflate
 org.atmosphere.gwt.server.impl
+org.atmosphere.gwt.server.spi
 org.atmosphere.gwt.shared
 org.atmosphere.handler
 org.atmosphere.interceptor
+org.atmosphere.jackson
 org.atmosphere.jersey
 org.atmosphere.jersey.util
 org.atmosphere.jetty

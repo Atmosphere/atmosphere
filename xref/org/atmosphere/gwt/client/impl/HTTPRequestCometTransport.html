@@ -196,7 +196,7 @@
 <a class="jxr_linenumber" name="186" href="#186">186</a> 
 <a class="jxr_linenumber" name="187" href="#187">187</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> needPolling() {
 <a class="jxr_linenumber" name="188" href="#188">188</a>         String ua = getUserAgent();
-<a class="jxr_linenumber" name="189" href="#189">189</a>         <strong class="jxr_keyword">return</strong> ua.contains(<span class="jxr_string">"opera"</span>);
+<a class="jxr_linenumber" name="189" href="#189">189</a>         <strong class="jxr_keyword">return</strong> ua.contains(<span class="jxr_string">"opera"</span>) || ua.contains(<span class="jxr_string">"android 2."</span>);
 <a class="jxr_linenumber" name="190" href="#190">190</a>     }
 <a class="jxr_linenumber" name="191" href="#191">191</a> 
 <a class="jxr_linenumber" name="192" href="#192">192</a>     <em class="jxr_javadoccomment">/**</em>

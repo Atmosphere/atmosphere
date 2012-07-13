@@ -152,24 +152,24 @@
 <a class="jxr_linenumber" name="142" href="#142">142</a>                 Node attribute = root.getAttributes().item(j);
 <a class="jxr_linenumber" name="143" href="#143">143</a> 
 <a class="jxr_linenumber" name="144" href="#144">144</a>                 <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"support-session"</span>)) {
-<a class="jxr_linenumber" name="145" href="#145">145</a>                     atmoHandler.setSupportSession(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="145" href="#145">145</a>                     atmoHandler.setSupportSession(attribute.getNodeValue());
 <a class="jxr_linenumber" name="146" href="#146">146</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"context-root"</span>)) {
-<a class="jxr_linenumber" name="147" href="#147">147</a>                     atmoHandler.setContextRoot(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="147" href="#147">147</a>                     atmoHandler.setContextRoot(attribute.getNodeValue());
 <a class="jxr_linenumber" name="148" href="#148">148</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"class-name"</span>)) {
-<a class="jxr_linenumber" name="149" href="#149">149</a>                     atmoHandler.setClassName(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="149" href="#149">149</a>                     atmoHandler.setClassName(attribute.getNodeValue());
 <a class="jxr_linenumber" name="150" href="#150">150</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"broadcaster"</span>)) {
-<a class="jxr_linenumber" name="151" href="#151">151</a>                     atmoHandler.setBroadcaster(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="151" href="#151">151</a>                     atmoHandler.setBroadcaster(attribute.getNodeValue());
 <a class="jxr_linenumber" name="152" href="#152">152</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"broadcasterCache"</span>)) {
-<a class="jxr_linenumber" name="153" href="#153">153</a>                     atmoHandler.setBroadcasterCache(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="153" href="#153">153</a>                     atmoHandler.setBroadcasterCache(attribute.getNodeValue());
 <a class="jxr_linenumber" name="154" href="#154">154</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"broadcastFilterClasses"</span>)) {
-<a class="jxr_linenumber" name="155" href="#155">155</a>                     String[] values = attribute.getFirstChild().getNodeValue().split(<span class="jxr_string">","</span>);
+<a class="jxr_linenumber" name="155" href="#155">155</a>                     String[] values = attribute.getNodeValue().split(<span class="jxr_string">","</span>);
 <a class="jxr_linenumber" name="156" href="#156">156</a>                     <strong class="jxr_keyword">for</strong> (String value : values) {
 <a class="jxr_linenumber" name="157" href="#157">157</a>                         atmoHandler.getBroadcastFilterClasses().add(value);
 <a class="jxr_linenumber" name="158" href="#158">158</a>                     }
 <a class="jxr_linenumber" name="159" href="#159">159</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"comet-support"</span>)) {
-<a class="jxr_linenumber" name="160" href="#160">160</a>                     atmoHandler.setCometSupport(attribute.getFirstChild().getNodeValue());
+<a class="jxr_linenumber" name="160" href="#160">160</a>                     atmoHandler.setCometSupport(attribute.getNodeValue());
 <a class="jxr_linenumber" name="161" href="#161">161</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (attribute.getNodeName().equals(<span class="jxr_string">"interceptorClasses"</span>)) {
-<a class="jxr_linenumber" name="162" href="#162">162</a>                     String[] values = attribute.getFirstChild().getNodeValue().split(<span class="jxr_string">","</span>);
+<a class="jxr_linenumber" name="162" href="#162">162</a>                     String[] values = attribute.getNodeValue().split(<span class="jxr_string">","</span>);
 <a class="jxr_linenumber" name="163" href="#163">163</a>                     <strong class="jxr_keyword">for</strong> (String value : values) {
 <a class="jxr_linenumber" name="164" href="#164">164</a>                         atmoHandler.getAtmosphereInterceptorClasses().add(value);
 <a class="jxr_linenumber" name="165" href="#165">165</a>                     }
@@ -194,10 +194,10 @@
 <a class="jxr_linenumber" name="184" href="#184">184</a>                         Node n2 = n.getChildNodes().item(k);
 <a class="jxr_linenumber" name="185" href="#185">185</a> 
 <a class="jxr_linenumber" name="186" href="#186">186</a>                         <strong class="jxr_keyword">if</strong> (n2.getNodeName().equals(<span class="jxr_string">"param-name"</span>)) {
-<a class="jxr_linenumber" name="187" href="#187">187</a>                             param = n2.getFirstChild().getNodeValue();
+<a class="jxr_linenumber" name="187" href="#187">187</a>                             param = n2.getNodeValue();
 <a class="jxr_linenumber" name="188" href="#188">188</a>                         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (n2.getNodeName().equals(<span class="jxr_string">"param-value"</span>)) {
-<a class="jxr_linenumber" name="189" href="#189">189</a>                             <strong class="jxr_keyword">if</strong> (n2.getFirstChild() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="190" href="#190">190</a>                                 value = n2.getFirstChild().getNodeValue();
+<a class="jxr_linenumber" name="189" href="#189">189</a>                             <strong class="jxr_keyword">if</strong> (n2 != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="190" href="#190">190</a>                                 value = n2.getNodeValue();
 <a class="jxr_linenumber" name="191" href="#191">191</a>                             }
 <a class="jxr_linenumber" name="192" href="#192">192</a>                         }
 <a class="jxr_linenumber" name="193" href="#193">193</a> 
@@ -215,10 +215,10 @@
 <a class="jxr_linenumber" name="205" href="#205">205</a>                         Node n2 = n.getChildNodes().item(k);
 <a class="jxr_linenumber" name="206" href="#206">206</a> 
 <a class="jxr_linenumber" name="207" href="#207">207</a>                         <strong class="jxr_keyword">if</strong> (n2.getNodeName().equals(<span class="jxr_string">"param-name"</span>)) {
-<a class="jxr_linenumber" name="208" href="#208">208</a>                             param = n2.getFirstChild().getNodeValue();
+<a class="jxr_linenumber" name="208" href="#208">208</a>                             param = n2.getNodeValue();
 <a class="jxr_linenumber" name="209" href="#209">209</a>                         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (n2.getNodeName().equals(<span class="jxr_string">"param-value"</span>)) {
-<a class="jxr_linenumber" name="210" href="#210">210</a>                             <strong class="jxr_keyword">if</strong> (n2.getFirstChild() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="211" href="#211">211</a>                                 value = n2.getFirstChild().getNodeValue();
+<a class="jxr_linenumber" name="210" href="#210">210</a>                             <strong class="jxr_keyword">if</strong> (n2 != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="211" href="#211">211</a>                                 value = n2.getNodeValue();
 <a class="jxr_linenumber" name="212" href="#212">212</a>                             }
 <a class="jxr_linenumber" name="213" href="#213">213</a>                         }
 <a class="jxr_linenumber" name="214" href="#214">214</a> 
