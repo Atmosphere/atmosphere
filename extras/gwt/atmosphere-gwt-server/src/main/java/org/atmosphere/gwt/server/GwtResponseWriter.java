@@ -49,7 +49,7 @@ public interface GwtResponseWriter {
      * @param message
      * @throws IOException
      */
-    public void write(Serializable message) throws IOException;
+    public void write(Serializable message) throws IOException, SerializationException;
 
     /**
      * Write a single message to the associated HTTP response. Flush the HTTP output stream if flush is true.
@@ -58,7 +58,7 @@ public interface GwtResponseWriter {
      * @param flush
      * @throws IOException
      */
-    public void write(Serializable message, boolean flush) throws IOException;
+    public void write(Serializable message, boolean flush) throws IOException, SerializationException;
 
     /**
      * Write a list of message to the associated HTTP response. This method may be more optimal to the single message
@@ -67,7 +67,7 @@ public interface GwtResponseWriter {
      * @param messages
      * @throws IOException
      */
-    public void write(List<? extends Serializable> messages) throws IOException;
+    public void write(List<? extends Serializable> messages) throws IOException, SerializationException;
 
     /**
      * Write a list of message to the associated HTTP response. This method may be more optimal to the single message
@@ -77,7 +77,7 @@ public interface GwtResponseWriter {
      * @param flush
      * @throws IOException
      */
-    public void write(List<? extends Serializable> messages, boolean flush) throws IOException;
+    public void write(List<? extends Serializable> messages, boolean flush) throws IOException, SerializationException;
 
     /**
      * Write a heartbeat message to the associated HTTP response.

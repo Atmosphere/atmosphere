@@ -186,7 +186,7 @@ public class HTTPRequestCometTransport extends StreamingProtocolTransport {
 
     protected boolean needPolling() {
         String ua = getUserAgent();
-        return ua.contains("opera");
+        return ua.contains("opera") || ua.contains("android 2.");
     }
 
     /**

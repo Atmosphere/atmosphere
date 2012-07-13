@@ -15,19 +15,7 @@
  */
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
-import javax.servlet.http.HttpSession;
-
+import javax.servlet.ServletContext;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -40,6 +28,16 @@ import org.atmosphere.gwt.server.GwtAtmosphereResource;
 import org.atmosphere.gwt.server.GwtResponseWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import org.atmosphere.gwt.server.SerializationException;
 
 /**
  * @author p.havelaar
@@ -69,6 +67,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
+    public ServletContext getServletContext() {
+        return atmosphereHandler.getServletContext();
+    }
+
+    @Override
     public HttpSession getSession() {
         return atmResource.session();
     }
@@ -94,12 +97,12 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     }
 
     @Override
-    public void post(Serializable message) {
+    public void post(Object message) {
         getBroadcaster().broadcast(message, atmResource);
     }
 
     @Override
-    public void post(List<Serializable> messages) {
+    public void post(List<?> messages) {
         getBroadcaster().broadcast(messages, atmResource);
     }
 
@@ -222,28 +225,25 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     private GwtResponseWriterImpl createResponseWriter() throws IOException {
 
-        ClientOracle clientOracle = RPCUtil.getClientOracle(atmResource.getRequest(), atmosphereHandler.getServletContext());
-        SerializationPolicy serializationPolicy = clientOracle == null ? RPCUtil.createSimpleSerializationPolicy() : null;
-
         String transport = atmResource.getRequest().getParameter("tr");
         if ("WebSocket".equals(transport)) {
             logger.debug("atmosphere-gwt Using websocket");
-            return new WebsocketResponseWriter(this, serializationPolicy, clientOracle);
+            return new WebsocketResponseWriter(this);
         } else if ("HTTPRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using XMLHttpRequest");
-            return new HTTPRequestResponseWriter(this, serializationPolicy, clientOracle);
+            return new HTTPRequestResponseWriter(this);
         } else if ("IFrame".equals(transport)) {
             logger.debug("atmosphere-gwt Using streaming IFrame");
-            return new IFrameResponseWriter(this, serializationPolicy, clientOracle);
+            return new IFrameResponseWriter(this);
         } else if ("OperaEventSource".equals(transport)) {
             logger.debug("atmosphere-gwt Using Opera EventSource");
-            return new OperaEventSourceResponseWriter(this, serializationPolicy, clientOracle);
+            return new OperaEventSourceResponseWriter(this);
         } else if ("IEXDomainRequest".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE XDomainRequest");
-            return new IEXDomainRequestResponseWriter(this, serializationPolicy, clientOracle);
+            return new IEXDomainRequestResponseWriter(this);
         } else if ("IEHTMLFile".equals(transport)) {
             logger.debug("atmosphere-gwt Using IE html file iframe");
-            return new IEHTMLFileResponseWriter(this, serializationPolicy, clientOracle);
+            return new IEHTMLFileResponseWriter(this);
         } else {
             throw new IllegalStateException("Failed to determine responsewriter");
         }
@@ -254,7 +254,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     private final GwtResponseWriterImpl writer;
     private AtmosphereResource atmResource;
     private final int heartBeatInterval;
-    private AtmosphereGwtHandler atmosphereHandler;
+    AtmosphereGwtHandler atmosphereHandler;
     private boolean suspended = false;
     private Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -278,6 +278,8 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
                         logger.debug("broadcast failed, connection terminated:" + e.getMessage(), e);
                     }
                     throw e;
+                } catch (SerializationException e) {
+                    throw new IOException(e);
                 }
             } else if (o instanceof List) {
                 List<?> list = (List) o;
@@ -285,7 +287,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
                     if (!(list.get(0) instanceof Serializable)) {
                         throw new IOException("Failed to write a list of objects that are not serializable");
                     }
-                    writer.write((List<Serializable>) o);
+                    try {
+                        writer.write((List<Serializable>) o);
+                    } catch (SerializationException ex) {
+                        throw new IOException(ex);
+                    }
                 }
             } else {
                 logger.warn("Failed to write an object that is not serializable");

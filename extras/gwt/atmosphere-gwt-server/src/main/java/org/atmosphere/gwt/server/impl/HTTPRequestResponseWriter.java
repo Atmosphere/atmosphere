@@ -15,21 +15,22 @@
  */
 package org.atmosphere.gwt.server.impl;
 
-import com.google.gwt.rpc.server.ClientOracle;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
-
 /**
  * @author p.havelaar
  */
 public class HTTPRequestResponseWriter extends StreamingProtocolResponseWriter {
 
-    public HTTPRequestResponseWriter(GwtAtmosphereResourceImpl resource, SerializationPolicy serializationPolicy, ClientOracle clientOracle) {
-        super(resource, serializationPolicy, clientOracle);
+    public HTTPRequestResponseWriter(GwtAtmosphereResourceImpl resource) {
+        super(resource);
     }
 
     @Override
     protected int getPaddingRequired() {
-        return 0;
+        if (resource.getRequest().getHeader("User-Agent").toLowerCase().contains("android 2.")) {
+            return MAX_PADDING_REQUIRED;
+        } else {
+            return 0;
+        }
     }
 
     @Override

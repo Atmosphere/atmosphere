@@ -15,28 +15,32 @@
  */
 package org.atmosphere.gwt.server;
 
-import java.io.Serializable;
-import java.util.List;
 
-import javax.servlet.http.HttpSession;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 
+import javax.servlet.http.HttpSession;
+import java.io.Serializable;
+import java.util.List;
+import javax.servlet.ServletContext;
+
 public interface GwtAtmosphereResource {
     public Broadcaster getBroadcaster();
 
+    public ServletContext getServletContext();
+    
     public HttpSession getSession();
 
     public HttpSession getSession(boolean create);
 
     public int getHeartBeatInterval();
 
-    public void post(Serializable message);
+    public void post(Object message);
 
-    public void post(List<Serializable> messages);
+    public void post(List<?> messages);
 
     public AtmosphereResource getAtmosphereResource();
 

@@ -17,6 +17,7 @@
         <gwtModule>org.atmosphere.gwt.JsClient</gwtModule>
         <war.target>${project.build.directory}/war</war.target>
         <gwt.compiler.force>true</gwt.compiler.force>
+        <gwt.compiler.strict>false</gwt.compiler.strict>
         <gwt.draftCompile>false</gwt.draftCompile>
         <gwt.style>OBF</gwt.style>
         <outputDir>${war.target}/war/WEB-INF/classes</outputDir>
@@ -32,8 +33,8 @@
                 <configuration>
                     <module>${gwtModule}</module>
                     <gwtVersion>${gwt.version}</gwtVersion>
-                    <runTarget>http://localhost:8888/index.html</runTarget>
-                    <noServer>false</noServer>
+                    <runTarget>http://localhost:8081/atmosphere-gwt-jsdemo/</runTarget>
+                    <noServer>true</noServer>
                     <hostedWebapp>${war.target}</hostedWebapp>
                 </configuration>
                 <executions>
@@ -88,7 +89,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-gwt-client</artifactId>
+            <artifactId>atmosphere-gwt-extra</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>

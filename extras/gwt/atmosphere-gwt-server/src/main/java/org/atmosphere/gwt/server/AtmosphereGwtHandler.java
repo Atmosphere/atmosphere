@@ -16,17 +16,14 @@
 
 package org.atmosphere.gwt.server;
 
-import com.google.gwt.user.client.rpc.SerializationException;
-import com.google.gwt.user.server.rpc.SerializationPolicy;
-import com.google.gwt.user.server.rpc.SerializationPolicyProvider;
-import com.google.gwt.user.server.rpc.impl.ServerSerializationStreamReader;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +44,8 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.gwt.server.impl.GwtAtmosphereResourceImpl;
-import org.atmosphere.gwt.server.impl.RPCUtil;
+import org.atmosphere.gwt.server.impl.GwtRpcDeserializer;
+import org.atmosphere.gwt.server.spi.JSONSerializerProvider;
 import org.atmosphere.gwt.shared.Constants;
 import org.atmosphere.gwt.shared.SerialMode;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -69,13 +67,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     private boolean escapeText = true;
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-    protected SerializationPolicyProvider cometSerializationPolicyProvider = new SerializationPolicyProvider() {
-        @Override
-        public SerializationPolicy getSerializationPolicy(String moduleBaseURL, String serializationPolicyStrongName) {
-            return RPCUtil.createSimpleSerializationPolicy();
-        }
-    };
+    private GwtRpcDeserializer gwtRpc;
+    private JSONDeserializer jsonSerializer;
 
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
@@ -97,7 +90,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * @param cometResource
      */
     public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse,
-            List<Serializable> messages, GwtAtmosphereResource cometResource) {
+            List<?> messages, GwtAtmosphereResource cometResource) {
         if (cometResource != null) {
             if (messages.size() == 1) {
                 cometResource.post(messages.get(0));
@@ -255,7 +248,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     protected void doServerMessage(HttpServletRequest request, HttpServletResponse response, int connectionID)
         throws IOException{
         BufferedReader data = request.getReader();
-        List<Serializable> postMessages = new ArrayList<Serializable>();
+        List<Object> postMessages = new ArrayList<Object>();
         GwtAtmosphereResource resource = lookupResource(connectionID);
         if (resource == null) {
             return;
@@ -293,9 +286,13 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
                     if (totalRead != length) {
                         throw new IllegalStateException("Corrupt message received");
                     }
-                    Serializable message;
+                    Object message = null;
                     if (event.equals("o")) {
-                        message = deserialize(messageData, serialMode);
+                        try {
+                            message = deserialize(messageData, serialMode);
+                        } catch (SerializationException ex) {
+                            logger.error("Failed to deserialize message", ex);
+                        }
                     } else {
                         message = String.copyValueOf(messageData);
                     }
@@ -329,27 +326,47 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //                responsePayload, gzipEncode);
 //    }
 
-    protected Serializable deserialize(char[] data, SerialMode mode) {
+    protected Object deserialize(char[] data, SerialMode mode) throws SerializationException {
         return deserialize(String.copyValueOf(data), mode);
     }
-    protected Serializable deserialize(String data, SerialMode mode) {
+    protected Object deserialize(String data, SerialMode mode) throws SerializationException {
         switch (mode) {
             default:
             case RPC:
-                try {
-                    ServerSerializationStreamReader reader = new ServerSerializationStreamReader(getClass().getClassLoader(), cometSerializationPolicyProvider);
-                    reader.prepareToRead(data);
-                    return (Serializable) reader.readObject();
-                } catch (SerializationException ex) {
-                    logger.error("Failed to deserialize message", ex);
-                    return null;
-                }
+                return getGwtRpc().deserialize(data);
+                
             case JSON:
-                throw new UnsupportedOperationException("Not implemented");
-
+                return getJSONDeserializer().deserialize(data);
             case PLAIN:
                 return data;
         }
+    }
+    
+    protected GwtRpcDeserializer getGwtRpc() {
+        if (gwtRpc == null) {
+            gwtRpc = new GwtRpcDeserializer();
+        }
+        return gwtRpc;
+    }
+    
+    protected JSONDeserializer getJSONDeserializer() {
+        if (jsonSerializer == null) {
+            ServiceLoader<JSONSerializerProvider> loader = ServiceLoader.load(JSONSerializerProvider.class,
+                    getClass().getClassLoader());
+            if (loader != null && loader.iterator().hasNext()) {
+                jsonSerializer = loader.iterator().next().getDeserializer();
+            }
+            if (jsonSerializer == null) {
+                jsonSerializer = new JSONDeserializer() {
+                    @Override
+                    public Object deserialize(String data) {
+                        // TODO create better default implementation
+                        return data;
+                    }
+                };
+            }
+        }
+        return jsonSerializer;
     }
 //
 //    protected String serialize(Serializable message) throws SerializationException {
@@ -360,21 +377,21 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 //	}
 
     final public void post(HttpServletRequest postRequest, HttpServletResponse postResponse,
-            List<Serializable> messages, GwtAtmosphereResource cometResource) {
+            List<?> messages, GwtAtmosphereResource cometResource) {
         if (messages == null) {
             return;
         }
         doPost(postRequest, postResponse, messages, cometResource);
     }
 
-    public void broadcast(Serializable message, GwtAtmosphereResource resource) {
+    public void broadcast(Object message, GwtAtmosphereResource resource) {
         if (message == null) {
             return;
         }
         resource.getBroadcaster().broadcast(message);
     }
 
-    public void broadcast(List<Serializable> messages, GwtAtmosphereResource resource) {
+    public void broadcast(List<?> messages, GwtAtmosphereResource resource) {
         if (messages == null) {
             return;
         }

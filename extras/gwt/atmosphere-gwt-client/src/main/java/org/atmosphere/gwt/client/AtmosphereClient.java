@@ -67,7 +67,7 @@ import java.util.logging.Logger;
  *
  * @author Richard Zschech
  */
-public class AtmosphereClient {
+public class AtmosphereClient implements UserInterface {
 
     private enum RefreshState {
         CONNECTING, PRIMARY_DISCONNECTED, REFRESH_CONNECTED, PRIMARY_RECONNECT

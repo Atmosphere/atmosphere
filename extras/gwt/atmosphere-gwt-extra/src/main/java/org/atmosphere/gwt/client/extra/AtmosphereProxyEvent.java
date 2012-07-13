@@ -1,7 +1,5 @@
 package org.atmosphere.gwt.client.extra;
 
-import com.kfuntak.gwt.json.serialization.client.JsonSerializable;
-
 /**
  *
  * @author p.havelaar

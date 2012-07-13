@@ -41,6 +41,7 @@
            <groupId>org.atmosphere</groupId> 
            <artifactId>gwtprojsonserializer</artifactId> 
            <version>1.0.4</version> 
+           <scope>provided</scope>
         </dependency>
     </dependencies>
     

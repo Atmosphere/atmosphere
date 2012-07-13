@@ -7,33 +7,32 @@ import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.Window.ClosingHandler;
+import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.rpc.SerializationException;
-import com.kfuntak.gwt.json.serialization.client.JsonSerializable;
-import com.kfuntak.gwt.json.serialization.client.Serializer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.atmosphere.gwt.client.AtmosphereClient;
 import org.atmosphere.gwt.client.AtmosphereGWTSerializer;
 import org.atmosphere.gwt.client.AtmosphereListener;
 
-import org.atmosphere.gwt.client.ObjectSerializer;
+import org.atmosphere.gwt.client.JSONObjectSerializer;
+import org.atmosphere.gwt.client.UserInterface;
 import org.atmosphere.gwt.client.extra.AtmosphereProxyEvent.EventType;
 
 /**
  *
  * @author p.havelaar
  */
-public class AtmosphereProxy {
+public class AtmosphereProxy implements UserInterface {
     private static final String EVENT_SOCKET = "atmosphereProxyEvents";
     
     private static final Logger logger = Logger.getLogger(AtmosphereProxy.class.getName());
     
     private AtmosphereListener clientListener;
     private AtmosphereGWTSerializer serializer;
-    private ObjectSerializer jsonSerializer = new JSONObjectSerializerGWTPro();
+    private JSONObjectSerializer jsonSerializer = GWT.create(JSONObjectSerializer.class);
     private AtmosphereClient masterConnection = null;
     private String url;
     private WindowSocket eventSocket;
@@ -44,20 +43,59 @@ public class AtmosphereProxy {
         this.url = url;
         this.serializer = serializer;
         this.clientListener = clientListener;
+    }
+    
+    @Override
+    public void start() {
         initialize();
     }
     
+    @Override
+    public void stop() {
+        if (parent != null) {
+            dispatchEvent(parent, event(EventType.ANNOUNCE_CHILD_DEATH));
+        }
+        if (windowList.size() > 0) {
+            Window fosterParent = parent != null ? parent : windowList.get(0);
+            JSONArray arr = new JSONArray();
+            List<Window> orphans;
+            if (parent == fosterParent) {
+                orphans = windowList;
+            } else {
+                orphans = windowList.subList(1, windowList.size());
+            }
+            int i = 0;
+            for (Window w : orphans) {
+                arr.set(i++, new JSONObject(w));
+            }
+            if (arr.size() > 0) {
+                fosterParent.set("orphans", arr.getJavaScriptObject());
+            }
+            if (masterConnection != null) {
+                dispatchEvent(fosterParent, event(EventType.ELECT_MASTER));
+                masterConnection.stop();
+                masterConnection = null;
+            } else if (arr.size() > 0){
+                dispatchEvent(fosterParent, event(EventType.ADOPT_ORPHANS));
+            }
+        }
+        parent = null;
+        windowList.clear();
+    }
+    
     // push message back to the server on this connection
-    public void post(JsonSerializable message) {
+    @Override
+    public void post(Object message) {
         post(Collections.singletonList(message));
     }
 
     // push message back to the server on this connection
-    public void post(List<JsonSerializable> messages) {
+    @Override
+    public void post(List<?> messages) {
         if (masterConnection != null) {
             masterConnection.post(messages);
         } else if (parent != null) {
-            for (JsonSerializable m : messages) {
+            for (Object m : messages) {
                 dispatchEvent(parent, event(EventType.POST).setData(m));
             }
         } else {
@@ -65,17 +103,29 @@ public class AtmosphereProxy {
         }
     }
 
+    @Override
+    public void post(Object message, AsyncCallback<Void> callback) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void post(List<?> messages, AsyncCallback<Void> callback) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     // send message back to the server on this connection for broadcast
-    public void broadcast(JsonSerializable message) {
+    @Override
+    public void broadcast(Object message) {
         broadcast(Collections.singletonList(message));
     }
 
     // send message back to the server on this connection for broadcast
-    public void broadcast(List<JsonSerializable> messages) {
+    @Override
+    public void broadcast(List<?> messages) {
         if (masterConnection != null) {
             masterConnection.broadcast(messages);
         } else if (parent != null) {
-            for (JsonSerializable m : messages) {
+            for (Object m : messages) {
                 dispatchEvent(parent, event(EventType.BROADCAST).setData(m));
             }
         } else {
@@ -84,16 +134,16 @@ public class AtmosphereProxy {
     }
 
     // 
-    public void localBroadcast(JsonSerializable message) {
+    public void localBroadcast(Object message) {
         localBroadcast(Collections.singletonList(message));
     }
 
     // push message to other windows
-    public void localBroadcast(List<JsonSerializable> messages) {
+    public void localBroadcast(List<?> messages) {
         if (masterConnection != null) {
             masterListener.onMessage(messages);
         } else if (parent != null) {
-            for (JsonSerializable m : messages) {
+            for (Object m : messages) {
                 dispatchEvent(parent, event(EventType.LOCAL_BROADCAST).setData(m));
             }
         } else {
@@ -137,33 +187,7 @@ public class AtmosphereProxy {
     }
     
     protected void onWindowClosing(ClosingEvent event) {
-        if (parent != null) {
-            dispatchEvent(parent, event(EventType.ANNOUNCE_CHILD_DEATH));
-        }
-        if (windowList.size() > 0) {
-            Window fosterParent = parent != null ? parent : windowList.get(0);
-            JSONArray arr = new JSONArray();
-            List<Window> orphans;
-            if (parent == fosterParent) {
-                orphans = windowList;
-            } else {
-                orphans = windowList.subList(1, windowList.size());
-            }
-            int i = 0;
-            for (Window w : orphans) {
-                arr.set(i++, new JSONObject(w));
-            }
-            if (arr.size() > 0) {
-                fosterParent.set("orphans", arr.getJavaScriptObject());
-            }
-            if (masterConnection != null) {
-                dispatchEvent(fosterParent, event(EventType.ELECT_MASTER));
-                masterConnection.stop();
-                masterConnection = null;
-            } else if (arr.size() > 0){
-                dispatchEvent(fosterParent, event(EventType.ADOPT_ORPHANS));
-            }
-        }
+        stop();
     }
     
     protected void onEvent(Window source, AtmosphereProxyEvent event, String rawEvent) {
