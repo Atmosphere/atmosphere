@@ -61,7 +61,8 @@ public class ChatHandler extends AtmosphereGwtHandler {
     }
 
     @Override
-    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, List<Serializable> messages, GwtAtmosphereResource cometResource) {
+    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse,
+            List<?> messages, GwtAtmosphereResource cometResource) {
         broadcast(messages, cometResource);
     }
 
