@@ -62,6 +62,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
@@ -152,10 +153,10 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
                     logger.trace("", e);
                 }
 
-                WebSocketProcessor webSocketProcessor = new WebSocketProcessor(config.framework(),
-                        new GrizzlyWebSocket(webSocket, config), config.framework().getWebSocketProtocol());
+                WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                        .newWebSocketProcessor(new GrizzlyWebSocket(webSocket, config));
                 webSocket.getRequest().setAttribute("grizzly.webSocketProcessor", webSocketProcessor);
-                webSocketProcessor.dispatch(r);
+                webSocketProcessor.open(r);
             } catch (Exception e) {
                 logger.warn("failed to connect to web socket", e);
             }

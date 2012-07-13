@@ -32,6 +32,7 @@ import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
+import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
@@ -84,6 +85,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
+import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
@@ -151,6 +153,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean scanDone = false;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
+    protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
 
     @Override
     public ServletContext getServletContext() {
@@ -490,7 +493,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
-            initWebSocketProtocol();
+            initWebSocket();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
             configureAtmosphereInterceptor(sc);
@@ -509,6 +512,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             logger.info("HttpSession supported: {}", config.isSupportSession());
             logger.info("Using BroadcasterFactory: {}", BroadcasterFactory.getDefault().getClass().getName());
+            logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
             logger.info("Using Broadcaster: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
@@ -650,6 +654,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
         if (s != null) {
             webSocketProtocolClassName = s;
+        }
+
+        s = sc.getInitParameter(WEBSOCKET_PROCESSOR);
+        if (s != null) {
+            webSocketProcessorClassName = s;
         }
     }
 
@@ -857,7 +866,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void initWebSocketProtocol() {
+    protected void initWebSocket() {
         if (webSocketProtocol == null) {
             try {
                 webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
@@ -869,6 +878,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
         webSocketProtocol.configure(config);
+
+        new WebSocketProcessorFactory(config);
     }
 
     public AtmosphereFramework destroy() {
@@ -1453,6 +1464,15 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     public AtmosphereFramework setHandlersPath(String handlersPath) {
         this.handlersPath = handlersPath;
+        return this;
+    }
+
+    public String getWebSocketProcessorClassName() {
+        return webSocketProcessorClassName;
+    }
+
+    public AtmosphereFramework setWebsocketProcessorClassName(String webSocketProcessorClassName){
+        this.webSocketProcessorClassName = webSocketProcessorClassName;
         return this;
     }
 

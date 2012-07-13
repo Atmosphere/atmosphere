@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
 /**
@@ -93,6 +94,10 @@ public interface ApplicationConfig {
      * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use
      */
     String BROADCASTER_LIFECYCLE_POLICY = ApplicationConfig.class.getPackage().getName() + ".broadcasterLifeCyclePolicy";
+    /**
+     * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.
+     */
+    String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
     /**
      * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.
      */

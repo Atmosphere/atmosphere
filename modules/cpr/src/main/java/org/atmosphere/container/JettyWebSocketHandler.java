@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -96,7 +97,8 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
         logger.trace("WebSocket.onHandshake");
         try {
-            webSocketProcessor = new WebSocketProcessor(framework, new Jetty8WebSocket(connection, framework.getAtmosphereConfig()), webSocketProtocol);
+            webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                    .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -115,8 +117,9 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = new WebSocketProcessor(framework, new Jetty8WebSocket(connection, framework.getAtmosphereConfig()), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
+            webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                    .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
+            webSocketProcessor.open(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);

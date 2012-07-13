@@ -17,6 +17,7 @@ package org.atmosphere.jetty;
 
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -52,8 +53,9 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
 
         logger.debug("WebSocket.onConnect (outbound)");
         try {
-            webSocketProcessor = new WebSocketProcessor(framework, new JettyWebSocket(outbound, framework.getAtmosphereConfig()), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
+            webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                    .newWebSocketProcessor(new JettyWebSocket(outbound, framework.getAtmosphereConfig()));
+            webSocketProcessor.open(request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }

@@ -76,7 +76,8 @@ public class WebSocketProcessorTest {
     public void basicWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
-        final WebSocketProcessor processor = new WebSocketProcessor(framework, w, new SimpleHttpProtocol());
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .newWebSocketProcessor(w);
 
         framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
 
@@ -97,7 +98,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.dispatch(request);
+        processor.open(request);
         processor.invokeWebSocketProtocol("yoWebSocket");
         BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -110,7 +111,8 @@ public class WebSocketProcessorTest {
         final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
         final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
         ByteArrayOutputStream b = new ByteArrayOutputStream();
-        final WebSocketProcessor processor = new WebSocketProcessor(framework, new ArrayBaseWebSocket(b), new SimpleHttpProtocol());
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .newWebSocketProcessor(new ArrayBaseWebSocket(b));
 
         framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
 
@@ -134,7 +136,7 @@ public class WebSocketProcessorTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        processor.dispatch(request);
+        processor.open(request);
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());

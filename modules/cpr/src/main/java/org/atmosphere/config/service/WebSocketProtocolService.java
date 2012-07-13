@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation for telling Atmosphere which {@link org.atmosphere.websocket.WebSocketProcessor} class to use by default.
+ * An annotation for telling Atmosphere which {@link org.atmosphere.websocket.WebSocketProtocol} class to use by default.
  *
  * @author Jeanfrancois Arcand
  */

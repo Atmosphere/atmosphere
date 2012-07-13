@@ -20,6 +20,7 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.container.version.TomcatWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -54,8 +55,9 @@ public class TomcatWebSocketHandler extends MessageInbound {
     protected void onOpen(WsOutbound outbound) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = new WebSocketProcessor(framework, new TomcatWebSocket(outbound, framework.getAtmosphereConfig()), webSocketProtocol);
-            webSocketProcessor.dispatch(request);
+            webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                    .newWebSocketProcessor(new TomcatWebSocket(outbound, framework.getAtmosphereConfig()));
+            webSocketProcessor.open(request);
             webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
