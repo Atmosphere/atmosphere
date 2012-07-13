@@ -22,7 +22,7 @@ public class WebSocketProcessorFactory {
 
     public WebSocketProcessor newWebSocketProcessor(WebSocket webSocket) {
         WebSocketProcessor wp = null;
-        if (webSocketProcessorName.equalsIgnoreCase(WebSocketProcessor.class.getName())) {
+        if (!webSocketProcessorName.equalsIgnoreCase(WebSocketProcessor.class.getName())) {
             try {
                 wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
                         .loadClass(webSocketProcessorName).newInstance();
