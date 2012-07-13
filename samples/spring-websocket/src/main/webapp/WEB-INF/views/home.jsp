@@ -2,7 +2,7 @@
 <head>
     <%--<meta http-equiv="X-UA-Compatible" content="chrome=1"/>--%>
     <meta http-equiv="cache-control" content="no-cache"/>
-    <script type="text/javascript" src="${pageContext.request.contextPath}/jquery/jquery-1.6.4.js"></script>
+    <script type="text/javascript" src="${pageContext.request.contextPath}/jquery/jquery-1.7.1.js"></script>
     <script type="text/javascript" src="${pageContext.request.contextPath}/jquery/jquery.atmosphere.js"></script>
 
     <script type="text/javascript">
