@@ -70,7 +70,8 @@ public class AtmosphereHandler extends AtmosphereGwtHandler {
     }
 
     @Override
-    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse, List<Serializable> messages, GwtAtmosphereResource cometResource) {
+    public void doPost(HttpServletRequest postRequest, HttpServletResponse postResponse,
+            List<?> messages, GwtAtmosphereResource cometResource) {
         HttpSession session = postRequest.getSession(false);
         if (session != null) {
             logger.info("Post has session with id: " + session.getId());
