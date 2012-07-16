@@ -31,6 +31,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CountDownLatch;
@@ -126,6 +127,87 @@ public abstract class BaseTest {
             }
             assertNotNull(response.get());
             assertEquals(response.get(), "resume");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
+    }
+
+    @Test(timeOut = 60000, enabled = true)
+    public void sessionTest() {
+        logger.info("{}: running test: sessionTest", getClass().getSimpleName());
+
+        final AtomicReference<HttpSession> session = new AtomicReference<HttpSession>();
+        final AtomicReference<HttpSession> sessionOnPost = new AtomicReference<HttpSession>();
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            boolean isSuspended = false;
+
+            public void onRequest(AtmosphereResource r) throws IOException {
+                if (!isSuspended) {
+                    session.set(r.suspend().session(true));
+                    isSuspended = true;
+                } else {
+                    String message = r.getRequest().getReader().readLine();
+                    r.getBroadcaster().broadcast(message);
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isSuspended()) {
+                    sessionOnPost.set(event.getResource().session());
+                    event.write(event.getMessage().toString().getBytes());
+                }
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<String> response = new AtomicReference<String>(null);
+            WebSocket w = c.prepareGet(urlTarget).execute(new WebSocketUpgradeHandler.Builder().build())
+                    .get();
+            w.addWebSocketListener(new WebSocketTextListener() {
+
+                @Override
+                public void onMessage(String message) {
+                    response.set(message);
+                    latch.countDown();
+                }
+
+                @Override
+                public void onFragment(String fragment, boolean last) {
+                    fail();
+                }
+
+                @Override
+                public void onOpen(WebSocket websocket) {
+                }
+
+                @Override
+                public void onClose(WebSocket websocket) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    t.printStackTrace();
+                    fail(t.getMessage());
+                }
+            }).sendTextMessage("echo");
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            assertNotNull(response.get());
+            assertEquals(response.get(), "echo");
+            assertEquals(session.get().getId(), sessionOnPost.get().getId());
+
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());

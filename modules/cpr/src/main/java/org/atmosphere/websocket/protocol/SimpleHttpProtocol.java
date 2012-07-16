@@ -116,6 +116,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .pathInfo(pathInfo)
                 .destroyable(destroyable)
                 .headers(resource.getRequest().headersMap())
+                .session(resource.session())
                 .build());
 
         return list;
