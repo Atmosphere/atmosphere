@@ -164,7 +164,8 @@ public interface ApplicationConfig {
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
     /**
-     * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
+     * Configure the padding used when streaming is used. Value can be atmosphere, legacy or whitespace.
+     * Default is whitespace {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
      */
     String STREAMING_PADDING_MODE = ApplicationConfig.class.getPackage().getName() + ".padding";
     /**

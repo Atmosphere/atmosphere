@@ -671,7 +671,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static String createStreamingPadding(String padding) {
         StringBuilder s = new StringBuilder();
 
-        if (padding == null || padding.equalsIgnoreCase("atmosphere")) {
+        if (padding != null && (padding.equalsIgnoreCase("atmosphere") || padding.equalsIgnoreCase("legacy"))) {
             s.append("<!-- ----------------------------------------------------------" +
                     "------ http://github.com/Atmosphere ----------------------------" +
                     "-------------------------------------------- -->\n");
