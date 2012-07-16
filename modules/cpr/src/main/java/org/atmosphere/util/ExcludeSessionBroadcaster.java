@@ -45,9 +45,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
- * A example of how to extends/replace {@link org.atmosphere.cpr.Broadcaster} by defining the
- * class value in META-INF/atmosphere.xml or by adding defining the org.atmosphere.cpr.broadcasterClass
- * init-param in web.xml.
+ * An implementation of {@link DefaultBroadcaster} that exclude one or more {@link AtmosphereResource}
  *
  * @author Jeanfrancois Arcand
  */
