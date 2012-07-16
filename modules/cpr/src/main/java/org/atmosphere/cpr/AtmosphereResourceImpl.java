@@ -917,6 +917,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     @Override
+    public AtmosphereResource padding(String padding) {
+        this.padding = padding;
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public HttpSession session() {
         return session(true);
     }

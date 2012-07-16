@@ -357,4 +357,10 @@ public interface AtmosphereResource {
      * @return the {@link HttpSession} is supported, and creates it if not already crea
      */
     HttpSession session(boolean create);
+
+    /**
+     * Set the padding to use when flushing the response when transport equals 'streaming' See {@link org.atmosphere.cpr.ApplicationConfig#STREAMING_PADDING_MODE}
+     * for more info.
+     */
+    public AtmosphereResource padding(String padding);
 }

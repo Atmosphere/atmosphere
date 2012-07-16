@@ -58,7 +58,6 @@ public class AndroidAtmosphereInterceptor implements AtmosphereInterceptor {
 
     @Override
     public void configure(AtmosphereConfig config) {
-        config.framework().addInitParameter(ApplicationConfig.STREAMING_PADDING_MODE, "whitespace");
     }
 
     @Override
@@ -67,6 +66,7 @@ public class AndroidAtmosphereInterceptor implements AtmosphereInterceptor {
         String userAgent = r.getRequest().getHeader("User-Agent");
 
         if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null && userAgent.indexOf("Android 2.3") != -1) {
+            r.padding("whitespace");
             response.asyncIOWriter(new AsyncIOWriterAdapter() {
                 @Override
                 public AsyncIOWriter redirect(String location) throws IOException {
