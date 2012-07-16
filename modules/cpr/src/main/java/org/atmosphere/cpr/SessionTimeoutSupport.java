@@ -15,6 +15,9 @@
 */
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
@@ -27,6 +30,7 @@ import javax.servlet.http.HttpSession;
 public final class SessionTimeoutSupport {
 
     private static final String KEY = "atmosphere.session.timeout.restorer";
+    private static final Logger logger = LoggerFactory.getLogger(SessionTimeoutSupport.class);
 
     /**
      * Disable HTTP session timeout.
@@ -67,7 +71,12 @@ public final class SessionTimeoutSupport {
     private static SessionTimeoutRestorer unbind(HttpSession s) {
         if (s == null) return null;
 
-        SessionTimeoutRestorer r = (SessionTimeoutRestorer) s.getAttribute(KEY);
+        SessionTimeoutRestorer r = null;
+        try {
+            r = (SessionTimeoutRestorer) s.getAttribute(KEY);
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
         s.removeAttribute(KEY);
         return r;
     }
