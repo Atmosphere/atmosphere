@@ -65,7 +65,9 @@ public class AndroidAtmosphereInterceptor implements AtmosphereInterceptor {
         final AtmosphereResponse response = r.getResponse();
         String userAgent = r.getRequest().getHeader("User-Agent");
 
-        if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null && userAgent.indexOf("Android 2.3") != -1) {
+        if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null &&
+                (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
+
             r.padding("whitespace");
             response.asyncIOWriter(new AsyncIOWriterAdapter() {
                 @Override
