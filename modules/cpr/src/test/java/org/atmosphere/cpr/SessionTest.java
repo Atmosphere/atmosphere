@@ -15,13 +15,16 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.FakeHttpSession;
 import org.testng.annotations.Test;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
@@ -39,5 +42,31 @@ public class SessionTest {
         request = new AtmosphereRequest.Builder().session(new FakeHttpSession("-1", null, System.currentTimeMillis(), -1)).build();
         assertNotNull(request.getSession());
         assertNotNull(request.getSession(true));
+    }
+
+    @Test
+    public void basicAtmosphereResourceSessionTest() throws IOException, ServletException, ExecutionException, InterruptedException {
+        AtmosphereRequest request = new AtmosphereRequest.Builder().build();
+        AtmosphereResponse response = new AtmosphereResponse.Builder().build();
+
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(new AtmosphereFramework().getAtmosphereConfig(),
+                request,
+                response,
+                mock(AsyncSupport.class));
+
+        assertNull(r.session(false));
+        assertNotNull(r.session());
+        assertNotNull(r.session(true));
+        assertNotNull(r.session());
+
+        request = new AtmosphereRequest.Builder().session(new FakeHttpSession("-1", null, System.currentTimeMillis(), -1)).build();
+        response = new AtmosphereResponse.Builder().build();
+        r = AtmosphereResourceFactory.getDefault().create(new AtmosphereFramework().getAtmosphereConfig(),
+                request,
+                response,
+                mock(AsyncSupport.class));
+
+        assertNotNull(r.session());
+        assertNotNull(r.session(true));
     }
 }

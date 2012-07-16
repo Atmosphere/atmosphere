@@ -115,7 +115,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final boolean writeHeaders;
     private String padding;
     private final String uuid;
-    private HttpSession session;
+    protected HttpSession session;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -155,7 +155,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
         String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        uuid = s == null? UUID.randomUUID().toString() : s;
+        uuid = s == null ? UUID.randomUUID().toString() : s;
 
         if (config.isSupportSession()) {
             //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
@@ -905,12 +905,20 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     @Override
-    public HttpSession session(){
-        if (session == null && config.isSupportSession()) {
+    public HttpSession session(boolean create) {
+        if (session == null) {
             // http://java.net/jira/browse/GLASSFISH-18856
-            session = req.getSession(true);
+            session = req.getSession(create);
         }
         return session;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public HttpSession session() {
+        return session(true);
     }
 
     public AtmosphereResourceImpl session(HttpSession session) {

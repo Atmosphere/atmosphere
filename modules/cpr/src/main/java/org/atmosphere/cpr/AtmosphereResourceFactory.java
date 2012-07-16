@@ -28,6 +28,8 @@ import java.util.Collection;
  */
 public final class AtmosphereResourceFactory {
 
+    private final static AtmosphereResourceFactory factory = new AtmosphereResourceFactory();
+
     private final static AtmosphereHandler voidAtmosphereHandler = new AbstractReflectorAtmosphereHandler() {
         @Override
         public void onRequest(AtmosphereResource resource) throws IOException {
@@ -41,6 +43,21 @@ public final class AtmosphereResourceFactory {
     /**
      * Create an {@link AtmosphereResourceImpl}
      *
+     * @param config   an {@link AtmosphereConfig}
+     * @param request an {@link AtmosphereResponse}
+     * @param a        {@link AsyncSupport}
+     * @return an {@link AtmosphereResourceImpl}
+     */
+    public final AtmosphereResource create(AtmosphereConfig config,
+                                                  AtmosphereRequest request,
+                                                  AtmosphereResponse response,
+                                                  AsyncSupport<?> a) {
+        return new AtmosphereResourceImpl(config, null, request, response, a, voidAtmosphereHandler);
+    }
+
+    /**
+     * Create an {@link AtmosphereResourceImpl}
+     *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
      * @param response    an {@link AtmosphereResponse}
@@ -48,12 +65,31 @@ public final class AtmosphereResourceFactory {
      * @param handler     an {@link AtmosphereHandler}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final static AtmosphereResource create(AtmosphereConfig config,
+    public final AtmosphereResource create(AtmosphereConfig config,
+                                                  Broadcaster broadcaster,
+                                                  AtmosphereRequest request,
+                                                  AtmosphereResponse response,
+                                                  AsyncSupport<?> a,
+                                                  AtmosphereHandler handler) {
+        return new AtmosphereResourceImpl(config, broadcaster, request, response, a, handler);
+    }
+
+    /**
+     * Create an {@link AtmosphereResourceImpl}
+     *
+     * @param config      an {@link AtmosphereConfig}
+     * @param broadcaster a {@link Broadcaster}
+     * @param response    an {@link AtmosphereResponse}
+     * @param a           {@link AsyncSupport}
+     * @param handler     an {@link AtmosphereHandler}
+     * @return an {@link AtmosphereResourceImpl}
+     */
+    public final AtmosphereResource create(AtmosphereConfig config,
                                                   Broadcaster broadcaster,
                                                   AtmosphereResponse response,
                                                   AsyncSupport<?> a,
                                                   AtmosphereHandler handler) {
-        return new AtmosphereResourceImpl(config, broadcaster, response.request(), response, a, handler);
+        return create(config, broadcaster, response.request(), response, a, handler);
     }
 
     /**
@@ -64,7 +100,7 @@ public final class AtmosphereResourceFactory {
      * @param a        {@link AsyncSupport}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final static AtmosphereResource create(AtmosphereConfig config,
+    public final AtmosphereResource create(AtmosphereConfig config,
                                                   AtmosphereResponse response,
                                                   AsyncSupport<?> a) {
         return new AtmosphereResourceImpl(config, null, response.request(), response, a, voidAtmosphereHandler);
@@ -76,7 +112,7 @@ public final class AtmosphereResourceFactory {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
      */
-    public final static AtmosphereResource remove(String uuid) {
+    public final AtmosphereResource remove(String uuid) {
         AtmosphereResource r = find(uuid);
         if (r != null) {
             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
@@ -90,7 +126,7 @@ public final class AtmosphereResourceFactory {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
      */
-    public final static AtmosphereResource find(String uuid) {
+    public final AtmosphereResource find(String uuid) {
         Collection<Broadcaster> l = BroadcasterFactory.getDefault().lookupAll();
         for (Broadcaster b : l) {
             for (AtmosphereResource r : b.getAtmosphereResources()) {
@@ -100,5 +136,9 @@ public final class AtmosphereResourceFactory {
             }
         }
         return null;
+    }
+
+    public final static AtmosphereResourceFactory getDefault() {
+        return factory;
     }
 }

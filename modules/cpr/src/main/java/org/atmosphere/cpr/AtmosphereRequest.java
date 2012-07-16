@@ -597,12 +597,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession() {
-        HttpSession session = getSession(true);
-        // The underlying request has been recycled, let's return the original value
-        if (session == null) {
-            session = resource().session();
-        }
-        return session;
+        return getSession(true);
     }
 
     /**
@@ -610,6 +605,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession(boolean create) {
+        if (resource() != null) {
+            // UGLY, but we need to prevent looping here.
+            HttpSession session = AtmosphereResourceImpl.class.cast(resource()).session;
+            if (session != null) {
+                return session;
+            }
+        }
+
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {

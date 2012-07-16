@@ -104,7 +104,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
-        AtmosphereResource r = AtmosphereResourceFactory.create(framework.getAtmosphereConfig(),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(),
                 wsr,
                 framework.getAsyncSupport());
 
