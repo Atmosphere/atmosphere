@@ -1555,20 +1555,25 @@ public class AtmosphereFramework implements ServletContextProvider {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
-            p.configure(this).scan(new File(path));
+            p.configure(this);
+            if (path != null) {
+                p.scan(new File(path));
+            }
 
             String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
-            File libFolder = new File(pathLibs);
-            File jars[] = libFolder.listFiles(new FilenameFilter() {
+            if (pathLibs != null) {
+                File libFolder = new File(pathLibs);
+                File jars[] = libFolder.listFiles(new FilenameFilter() {
 
-                @Override
-                public boolean accept(File arg0, String arg1) {
-                    return arg1.endsWith(".jar");
+                    @Override
+                    public boolean accept(File arg0, String arg1) {
+                        return arg1.endsWith(".jar");
+                    }
+                });
+
+                for (File file : jars) {
+                    p.scan(file);
                 }
-            });
-
-            for (File file : jars) {
-                p.scan(file);
             }
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
