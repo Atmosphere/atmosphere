@@ -109,6 +109,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * @return
      */
     protected GwtAtmosphereResource lookupResource(int connectionId) {
+        if (resources == null) {
+            return null;
+        }
         GwtAtmosphereResource r = resources.get(connectionId);
         if (r != null) {
             return r;
