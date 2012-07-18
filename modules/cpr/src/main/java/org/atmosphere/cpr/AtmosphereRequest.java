@@ -621,6 +621,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 return b.hackedJettySession;
             }
             throw ex;
+        } catch (NullPointerException ex) {
+            // GLASSFISH http://java.net/jira/browse/GLASSFISH-18856
+            return b.request.getSession(create);
         }
     }
 
