@@ -17,6 +17,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketEventListener;
+import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.testng.annotations.BeforeMethod;
@@ -146,6 +148,80 @@ public class WebSocketProcessorTest {
         assertEquals(i.getValue(), cValue.get().getValue());
     }
 
+    @Test
+    public void onDisconnectAtmosphereRequestAttribute() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .newWebSocketProcessor(w);
+        final AtomicReference<String> uuid = new AtomicReference<String>();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.addEventListener(new WebSocketEventListenerAdapter() {
+                    @Override
+                    public void onDisconnect(WebSocketEvent event) {
+                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE));
+                    }
+                });
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(request);
+        processor.invokeWebSocketProtocol("yoWebSocket");
+        processor.notifyListener(new WebSocketEventListener.WebSocketEvent("Disconnect", WebSocketEventListener.WebSocketEvent.TYPE.DISCONNECT, w));
+
+        assertNotNull(uuid.get());
+    }
+
+    @Test
+    public void onCloseAtmosphereRequestAttribute() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .newWebSocketProcessor(w);
+        final AtomicReference<String> uuid = new AtomicReference<String>();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.addEventListener(new WebSocketEventListenerAdapter() {
+                    @Override
+                    public void onClose(WebSocketEvent event) {
+                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE));
+                    }
+                });
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(request);
+        processor.invokeWebSocketProtocol("yoWebSocket");
+        processor.notifyListener(new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
+
+        assertNotNull(uuid.get());
+    }
+
     public final static class ArrayBaseWebSocket extends WebSocket {
 
         private final OutputStream outputStream;
@@ -211,7 +287,5 @@ public class WebSocketProcessorTest {
         public WebSocket flush(AtmosphereResponse r) throws IOException {
             return this;
         }
-
-
     }
 }
