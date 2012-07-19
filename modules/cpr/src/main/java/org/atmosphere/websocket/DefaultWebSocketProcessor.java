@@ -302,6 +302,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             WebSocketEventListener.class.cast(l).onHandshake(event);
                             break;
                         case CLOSE:
+                            WebSocketEventListener.class.cast(l).onDisconnect(event);
                             WebSocketEventListener.class.cast(l).onClose(event);
                             break;
                     }
