@@ -69,6 +69,14 @@ public class BroadcasterTest {
     }
 
     @Test
+    public void testEmptyBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
+        broadcaster.resumeAll();
+
+        broadcaster.broadcast("foo").get();
+        assertEquals(atmosphereHandler.value.get(), new HashSet());
+    }
+
+    @Test
     public void testSetBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         AtmosphereConfig config = new AtmosphereFramework()
                 .setAsyncSupport(mock(BlockingIOCometSupport.class))
@@ -125,7 +133,7 @@ public class BroadcasterTest {
 
         broadcaster.broadcast("foo", set).get();
 
-        assertEquals(atmosphereHandler.value.get(), set);
+        assertEquals(atmosphereHandler.value.get(), new HashSet());
     }
 
     public final static class AR implements AtmosphereHandler {
