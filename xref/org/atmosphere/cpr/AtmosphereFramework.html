@@ -1565,54 +1565,59 @@
 <a class="jxr_linenumber" name="1555" href="#1555">1555</a>             <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
 <a class="jxr_linenumber" name="1556" href="#1556">1556</a>             logger.info(<span class="jxr_string">"Atmosphere is using {} for processing annotation"</span>, annotationProcessorClassName);
 <a class="jxr_linenumber" name="1557" href="#1557">1557</a> 
-<a class="jxr_linenumber" name="1558" href="#1558">1558</a>             p.configure(<strong class="jxr_keyword">this</strong>).scan(<strong class="jxr_keyword">new</strong> File(path));
-<a class="jxr_linenumber" name="1559" href="#1559">1559</a> 
-<a class="jxr_linenumber" name="1560" href="#1560">1560</a>             String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
-<a class="jxr_linenumber" name="1561" href="#1561">1561</a>             File libFolder = <strong class="jxr_keyword">new</strong> File(pathLibs);
-<a class="jxr_linenumber" name="1562" href="#1562">1562</a>             File jars[] = libFolder.listFiles(<strong class="jxr_keyword">new</strong> FilenameFilter() {
-<a class="jxr_linenumber" name="1563" href="#1563">1563</a> 
-<a class="jxr_linenumber" name="1564" href="#1564">1564</a>                 @Override
-<a class="jxr_linenumber" name="1565" href="#1565">1565</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> accept(File arg0, String arg1) {
-<a class="jxr_linenumber" name="1566" href="#1566">1566</a>                     <strong class="jxr_keyword">return</strong> arg1.endsWith(<span class="jxr_string">".jar"</span>);
-<a class="jxr_linenumber" name="1567" href="#1567">1567</a>                 }
-<a class="jxr_linenumber" name="1568" href="#1568">1568</a>             });
-<a class="jxr_linenumber" name="1569" href="#1569">1569</a> 
-<a class="jxr_linenumber" name="1570" href="#1570">1570</a>             <strong class="jxr_keyword">for</strong> (File file : jars) {
-<a class="jxr_linenumber" name="1571" href="#1571">1571</a>                 p.scan(file);
-<a class="jxr_linenumber" name="1572" href="#1572">1572</a>             }
-<a class="jxr_linenumber" name="1573" href="#1573">1573</a>         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="1574" href="#1574">1574</a>             logger.debug(<span class="jxr_string">"Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service"</span>);
-<a class="jxr_linenumber" name="1575" href="#1575">1575</a>             logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="1576" href="#1576">1576</a>             <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="1577" href="#1577">1577</a>         }
-<a class="jxr_linenumber" name="1578" href="#1578">1578</a>     }
-<a class="jxr_linenumber" name="1579" href="#1579">1579</a> 
-<a class="jxr_linenumber" name="1580" href="#1580">1580</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notify(Action.TYPE type, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) {
-<a class="jxr_linenumber" name="1581" href="#1581">1581</a>         <strong class="jxr_keyword">for</strong> (AsyncSupportListener l : asyncSupportListeners()) {
-<a class="jxr_linenumber" name="1582" href="#1582">1582</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="1583" href="#1583">1583</a>                 <strong class="jxr_keyword">switch</strong> (type) {
-<a class="jxr_linenumber" name="1584" href="#1584">1584</a>                     <strong class="jxr_keyword">case</strong> TIMEOUT:
-<a class="jxr_linenumber" name="1585" href="#1585">1585</a>                         l.onTimeout(request, response);
-<a class="jxr_linenumber" name="1586" href="#1586">1586</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="1587" href="#1587">1587</a>                     <strong class="jxr_keyword">case</strong> CANCELLED:
-<a class="jxr_linenumber" name="1588" href="#1588">1588</a>                         l.onClose(request, response);
-<a class="jxr_linenumber" name="1589" href="#1589">1589</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="1590" href="#1590">1590</a>                     <strong class="jxr_keyword">case</strong> SUSPEND:
-<a class="jxr_linenumber" name="1591" href="#1591">1591</a>                         l.onSuspend(request, response);
-<a class="jxr_linenumber" name="1592" href="#1592">1592</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="1593" href="#1593">1593</a>                     <strong class="jxr_keyword">case</strong> RESUME:
-<a class="jxr_linenumber" name="1594" href="#1594">1594</a>                         l.onSuspend(request, response);
-<a class="jxr_linenumber" name="1595" href="#1595">1595</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="1596" href="#1596">1596</a>                     <strong class="jxr_keyword">case</strong> DESTROYED:
-<a class="jxr_linenumber" name="1597" href="#1597">1597</a>                         l.onDestroyed(request, response);
-<a class="jxr_linenumber" name="1598" href="#1598">1598</a>                         <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="1599" href="#1599">1599</a>                 }
-<a class="jxr_linenumber" name="1600" href="#1600">1600</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="1601" href="#1601">1601</a>                 logger.warn(<span class="jxr_string">""</span>, t);
-<a class="jxr_linenumber" name="1602" href="#1602">1602</a>             }
-<a class="jxr_linenumber" name="1603" href="#1603">1603</a>         }
-<a class="jxr_linenumber" name="1604" href="#1604">1604</a>     }
-<a class="jxr_linenumber" name="1605" href="#1605">1605</a> }
+<a class="jxr_linenumber" name="1558" href="#1558">1558</a>             p.configure(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="1559" href="#1559">1559</a>             <strong class="jxr_keyword">if</strong> (path != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="1560" href="#1560">1560</a>                 p.scan(<strong class="jxr_keyword">new</strong> File(path));
+<a class="jxr_linenumber" name="1561" href="#1561">1561</a>             }
+<a class="jxr_linenumber" name="1562" href="#1562">1562</a> 
+<a class="jxr_linenumber" name="1563" href="#1563">1563</a>             String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
+<a class="jxr_linenumber" name="1564" href="#1564">1564</a>             <strong class="jxr_keyword">if</strong> (pathLibs != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="1565" href="#1565">1565</a>                 File libFolder = <strong class="jxr_keyword">new</strong> File(pathLibs);
+<a class="jxr_linenumber" name="1566" href="#1566">1566</a>                 File jars[] = libFolder.listFiles(<strong class="jxr_keyword">new</strong> FilenameFilter() {
+<a class="jxr_linenumber" name="1567" href="#1567">1567</a> 
+<a class="jxr_linenumber" name="1568" href="#1568">1568</a>                     @Override
+<a class="jxr_linenumber" name="1569" href="#1569">1569</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> accept(File arg0, String arg1) {
+<a class="jxr_linenumber" name="1570" href="#1570">1570</a>                         <strong class="jxr_keyword">return</strong> arg1.endsWith(<span class="jxr_string">".jar"</span>);
+<a class="jxr_linenumber" name="1571" href="#1571">1571</a>                     }
+<a class="jxr_linenumber" name="1572" href="#1572">1572</a>                 });
+<a class="jxr_linenumber" name="1573" href="#1573">1573</a> 
+<a class="jxr_linenumber" name="1574" href="#1574">1574</a>                 <strong class="jxr_keyword">for</strong> (File file : jars) {
+<a class="jxr_linenumber" name="1575" href="#1575">1575</a>                     p.scan(file);
+<a class="jxr_linenumber" name="1576" href="#1576">1576</a>                 }
+<a class="jxr_linenumber" name="1577" href="#1577">1577</a>             }
+<a class="jxr_linenumber" name="1578" href="#1578">1578</a>         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="1579" href="#1579">1579</a>             logger.debug(<span class="jxr_string">"Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service"</span>);
+<a class="jxr_linenumber" name="1580" href="#1580">1580</a>             logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="1581" href="#1581">1581</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="1582" href="#1582">1582</a>         }
+<a class="jxr_linenumber" name="1583" href="#1583">1583</a>     }
+<a class="jxr_linenumber" name="1584" href="#1584">1584</a> 
+<a class="jxr_linenumber" name="1585" href="#1585">1585</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notify(Action.TYPE type, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) {
+<a class="jxr_linenumber" name="1586" href="#1586">1586</a>         <strong class="jxr_keyword">for</strong> (AsyncSupportListener l : asyncSupportListeners()) {
+<a class="jxr_linenumber" name="1587" href="#1587">1587</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="1588" href="#1588">1588</a>                 <strong class="jxr_keyword">switch</strong> (type) {
+<a class="jxr_linenumber" name="1589" href="#1589">1589</a>                     <strong class="jxr_keyword">case</strong> TIMEOUT:
+<a class="jxr_linenumber" name="1590" href="#1590">1590</a>                         l.onTimeout(request, response);
+<a class="jxr_linenumber" name="1591" href="#1591">1591</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="1592" href="#1592">1592</a>                     <strong class="jxr_keyword">case</strong> CANCELLED:
+<a class="jxr_linenumber" name="1593" href="#1593">1593</a>                         l.onClose(request, response);
+<a class="jxr_linenumber" name="1594" href="#1594">1594</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="1595" href="#1595">1595</a>                     <strong class="jxr_keyword">case</strong> SUSPEND:
+<a class="jxr_linenumber" name="1596" href="#1596">1596</a>                         l.onSuspend(request, response);
+<a class="jxr_linenumber" name="1597" href="#1597">1597</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="1598" href="#1598">1598</a>                     <strong class="jxr_keyword">case</strong> RESUME:
+<a class="jxr_linenumber" name="1599" href="#1599">1599</a>                         l.onSuspend(request, response);
+<a class="jxr_linenumber" name="1600" href="#1600">1600</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="1601" href="#1601">1601</a>                     <strong class="jxr_keyword">case</strong> DESTROYED:
+<a class="jxr_linenumber" name="1602" href="#1602">1602</a>                         l.onDestroyed(request, response);
+<a class="jxr_linenumber" name="1603" href="#1603">1603</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="1604" href="#1604">1604</a>                 }
+<a class="jxr_linenumber" name="1605" href="#1605">1605</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="1606" href="#1606">1606</a>                 logger.warn(<span class="jxr_string">""</span>, t);
+<a class="jxr_linenumber" name="1607" href="#1607">1607</a>             }
+<a class="jxr_linenumber" name="1608" href="#1608">1608</a>         }
+<a class="jxr_linenumber" name="1609" href="#1609">1609</a>     }
+<a class="jxr_linenumber" name="1610" href="#1610">1610</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

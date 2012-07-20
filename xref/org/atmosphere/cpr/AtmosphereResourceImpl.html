@@ -125,7 +125,7 @@
 <a class="jxr_linenumber" name="115" href="#115">115</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> writeHeaders;
 <a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">private</strong> String padding;
 <a class="jxr_linenumber" name="117" href="#117">117</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String uuid;
-<a class="jxr_linenumber" name="118" href="#118">118</a>     <strong class="jxr_keyword">private</strong> HttpSession session;
+<a class="jxr_linenumber" name="118" href="#118">118</a>     <strong class="jxr_keyword">protected</strong> HttpSession session;
 <a class="jxr_linenumber" name="119" href="#119">119</a> 
 <a class="jxr_linenumber" name="120" href="#120">120</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="121" href="#121">121</a> <em class="jxr_javadoccomment">     * Create an {@link AtmosphereResource}.</em>
@@ -165,7 +165,7 @@
 <a class="jxr_linenumber" name="155" href="#155">155</a>         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 <a class="jxr_linenumber" name="156" href="#156">156</a> 
 <a class="jxr_linenumber" name="157" href="#157">157</a>         String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-<a class="jxr_linenumber" name="158" href="#158">158</a>         uuid = s == <strong class="jxr_keyword">null</strong>? UUID.randomUUID().toString() : s;
+<a class="jxr_linenumber" name="158" href="#158">158</a>         uuid = s == <strong class="jxr_keyword">null</strong> ? UUID.randomUUID().toString() : s;
 <a class="jxr_linenumber" name="159" href="#159">159</a> 
 <a class="jxr_linenumber" name="160" href="#160">160</a>         <strong class="jxr_keyword">if</strong> (config.isSupportSession()) {
 <a class="jxr_linenumber" name="161" href="#161">161</a>             <em class="jxr_comment">//Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.</em>
@@ -915,29 +915,46 @@
 <a class="jxr_linenumber" name="905" href="#905">905</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="906" href="#906">906</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="907" href="#907">907</a>     @Override
-<a class="jxr_linenumber" name="908" href="#908">908</a>     <strong class="jxr_keyword">public</strong> HttpSession session(){
-<a class="jxr_linenumber" name="909" href="#909">909</a>         <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong> &amp;&amp; config.isSupportSession()) {
+<a class="jxr_linenumber" name="908" href="#908">908</a>     <strong class="jxr_keyword">public</strong> HttpSession session(<strong class="jxr_keyword">boolean</strong> create) {
+<a class="jxr_linenumber" name="909" href="#909">909</a>         <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="910" href="#910">910</a>             <em class="jxr_comment">// http://java.net/jira/browse/GLASSFISH-18856</em>
-<a class="jxr_linenumber" name="911" href="#911">911</a>             session = req.getSession(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="911" href="#911">911</a>             session = req.getSession(create);
 <a class="jxr_linenumber" name="912" href="#912">912</a>         }
 <a class="jxr_linenumber" name="913" href="#913">913</a>         <strong class="jxr_keyword">return</strong> session;
 <a class="jxr_linenumber" name="914" href="#914">914</a>     }
 <a class="jxr_linenumber" name="915" href="#915">915</a> 
-<a class="jxr_linenumber" name="916" href="#916">916</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> session(HttpSession session) {
-<a class="jxr_linenumber" name="917" href="#917">917</a>         <strong class="jxr_keyword">this</strong>.session = session;
-<a class="jxr_linenumber" name="918" href="#918">918</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="919" href="#919">919</a>     }
-<a class="jxr_linenumber" name="920" href="#920">920</a> 
-<a class="jxr_linenumber" name="921" href="#921">921</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> cloneState(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="922" href="#922">922</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResourceEventListener l : AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).atmosphereResourceEventListener()) {
-<a class="jxr_linenumber" name="923" href="#923">923</a>             addEventListener(l);
-<a class="jxr_linenumber" name="924" href="#924">924</a>         }
-<a class="jxr_linenumber" name="925" href="#925">925</a>         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).session(r.session());
-<a class="jxr_linenumber" name="926" href="#926">926</a>         setBroadcaster(r.getBroadcaster());
-<a class="jxr_linenumber" name="927" href="#927">927</a>         atmosphereHandler(r.getAtmosphereHandler());
-<a class="jxr_linenumber" name="928" href="#928">928</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="929" href="#929">929</a>     }
-<a class="jxr_linenumber" name="930" href="#930">930</a> }
+<a class="jxr_linenumber" name="916" href="#916">916</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="917" href="#917">917</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="918" href="#918">918</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="919" href="#919">919</a>     @Override
+<a class="jxr_linenumber" name="920" href="#920">920</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> padding(String padding) {
+<a class="jxr_linenumber" name="921" href="#921">921</a>         <strong class="jxr_keyword">this</strong>.padding = padding;
+<a class="jxr_linenumber" name="922" href="#922">922</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="923" href="#923">923</a>     }
+<a class="jxr_linenumber" name="924" href="#924">924</a> 
+<a class="jxr_linenumber" name="925" href="#925">925</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="926" href="#926">926</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="927" href="#927">927</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="928" href="#928">928</a>     @Override
+<a class="jxr_linenumber" name="929" href="#929">929</a>     <strong class="jxr_keyword">public</strong> HttpSession session() {
+<a class="jxr_linenumber" name="930" href="#930">930</a>         <strong class="jxr_keyword">return</strong> session(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="931" href="#931">931</a>     }
+<a class="jxr_linenumber" name="932" href="#932">932</a> 
+<a class="jxr_linenumber" name="933" href="#933">933</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> session(HttpSession session) {
+<a class="jxr_linenumber" name="934" href="#934">934</a>         <strong class="jxr_keyword">this</strong>.session = session;
+<a class="jxr_linenumber" name="935" href="#935">935</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="936" href="#936">936</a>     }
+<a class="jxr_linenumber" name="937" href="#937">937</a> 
+<a class="jxr_linenumber" name="938" href="#938">938</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> cloneState(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="939" href="#939">939</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResourceEventListener l : AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).atmosphereResourceEventListener()) {
+<a class="jxr_linenumber" name="940" href="#940">940</a>             addEventListener(l);
+<a class="jxr_linenumber" name="941" href="#941">941</a>         }
+<a class="jxr_linenumber" name="942" href="#942">942</a>         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).session(r.session());
+<a class="jxr_linenumber" name="943" href="#943">943</a>         setBroadcaster(r.getBroadcaster());
+<a class="jxr_linenumber" name="944" href="#944">944</a>         atmosphereHandler(r.getAtmosphereHandler());
+<a class="jxr_linenumber" name="945" href="#945">945</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="946" href="#946">946</a>     }
+<a class="jxr_linenumber" name="947" href="#947">947</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
