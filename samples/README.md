@@ -196,3 +196,9 @@ If you plan to use Spring or GWT, take a look at their specific samples.
         <td></td>
         <td></td>
     </tr>
+        <tr>
+        <td>[websocket-chat](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.atmosphere.samples%22%20AND%20a%3A%22atmosphere-websocket-chat%22)</td>
+        <td>This sample demonstrates how to write WebSocket ONLY applications</td>
+        <td>[WebSockerHandler](https://github.com/Atmosphere/atmosphere/blob/master/samples/websocket-chat/src/main/java/org/atmosphere/samples/chat/WebSocketChat.java#L33)</td>
+        <td>[JavaScript Function](https://github.com/Atmosphere/atmosphere/blob/master/samples/websocket-chat/src/main/webapp/jquery/application.js#L1)</td>
+    </tr>
