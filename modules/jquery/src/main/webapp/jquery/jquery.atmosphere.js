@@ -101,7 +101,7 @@ jQuery.atmosphere = function() {
                 reconnectInterval : 0,
                 dropAtmosphereHeaders : true,
                 uuid : 0,
-                shared : true,
+                shared : false,
                 onError : function(response) {
                 },
                 onClose : function(response) {
@@ -291,7 +291,7 @@ jQuery.atmosphere = function() {
              */
             function _execute() {
                 // Shared across multiple tabs/windows.
-                if (_request.shared) {
+                if (_request.shared && !jQuery.browser.opera) {
                     _localStorageService = _local(_request);
                     if (_localStorageService != null) {
                         if (_request.logLevel == 'debug') {
@@ -330,7 +330,7 @@ jQuery.atmosphere = function() {
             }
 
             function _local(request) {
-                var connector, orphan, name = "socket-" + request.url, connectors = {
+                var connector, orphan, name = "atmosphere-" + request.url, connectors = {
                     storage: function() {
                         if (!jQuery.atmosphere.supportStorage()) {
                             return;
@@ -477,7 +477,7 @@ jQuery.atmosphere = function() {
             };
 
             function share() {
-                var storageService, name = "socket-" + _request.url, servers = {
+                var storageService, name = "atmosphere-" + _request.url, servers = {
                     // Powered by the storage event and the localStorage
                     // http://www.w3.org/TR/webstorage/#event-storage
                     storage: function() {
@@ -602,7 +602,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _open(state, transport, request) {
-                if (_request.shared && transport != 'local') {
+                if (_request.shared && transport != 'local' && !jQuery.browser.opera) {
                     share();
                 }
 
@@ -2025,12 +2025,11 @@ jQuery.atmosphere = function() {
 
                 _clearState();
 
-
                 // Are we the parent that hold the real connection.
                 if (_localStorageService == null && _localSocketF != null) {
 //					// The heir is the parent unless _abordingConnection
                     _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : _storageService.get("children")[0]});
-                    document.cookie = encodeURIComponent("socket-"+_request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                    document.cookie = encodeURIComponent("atmosphere-"+_request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                 }
 
                 if (_storageService != null) {
