@@ -1,4 +1,6 @@
 /**
+ * Copyright 2012 Jeanfrancois Arcand
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,18 +14,17 @@
  * limitations under the License.
  */
 /*
- * Part of this code has been taked from
- *
- * jQuery Stream @VERSION
- * Comet Streaming JavaScript Library
- * http://code.google.com/p/jquery-stream/
+ * IE streaming/XDR supports is copied/highly inspired by http://code.google.com/p/jquery-stream/
  *
  * Copyright 2011, Donghwan Kim
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Compatible with jQuery 1.5+
- */
+ * LocalStorage supports is copied/highly inspired by https://github.com/flowersinthesand/jquery-socket
+ * Copyright 2011, Donghwan Kim
+ * Licensed under the Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * */
 /**
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
@@ -100,6 +101,7 @@ jQuery.atmosphere = function() {
                 reconnectInterval : 0,
                 dropAtmosphereHeaders : true,
                 uuid : 0,
+                shared : false,
                 onError : function(response) {
                 },
                 onClose : function(response) {
@@ -189,6 +191,30 @@ jQuery.atmosphere = function() {
              */
             var _abordingConnection = false;
 
+            /**
+             * A local "channel' of communication.
+             * @private
+             */
+            var _localSocketF = null;
+
+            /**
+             * The storage used.
+             * @private
+             */
+            var _server;
+
+            /**
+             * Are we using a local channel
+             * @private
+             */
+            var isLocalSocket = false;
+
+            /**
+             * A Unique ID
+             * @private
+             */
+            var guid = jQuery.now();
+
             // Automatic call to subscribe
             _subscribe(options);
 
@@ -264,6 +290,19 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _execute() {
+                // Shared across multiple tabs/windows.
+                if (_request.shared) {
+                    share();
+                    var local = _local(_request);
+                    if (local != null && local.open(_request)) {
+                        // Local connection.
+                        isLocalSocket = true;
+                        return;
+                    } else {
+                        isLocalSocket = false;
+                    }
+                }
+
                 if (_request.transport != 'websocket' && _request.transport != 'sse') {
                     _open('opening', _request.transport, _request);
                     _executeRequest();
@@ -283,15 +322,301 @@ jQuery.atmosphere = function() {
                 }
             }
 
+            function _local(request) {
+                var connector, orphan, name = "socket-" + request.url, connectors = {
+                    storage: function() {
+                        if (!jQuery.atmosphere.supportStorage()) {
+                            return;
+                        }
+
+                        var storage = window.localStorage, get = function(key) {
+                            return $.parseJSON(storage.getItem(name + "-" + key));
+                        }, set = function(key, value) {
+                            storage.setItem(name + "-" + key, $.stringifyJSON(value));
+                        };
+
+                        return {
+                            init: function() {
+                                set("children", get("children").concat([guid]));
+                                $(window).on("storage.socket", function(event) {
+                                    event = event.originalEvent;
+                                    if (event.key === name && event.newValue) {
+                                        listener(event.newValue);
+                                    }
+                                });
+
+//                                socket.one("close", function() {
+//                                    var index, children = get("children");
+//
+//                                    $(window).off("storage.socket");
+//                                    if (children) {
+//                                        index = $.inArray(request.id, children);
+//                                        if (index > -1) {
+//                                            children.splice(index, 1);
+//                                            set("children", children);
+//                                        }
+//                                    }
+//                                });
+
+                                return get("opened");
+                            },
+                            signal: function(type, data) {
+                                storage.setItem(name, $.stringifyJSON({target: "p", type: type, data: data}));
+                            }
+                        };
+                    },
+                    windowref: function() {
+                        var win = window.open("", name.replace(/\W/g, ""));
+
+                        if (!win || win.closed || !win.callbacks) {
+                            return;
+                        }
+
+                        return {
+                            init: function() {
+                                win.callbacks.push(listener);
+                                win.children.push(options.id);
+
+//                                socket.one("close", function() {
+//                                    function remove(array, e) {
+//                                        var index = $.inArray(e, array);
+//                                        if (index > -1) {
+//                                            array.splice(index, 1);
+//                                        }
+//                                    }
+//
+//                                    // Removes traces only if the parent is alive
+//                                    if (!orphan) {
+//                                        remove(win.callbacks, listener);
+//                                        remove(win.children, options.id);
+//                                    }
+//                                });
+
+                                return win.opened;
+                            },
+                            signal: function(type, data) {
+                                if (!win.closed && win.fire) {
+                                    win.fire($.stringifyJSON({target: "p", type: type, data: data}));
+                                }
+                            }
+                        };
+                    }
+                };
+
+                // Receives open, close and message command from the parent
+                function listener(string) {
+                    var command = $.parseJSON(string), data = command.data;
+
+                    if (command.target === "c") {
+                        switch (command.type) {
+                            case "open":
+                                _open("opening", _request.transport, _request)
+                                break;
+                            case "close":
+                                orphan = true;
+                                if (data.reason === "aborted") {
+                                    _close();
+                                } else {
+                                    // Gives the heir some time to reconnect
+                                    if (data.heir === guid) {
+                                        _close();
+                                    } else {
+                                        setTimeout(function() {
+                                            _close();
+                                        }, 100);
+                                    }
+                                }
+                                break;
+                            case "message":
+                                _prepareCallback(data, "messageReceived", 200, request.transport);
+                                _push(data);
+                                break;
+                        }
+                    }
+                }
+
+                // Finds the parent socket's traces from the cookie
+                if (!new RegExp("(?:^|; )(" + encodeURIComponent(name) + ")=([^;]*)").test(document.cookie)) {
+                    return;
+                }
+
+                // Chooses a connector
+                connector = connectors.storage() || connectors.windowref();
+                if (!connector) {
+                    return;
+                }
+
+                return {
+                    open: function() {
+                        var parentOpened;
+
+                        parentOpened = connector.init();
+                        if (parentOpened) {
+                            // Firing the open event without delay robs the user of the opportunity to bind connecting event handlers
+                            setTimeout(function() {
+                                _open("opening", request.transport, request)
+                            }, 50);
+                        }
+                        return parentOpened;
+                    },
+                    send: function(event) {
+                        connector.signal("send", event);
+                    },
+                    close: function() {
+                        // Do not signal the parent if this method is executed by the unload event handler
+                        if (!_abordingConnection) {
+                            connector.signal("close");
+                        }
+                    }
+                };
+            }
+
+            ;
+
+            function share() {
+                var server, name = "socket-" + _request.url, servers = {
+                    // Powered by the storage event and the localStorage
+                    // http://www.w3.org/TR/webstorage/#event-storage
+                    storage: function() {
+                        if (!jQuery.atmosphere.supportStorage()) {
+                            return;
+                        }
+
+                        var storage = window.localStorage;
+
+                        return {
+                            init: function() {
+                                // Handles the storage event
+                                $(window).on("storage.socket", function(event) {
+                                    event = event.originalEvent;
+                                    // When a deletion, newValue initialized to null
+                                    if (event.key === name && event.newValue) {
+                                        listener(event.newValue);
+                                    }
+                                });
+//                                self.one("close", function(reason) {
+//                                    $(window).off("storage.socket");
+//                                    // Defers again to clean the storage
+//                                    self.one("close", function() {
+//                                        storage.removeItem(name);
+//                                        storage.removeItem(name + "-opened");
+//                                        storage.removeItem(name + "-children");
+//                                    });
+//                                });
+                            },
+                            signal: function(type, data) {
+                                storage.setItem(name, $.stringifyJSON({target: "c", type: type, data: data}));
+                            },
+                            get: function(key) {
+                                return $.parseJSON(storage.getItem(name + "-" + key));
+                            },
+                            set: function(key, value) {
+                                storage.setItem(name + "-" + key, $.stringifyJSON(value));
+                            }
+                        };
+                    },
+                    // Powered by the window.open method
+                    // https://developer.mozilla.org/en/DOM/window.open
+                    windowref: function() {
+                        // Internet Explorer raises an invalid argument error
+                        // when calling the window.open method with the name containing non-word characters
+                        var neim = name.replace(/\W/g, ""), win = ($('iframe[name="' + neim + '"]')[0]
+                            || $('<iframe name="' + neim + '" />').hide().appendTo("body")[0]).contentWindow;
+
+                        return {
+                            init: function() {
+                                // Callbacks from different windows
+                                win.callbacks = [listener];
+                                // In IE 8 and less, only string argument can be safely passed to the function in other window
+                                win.fire = function(string) {
+                                    var i;
+
+                                    for (i = 0; i < win.callbacks.length; i++) {
+                                        win.callbacks[i](string);
+                                    }
+                                };
+                            },
+                            signal: function(type, data) {
+                                if (!win.closed && win.fire) {
+                                    win.fire($.stringifyJSON({target: "c", type: type, data: data}));
+                                }
+                            },
+                            get: function(key) {
+                                return !win.closed ? win[key] : null;
+                            },
+                            set: function(key, value) {
+                                if (!win.closed) {
+                                    win[key] = value;
+                                }
+                            }
+                        };
+                    }
+                };
+
+
+                // Receives send and close command from the children
+                function listener(string) {
+                    var command = $.parseJSON(string), data = command.data;
+
+                    if (command.target === "p") {
+                        switch (command.type) {
+                            case "send":
+                                _push(data);
+                                break;
+                            case "close":
+                                _close();
+                                break;
+                        }
+                    }
+                }
+
+                _localSocketF = function propagateMessageEvent(context) {
+                    server.signal("message", context);
+                }
+
+                // Leaves traces
+                document.cookie = encodeURIComponent(name) + "=" + $.now();
+
+                // Chooses a server
+                server = servers.storage() || servers.windowref();
+                server.init();
+
+                // List of children sockets
+                server.set("children", []);
+
+                if (server.get("opened") != null && !server.get("opened")) {
+                    // Flag indicating the parent socket is opened
+                    server.set("opened", false);
+                }
+
+                _server = server;
+
+//				self.on("_message", propagateMessageEvent)
+//				.one("open", function() {
+//					server.set("opened", true);
+//					server.signal("open");
+//				})
+//				.one("close", function(reason) {
+//					self.off("_message", propagateMessageEvent);
+//					// The heir is the parent unless _abordingConnection
+//					server.signal("close", {reason: reason, heir: !_abordingConnection ? _request.uuid : server.get("children")[0]});
+//					document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+//				});
+            }
+
             /**
              * @private
              */
             function _open(state, transport, request) {
+               if (_server != null) {
+                   _server.set("opened", true);
+               }
 
                 request.close = function() {
                     _close();
                     request.reconnect = false;
                 }
+
 
                 _response.request = request;
                 var prevState = _response.state;
@@ -1440,7 +1765,10 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _push(message) {
-                if (_activeRequest != null || _sse != null) {
+
+                if (isLocalSocket) {
+                   _pushLocal(message);
+                } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
                 } else if (_ieStream != null) {
                     _pushIE(message);
@@ -1449,6 +1777,10 @@ jQuery.atmosphere = function() {
                 } else if (_websocket != null) {
                     _pushWebSocket(message);
                 }
+            }
+
+            function _pushLocal(message) {
+                _localSocketF(message);
             }
 
             /**
@@ -1629,6 +1961,10 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
+                if (!isLocalSocket && _localSocketF != null) {
+                    _localSocketF(_response.responseBody);
+                }
+
                 var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
 
@@ -1739,7 +2075,7 @@ jQuery.atmosphere = function() {
 
             this.push = function(message) {
                 _push(message);
-            }
+            };
 
             this.response = _response;
         },
@@ -1853,6 +2189,21 @@ jQuery.atmosphere = function() {
         // From jQuery-Stream
         param : function(data) {
             return jQuery.param(data, jQuery.ajaxSettings.traditional);
+        },
+
+        supportStorage : function() {
+            var storage = window.localStorage;
+            if (storage) {
+                try {
+                    storage.setItem("t", "t");
+                    storage.removeItem("t");
+                    // Internet Explorer 9 has no StorageEvent object but supports the storage event
+                    return !!window.StorageEvent || Object.prototype.toString.call(storage) === "[object Storage]";
+                } catch (e) {
+                }
+            }
+
+            return false;
         },
 
         iterate : function (fn, interval) {
