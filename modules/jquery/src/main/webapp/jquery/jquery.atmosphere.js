@@ -101,7 +101,7 @@ jQuery.atmosphere = function() {
                 reconnectInterval : 0,
                 dropAtmosphereHeaders : true,
                 uuid : 0,
-                shared : false,
+                shared : true,
                 onError : function(response) {
                 },
                 onClose : function(response) {
@@ -201,13 +201,13 @@ jQuery.atmosphere = function() {
              * The storage used.
              * @private
              */
-            var _server;
+            var _storageService;
 
             /**
-             * Are we using a local channel
+             * Local communication
              * @private
              */
-            var isLocalSocket = false;
+            var _localStorageService = null;
 
             /**
              * A Unique ID
@@ -292,15 +292,22 @@ jQuery.atmosphere = function() {
             function _execute() {
                 // Shared across multiple tabs/windows.
                 if (_request.shared) {
-                    share();
-                    var local = _local(_request);
-                    if (local != null && local.open(_request)) {
-                        // Local connection.
-                        isLocalSocket = true;
-                        return;
-                    } else {
-                        isLocalSocket = false;
+                    _localStorageService = _local(_request);
+                    if (_localStorageService != null) {
+                        if (_request.logLevel == 'debug') {
+                            jQuery.atmosphere.debug("Storage service available. All communication will be local");
+                        }
+                        if (_localStorageService.open(_request)) {
+                            // Local connection.
+                            return;
+                        }
                     }
+
+                    if (_request.logLevel == 'debug') {
+                        jQuery.atmosphere.debug("No Storage service available.");
+                    }
+                    // Wasn't local or an error occured
+                    _localStorageService = null;
                 }
 
                 if (_request.transport != 'websocket' && _request.transport != 'sse') {
@@ -344,24 +351,22 @@ jQuery.atmosphere = function() {
                                         listener(event.newValue);
                                     }
                                 });
-
-//                                socket.one("close", function() {
-//                                    var index, children = get("children");
-//
-//                                    $(window).off("storage.socket");
-//                                    if (children) {
-//                                        index = $.inArray(request.id, children);
-//                                        if (index > -1) {
-//                                            children.splice(index, 1);
-//                                            set("children", children);
-//                                        }
-//                                    }
-//                                });
-
                                 return get("opened");
                             },
                             signal: function(type, data) {
                                 storage.setItem(name, $.stringifyJSON({target: "p", type: type, data: data}));
+                            },
+                            close: function() {
+                                var index, children = get("children");
+
+                                $(window).off("storage.socket");
+                                if (children) {
+                                    index = $.inArray(request.id, children);
+                                    if (index > -1) {
+                                        children.splice(index, 1);
+                                        set("children", children);
+                                    }
+                                }
                             }
                         };
                     },
@@ -376,29 +381,28 @@ jQuery.atmosphere = function() {
                             init: function() {
                                 win.callbacks.push(listener);
                                 win.children.push(options.id);
-
-//                                socket.one("close", function() {
-//                                    function remove(array, e) {
-//                                        var index = $.inArray(e, array);
-//                                        if (index > -1) {
-//                                            array.splice(index, 1);
-//                                        }
-//                                    }
-//
-//                                    // Removes traces only if the parent is alive
-//                                    if (!orphan) {
-//                                        remove(win.callbacks, listener);
-//                                        remove(win.children, options.id);
-//                                    }
-//                                });
-
                                 return win.opened;
                             },
                             signal: function(type, data) {
                                 if (!win.closed && win.fire) {
                                     win.fire($.stringifyJSON({target: "p", type: type, data: data}));
                                 }
+                            },
+                            close : function() {
+                                function remove(array, e) {
+                                    var index = $.inArray(e, array);
+                                    if (index > -1) {
+                                        array.splice(index, 1);
+                                    }
+                                }
+
+                                // Removes traces only if the parent is alive
+                                if (!orphan) {
+                                    remove(win.callbacks, listener);
+                                    remove(win.children, options.id);
+                                }
                             }
+
                         };
                     }
                 };
@@ -410,13 +414,14 @@ jQuery.atmosphere = function() {
                     if (command.target === "c") {
                         switch (command.type) {
                             case "open":
-                                _open("opening", _request.transport, _request)
+                                _open("opening", 'local', _request)
                                 break;
                             case "close":
                                 orphan = true;
                                 if (data.reason === "aborted") {
                                     _close();
                                 } else {
+                                    _prepareCallback("", "closed", 200, _request.transport);
                                     // Gives the heir some time to reconnect
                                     if (data.heir === guid) {
                                         _close();
@@ -429,7 +434,6 @@ jQuery.atmosphere = function() {
                                 break;
                             case "message":
                                 _prepareCallback(data, "messageReceived", 200, request.transport);
-                                _push(data);
                                 break;
                         }
                     }
@@ -454,7 +458,7 @@ jQuery.atmosphere = function() {
                         if (parentOpened) {
                             // Firing the open event without delay robs the user of the opportunity to bind connecting event handlers
                             setTimeout(function() {
-                                _open("opening", request.transport, request)
+                                _open("opening", 'local', request)
                             }, 50);
                         }
                         return parentOpened;
@@ -466,15 +470,14 @@ jQuery.atmosphere = function() {
                         // Do not signal the parent if this method is executed by the unload event handler
                         if (!_abordingConnection) {
                             connector.signal("close");
+                            connector.close();
                         }
                     }
                 };
-            }
-
-            ;
+            };
 
             function share() {
-                var server, name = "socket-" + _request.url, servers = {
+                var storageService, name = "socket-" + _request.url, servers = {
                     // Powered by the storage event and the localStorage
                     // http://www.w3.org/TR/webstorage/#event-storage
                     storage: function() {
@@ -494,15 +497,6 @@ jQuery.atmosphere = function() {
                                         listener(event.newValue);
                                     }
                                 });
-//                                self.one("close", function(reason) {
-//                                    $(window).off("storage.socket");
-//                                    // Defers again to clean the storage
-//                                    self.one("close", function() {
-//                                        storage.removeItem(name);
-//                                        storage.removeItem(name + "-opened");
-//                                        storage.removeItem(name + "-children");
-//                                    });
-//                                });
                             },
                             signal: function(type, data) {
                                 storage.setItem(name, $.stringifyJSON({target: "c", type: type, data: data}));
@@ -512,7 +506,14 @@ jQuery.atmosphere = function() {
                             },
                             set: function(key, value) {
                                 storage.setItem(name + "-" + key, $.stringifyJSON(value));
+                            },
+                            close : function() {
+                                $(window).off("storage.socket");
+                                storage.removeItem(name);
+                                storage.removeItem(name + "-opened");
+                                storage.removeItem(name + "-children");
                             }
+
                         };
                     },
                     // Powered by the window.open method
@@ -548,7 +549,8 @@ jQuery.atmosphere = function() {
                                 if (!win.closed) {
                                     win[key] = value;
                                 }
-                            }
+                            },
+                            close : function() {}
                         };
                     }
                 };
@@ -571,52 +573,47 @@ jQuery.atmosphere = function() {
                 }
 
                 _localSocketF = function propagateMessageEvent(context) {
-                    server.signal("message", context);
+                    storageService.signal("message", context);
                 }
 
                 // Leaves traces
                 document.cookie = encodeURIComponent(name) + "=" + $.now();
 
-                // Chooses a server
-                server = servers.storage() || servers.windowref();
-                server.init();
+                // Chooses a storageService
+                storageService = servers.storage() || servers.windowref();
+                storageService.init();
 
-                // List of children sockets
-                server.set("children", []);
-
-                if (server.get("opened") != null && !server.get("opened")) {
-                    // Flag indicating the parent socket is opened
-                    server.set("opened", false);
+                if (_request.logLevel == 'debug') {
+                    jQuery.atmosphere.debug("Installed StorageService " + storageService);
                 }
 
-                _server = server;
+                // List of children sockets
+                storageService.set("children", []);
 
-//				self.on("_message", propagateMessageEvent)
-//				.one("open", function() {
-//					server.set("opened", true);
-//					server.signal("open");
-//				})
-//				.one("close", function(reason) {
-//					self.off("_message", propagateMessageEvent);
-//					// The heir is the parent unless _abordingConnection
-//					server.signal("close", {reason: reason, heir: !_abordingConnection ? _request.uuid : server.get("children")[0]});
-//					document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-//				});
+                if (storageService.get("opened") != null && !storageService.get("opened")) {
+                    // Flag indicating the parent socket is opened
+                    storageService.set("opened", false);
+                }
+
+                _storageService = storageService;
             }
 
             /**
              * @private
              */
             function _open(state, transport, request) {
-               if (_server != null) {
-                   _server.set("opened", true);
-               }
+                if (_request.shared && transport != 'local') {
+                    share();
+                }
+
+                if (_storageService != null) {
+                    _storageService.set("opened", true);
+                }
 
                 request.close = function() {
                     _close();
                     request.reconnect = false;
                 }
-
 
                 _response.request = request;
                 var prevState = _response.state;
@@ -1766,7 +1763,7 @@ jQuery.atmosphere = function() {
              */
             function _push(message) {
 
-                if (isLocalSocket) {
+                if (_localStorageService != null) {
                    _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
@@ -1780,7 +1777,7 @@ jQuery.atmosphere = function() {
             }
 
             function _pushLocal(message) {
-                _localSocketF(message);
+                _localStorageService.send(message);
             }
 
             /**
@@ -1961,7 +1958,7 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                if (!isLocalSocket && _localSocketF != null) {
+                if (_localStorageService == null && _localSocketF != null) {
                     _localSocketF(_response.responseBody);
                 }
 
@@ -2027,6 +2024,23 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
 
                 _clearState();
+
+
+                // Are we the parent that hold the real connection.
+                if (_localStorageService == null && _localSocketF != null) {
+//					// The heir is the parent unless _abordingConnection
+                    _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : _storageService.get("children")[0]});
+                    document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                }
+
+                if (_storageService != null) {
+                    _storageService.close();
+                }
+
+
+                if (_localStorageService != null) {
+                    _localStorageService.close();
+                }
             }
 
             function _clearState() {
