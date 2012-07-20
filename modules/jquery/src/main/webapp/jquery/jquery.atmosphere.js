@@ -2030,7 +2030,7 @@ jQuery.atmosphere = function() {
                 if (_localStorageService == null && _localSocketF != null) {
 //					// The heir is the parent unless _abordingConnection
                     _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : _storageService.get("children")[0]});
-                    document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                    document.cookie = encodeURIComponent("socket-"+_request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                 }
 
                 if (_storageService != null) {
