@@ -75,9 +75,9 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                 public AsyncIOWriter write(String data) throws IOException {
                     String callbackName = callbackName();
                     if (!data.startsWith("\"")) {
-                        data = callbackName + "({\"message\" : \"" + data + "\"})";
+                        data = callbackName + "({\"message\" : \"" + data + "\"});";
                     } else {
-                        data = callbackName + "({\"message\" :" + data + "})";
+                        data = callbackName + "({\"message\" :" + data + "});";
                     }
 
                     response.write(data);
@@ -90,9 +90,9 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                     String callbackName = callbackName();
 
                     if (contentType != null && !contentType.contains("json")) {
-                        response.write(callbackName + "({\"message\" : \"").write(data).write("\"})");
+                        response.write(callbackName + "({\"message\" : \"").write(data).write("\"});");
                     } else {
-                        response.write(callbackName + "({\"message\" :").write(data).write("})");
+                        response.write(callbackName + "({\"message\" :").write(data).write("});");
                     }
                     return this;
                 }
@@ -103,9 +103,9 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
                     String callbackName = callbackName();
 
                     if (contentType != null && !contentType.contains("json")) {
-                        response.write(callbackName + "({\"message\" : \"").write(data, offset, length).write("\"})");
+                        response.write(callbackName + "({\"message\" : \"").write(data, offset, length).write("\"});");
                     } else {
-                        response.write(callbackName + "({\"message\" :").write(data, offset, length).write("})");
+                        response.write(callbackName + "({\"message\" :").write(data, offset, length).write("});");
                     }
                     return this;
                 }
