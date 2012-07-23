@@ -60,6 +60,8 @@ jQuery.atmosphere = function() {
         },
         onTransportFailure : function(response) {
         },
+        onLocalMessage : function (response) {
+        },
 
         AtmosphereRequest : function(options) {
 
@@ -115,6 +117,8 @@ jQuery.atmosphere = function() {
                 onMessagePublished : function(response) {
                 },
                 onTransportFailure : function (reason, request) {
+                },
+                onLocalMessage : function (request) {
                 }
             };
 
@@ -297,6 +301,7 @@ jQuery.atmosphere = function() {
                         if (_request.logLevel == 'debug') {
                             jQuery.atmosphere.debug("Storage service available. All communication will be local");
                         }
+
                         if (_localStorageService.open(_request)) {
                             // Local connection.
                             return;
@@ -306,7 +311,7 @@ jQuery.atmosphere = function() {
                     if (_request.logLevel == 'debug') {
                         jQuery.atmosphere.debug("No Storage service available.");
                     }
-                    // Wasn't local or an error occured
+                    // Wasn't local or an error occurred
                     _localStorageService = null;
                 }
 
@@ -337,15 +342,15 @@ jQuery.atmosphere = function() {
                         }
 
                         var storage = window.localStorage, get = function(key) {
-                            return $.parseJSON(storage.getItem(name + "-" + key));
+                            return jQuery.parseJSON(storage.getItem(name + "-" + key));
                         }, set = function(key, value) {
-                            storage.setItem(name + "-" + key, $.stringifyJSON(value));
+                            storage.setItem(name + "-" + key, jQuery.stringifyJSON(value));
                         };
 
                         return {
                             init: function() {
                                 set("children", get("children").concat([guid]));
-                                $(window).on("storage.socket", function(event) {
+                                jQuery(window).on("storage.socket", function(event) {
                                     event = event.originalEvent;
                                     if (event.key === name && event.newValue) {
                                         listener(event.newValue);
@@ -354,14 +359,14 @@ jQuery.atmosphere = function() {
                                 return get("opened");
                             },
                             signal: function(type, data) {
-                                storage.setItem(name, $.stringifyJSON({target: "p", type: type, data: data}));
+                                storage.setItem(name, jQuery.stringifyJSON({target: "p", type: type, data: data}));
                             },
                             close: function() {
                                 var index, children = get("children");
 
-                                $(window).off("storage.socket");
+                                jQuery(window).off("storage.socket");
                                 if (children) {
-                                    index = $.inArray(request.id, children);
+                                    index = jQuery.inArray(request.id, children);
                                     if (index > -1) {
                                         children.splice(index, 1);
                                         set("children", children);
@@ -385,12 +390,12 @@ jQuery.atmosphere = function() {
                             },
                             signal: function(type, data) {
                                 if (!win.closed && win.fire) {
-                                    win.fire($.stringifyJSON({target: "p", type: type, data: data}));
+                                    win.fire(jQuery.stringifyJSON({target: "p", type: type, data: data}));
                                 }
                             },
                             close : function() {
                                 function remove(array, e) {
-                                    var index = $.inArray(e, array);
+                                    var index = jQuery.inArray(e, array);
                                     if (index > -1) {
                                         array.splice(index, 1);
                                     }
@@ -409,7 +414,7 @@ jQuery.atmosphere = function() {
 
                 // Receives open, close and message command from the parent
                 function listener(string) {
-                    var command = $.parseJSON(string), data = command.data;
+                    var command = jQuery.parseJSON(string), data = command.data;
 
                     if (command.target === "c") {
                         switch (command.type) {
@@ -434,6 +439,9 @@ jQuery.atmosphere = function() {
                                 break;
                             case "message":
                                 _prepareCallback(data, "messageReceived", 200, request.transport);
+                                break;
+                            case "localMessage":
+                                _localMessage(data);
                                 break;
                         }
                     }
@@ -466,6 +474,9 @@ jQuery.atmosphere = function() {
                     send: function(event) {
                         connector.signal("send", event);
                     },
+                    localSend: function(event) {
+                        connector.signal("localSend", jQuery.stringifyJSON({id: guid , event: event}));
+                    },
                     close: function() {
                         // Do not signal the parent if this method is executed by the unload event handler
                         if (!_abordingConnection) {
@@ -490,7 +501,7 @@ jQuery.atmosphere = function() {
                         return {
                             init: function() {
                                 // Handles the storage event
-                                $(window).on("storage.socket", function(event) {
+                                jQuery(window).on("storage.socket", function(event) {
                                     event = event.originalEvent;
                                     // When a deletion, newValue initialized to null
                                     if (event.key === name && event.newValue) {
@@ -499,16 +510,16 @@ jQuery.atmosphere = function() {
                                 });
                             },
                             signal: function(type, data) {
-                                storage.setItem(name, $.stringifyJSON({target: "c", type: type, data: data}));
+                                storage.setItem(name, jQuery.stringifyJSON({target: "c", type: type, data: data}));
                             },
                             get: function(key) {
-                                return $.parseJSON(storage.getItem(name + "-" + key));
+                                return jQuery.parseJSON(storage.getItem(name + "-" + key));
                             },
                             set: function(key, value) {
-                                storage.setItem(name + "-" + key, $.stringifyJSON(value));
+                                storage.setItem(name + "-" + key, jQuery.stringifyJSON(value));
                             },
                             close : function() {
-                                $(window).off("storage.socket");
+                                jQuery(window).off("storage.socket");
                                 storage.removeItem(name);
                                 storage.removeItem(name + "-opened");
                                 storage.removeItem(name + "-children");
@@ -521,8 +532,8 @@ jQuery.atmosphere = function() {
                     windowref: function() {
                         // Internet Explorer raises an invalid argument error
                         // when calling the window.open method with the name containing non-word characters
-                        var neim = name.replace(/\W/g, ""), win = ($('iframe[name="' + neim + '"]')[0]
-                            || $('<iframe name="' + neim + '" />').hide().appendTo("body")[0]).contentWindow;
+                        var neim = name.replace(/\W/g, ""), win = (jQuery('iframe[name="' + neim + '"]')[0]
+                            || jQuery('<iframe name="' + neim + '" />').hide().appendTo("body")[0]).contentWindow;
 
                         return {
                             init: function() {
@@ -539,7 +550,7 @@ jQuery.atmosphere = function() {
                             },
                             signal: function(type, data) {
                                 if (!win.closed && win.fire) {
-                                    win.fire($.stringifyJSON({target: "c", type: type, data: data}));
+                                    win.fire(jQuery.stringifyJSON({target: "c", type: type, data: data}));
                                 }
                             },
                             get: function(key) {
@@ -558,12 +569,15 @@ jQuery.atmosphere = function() {
 
                 // Receives send and close command from the children
                 function listener(string) {
-                    var command = $.parseJSON(string), data = command.data;
+                    var command = jQuery.parseJSON(string), data = command.data;
 
                     if (command.target === "p") {
                         switch (command.type) {
                             case "send":
                                 _push(data);
+                                break;
+                            case "localSend":
+                                _localMessage(data);
                                 break;
                             case "close":
                                 _close();
@@ -577,7 +591,7 @@ jQuery.atmosphere = function() {
                 }
 
                 // Leaves traces
-                document.cookie = encodeURIComponent(name) + "=" + $.now();
+                document.cookie = encodeURIComponent(name) + "=" + jQuery.now();
 
                 // Chooses a storageService
                 storageService = servers.storage() || servers.windowref();
@@ -1780,6 +1794,14 @@ jQuery.atmosphere = function() {
                 _localStorageService.send(message);
             }
 
+            function _intraPush(message) {
+                 if (_localStorageService) {
+                    _localStorageService.localSend(message);
+                } else {
+                    _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
+                }
+            }
+
             /**
              * Send a message using currently opened ajax request (using
              * http-streaming or long-polling). <br>
@@ -1897,6 +1919,17 @@ jQuery.atmosphere = function() {
 
                     _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending " + data);
                     _pushAjaxMessage(message);
+                }
+            }
+
+            function _localMessage(message) {
+                var m = jQuery.parseJSON(message);
+                if (m.id != guid) {
+                    if (typeof(_request.onLocalMessage) != 'undefined') {
+                        _request.onLocalMessage(m.event);
+                    } else if (typeof(jQuery.atmosphere.onLocalMessage) != 'undefined') {
+                        jQuery.atmosphere.onLocalMessage(m.event);
+                    }
                 }
             }
 
@@ -2027,7 +2060,7 @@ jQuery.atmosphere = function() {
 
                 // Are we the parent that hold the real connection.
                 if (_localStorageService == null && _localSocketF != null) {
-//					// The heir is the parent unless _abordingConnection
+					// The heir is the parent unless _abordingConnection
                     _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : _storageService.get("children")[0]});
                     document.cookie = encodeURIComponent("atmosphere-"+_request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                 }
@@ -2088,6 +2121,10 @@ jQuery.atmosphere = function() {
 
             this.push = function(message) {
                 _push(message);
+            };
+
+            this.pushLocal = function(message) {
+                _intraPush(message);
             };
 
             this.response = _response;
