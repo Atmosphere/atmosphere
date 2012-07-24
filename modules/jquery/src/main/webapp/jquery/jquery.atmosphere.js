@@ -1422,7 +1422,7 @@ jQuery.atmosphere = function() {
                                 _response.state = "messagePublished";
                             }
 
-                            if (!rq.executeCallbackBeforeReconnect) {
+                            if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
@@ -1432,7 +1432,7 @@ jQuery.atmosphere = function() {
                             }
                             _invokeCallback();
 
-                            if (rq.executeCallbackBeforeReconnect) {
+                            if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
