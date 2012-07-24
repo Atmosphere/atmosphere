@@ -679,7 +679,7 @@ jQuery.atmosphere = function() {
                     success: function(json) {
 
                         if (rq.requestCount++ < rq.maxRequest) {
-                            if (rq.executeCallbackBeforeReconnect) {
+                            if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
 
@@ -746,13 +746,13 @@ jQuery.atmosphere = function() {
                     success: function(data, textStatus, jqXHR) {
 
                         if (rq.requestCount++ < rq.maxRequest) {
-                            if (rq.executeCallbackBeforeReconnect) {
+                            if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
 
                             _prepareCallback(data, "messageReceived", 200, rq.transport);
 
-                            if (!rq.executeCallbackBeforeReconnect) {
+                            if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
                         } else {
@@ -1422,7 +1422,7 @@ jQuery.atmosphere = function() {
                                 _response.state = "messagePublished";
                             }
 
-                            if (rq.executeCallbackBeforeReconnect) {
+                            if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
@@ -1432,7 +1432,7 @@ jQuery.atmosphere = function() {
                             }
                             _invokeCallback();
 
-                            if (!rq.executeCallbackBeforeReconnect) {
+                            if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
