@@ -354,7 +354,7 @@ public interface AtmosphereResource {
 
      /**
      * Return the {@link HttpSession} is supported, and creates it if not already created.
-     * @return the {@link HttpSession} is supported, and creates it if not already crea
+     * @return the {@link HttpSession} is supported, and creates it if not already created
      */
     HttpSession session(boolean create);
 
