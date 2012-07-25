@@ -1795,10 +1795,14 @@ jQuery.atmosphere = function() {
             }
 
             function _intraPush(message) {
-                 if (_localStorageService) {
-                    _localStorageService.localSend(message);
-                } else {
-                    _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
+                try {
+                     if (_localStorageService) {
+                        _localStorageService.localSend(message);
+                    } else {
+                        _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
+                    }
+                } catch (err) {
+                    jQuery.atmosphere.error(err);
                 }
             }
 
