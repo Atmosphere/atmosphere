@@ -58,7 +58,6 @@ public class TomcatWebSocketHandler extends MessageInbound {
             webSocketProcessor = WebSocketProcessorFactory.getDefault()
                     .newWebSocketProcessor(new TomcatWebSocket(outbound, framework.getAtmosphereConfig()));
             webSocketProcessor.open(request);
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -69,7 +68,6 @@ public class TomcatWebSocketHandler extends MessageInbound {
         request.destroy();
         if (webSocketProcessor == null) return;
 
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         webSocketProcessor.close(closeCode);
     }
 
@@ -77,18 +75,11 @@ public class TomcatWebSocketHandler extends MessageInbound {
     protected void onBinaryMessage(ByteBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage (bytes)");
         webSocketProcessor.invokeWebSocketProtocol(message.array(), 0, message.array().length);
-        try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(message.array(), "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("UnsupportedEncodingException", e);
-
-        }
     }
 
     @Override
     protected void onTextMessage(CharBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage");
         webSocketProcessor.invokeWebSocketProtocol(message.toString());
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(message.toString(), MESSAGE, webSocketProcessor.webSocket()));
     }
 }
