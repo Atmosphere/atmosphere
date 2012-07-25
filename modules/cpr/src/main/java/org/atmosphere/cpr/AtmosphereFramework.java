@@ -888,10 +888,16 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         // We just need one bc to shutdown the shared thread pool
-        BroadcasterConfig bc = null;
         for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             handlerWrapper.atmosphereHandler.destroy();
+        }
+
+        String s = config.getInitParameter(ApplicationConfig.SHARED);
+        if (s != null && s.equalsIgnoreCase("true")) {
+            logger.warn("Factory shared, will not be destroyed. That can possibly cause memory leaks if" +
+                    "Broadcaster where created. Make sure you destroy them manually.");
+            return this;
         }
 
         BroadcasterFactory factory = BroadcasterFactory.getDefault();

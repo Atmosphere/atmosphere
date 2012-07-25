@@ -10,10 +10,10 @@
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <init-param>
-        <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
-        <param-value>org.atmosphere.samples.pubsub.websocket.DevoxxWebSocketProtocol</param-value>
+            <param-name>org.atmosphere.websocket.WebSocketProtocol</param-name>
+            <param-value>org.atmosphere.samples.pubsub.websocket.DevoxxWebSocketProtocol</param-value>
         </init-param>
-                <!-- For mvn jetty:run -->
+        <!-- For mvn jetty:run -->
         <init-param>
             <param-name>com.sun.jersey.config.property.packages</param-name>
             <param-value>org.atmosphere.samples.pubsub.websocket</param-value>
