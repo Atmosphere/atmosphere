@@ -621,6 +621,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
+            // Jetty
+            if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
+                return null;
+            }
             throw ex;
         } catch (NullPointerException ex) {
             // GLASSFISH http://java.net/jira/browse/GLASSFISH-18856
