@@ -29,7 +29,7 @@ import java.util.ArrayList;
  */
 public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(AsyncIOWriterAdapter.class);
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereInterceptorWriter.class);
     private final AtmosphereResponse response;
 
     private final ArrayList<AsyncIOInterceptor> filters = new ArrayList<AsyncIOInterceptor>();
