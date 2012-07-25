@@ -16,14 +16,19 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,12 +43,13 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  *
  * @author Jeanfrancois Arcand
  */
-public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
+public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
 
     private static final byte[] padding;
     private static final String paddingText;
+
     static {
         StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 2000; i++) {
@@ -52,10 +58,6 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
         whitespace.append("\n");
         paddingText = whitespace.toString();
         padding = paddingText.getBytes();
-    }
-
-    @Override
-    public void configure(AtmosphereConfig config) {
     }
 
     private void writePadding(AtmosphereResponse response) {
@@ -96,6 +98,7 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
+            super.inspect(r);
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
@@ -104,69 +107,39 @@ public class SSEAtmosphereInterceptor implements AtmosphereInterceptor {
                 }
             });
 
-            response.asyncIOWriter(new AsyncIOWriterAdapter() {
-                @Override
-                public AsyncIOWriter redirect(String location) throws IOException {
-                    response.sendRedirect(location);
-                    return this;
-                }
-
-                @Override
-                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
-                    if (errorCode == 406) {
-                        logger.warn("Status code 406: Make sure you aren't setting any @Produces " +
-                                "value if you are using Jersey and instead set the @Suspend(content-type=\"...\" value");
+            AsyncIOWriter writer = response.getAsyncIOWriter();
+            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
+                    private void padding() {
+                        if (!r.isSuspended()) {
+                            writePadding(response);
+                            r.getRequest().setAttribute("paddingWritten", "true");
+                        }
                     }
-                    response.sendError(errorCode);
-                    return this;
-                }
 
-                @Override
-                public AsyncIOWriter write(String data) throws IOException {
-                    padding();
-                    response.write("data:" + data + "\n\n");
-                    return this;
-                }
-
-                // TODO: Performance: execute a single write
-                @Override
-                public AsyncIOWriter write(byte[] data) throws IOException {
-                    padding();
-                    response.write("data:").write(data).write("\n\n");
-                    return this;
-                }
-
-                @Override
-                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-                    padding();
-                    response.write("data:").write(data, offset, length).write("\n\n");
-                    return this;
-                }
-
-                private void padding() {
-                    if (!r.isSuspended()) {
-                        writePadding(response);
-                        r.getRequest().setAttribute("paddingWritten", "true");
+                    @Override
+                    public void intercept(AtmosphereResponse response, String data) {
+                        padding();
+                        response.write("data:" + data + "\n\n");
                     }
-                }
 
-                @Override
-                public void close() throws IOException {
-                    response.closeStreamOrWriter();
-                }
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data) {
+                        padding();
+                        response.write("data:").write(data).write("\n\n");
+                    }
 
-                @Override
-                public AsyncIOWriter flush() throws IOException {
-                    response.flushBuffer();
-                    return this;
-                }
-            });
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        padding();
+                        response.write("data:").write(data, offset, length).write("\n\n");
+                    }
+                });
+            } else {
+                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
+            }
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override

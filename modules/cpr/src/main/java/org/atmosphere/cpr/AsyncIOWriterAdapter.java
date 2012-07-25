@@ -20,6 +20,8 @@ import java.io.IOException;
 /**
  * Adapter class for {@link AsyncIOWriter}. Implementation of this class must implements one of each method to prevent
  * a StackOverflow.
+ *
+ * @author Jeanfrancois Arcand
  */
 public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
 

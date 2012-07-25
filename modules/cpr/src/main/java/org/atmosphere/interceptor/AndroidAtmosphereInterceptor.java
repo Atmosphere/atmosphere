@@ -17,10 +17,13 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -40,7 +43,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  *
  * @author Jeanfrancois Arcand
  */
-public class AndroidAtmosphereInterceptor implements AtmosphereInterceptor {
+public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(AndroidAtmosphereInterceptor.class);
 
@@ -57,66 +60,39 @@ public class AndroidAtmosphereInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-    }
-
-    @Override
     public Action inspect(final AtmosphereResource r) {
+
         final AtmosphereResponse response = r.getResponse();
         String userAgent = r.getRequest().getHeader("User-Agent");
 
         if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null &&
                 (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
-
+            super.inspect(r);
             r.padding("whitespace");
-            response.asyncIOWriter(new AsyncIOWriterAdapter() {
-                @Override
-                public AsyncIOWriter redirect(String location) throws IOException {
-                    response.sendRedirect(location);
-                    return this;
-                }
 
-                @Override
-                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
-                    response.sendError(errorCode);
-                    return this;
-                }
+            AsyncIOWriter writer = response.getAsyncIOWriter();
+            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
+                    @Override
+                    public void intercept(AtmosphereResponse response, String data) {
+                        response.write(paddingText).write(data);
+                    }
 
-                @Override
-                public AsyncIOWriter write(String data) throws IOException {
-                    response.write(paddingText).write(data);
-                    return this;
-                }
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data) {
+                        response.write(padding).write(data);
+                    }
 
-                @Override
-                public AsyncIOWriter write(byte[] data) throws IOException {
-                    response.write(padding).write(data);
-                    return this;
-                }
-
-                @Override
-                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-                    response.write(padding).write(data, offset, length);
-                    return this;
-                }
-
-                @Override
-                public void close() throws IOException {
-                    response.closeStreamOrWriter();
-                }
-
-                @Override
-                public AsyncIOWriter flush() throws IOException {
-                    response.flushBuffer();
-                    return this;
-                }
-            });
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        response.write(padding).write(data, offset, length);
+                    }
+                });
+            } else {
+                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
+            }
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override
