@@ -694,7 +694,7 @@ jQuery.atmosphere = function() {
 
                             _prepareCallback(msg, "messageReceived", 200, rq.transport);
 
-                            if (!rq.executeCallbackBeforeReconnect) {
+                            if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
                         } else {
