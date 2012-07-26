@@ -55,6 +55,11 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                         if (c == null) {
                             c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
                         }
+
+                        if (c  == null) {
+                            c = request.getContentType();
+                        }
+
                         return c;
                     }
 
@@ -64,8 +69,9 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public void intercept(AtmosphereResponse response, String data) {
+                        String contentType = contentType();
                         String callbackName = callbackName();
-                        if (!data.startsWith("\"")) {
+                        if (!data.startsWith("\"") && !contentType.contains("json")) {
                             data = callbackName + "({\"message\" : \"" + data + "\"});";
                         } else {
                             data = callbackName + "({\"message\" :" + data + "});";
