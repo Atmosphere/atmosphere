@@ -287,6 +287,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     public synchronized void destroy() {
+
+        String s = config.getInitParameter(ApplicationConfig.SHARED);
+        if (s != null && s.equalsIgnoreCase("true")) {
+            logger.warn("Factory shared, will not be destroyed. That can possibly cause memory leaks if" +
+                    "Broadcaster where created. Make sure you destroy them manually.");
+            return;
+        }
+
         Enumeration<Broadcaster> e = store.elements();
         Broadcaster b;
         // We just need one when shared.

@@ -893,13 +893,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             handlerWrapper.atmosphereHandler.destroy();
         }
 
-        String s = config.getInitParameter(ApplicationConfig.SHARED);
-        if (s != null && s.equalsIgnoreCase("true")) {
-            logger.warn("Factory shared, will not be destroyed. That can possibly cause memory leaks if" +
-                    "Broadcaster where created. Make sure you destroy them manually.");
-            return this;
-        }
-
         BroadcasterFactory factory = BroadcasterFactory.getDefault();
         if (factory != null) {
             factory.destroy();
