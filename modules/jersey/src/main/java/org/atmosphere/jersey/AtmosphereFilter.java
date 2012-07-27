@@ -81,6 +81,7 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -303,8 +304,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             switch (action) {
                 case ASYNCHRONOUS:
                     String transport = getHeaderOrQueryValue(X_ATMOSPHERE_TRANSPORT);
-                    String broadcasterName = getHeaderOrQueryValue(topic);
-                    if (transport == null || broadcasterName == null) {
+                    String broadcasterName = uuid(r);
+
+                    if (!topic.equalsIgnoreCase(HeaderConfig.X_ATMOSPHERE_TRACKING_ID)) {
+                        broadcasterName = getHeaderOrQueryValue(topic);
+                    }
+
+                    if (transport == null) {
+                        transport = HeaderConfig.LONG_POLLING_TRANSPORT;
+                    }
+
+                    if (broadcasterName == null) {
                         StringBuffer s = new StringBuffer();
                         Enumeration<String> e = servletReq.getHeaderNames();
                         String t;
@@ -533,6 +543,20 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             return response;
+        }
+
+        String uuid(AtmosphereResource r) {
+            String s = (String) r.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE);
+            if (s != null) {
+                return s;
+            }
+
+            s = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            if (s != null && s != "0"){
+                return s;
+            } else {
+                return r.uuid();
+            }
         }
 
         String getHeaderOrQueryValue(String name) {
