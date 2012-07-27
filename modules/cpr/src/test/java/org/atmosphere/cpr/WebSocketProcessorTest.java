@@ -163,7 +163,7 @@ public class WebSocketProcessorTest {
                 resource.addEventListener(new WebSocketEventListenerAdapter() {
                     @Override
                     public void onDisconnect(WebSocketEvent event) {
-                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE));
+                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
                     }
                 });
             }
@@ -200,7 +200,7 @@ public class WebSocketProcessorTest {
                 resource.addEventListener(new WebSocketEventListenerAdapter() {
                     @Override
                     public void onClose(WebSocketEvent event) {
-                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE));
+                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
                     }
                 });
             }
