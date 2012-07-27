@@ -935,10 +935,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         LinkedList<ResourceFilter> list = new LinkedList<ResourceFilter>();
         Filter f;
 
-        if (logger.isDebugEnabled()) {
-            for (Annotation annotation : am.getAnnotations()) {
-                logger.debug("AtmosphereFilter processing annotation: {}", annotation);
-            }
+        for (Annotation annotation : am.getAnnotations()) {
+            logger.trace("AtmosphereFilter processing annotation: {}", annotation);
         }
 
         if (am.getMethod() == null) {
