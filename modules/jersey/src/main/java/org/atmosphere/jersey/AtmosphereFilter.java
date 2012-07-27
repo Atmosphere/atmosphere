@@ -108,6 +108,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.ApplicationConfig.*;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -271,7 +272,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 throw new WebApplicationException(new IllegalStateException(INSTALLATION_ERROR));
             }
 
-            String p = config.getInitParameter(ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
+            String p = config.getInitParameter(JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
             ContainerResponseWriter w;
             if (p != null) {
                 try {
@@ -292,7 +293,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     (AtmosphereResource) servletReq
                             .getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
-            if (Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.SUPPORT_LOCATION_HEADER))) {
+            if (Boolean.parseBoolean(config.getInitParameter(SUPPORT_LOCATION_HEADER))) {
                 useResumeAnnotation = true;
             }
 
@@ -370,7 +371,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         });
 
                         if (resumeOnBroadcast) {
-                            servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
+                            servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
                         }
 
                         r.setBroadcaster(bcaster);
@@ -449,7 +450,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.SUBSCRIBE) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -500,7 +501,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (action == Action.PUBLISH) {
                         Class<Broadcaster> c = null;
                         try {
-                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(ApplicationConfig.BROADCASTER_CLASS));
+                            c = (Class<Broadcaster>) Class.forName((String) servletReq.getAttribute(BROADCASTER_CLASS));
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
@@ -546,7 +547,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         String uuid(AtmosphereResource r) {
-            String s = (String) r.getRequest().getAttribute(FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE);
+            String s = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             if (s != null) {
                 return s;
             }
@@ -601,8 +602,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
             }
 
-            boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(ApplicationConfig.NO_CACHE_HEADERS);
-            boolean enableAccessControl = (Boolean) servletReq.getAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+            boolean injectCacheHeaders = (Boolean) servletReq.getAttribute(NO_CACHE_HEADERS);
+            boolean enableAccessControl = (Boolean) servletReq.getAttribute(DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
 
             if (injectCacheHeaders) {
                 // Set to expire far in the past.
@@ -624,7 +625,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Iterator<AtmosphereResource> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
                 HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
-                r.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true);
+                r.setAttribute(RESUME_ON_BROADCAST, true);
             }
         }
 
@@ -736,7 +737,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             BroadcasterFactory broadcasterFactory = (BroadcasterFactory) servletReq
-                    .getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
+                    .getAttribute(BROADCASTER_FACTORY);
 
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             URI location = null;
@@ -793,7 +794,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             r.setBroadcaster(bc);
 
             if (resumeOnBroadcast) {
-                servletReq.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, new Boolean(true));
+                servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
             }
 
             executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, flushEntity);
@@ -844,7 +845,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                 AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
 
-                String defaultCT = config.getInitParameter(ApplicationConfig.DEFAULT_CONTENT_TYPE);
+                String defaultCT = config.getInitParameter(DEFAULT_CONTENT_TYPE);
                 if (defaultCT == null) {
                     defaultCT = "text/plain; charset=ISO-8859-1";
                 }
@@ -878,7 +879,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
 
                 if (!eclipse362468 && comments && !resumeOnBroadcast) {
-                    String padding = (String) servletReq.getAttribute(ApplicationConfig.STREAMING_PADDING_MODE);
+                    String padding = (String) servletReq.getAttribute(STREAMING_PADDING_MODE);
                     String paddingData = AtmosphereResourceImpl.createStreamingPadding(padding);
 
                     if (location != null) {
