@@ -63,7 +63,7 @@ public class IEXDomainRequestCometTransport extends StreamingProtocolTransport {
      * add a session cookie to the url
      *
      * @param connectionCount
-     * @return
+     * @return the generated full url to connect to
      */
     @Override
     public String getUrl(int connectionCount) {

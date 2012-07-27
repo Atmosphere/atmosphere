@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  *
- * @author p.havelaar
+ * @author Pierre Havelaar
  */
 public interface UserInterface {
 
