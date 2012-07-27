@@ -91,6 +91,7 @@ import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -1234,7 +1235,9 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s == null || s.equals("0")) {
             s = UUID.randomUUID().toString();
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-            req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+            if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
+                req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+            }
         }
 
         Action a = null;
