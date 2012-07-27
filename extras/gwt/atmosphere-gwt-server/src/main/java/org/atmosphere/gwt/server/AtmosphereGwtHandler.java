@@ -70,6 +70,18 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     private GwtRpcDeserializer gwtRpc;
     private JSONDeserializer jsonSerializer;
 
+    /**
+     * This is the main entrypoint on the server that you will want to hook into and override.
+     * This method is called when a client has request a new connection. Best practice is to do all your
+     * required setup here and tie the AtmosphereResource to a Broadcaster, but do not send anything to
+     * the client yet. If you wish to do so it is best to let the client send a notification to the server
+     * using the {@link AtmosphereClient#post} method in the onConnected event.
+     * 
+     * @param resource
+     * @return
+     * @throws ServletException
+     * @throws IOException 
+     */
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
         if (broadcaster == null) {
@@ -79,11 +91,19 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         return NO_TIMEOUT;
     }
 
+    /**
+     * When the connection has died this method will be called to let you know about it.
+     * 
+     * 
+     * @param cometResponse
+     * @param serverInitiated 
+     */
     public void cometTerminated(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
-        resources.remove(cometResponse.getConnectionID());
     }
 
     /**
+     * Called when a message is sent from the client using the post method.
+     * 
      * Default implementation echo's the message back to the client
      *
      * @param messages
@@ -464,6 +484,11 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         // at this point the application may have spawned threads to process this response
         // so we have to be careful about concurrency from here on
         resource.suspend(timeout);
+    }
+    
+    public void terminate(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
+        resources.remove(cometResponse.getConnectionID());
+        cometTerminated(cometResponse, serverInitiated);
     }
 
     @Override
