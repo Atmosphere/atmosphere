@@ -2,12 +2,12 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>1.0.0.beta5</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-tiles</artifactId>
-    <version>1.0.0.beta5</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>atmosphere-spring-tiles</name>
     <dependencies>
