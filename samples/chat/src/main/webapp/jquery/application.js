@@ -50,7 +50,7 @@ $(function () {
         contentType : "application/json",
         logLevel : 'debug',
         shared : 'true',
-        transport : 'long-polling' ,
+        transport : transport ,
         fallbackTransport: 'long-polling'};
 
 
