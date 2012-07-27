@@ -16,9 +16,12 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereInterceptor;
@@ -33,11 +36,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-    }
+public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -45,88 +44,71 @@ public class JSONPAtmosphereInterceptor implements AtmosphereInterceptor {
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
         if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP)) {
-            response.asyncIOWriter(new AsyncIOWriterAdapter() {
+            super.inspect(r);
 
-                String contentType() {
-                    String c = response.getContentType();
-                    if (c == null) {
-                        c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-                    }
-                    return c;
-                }
+            AsyncIOWriter writer = response.getAsyncIOWriter();
+            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
 
-                String callbackName() {
-                    return request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
-                }
+                    String contentType() {
+                        String c = response.getContentType();
+                        if (c == null) {
+                            c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
+                        }
 
-                @Override
-                public AsyncIOWriter redirect(String location) throws IOException {
-                    response.sendRedirect(location);
-                    return this;
-                }
+                        if (c  == null) {
+                            c = request.getContentType();
+                        }
 
-                @Override
-                public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
-                    response.sendError(errorCode);
-                    return this;
-                }
-
-                @Override
-                public AsyncIOWriter write(String data) throws IOException {
-                    String callbackName = callbackName();
-                    if (!data.startsWith("\"")) {
-                        data = callbackName + "({\"message\" : \"" + data + "\"})";
-                    } else {
-                        data = callbackName + "({\"message\" :" + data + "})";
+                        return c;
                     }
 
-                    response.write(data);
-                    return this;
-                }
-
-                @Override
-                public AsyncIOWriter write(byte[] data) throws IOException {
-                    String contentType = contentType();
-                    String callbackName = callbackName();
-
-                    if (contentType != null && !contentType.contains("json")) {
-                        response.write(callbackName + "({\"message\" : \"").write(data).write("\"})");
-                    } else {
-                        response.write(callbackName + "({\"message\" :").write(data).write("})");
+                    String callbackName() {
+                        return request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
                     }
-                    return this;
-                }
 
-                @Override
-                public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-                    String contentType = contentType();
-                    String callbackName = callbackName();
+                    @Override
+                    public void intercept(AtmosphereResponse response, String data) {
+                        String contentType = contentType();
+                        String callbackName = callbackName();
+                        if (!data.startsWith("\"") && !contentType.contains("json")) {
+                            data = callbackName + "({\"message\" : \"" + data + "\"});";
+                        } else {
+                            data = callbackName + "({\"message\" :" + data + "});";
+                        }
 
-                    if (contentType != null && !contentType.contains("json")) {
-                        response.write(callbackName + "({\"message\" : \"").write(data, offset, length).write("\"})");
-                    } else {
-                        response.write(callbackName + "({\"message\" :").write(data, offset, length).write("})");
+                        response.write(data);
                     }
-                    return this;
-                }
 
-                @Override
-                public void close() throws IOException {
-                    response.closeStreamOrWriter();
-                }
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data) {
+                        String contentType = contentType();
+                        String callbackName = callbackName();
 
-                @Override
-                public AsyncIOWriter flush() throws IOException {
-                    response.flushBuffer();
-                    return this;
-                }
-            });
+                        if (contentType != null && !contentType.contains("json")) {
+                            response.write(callbackName + "({\"message\" : \"").write(data).write("\"});");
+                        } else {
+                            response.write(callbackName + "({\"message\" :").write(data).write("});");
+                        }
+                    }
+
+                    @Override
+                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        String contentType = contentType();
+                        String callbackName = callbackName();
+
+                        if (contentType != null && !contentType.contains("json")) {
+                            response.write(callbackName + "({\"message\" : \"").write(data, offset, length).write("\"});");
+                        } else {
+                            response.write(callbackName + "({\"message\" :").write(data, offset, length).write("});");
+                        }
+                    }
+                });
+            } else {
+                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
+            }
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override

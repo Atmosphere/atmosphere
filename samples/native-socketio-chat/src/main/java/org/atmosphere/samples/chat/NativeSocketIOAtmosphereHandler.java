@@ -39,9 +39,9 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
-public class ChatAtmosphereHandler extends SocketIOAtmosphereHandler {
+public class NativeSocketIOAtmosphereHandler extends SocketIOAtmosphereHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(NativeSocketIOAtmosphereHandler.class);
     private final ConcurrentMap<String, String> loggedUserMap = new ConcurrentSkipListMap<String, String>();
     private final ObjectMapper mapper = new ObjectMapper();
     private Broadcaster broadcaster;

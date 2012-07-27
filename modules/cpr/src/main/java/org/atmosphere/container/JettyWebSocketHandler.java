@@ -27,11 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONTROL;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.HANDSHAKE;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
 /**
  * Jetty 7 & 8 WebSocket support.
@@ -59,12 +56,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onMessage(byte[] data, int offset, int length) {
         logger.trace("WebSocket.onMessage (bytes)");
         webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
-        try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("UnsupportedEncodingException", e);
-
-        }
     }
 
     @Override
@@ -110,7 +101,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onMessage(String data) {
         logger.trace("WebSocket.onMessage");
         webSocketProcessor.invokeWebSocketProtocol(data);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
     }
 
     @Override
@@ -120,7 +110,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
             webSocketProcessor = WebSocketProcessorFactory.getDefault()
                     .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
             webSocketProcessor.open(request);
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocketProcessor.webSocket()));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -131,7 +120,6 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
         request.destroy();
         if (webSocketProcessor == null) return;
 
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocketProcessor.webSocket()));
         webSocketProcessor.close(closeCode);
 
     }

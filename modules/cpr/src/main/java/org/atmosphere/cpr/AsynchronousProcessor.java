@@ -315,8 +315,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         String path;
-        if (req.getPathInfo() != null) {
-            path = req.getServletPath() + req.getPathInfo();
+        String pathInfo = null;
+        try {
+            pathInfo = req.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = req.getServletPath() + pathInfo;
         } else {
             path = req.getServletPath();
         }

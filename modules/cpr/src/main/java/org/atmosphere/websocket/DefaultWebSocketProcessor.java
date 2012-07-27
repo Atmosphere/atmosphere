@@ -16,6 +16,7 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -44,10 +46,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.atmosphere.cpr.ApplicationConfig.*;
+import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
+import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE;
+
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONTROL;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.HANDSHAKE;
+import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket request to the
@@ -136,9 +145,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
+
         } else {
             logger.warn("AtmosphereResource was null");
         }
+        notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
     /**
@@ -148,6 +159,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public void invokeWebSocketProtocol(String webSocketMessage) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
         dispatch(list);
+        notifyListener(new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
     }
 
     private void dispatch(List<AtmosphereRequest> list) {
@@ -182,6 +194,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
         dispatch(list);
+        try {
+            notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
+        } catch (UnsupportedEncodingException e) {
+            logger.warn("UnsupportedEncodingException", e);
+
+        }
     }
 
     /**
@@ -222,7 +240,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     @Override
     public void close(int closeCode) {
-        logger.debug("WebSocket closed with {}", closeCode);
+        logger.trace("WebSocket closed with {}", closeCode);
+        notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
         if (resource == null) {
@@ -268,7 +287,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     /**
      * {@inheritDoc}
      */
-    @Override    public String toString() {
+    @Override
+    public String toString() {
         return "DefaultWebSocketProtocol{ webSocket=" + webSocket + " }";
     }
 
@@ -302,6 +322,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             WebSocketEventListener.class.cast(l).onHandshake(event);
                             break;
                         case CLOSE:
+                            WebSocketEventListener.class.cast(l).onDisconnect(event);
                             WebSocketEventListener.class.cast(l).onClose(event);
                             break;
                     }

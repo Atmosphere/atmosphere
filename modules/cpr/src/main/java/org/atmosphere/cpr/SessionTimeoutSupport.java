@@ -24,8 +24,8 @@ import javax.servlet.http.HttpSession;
 /**
  * Allows invalidating and restoring HTTP session timeout.
  *
- * @since 0.9
  * @author Miro Bezjak
+ * @since 0.9
  */
 public final class SessionTimeoutSupport {
 
@@ -74,10 +74,11 @@ public final class SessionTimeoutSupport {
         SessionTimeoutRestorer r = null;
         try {
             r = (SessionTimeoutRestorer) s.getAttribute(KEY);
+            s.removeAttribute(KEY);
+
         } catch (Exception ex) {
             logger.trace("", ex);
         }
-        s.removeAttribute(KEY);
         return r;
     }
 

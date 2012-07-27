@@ -282,4 +282,8 @@ public interface ApplicationConfig {
      * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}
      */
     String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disableDefaults";
+    /**
+     * Set to true if Atmosphere is used as a library and you don't want to destroy associated static factory when undeploying.
+     */
+    String SHARED = "org.atmosphere.runtime.shared";
 }

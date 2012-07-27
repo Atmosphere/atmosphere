@@ -350,7 +350,8 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (shared) return;
+        if (!force && shared) return;
+
         if (broadcasterCache != null) {
             broadcasterCache.stop();
         }

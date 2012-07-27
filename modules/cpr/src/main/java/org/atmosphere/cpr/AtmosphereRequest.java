@@ -605,6 +605,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public HttpSession getSession(boolean create) {
+
+        if (b.webSocketFakeSession != null) {
+            return b.webSocketFakeSession;
+        }
+
         if (resource() != null) {
             // UGLY, but we need to prevent looping here.
             HttpSession session = AtmosphereResourceImpl.class.cast(resource()).session;
@@ -616,11 +621,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
-            //UGLY. Required for WebSocket supports.
+            // Jetty
             if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
-                return b.hackedJettySession;
+                return null;
             }
             throw ex;
+        } catch (NullPointerException ex) {
+            // GLASSFISH http://java.net/jira/browse/GLASSFISH-18856
+            return b.request.getSession(create);
         }
     }
 
@@ -943,7 +951,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
-        public HttpSession hackedJettySession;
+        public HttpSession webSocketFakeSession;
 
         public Builder() {
         }
@@ -1092,7 +1100,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (NoOpsRequest.class.isAssignableFrom(request.getClass())) {
                 NoOpsRequest.class.cast(request).fake = session;
             } else {
-                hackedJettySession = session;
+                webSocketFakeSession = session;
             }
             return this;
         }
