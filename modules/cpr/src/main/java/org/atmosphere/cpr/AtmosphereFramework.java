@@ -1231,19 +1231,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
-        String s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
-        if (s == null || s.equals("0")) {
-            s = UUID.randomUUID().toString();
-            res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-            if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
-                req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
-            }
-        }
-
         Action a = null;
         try {
             boolean skip = true;
-            s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
+            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
             if (s != null) {
                 skip = Boolean.valueOf(s);
             }
@@ -1261,6 +1252,17 @@ public class AtmosphereFramework implements ServletContextProvider {
                     req.body(body);
                 }
             }
+
+            s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
+            if (s == null || s.equals("0")) {
+                s = UUID.randomUUID().toString();
+                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+            }
+
+            if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
+                req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+            }
+
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
