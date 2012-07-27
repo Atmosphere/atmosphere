@@ -1234,7 +1234,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s == null || s.equals("0")) {
             s = UUID.randomUUID().toString();
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-            res.setHeader(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+            req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
         }
 
         Action a = null;
