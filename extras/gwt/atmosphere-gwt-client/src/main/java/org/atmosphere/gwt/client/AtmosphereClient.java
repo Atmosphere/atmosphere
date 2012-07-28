@@ -434,7 +434,7 @@ public class AtmosphereClient implements UserInterface {
             }
             refreshQueue.clear();
         }
-        doDisconnect();
+        listener.onError(new RuntimeException("Failed to refresh connection. Will try to establish a new connection"), false);
         scheduleConnect(primaryTransport);
     }
 
