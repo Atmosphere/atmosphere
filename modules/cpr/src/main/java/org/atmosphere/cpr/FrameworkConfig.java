@@ -62,10 +62,6 @@ public interface FrameworkConfig {
      */
     String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".injected";
     /**
-     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}
-     */
-    String WEBSOCKET_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".webSocket.handshake";
-    /**
      * Tell a {@link AsyncSupport} it can support session or not
      */
     String SUPPORT_SESSION = AsynchronousProcessor.class.getName() + ".supportSession";
