@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,17 +34,27 @@ public class AsyncIOInterceptorTest {
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
-                s.set(data);
+            public void prePayload(AtmosphereResponse response, String data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, String data) {}
+
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, byte[] data) {
+                s.set(new String(data));
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
-            }
-
+            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
-            }
+            public void postPayload(AtmosphereResponse response, String data) {}
+            @Override
+            public void postPayload(AtmosphereResponse response, byte[] data) {}
+            @Override
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
         })).write("test");
         assertEquals(s.get(), "test");
     }
@@ -55,30 +66,50 @@ public class AsyncIOInterceptorTest {
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
-                s.get().append(data);
+            public void prePayload(AtmosphereResponse response, String data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, String data) {}
+
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, byte[] data) {
+                s.get().append(new String(data));
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
-            }
-
+            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
-            }
+            public void postPayload(AtmosphereResponse response, String data) {}
+            @Override
+            public void postPayload(AtmosphereResponse response, byte[] data) {}
+            @Override
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
         }).interceptor(new AsyncIOInterceptor() {
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
+            public void prePayload(AtmosphereResponse response, String data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data) {}
+            @Override
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, String data) {}
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, byte[] data) {}
+            @Override
+            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
+            @Override
+            public void postPayload(AtmosphereResponse response, String data) {}
+
+            @Override
+            public void postPayload(AtmosphereResponse response, byte[] data) {
                 s.get().append("-yoyo");
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
-            }
-
-            @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
-            }
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
         })).write("test");
         assertEquals(s.get().toString(), "test-yoyo");
     }

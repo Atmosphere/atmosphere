@@ -15,20 +15,11 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOInterceptor;
-import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereInterceptorWriter;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.*;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketResponseFilter;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -67,19 +58,45 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
 
                     @Override
-                    public void intercept(AtmosphereResponse response, String data) {
-                        response.write(data + endString);
+                    public void prePayload(AtmosphereResponse response, String data) {
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data) {
-                        response.write(data).write(end);
+                    public void prePayload(AtmosphereResponse response, byte[] data) {
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(data, offset, length).write(end);
+                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                    }
 
+                    @Override
+                    public void transformPayload(ByteArrayOutputStream response, String data) throws IOException {
+                        response.write(data.getBytes());
+                    }
+
+                    @Override
+                    public void transformPayload(ByteArrayOutputStream response, byte[] data) throws IOException {
+                        response.write(data);
+                    }
+
+                    @Override
+                    public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) throws IOException {
+                        response.write(data);
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, String data) {
+                        response.write(end);
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data) {
+                        response.write(end);
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        response.write(end);
                     }
                 });
             } else {
