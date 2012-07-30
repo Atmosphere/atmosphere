@@ -18,8 +18,10 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * An {@link AsyncIOWriter} that delegates the write operation to it's {@link AsyncIOInterceptor}. If no
@@ -52,26 +54,38 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     @Override
     public AsyncIOWriter write(String data) throws IOException {
-        for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data);
-        }
-        return this;
+        return write(data.getBytes());
     }
 
     @Override
     public AsyncIOWriter write(byte[] data) throws IOException {
         for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data);
+            i.prePayload(response, data);
         }
+
+        byte[] transformedData = new byte[16];
+        for (AsyncIOInterceptor i : filters) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(transformedData.length);
+            outputStream.write(transformedData);
+            i.transformPayload(outputStream, data);
+
+            transformedData = outputStream.toByteArray();
+        }
+        response.write(transformedData);
+
+        ArrayList<AsyncIOInterceptor> reversedFilters = filters;
+        Collections.reverse(reversedFilters);
+        for (AsyncIOInterceptor i : reversedFilters) {
+            i.postPayload(response, data);
+        }
+
         return this;
     }
 
     @Override
     public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-        for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data, offset, length);
-        }
-        return this;
+        // @todo: make this significant or remove
+        return write(data);
     }
 
     @Override
