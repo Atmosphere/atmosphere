@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,15 +39,20 @@ public class AsyncIOInterceptorTest {
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
             @Override
-            public void transformPayload(ByteArrayOutputStream response, String data) {}
-
-            @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data) {
-                s.set(new String(data));
+            public byte[] transformPayload(String responseDraft, String data) throws IOException {
+                s.set(data);
+                return responseDraft.getBytes();
             }
-
             @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                s.set(new String(data));
+                return responseDraft;
+            }
+            @Override
+            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
+                s.set(new String(data));
+                return responseDraft;
+            }
             @Override
             public void postPayload(AtmosphereResponse response, String data) {}
             @Override
@@ -72,15 +76,17 @@ public class AsyncIOInterceptorTest {
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
             @Override
-            public void transformPayload(ByteArrayOutputStream response, String data) {}
-
-            @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data) {
-                s.get().append(new String(data));
+            public byte[] transformPayload(String responseDraft, String data) throws IOException {
+                return responseDraft.getBytes();
             }
-
             @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                return responseDraft;
+            }
+            @Override
+            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
+                return responseDraft;
+            }
             @Override
             public void postPayload(AtmosphereResponse response, String data) {}
             @Override
@@ -95,11 +101,20 @@ public class AsyncIOInterceptorTest {
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {}
             @Override
-            public void transformPayload(ByteArrayOutputStream response, String data) {}
+            public byte[] transformPayload(String responseDraft, String data) throws IOException {
+                s.get().append(responseDraft);
+                return responseDraft.getBytes();
+            }
             @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data) {}
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                s.get().append(new String(responseDraft));
+                return responseDraft;
+            }
             @Override
-            public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {}
+            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
+                s.get().append(new String(responseDraft));
+                return responseDraft;
+            }
             @Override
             public void postPayload(AtmosphereResponse response, String data) {}
 

@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -35,11 +34,11 @@ public interface AsyncIOInterceptor {
 
     void prePayload(AtmosphereResponse response, byte[] data, int offset, int length);
 
-    void transformPayload(ByteArrayOutputStream response, String data) throws IOException;
+    byte[] transformPayload(String responseDraft, String data) throws IOException;
 
-    void transformPayload(ByteArrayOutputStream response, byte[] data) throws IOException;
+    byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException;
 
-    void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) throws IOException;
+    byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException;
 
     void postPayload(AtmosphereResponse response, String data);
 
