@@ -286,4 +286,9 @@ public interface ApplicationConfig {
      * Set to true if Atmosphere is used as a library and you don't want to destroy associated static factory when undeploying.
      */
     String SHARED = "org.atmosphere.runtime.shared";
+    /**
+     * The suspended UUID of the suspended connection which is the same as {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
+     * but available to all transport.
+     */
+    String SUSPENDED_ATMOSPHERE_RESOURCE_UUID = AtmosphereResource.class.getName() + "suspended.uuid";
 }

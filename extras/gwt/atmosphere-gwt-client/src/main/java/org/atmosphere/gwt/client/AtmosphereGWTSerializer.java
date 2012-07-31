@@ -39,19 +39,31 @@ import com.google.gwt.user.client.rpc.impl.ClientSerializationStreamWriter;
 import com.google.gwt.user.client.rpc.impl.Serializer;
 
 /**
- * The base class for comet serializers. To instantiate this class follow this example:
- * <p/>
- * <code>
+ * The base class for serializers. To instantiate this class follow this example:
+ * <pre><code>
  *
- * @author Richard Zschech
- * @SerialTypes({ MyType1.class, MyType2.class })
- * public static abstract class MyCometSerializer extends CometSerializer {}
- * <p/>
- * CometSerializer serializer = GWT.create(MyCometSerializer.class);
- * serializer.parse(...);
- * </code>
- * <p/>
+ * {@literal @SerialTypes({ MyType1.class, MyType2.class })}
+ * public abstract class MyCometSerializer extends AtmosphereGWTSerializer {}
+ * 
+ * AtmosphereGWTSerializer serializer = GWT.create(MyCometSerializer.class);
+ * AtmosphereClient client = new AtmosphereClient(url, serializer, listener);
+ * </code></pre>
+ *
  * Where MyType1 and MyType2 are the types that your expecting to receive from the server.
+ * If you have a class hierarchy of messages that you want to send you only need to supply the base class here.
+ * 
+ * For instance:
+ * <pre><code>
+ * public class Message {}
+ * 
+ * public class MessageA extends Message {}
+ * 
+ * public class MessageB extends Message {}
+ * 
+ * {@literal @SerialTypes( Message.class )}
+ * public abstract class MyCometSerializer extends AtmosphereGWTSerializer {}
+ * 
+ * </code></pre>
  */
 public abstract class AtmosphereGWTSerializer {
     

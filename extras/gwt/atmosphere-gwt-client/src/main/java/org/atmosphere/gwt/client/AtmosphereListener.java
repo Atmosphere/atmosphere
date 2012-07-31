@@ -33,16 +33,18 @@ package org.atmosphere.gwt.client;
 import java.util.List;
 
 /**
- * Listens for events from a {@link CometClient}.
+ * Listens for events from an {@link AtmosphereClient}.
  *
  * @author Richard Zschech
+ * @author Pierre Havelaar
  */
 public interface AtmosphereListener {
 
     /**
      * The connection has been established
      *
-     * @param heartbeat
+     * @param heartbeat This is the interval with which the server will send heartbeats
+     * @param connectionID This is the unique number that identifies this connection
      */
     public void onConnected(int heartbeat, int connectionID);
 
@@ -53,32 +55,42 @@ public interface AtmosphereListener {
     public void onBeforeDisconnected();
 
     /**
-     * The connection has disconnected and is being refreshed
+     * The connection has disconnected. When the disconnect was unexpected ({@link AtmosphereClient#isRunning()} == true)
+     * the connecting will be refreshed after this and you can expect the next event to be {@link #onAfterRefresh() }
      */
     public void onDisconnected();
 
     /**
-     * A Comet error has occurred
+     * An error has occurred.
      *
      * @param exception
-     * @param connected
+     * @param connected This will indicate whether the connection is still alive
      */
     public void onError(Throwable exception, boolean connected);
 
     /**
-     * The connection has received a heartbeat
+     * The connection has received a heartbeat. When a heartbeat is not received at the expected time, the
+     * connection is assumed to be dead and a new one is established.
      */
     public void onHeartbeat();
 
     /**
-     * The connection should be refreshed by the client
+     * The connection will be refreshed by the client. This will occur to prevent data from accumulating in 
+     * the clients comet implementation and slowing down message processing. Normally you don't need to do
+     * anything with this event. It signals the start of a scheduled reconnection. A new connection will be
+     * established and the current connection is only dropped when the new connection has become alive.
+     * 
      */
     public void onRefresh();
     
+    /**
+     * You will receive this after a connection has been refreshed or re-established and is ready to process
+     * new events.
+     */
     public void onAfterRefresh();
 
     /**
-     * A batch of messages has been received
+     * A batch of messages from the server has arrived.
      *
      * @param messages
      */

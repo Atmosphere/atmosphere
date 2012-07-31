@@ -133,7 +133,7 @@ public class BroadcasterTest {
 
         broadcaster.broadcast("foo", set).get();
 
-        assertEquals(atmosphereHandler.value.get(), new HashSet());
+        assertEquals(atmosphereHandler.value.get(), set);
     }
 
     public final static class AR implements AtmosphereHandler {

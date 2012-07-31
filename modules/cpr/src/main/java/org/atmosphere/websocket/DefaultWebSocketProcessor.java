@@ -16,7 +16,6 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -47,15 +46,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
-import static org.atmosphere.cpr.FrameworkConfig.WEBSOCKET_ATMOSPHERE_RESOURCE;
-
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONTROL;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.HANDSHAKE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
 /**
@@ -118,7 +114,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 framework.getAsyncSupport());
 
         request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
-        request.setAttribute(WEBSOCKET_ATMOSPHERE_RESOURCE, r.uuid());
+        request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, r.uuid());
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);

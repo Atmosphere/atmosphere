@@ -48,24 +48,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.atmosphere.gwt.client.impl.CometTransport;
 
 /**
- * This class is the Comet client. It will connect to the given url and notify the given {@link CometListener} of comet
- * events. To receive GWT serialized objects supply a {@link CometSerializer} method to parse the messages.
+ * This class is the client interface. It will connect to the given url and notify the given 
+ * {@link AtmosphereListener} of events. To receive GWT serialized objects supply a {@link AtmosphereGWTSerializer} 
+ * class with the appropriate annotations.
  * <p/>
- * The sequence of events are as follows: The application calls {@link CometClient#start()}.
- * {@link CometListener#onConnected(int)} gets called when the connection is established.
- * {@link CometListener#onMessage(List)} gets called when messages are received from the server.
- * {@link CometListener#onDisconnected()} gets called when the connection is disconnected this includes connection
- * refreshes. {@link CometListener#onError(Throwable, boolean)} gets called if there is an error with the connection.
+ * The sequence of events are as follows: The application calls {@link AtmosphereClient#start()}.
+ * {@link AtmosphereListener#onConnected(int,int)} gets called when the connection is established.
+ * {@link AtmosphereListener#onMessage(List)} gets called when messages are received from the server.
+ * {@link AtmosphereListener#onDisconnected()} gets called when the connection is disconnected
+ * {@link AtmosphereListener#onError(Throwable, boolean)} gets called if there is an error with the connection.
+ * For more details about the possible events see {@link AtmosphereListener}.
  * <p/>
- * The Comet client will attempt to maintain to connection when disconnections occur until the application calls
- * {@link CometClient#stop()}.
+ * The client will attempt to maintain a connection when disconnections occur until the application calls
+ * {@link AtmosphereClient#stop()}.
  * <p/>
  * The server sends heart beat messages to ensure the connection is maintained and that disconnections can be detected
  * in all cases.
  *
  * @author Richard Zschech
+ * @author Pierre Havelaar
  */
 public class AtmosphereClient implements UserInterface {
 
@@ -154,6 +158,12 @@ public class AtmosphereClient implements UserInterface {
         return listener;
     }
 
+    /**
+     * This is the amount of time the client waits until a connection is established. If the connection is 
+     * not established within this time the connection is assumed to be dead.
+     * 
+     * @param connectionTimeout the timeout in milliseconds defaults to 10000
+     */
     public void setConnectionTimeout(int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
     }
@@ -162,8 +172,18 @@ public class AtmosphereClient implements UserInterface {
         return connectionTimeout;
     }
 
-    public void setReconnectionTimeout(int reconnectionTimout) {
-        this.reconnectionTimeout = reconnectionTimout;
+    /**
+     * This establishes the wait time before a new connection is started.
+     * When a connection has dropped this timeout is used to setup a wait time before a new connection is 
+     * started. The algorithm will start with the given reconnectionTimeout and will multiply the timeout
+     * with the number of failed attempts to reconnect. This will prevent for instance a server that is 
+     * rebooted from being flooded with connections.
+     * 
+     * @see #setReconnectionCount(int)
+     * @param reconnectionTimeout 
+     */
+    public void setReconnectionTimeout(int reconnectionTimeout) {
+        this.reconnectionTimeout = reconnectionTimeout;
     }
 
     public int getReconnectionTimeout() {
@@ -175,53 +195,90 @@ public class AtmosphereClient implements UserInterface {
     }
 
     /**
-     * Set to -1 to keep trying
+     * The amount of times to try to reconnect if a connection has failed.
+     * If the count has been reached then client is stopped {@link #stop() } and {@link #isRunning() }
+     * will return false.
      * 
-     * @param reconnectionCount 
+     * @param reconnectionCount Set to -1 to keep trying (default -1)
      */
     public void setReconnectionCount(int reconnectionCount) {
         this.reconnectionCount = reconnectionCount;
     }
 
+    /**
+     * This is true between {@link #start() } and {@link #stop() }
+     * If the connection is failing and the {@link #reconnectionCount} has been reached then stop is also called.
+     * @return 
+     */
     public boolean isRunning() {
         return running;
     }
 
+    /**
+     * The unique connection ID
+     * 
+     * @return 
+     */
     public int getConnectionID() {
         return primaryTransport.connectionID;
     }
 
-    // push message back to the server on this connection
+    /** 
+     * push message back to the server on this connection. On the serverside the message can be received
+     * by the {@link AtmosphereGwtHandler#doPost}
+     * 
+     */
     public void post(Object message) {
         primaryTransport.post(message, postCallback);
     }
 
-    // push message back to the server on this connection
+    /** 
+     * push message back to the server on this connection. On the serverside the message can be received
+     * by the {@link AtmosphereGwtHandler#doPost}
+     * 
+     */
     public void post(Object message, AsyncCallback<Void> callback) {
         primaryTransport.post(message, callback);
     }
 
-    // push message back to the server on this connection
+    /** 
+     * push messages back to the server on this connection. On the serverside the message can be received
+     * by the {@link AtmosphereGwtHandler#doPost}
+     * 
+     */
     public void post(List<?> messages) {
         primaryTransport.post(messages, postCallback);
     }
 
-    // push message back to the server on this connection
+    /** 
+     * push messages back to the server on this connection. On the serverside the message can be received
+     * by the {@link AtmosphereGwtHandler#doPost}
+     * 
+     */
     public void post(List<?> messages, AsyncCallback<Void> callback) {
         primaryTransport.post(messages, callback);
     }
 
-    // push message back to the server on this connection
+    /** 
+     * Send a message back to the server on this connection and use our broadcaster to send this message to
+     * other clients connected to the same broadcaster.
+     */
     public void broadcast(Object message) {
         primaryTransport.broadcast(message);
     }
 
-    // push message back to the server on this connection
+    /** 
+     * Send a message back to the server on this connection and use our broadcaster to send this message to
+     * other clients connected to the same broadcaster.
+     */
     public void broadcast(List<?> messages) {
         primaryTransport.broadcast(messages);
     }
 
-
+    /**
+     * This will startup the connection to the server and the client will try to maintain the connection
+     * until {@ling #stop()} is called.
+     */
     public void start() {
         // avoid spinning mouse cursor in chrome by starting as a deferred command
         Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
@@ -274,6 +331,9 @@ public class AtmosphereClient implements UserInterface {
         private boolean done = false;
     }
 
+    /**
+     * End the connection.
+     */
     public void stop() {
         if (running) {
             running = false;
@@ -374,7 +434,7 @@ public class AtmosphereClient implements UserInterface {
             }
             refreshQueue.clear();
         }
-        doDisconnect();
+        listener.onError(new RuntimeException("Failed to refresh connection. Will try to establish a new connection"), false);
         scheduleConnect(primaryTransport);
     }
 

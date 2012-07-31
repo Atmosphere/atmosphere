@@ -104,6 +104,7 @@ jQuery.atmosphere = function() {
                 dropAtmosphereHeaders : true,
                 uuid : 0,
                 shared : false,
+                readResponsesHeaders : true,
                 onError : function(response) {
                 },
                 onClose : function(response) {
@@ -1312,9 +1313,11 @@ jQuery.atmosphere = function() {
                         }
 
                         try {
-                            var tempUUID = ajaxRequest.getResponseHeader('X-Atmosphere-tracking-id');
-                            if (tempUUID != null || tempUUID != undefined) {
-                                _request.uuid = tempUUID.split(" ").pop();
+                            if (rq.readResponsesHeaders) {
+                                var tempUUID = ajaxRequest.getResponseHeader('X-Atmosphere-tracking-id');
+                                if (tempUUID != null || tempUUID != undefined) {
+                                    _request.uuid = tempUUID.split(" ").pop();
+                                }
                             }
                         } catch (e) {
                         }
@@ -1326,9 +1329,11 @@ jQuery.atmosphere = function() {
                             // Refused to get unsafe header
                             // Let the failure happens later with a better error message
                             try {
-                                var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
-                                if (tempDate != null || tempDate != undefined) {
-                                    _request.lastTimestamp = tempDate.split(" ").pop();
+                                if (rq.readResponsesHeaders) {
+                                    var tempDate = ajaxRequest.getResponseHeader('X-Cache-Date');
+                                    if (tempDate != null || tempDate != undefined) {
+                                        _request.lastTimestamp = tempDate.split(" ").pop();
+                                    }
                                 }
                             } catch (e) {
                             }
@@ -1365,7 +1370,7 @@ jQuery.atmosphere = function() {
                                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
 
                                                 // HOTFIX for firefox bug: https://bugzilla.mozilla.org/show_bug.cgi?id=608735
-                                                if (_request.headers) {
+                                                if (_request.readResponsesHeaders && _request.headers) {
                                                     jQuery.each(_request.headers, function(name) {
                                                         var v = ajaxRequest.getResponseHeader(name);
                                                         if (v) {
@@ -1404,7 +1409,7 @@ jQuery.atmosphere = function() {
                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
 
                                 // HOTFIX for firefox bug: https://bugzilla.mozilla.org/show_bug.cgi?id=608735
-                                if (_request.headers) {
+                                if (_request.readResponsesHeaders && _request.headers) {
                                     jQuery.each(_request.headers, function(name) {
                                         var v = ajaxRequest.getResponseHeader(name);
                                         if (v) {
@@ -1588,7 +1593,10 @@ jQuery.atmosphere = function() {
                 };
                 // Handles error event
                 xdr.onerror = function() {
-                    _prepareCallback(xdr.responseText, "error", 500, transport);
+                    // If the server doesn't send anything back to XDR will fail with polling
+                    if (rq.transport != 'polling') {
+                        _prepareCallback(xdr.responseText, "error", 500, transport);
+                    }
                 };
                 // Handles close event
                 xdr.onload = function() {

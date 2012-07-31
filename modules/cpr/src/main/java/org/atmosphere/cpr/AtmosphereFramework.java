@@ -85,11 +85,13 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -98,6 +100,8 @@ import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
+import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
 /**
  * The {@link AtmosphereFramework} is the entry point for the framework. This class can be used to from Servlet/filter
@@ -1227,19 +1231,14 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
-        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        if (s == null || s.equals("0")) {
-            res.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
-        }
-
         Action a = null;
         try {
             boolean skip = true;
-            s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
+            String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
             if (s != null) {
                 skip = Boolean.valueOf(s);
             }
-            if (!skip || req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
+            if (!skip || req.getAttribute(WEBSOCKET_SUSPEND) == null) {
                 Map<String, String> headers = configureQueryStringAsRequest(req);
                 String body = headers.remove(ATMOSPHERE_POST_BODY);
                 if (body != null && body.isEmpty()) {
@@ -1253,6 +1252,17 @@ public class AtmosphereFramework implements ServletContextProvider {
                     req.body(body);
                 }
             }
+
+            s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
+            if (s == null || s.equals("0")) {
+                s = UUID.randomUUID().toString();
+                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+            }
+
+            if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
+                req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+            }
+
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
