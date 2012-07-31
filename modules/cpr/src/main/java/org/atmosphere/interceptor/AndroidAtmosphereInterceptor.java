@@ -20,7 +20,6 @@ import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -74,18 +73,18 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public void transformPayload(ByteArrayOutputStream response, String data) throws IOException {
-                        response.write(data.getBytes());
+                    public byte[] transformPayload(String responseDraft, String data) throws IOException {
+                        return responseDraft.getBytes();
                     }
 
                     @Override
-                    public void transformPayload(ByteArrayOutputStream response, byte[] data) throws IOException {
-                        response.write(data);
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                        return responseDraft;
                     }
 
                     @Override
-                    public void transformPayload(ByteArrayOutputStream response, byte[] data, int offset, int length) {
-                        response.write(data, offset, length);
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
+                        return responseDraft;
                     }
 
                     @Override

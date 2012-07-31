@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,17 +62,13 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
             i.prePayload(response, data);
         }
 
-        byte[] transformedData = new byte[16];
+        byte[] responseDraft = data;
         for (AsyncIOInterceptor i : filters) {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(transformedData.length);
-            outputStream.write(transformedData);
-            i.transformPayload(outputStream, data);
-
-            transformedData = outputStream.toByteArray();
+            responseDraft = i.transformPayload(responseDraft, data);
         }
-        response.write(transformedData);
+        response.write(responseDraft);
 
-        ArrayList<AsyncIOInterceptor> reversedFilters = filters;
+        ArrayList<AsyncIOInterceptor> reversedFilters = (ArrayList<AsyncIOInterceptor>)filters.clone();
         Collections.reverse(reversedFilters);
         for (AsyncIOInterceptor i : reversedFilters) {
             i.postPayload(response, data);
