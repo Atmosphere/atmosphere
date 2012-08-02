@@ -53,16 +53,26 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     @Override
     public AsyncIOWriter write(String data) throws IOException {
-        return write(data.getBytes());
+        write(data.getBytes());
+
+        return this;
     }
 
     @Override
     public AsyncIOWriter write(byte[] data) throws IOException {
+        write(data, 0, data.length);
+
+        return this;
+    }
+
+    @Override
+    public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
         for (AsyncIOInterceptor i : filters) {
-            i.prePayload(response, data);
+            i.prePayload(response, data, offset, length);
         }
 
-        byte[] responseDraft = data;
+        byte[] responseDraft = new byte[length];
+        System.arraycopy(data, offset, responseDraft, 0, length);
         for (AsyncIOInterceptor i : filters) {
             responseDraft = i.transformPayload(responseDraft, data);
         }
@@ -71,16 +81,10 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
         ArrayList<AsyncIOInterceptor> reversedFilters = (ArrayList<AsyncIOInterceptor>)filters.clone();
         Collections.reverse(reversedFilters);
         for (AsyncIOInterceptor i : reversedFilters) {
-            i.postPayload(response, data);
+            i.postPayload(response, data, offset, length);
         }
 
         return this;
-    }
-
-    @Override
-    public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
-        // @todo: make this significant or remove
-        return write(data);
     }
 
     @Override
