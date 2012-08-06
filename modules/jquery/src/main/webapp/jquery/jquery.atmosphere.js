@@ -297,6 +297,10 @@ jQuery.atmosphere = function() {
             function _execute() {
                 // Shared across multiple tabs/windows.
                 if (_request.shared && !jQuery.browser.opera) {
+                    //avoid duplicate local storage
+                    if(!!_localStorageService){
+                         return;
+                    }
                     _localStorageService = _local(_request);
                     if (_localStorageService != null) {
                         if (_request.logLevel == 'debug') {
