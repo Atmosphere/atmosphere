@@ -894,18 +894,20 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
+		    _sse.close();
 
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
                     } else if (!sseOpened) {
                         _reconnectWithFallbackTransport("SSE failed. Downgrading to fallback transport and resending");
                     } else if (_request.reconnect && (_response.transport == 'sse')) {
+                        _request.requestCount = _requestCount;
                         if (_requestCount++ < _request.maxRequest) {
-                            _request.requestCount = _requestCount;
+                            _request.id = setTimeout(function() {
+                                _executeSSE(true);
+                            }, _request.reconnectInterval);
                             _response.responseBody = "";
-                            _executeSSE(true);
                         } else {
-                            _sse.close();
                             jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _request.requestCount]);
                             _onError();
                         }
