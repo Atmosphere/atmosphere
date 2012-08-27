@@ -1348,7 +1348,15 @@ jQuery.atmosphere = function() {
                                 var text = responseText.substring(rq.lastIndex, responseText.length);
                                 _response.isJunkEnded = true;
 
-                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
+                                //fix junk is comming in parts
+                                if (!_response.junkFull && (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1 || text.indexOf("<!-- EOD -->") == -1)) {
+                                    return;
+                                }
+                                _response.junkFull = true;
+
+                                //if it's the start and we see the junk start
+                                //fix for reconnecting on chrome - junk is comming in parts
+                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1 && text.indexOf("<!-- EOD -->") != -1) {
                                     _response.isJunkEnded = false;
                                 }
 
