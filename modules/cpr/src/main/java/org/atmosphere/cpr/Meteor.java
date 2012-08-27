@@ -386,7 +386,7 @@ public class Meteor {
      */
     public void destroy() {
         isDestroyed.set(true);
-        cache.remove(this);
+        cache.remove(r);
     }
 
     private boolean destroyed(){
