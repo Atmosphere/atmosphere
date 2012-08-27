@@ -242,7 +242,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
         public Object t;
 
         public CachedMessage(boolean isTail) {
-            this.currentTime = 0L;
+            this.currentTime = System.currentTimeMillis();
             this.message = null;
             this.next = null;
             this.isTail = isTail;
