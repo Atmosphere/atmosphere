@@ -90,7 +90,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, String d) {
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
-            logger.error("Invalid state. No AtmosphereResource has been suspended");
+            logger.trace("The WebSocket has been closed before the message was processed.");
             return null;
         }
         String pathInfo = resource.getRequest().getPathInfo();

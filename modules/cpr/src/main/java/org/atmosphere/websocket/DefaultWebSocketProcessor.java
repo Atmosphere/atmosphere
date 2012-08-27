@@ -237,6 +237,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public void close(int closeCode) {
         logger.trace("WebSocket closed with {}", closeCode);
+        // A message might be in the process of being processed and the websocket gets closed. In that corner
+        // case the webSocket.resource will be set to false and that might cause NPE in some WebSocketProcol implementation
+        // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
+        // synchronized (webSocket) {
+
         notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
