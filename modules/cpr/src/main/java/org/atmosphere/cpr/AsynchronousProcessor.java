@@ -92,9 +92,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
+    private final BroadcasterFactory broadcasterFactory;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
+        this.broadcasterFactory = config.getBroadcasterFactory();
     }
 
     @Override
@@ -207,9 +209,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
-            synchronized (handlerWrapper) {
-                config.getBroadcasterFactory().remove(b, b.getID());
-                handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
+            synchronized (broadcasterFactory) {
+                broadcasterFactory.remove(b, b.getID());
+                try {
+                    handlerWrapper.broadcaster = broadcasterFactory.get(b.getID());
+                } catch (IllegalStateException ex) {
+                    // Something wrong occurred, let's not fail and loookup the value
+                    logger.trace("", ex);
+                    // fallback to lookup
+                    handlerWrapper.broadcaster = broadcasterFactory.lookup(b.getID(), true);
+                }
             }
         }
 
