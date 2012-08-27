@@ -33,6 +33,13 @@ jQuery.atmosphere = function() {
         jQuery.atmosphere.unsubscribe();
     });
 
+    // Prevent ESC to kill the connection from Firefox.
+    jQuery(window).keypress(function(e){
+        if(e.keyCode == 27){
+            e.preventDefault();
+        }
+    });
+
     var parseHeaders = function(headerString) {
         var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
         while (match = rheaders.exec(headerString)) {
