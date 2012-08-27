@@ -88,7 +88,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                 logger.trace("", e);
             }
 
-            w.println(padding);
+            w.println(paddingText);
             w.flush();
         }
     }
