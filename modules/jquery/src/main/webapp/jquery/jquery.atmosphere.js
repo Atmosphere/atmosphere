@@ -1374,6 +1374,8 @@ jQuery.atmosphere = function() {
 
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
+                                        //fix cached messages
+                                        skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
                                     } else {
                                         skipCallbackInvocation = true;
                                     }
