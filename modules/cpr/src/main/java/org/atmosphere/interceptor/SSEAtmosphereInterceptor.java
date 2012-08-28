@@ -15,20 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsyncIOInterceptor;
-import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereInterceptorWriter;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,21 +105,51 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, String data) {
+                    public void prePayload(AtmosphereResponse response, String data) {
                         padding();
-                        response.write("data:" + data + "\n\n");
+                        response.write("data:");
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data) {
+                    public void prePayload(AtmosphereResponse response, byte[] data) {
                         padding();
-                        response.write("data:").write(data).write("\n\n");
+                        response.write("data:");
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         padding();
-                        response.write("data:").write(data, offset, length).write("\n\n");
+                        response.write("data:");
+                    }
+
+                    @Override
+                    public byte[] transformPayload(String responseDraft, String data) throws IOException {
+                        return responseDraft.getBytes();
+                    }
+
+                    @Override
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                        return responseDraft;
+                    }
+
+                    @Override
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) {
+                        return responseDraft;
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, String data) {
+                        response.write("\n\n");
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data) {
+                        response.write("\n\n".getBytes());
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        response.write("\n\n".getBytes());
                     }
                 });
             } else {
