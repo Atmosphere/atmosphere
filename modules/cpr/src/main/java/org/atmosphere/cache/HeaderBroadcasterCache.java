@@ -63,12 +63,12 @@ import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
  *
  * @author Jeanfrancois Arcand
  */
-public class HeaderBroadcasterCache extends BroadcasterCacheBase {
+public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
 
     /**
      * {@inheritDoc}
      */
-    public void cache(final AtmosphereResource ar, CachedMessage cm) {
+    public void cache(String id, AtmosphereResource ar, CachedMessage cm) {
         long time = cm.next() == null ? cm.currentTime() : cm.next().currentTime();
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
@@ -80,7 +80,7 @@ public class HeaderBroadcasterCache extends BroadcasterCacheBase {
     /**
      * {@inheritDoc}
      */
-    public CachedMessage retrieveLastMessage(final AtmosphereResource ar) {
+    public CachedMessage retrieveLastMessage(String id, AtmosphereResource ar) {
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
         if (!r.isInScope()) return null;

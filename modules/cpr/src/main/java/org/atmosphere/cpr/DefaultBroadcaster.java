@@ -831,7 +831,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        List<?> missedMsg = broadcasterCache.retrieveFromCache(r);
+        List<?> missedMsg = broadcasterCache.retrieveFromCache(getID(), r);
         if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
@@ -842,7 +842,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void trackBroadcastMessage(final AtmosphereResource r, Object msg) {
         if (destroyed.get() || broadcasterCache == null) return;
         try {
-            broadcasterCache.addToCache(r, msg);
+            broadcasterCache.addToCache(getID(), r, msg);
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
@@ -911,7 +911,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
-                broadcasterCache.addToCache(r, m);
+                broadcasterCache.addToCache(getID(), r, m);
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {

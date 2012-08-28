@@ -84,7 +84,7 @@ public interface BroadcasterCache {
      * @param r {@link AtmosphereResource}
      * @param e a broadcasted message.
      */
-    void addToCache(AtmosphereResource r, Object e);
+    void addToCache(String id, AtmosphereResource r, Object e);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}
@@ -92,6 +92,6 @@ public interface BroadcasterCache {
      * @param r {@link AtmosphereResource}
      * @return a {@link List} of messages (String).
      */
-    List<Object> retrieveFromCache(AtmosphereResource r);
+    List<Object> retrieveFromCache(String id, AtmosphereResource r);
 
 }
