@@ -650,16 +650,24 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 } else if (entry.multipleAtmoResources instanceof Set) {
                     Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
-                    for (AtmosphereResource r : sub) {
-                        finalMsg = perRequestFilter(r, entry);
 
-                        if (finalMsg == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r);
-                            continue;
+                    if (sub.size() != 0) {
+                        for (AtmosphereResource r : sub) {
+                            finalMsg = perRequestFilter(r, entry);
+
+                            if (finalMsg == null) {
+                                logger.debug("Skipping broadcast delivery resource {} ", r);
+                                continue;
+                            }
+
+                            if (entry.writeLocally) {
+                                queueWriteIO(r, finalMsg, entry);
+                            }
                         }
-
-                        if (entry.writeLocally) {
-                            queueWriteIO(r, finalMsg, entry);
+                    } else {
+                        // See https://github.com/Atmosphere/atmosphere/issues/572
+                        if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                            trackBroadcastMessage(null, finalMsg);
                         }
                     }
                 }
