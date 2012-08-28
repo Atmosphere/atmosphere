@@ -133,7 +133,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getQueryString() {
-        return b.request.getQueryString();
+        return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : "";
     }
 
     /**
@@ -951,7 +951,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
-        public HttpSession webSocketFakeSession;
+        private HttpSession webSocketFakeSession;
+        private String queryString = "";
 
         public Builder() {
         }
@@ -1033,6 +1034,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder pathInfo(String pathInfo) {
             this.pathInfo = pathInfo;
+            return this;
+        }
+
+        public Builder queryString(String queryString) {
+            this.queryString = queryString;
             return this;
         }
 
@@ -1575,6 +1581,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             s = e.nextElement();
             b.queryStrings.put(s, request.getParameterValues(s));
         }
+        b.queryString = request.getQueryString();
     }
 
     @Override

@@ -62,7 +62,6 @@ public class AtmosphereRequestTest {
         });
     }
 
-
     @Test
     public void testQueryStringAsRequest() throws IOException, ServletException {
         framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
@@ -104,5 +103,41 @@ public class AtmosphereRequestTest {
 
         assertEquals(e.get(), "application/xml");
         assertEquals(e2.get().toLowerCase(), "long_polling");
+    }
+
+    @Test
+    public void testQueryStringBuilder() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString("a=b").pathInfo("/a").build();
+
+        final AtomicReference<String> e = new AtomicReference<String>();
+
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                e.set(r.getRequest().getQueryString());
+                return Action.CANCELLED;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
+        });
+        framework.doCometSupport(request, AtmosphereResponse.create());
+
+        assertEquals(e.get(), "a=b");
     }
 }
