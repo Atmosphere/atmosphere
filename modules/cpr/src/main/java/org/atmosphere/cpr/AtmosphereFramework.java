@@ -1503,6 +1503,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (!found) {
             interceptors.addLast(c);
+            logger.info("Installed AtmosphereInterceptor {}. ", c);
         }
         return this;
     }

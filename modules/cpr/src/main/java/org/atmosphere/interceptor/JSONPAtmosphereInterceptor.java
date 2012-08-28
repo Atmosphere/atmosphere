@@ -44,7 +44,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
                         }
 
-                        if (c  == null) {
+                        if (c == null) {
                             c = request.getContentType();
                         }
 

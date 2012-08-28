@@ -15,8 +15,14 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +39,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final byte[] padding;
     private static final String paddingText;
+
     static {
         StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 4096; i++) {
