@@ -132,7 +132,7 @@ public class ExcludeSessionBroadcaster
         subset.addAll(resources);
         for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
-                    sessions.contains(((HttpServletRequest) r.getRequest()).getSession())) {
+                    sessions.contains(r.getRequest().getSession())) {
                 subset.remove(r);
             }
         }
@@ -166,7 +166,7 @@ public class ExcludeSessionBroadcaster
 
         for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
-                    s.equals(((HttpServletRequest) r.getRequest()).getSession())) {
+                    s.equals(r.getRequest().getSession())) {
                 subset.remove(r);
             }
         }
