@@ -38,12 +38,6 @@ This JSON serializer allows easy connecting GWT client side to any standard serv
         </license>
     </licenses>
 
-    <profiles>
-        <profile>
-            <id>release</id>
-        </profile>
-    </profiles>
-
     <dependencies>
 		<!-- GWT dependencies (from maven "central" repo) -->
         <dependency>
