@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * An {@link AsyncIOWriter} that delegates the write operation to it's {@link AsyncIOInterceptor}. If no
@@ -52,25 +53,37 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     @Override
     public AsyncIOWriter write(String data) throws IOException {
-        for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data);
-        }
+        write(data.getBytes());
+
         return this;
     }
 
     @Override
     public AsyncIOWriter write(byte[] data) throws IOException {
-        for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data);
-        }
+        write(data, 0, data.length);
+
         return this;
     }
 
     @Override
     public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
         for (AsyncIOInterceptor i : filters) {
-            i.intercept(response, data, offset, length);
+            i.prePayload(response, data, offset, length);
         }
+
+        byte[] responseDraft = new byte[length];
+        System.arraycopy(data, offset, responseDraft, 0, length);
+        for (AsyncIOInterceptor i : filters) {
+            responseDraft = i.transformPayload(responseDraft, data);
+        }
+        response.write(responseDraft);
+
+        ArrayList<AsyncIOInterceptor> reversedFilters = (ArrayList<AsyncIOInterceptor>)filters.clone();
+        Collections.reverse(reversedFilters);
+        for (AsyncIOInterceptor i : reversedFilters) {
+            i.postPayload(response, data, offset, length);
+        }
+
         return this;
     }
 
