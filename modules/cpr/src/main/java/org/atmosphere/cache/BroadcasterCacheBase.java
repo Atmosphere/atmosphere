@@ -175,7 +175,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
 
         CachedMessage cm = retrieveLastMessage(r);
         boolean isNew = false;
-        if (cm == null && r.getRequest().getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) != null) {
+        if (cm == null && AtmosphereResourceImpl.class.cast(r).isInScope() && r.getRequest().getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) != null) {
             isNew = true;
         }
 
