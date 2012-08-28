@@ -559,10 +559,12 @@ public class BroadcasterConfig {
         public void stop() {
         }
 
-        public void addToCache(AtmosphereResource r, Object e) {
+        @Override
+        public void addToCache(String id, AtmosphereResource r, Object e) {
         }
 
-        public List<Object> retrieveFromCache(AtmosphereResource r) {
+        @Override
+        public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
             return list;
         }
     }

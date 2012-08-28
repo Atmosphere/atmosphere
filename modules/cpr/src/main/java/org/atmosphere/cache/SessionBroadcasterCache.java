@@ -63,7 +63,7 @@ import javax.servlet.http.HttpSession;
  *
  * @author Jeanfrancois Arcand
  */
-public class SessionBroadcasterCache extends BroadcasterCacheBase {
+public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionBroadcasterCache.class);
     private static final String ERROR_MESSAGE = "Session was null. The request has been recycled by the underlying container";
@@ -74,26 +74,26 @@ public class SessionBroadcasterCache extends BroadcasterCacheBase {
     /**
      * {@inheritDoc}
      */
-    public void cache(final AtmosphereResource r, CachedMessage cm) {
+    public void cache(String id, AtmosphereResource r, CachedMessage cm) {
         if (r != null) {
             HttpSession session = r.session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return;
             }
-            session.setAttribute(BROADCASTER_CACHE_TRACKER, cm);
+            session.setAttribute(id, cm);
         }
     }
 
     /**
      * {@inheritDoc}
      */
-    public CachedMessage retrieveLastMessage(final AtmosphereResource r) {
+    public CachedMessage retrieveLastMessage(String id, AtmosphereResource r) {
         HttpSession session = r.session();
         if (session == null) {
             logger.error(ERROR_MESSAGE);
             return null;
         }
-        return (CachedMessage) session.getAttribute(BROADCASTER_CACHE_TRACKER);
+        return (CachedMessage) session.getAttribute(id);
     }
 }
