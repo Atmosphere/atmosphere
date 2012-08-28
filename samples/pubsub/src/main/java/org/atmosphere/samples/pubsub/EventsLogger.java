@@ -25,7 +25,7 @@ public class EventsLogger implements AtmosphereResourceEventListener {
 
 
     public void onSuspend(final AtmosphereResourceEvent event) {
-        System.out.println("onResume: " + event);
+        System.out.println("onSuspend: " + event);
     }
 
     public void onResume(AtmosphereResourceEvent event) {
