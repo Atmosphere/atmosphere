@@ -646,10 +646,10 @@ jQuery.atmosphere = function() {
                 if (storageService.get("opened") != null && !storageService.get("opened")) {
                     // Flag indicating the parent socket is opened
                     storageService.set("opened", false);
-                    // Leaves traces
-                    leaveTrace();
-                    _traceTimer = setInterval(leaveTrace, 1000);
                 }
+                // Leaves traces
+                leaveTrace();
+                _traceTimer = setInterval(leaveTrace, 1000);
 
                 _storageService = storageService;
             }
