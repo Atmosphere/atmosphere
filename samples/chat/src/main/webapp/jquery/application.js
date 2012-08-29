@@ -49,7 +49,7 @@ $(function () {
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
         logLevel : 'debug',
-        shared : 'true',
+        shared : true,
         transport : transport ,
         fallbackTransport: 'long-polling'};
 
