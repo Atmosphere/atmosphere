@@ -658,7 +658,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _open(state, transport, request) {
-                if (_request.shared && transport != 'local' && !jQuery.browser.opera) {
+                if (_request.shared && transport != 'local') {
                     share();
                 }
 
