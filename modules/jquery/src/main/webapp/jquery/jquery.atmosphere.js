@@ -439,14 +439,14 @@ jQuery.atmosphere = function() {
                                 if (!orphan) {
                                     orphan = true;
                                     if (data.reason === "aborted") {
-                                        socket.close();
+                                        _close();
                                     } else {
-                                        _prepareCallback("", "closed", 200, _request.transport);
                                         // Gives the heir some time to reconnect
-                                        if (data.heir === options.id) {
-                                            _close();
+                                        if (data.heir === guid) {
+                                            _execute();
                                         } else {
                                             setTimeout(function() {
+                                                _prepareCallback("", "closed", 200, _request.transport);
                                                 _close();
                                             }, 100);
                                         }
