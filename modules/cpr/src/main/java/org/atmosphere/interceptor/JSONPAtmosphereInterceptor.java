@@ -56,28 +56,6 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public void prePayload(AtmosphereResponse response, String data) {
-                        String callbackName = callbackName();
-                        String contentType = contentType();
-
-                        response.write(callbackName + "({\"message\" : ");
-                        if (!data.startsWith("\"") && !contentType.contains("json")) {
-                            response.write("\"");
-                        }
-                    }
-
-                    @Override
-                    public void prePayload(AtmosphereResponse response, byte[] data) {
-                        String callbackName = callbackName();
-                        String contentType = contentType();
-
-                        response.write(callbackName + "({\"message\" : ");
-                        if (contentType != null && !contentType.contains("json")) {
-                            response.write("\"");
-                        }
-                    }
-
-                    @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String callbackName = callbackName();
                         String contentType = contentType();
@@ -89,40 +67,8 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public byte[] transformPayload(String responseDraft, String data) throws IOException {
-                        return responseDraft.getBytes();
-                    }
-
-                    @Override
                     public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
                         return responseDraft;
-                    }
-
-                    @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
-                        return responseDraft;
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, String data) {
-                        String contentType = contentType();
-
-                        if (contentType != null && !contentType.contains("json")) {
-                            response.write("\"");
-                        }
-
-                        response.write("});");
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, byte[] data) {
-                        String contentType = contentType();
-
-                        if (contentType != null && !contentType.contains("json")) {
-                            response.write("\"");
-                        }
-
-                        response.write("});");
                     }
 
                     @Override

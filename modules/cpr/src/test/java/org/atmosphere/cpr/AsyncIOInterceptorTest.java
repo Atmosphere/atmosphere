@@ -32,42 +32,15 @@ public class AsyncIOInterceptorTest {
         AtmosphereResponse res = AtmosphereResponse.create().request(AtmosphereRequest.create());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
-            @Override
-            public void prePayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void prePayload(AtmosphereResponse response, byte[] data) {
-            }
 
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public byte[] transformPayload(String responseDraft, String data) throws IOException {
-                s.set(data);
-                return responseDraft.getBytes();
-            }
-
-            @Override
             public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
                 s.set(new String(data));
                 return responseDraft;
-            }
-
-            @Override
-            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
-                s.set(new String(data));
-                return responseDraft;
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, byte[] data) {
             }
 
             @Override
@@ -83,81 +56,29 @@ public class AsyncIOInterceptorTest {
         AtmosphereResponse res = AtmosphereResponse.create().request(AtmosphereRequest.create());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
-            @Override
-            public void prePayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void prePayload(AtmosphereResponse response, byte[] data) {
-            }
 
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public byte[] transformPayload(String responseDraft, String data) throws IOException {
-                return responseDraft.getBytes();
-            }
-
-            @Override
             public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
                 return responseDraft;
-            }
-
-            @Override
-            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
-                return responseDraft;
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, byte[] data) {
             }
 
             @Override
             public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
         }).interceptor(new AsyncIOInterceptor() {
-            @Override
-            public void prePayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void prePayload(AtmosphereResponse response, byte[] data) {
-            }
 
             @Override
             public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public byte[] transformPayload(String responseDraft, String data) throws IOException {
-                s.get().append(responseDraft);
-                return responseDraft.getBytes();
-            }
-
-            @Override
             public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
                 s.get().append(new String(responseDraft) + "-yoyo");
                 return responseDraft;
-            }
-
-            @Override
-            public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
-                s.get().append(new String(responseDraft));
-                return responseDraft;
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, String data) {
-            }
-
-            @Override
-            public void postPayload(AtmosphereResponse response, byte[] data) {
             }
 
             @Override
