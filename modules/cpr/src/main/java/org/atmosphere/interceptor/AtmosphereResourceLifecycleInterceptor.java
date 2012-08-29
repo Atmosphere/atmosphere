@@ -31,7 +31,7 @@ import static org.atmosphere.cpr.ApplicationConfig.*;
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
  * {@link AtmosphereResource} and takes care of managing the response's state (flusing, resuming,
- * etc.). When used, {@link AtmosphereHandler} implementations no longer need to make calls to
+ * etc.). When used, {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
  * {@link AtmosphereResource#suspend}.
  * </p>
  * <p/>

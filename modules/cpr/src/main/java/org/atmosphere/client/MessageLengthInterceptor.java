@@ -57,40 +57,12 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
 
                     @Override
-                    public void prePayload(AtmosphereResponse response, String data) {
-                    }
-
-                    @Override
-                    public void prePayload(AtmosphereResponse response, byte[] data) {
-                    }
-
-                    @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    }
-
-                    @Override
-                    public byte[] transformPayload(String responseDraft, String data) throws IOException {
-                        return responseDraft.getBytes();
                     }
 
                     @Override
                     public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
                         return responseDraft;
-                    }
-
-                    @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data, int offset, int length) throws IOException {
-                        return responseDraft;
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, String data) {
-                        response.write(end);
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, byte[] data) {
-                        response.write(end);
                     }
 
                     @Override
