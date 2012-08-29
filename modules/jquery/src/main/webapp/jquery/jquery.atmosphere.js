@@ -399,7 +399,7 @@ jQuery.atmosphere = function() {
                         return {
                             init: function() {
                                 win.callbacks.push(listener);
-                                win.children.push(options.id);
+                                win.children.push(guid);
                                 return win.opened;
                             },
                             signal: function(type, data) {
@@ -418,7 +418,7 @@ jQuery.atmosphere = function() {
                                 // Removes traces only if the parent is alive
                                 if (!orphan) {
                                     remove(win.callbacks, listener);
-                                    remove(win.children, options.id);
+                                    remove(win.children, guid);
                                 }
                             }
 
