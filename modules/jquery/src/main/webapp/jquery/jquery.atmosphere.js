@@ -143,6 +143,7 @@ jQuery.atmosphere = function() {
                 transport : "polling",
                 error: null,
                 request : null,
+                partialMessage : "",
                 id : 0
             };
 
@@ -1124,23 +1125,34 @@ jQuery.atmosphere = function() {
              */
             function _trackMessageSize(message, request, response) {
                 if (request.trackMessageLength) {
-                    // The message length is the included within the message
+
+                    // If we have found partial message, prepend them.
+                    if (response.partialMessage.length != 0) {
+                        message = response.partialMessage + message;
+                    }
+
+                    var messages = [];
+                    var messageLength = 0;
                     var messageStart = message.indexOf(request.messageDelimiter);
 
-                    var length = response.expectedBodySize;
-                    if (messageStart != -1) {
-                        length = message.substring(0, messageStart);
-                        message = message.substring(messageStart + 1);
-                        response.expectedBodySize = length;
+                    while (messageStart != -1) {
+                        messageLength = message.substring(messageLength, messageStart);
+                        message = message.substring(messageStart + request.messageDelimiter.length, message.length);
+
+                        if (message.length == 0 || message.length < messageLength) break;
+
+                        messageStart = message.indexOf(request.messageDelimiter);
+                        messages.push(message.substring(0, messageLength));
                     }
 
-                    if (messageStart != -1) {
-                        response.responseBody = message;
+                    if (message.length != 0 && messageLength != 0) {
+                        response.partialMessage = messageLength + request.messageDelimiter + message ;
+                    }
+
+                    if (messages.length != 0) {
+                        response.responseBody =messages.join(request.messageDelimiter);
+                        return false;
                     } else {
-                        response.responseBody += message;
-                    }
-
-                    if (response.responseBody.length != length) {
                         return true;
                     }
                 } else {
