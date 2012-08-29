@@ -1867,6 +1867,9 @@ jQuery.atmosphere = function() {
             }
 
             function _intraPush(message) {
+                // IE 9 will crash if not.
+                if (message.length == 0) return;
+
                 try {
                      if (_localStorageService) {
                         _localStorageService.localSend(message);
