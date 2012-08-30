@@ -29,7 +29,7 @@
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
 jQuery.atmosphere = function() {
-    jQuery(window).bind("unload.atmosphere", function() {
+    jQuery(window).bind("beforeunload", function() {
         jQuery.atmosphere.unsubscribe();
     });
 
@@ -466,13 +466,13 @@ jQuery.atmosphere = function() {
                 function findTrace() {
                     var matcher = new RegExp("(?:^|; )(" + encodeURIComponent(name) + ")=([^;]*)").exec(document.cookie);
                     if (matcher) {
-                        return $.parseJSON(decodeURIComponent(matcher[2]));
+                        return jQuery.parseJSON(decodeURIComponent(matcher[2]));
                     }
                 }
 
                 // Finds and validates the parent socket's trace from the cookie
                 trace = findTrace();
-                if (!trace || $.now() - trace.ts > 1000) {
+                if (!trace || jQuery.now() - trace.ts > 1000) {
                     return;
                 }
 
@@ -492,7 +492,7 @@ jQuery.atmosphere = function() {
                             trace = findTrace();
                             if (!trace || oldTrace.ts === trace.ts) {
                                 // Simulates a close signal
-                                listener($.stringifyJSON({target: "c", type: "close", data: {reason: "error", heir: oldTrace.heir}}));
+                                listener(jQuery.stringifyJSON({target: "c", type: "close", data: {reason: "error", heir: oldTrace.heir}}));
                             }
                         }, 1000);
 
@@ -629,7 +629,7 @@ jQuery.atmosphere = function() {
                     document.cookie = encodeURIComponent(name) + "=" +
                         // Opera's JSON implementation ignores a number whose a last digit of 0 strangely
                         // but has no problem with a number whose a last digit of 9 + 1
-                        encodeURIComponent($.stringifyJSON({ts: $.now() + 1, heir: (storageService.get("children") || [])[0]}));
+                        encodeURIComponent(jQuery.stringifyJSON({ts: jQuery.now() + 1, heir: (storageService.get("children") || [])[0]}));
                 }
 
                 // Chooses a storageService
@@ -935,7 +935,7 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
-		    _sse.close();
+                    _sse.close();
 
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
@@ -1850,7 +1850,7 @@ jQuery.atmosphere = function() {
             function _push(message) {
 
                 if (_localStorageService != null) {
-                   _pushLocal(message);
+                    _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
                 } else if (_ieStream != null) {
@@ -1871,7 +1871,7 @@ jQuery.atmosphere = function() {
                 if (message.length == 0) return;
 
                 try {
-                     if (_localStorageService) {
+                    if (_localStorageService) {
                         _localStorageService.localSend(message);
                     } else {
                         _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
@@ -2331,7 +2331,7 @@ jQuery.atmosphere = function() {
                     storage.setItem("t", "t");
                     storage.removeItem("t");
                     // The storage event of Internet Explorer and Firefox 3 works strangely
-                    return window.StorageEvent && !$.browser.msie && !($.browser.mozilla && $.browser.version.split(".")[0] === "1");
+                    return window.StorageEvent && !jQuery.browser.msie && !(jQuery.browser.mozilla && jQuery.browser.version.split(".")[0] === "1");
                 } catch (e) {
                 }
             }
