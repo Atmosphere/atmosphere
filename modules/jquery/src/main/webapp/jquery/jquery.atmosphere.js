@@ -466,13 +466,13 @@ jQuery.atmosphere = function() {
                 function findTrace() {
                     var matcher = new RegExp("(?:^|; )(" + encodeURIComponent(name) + ")=([^;]*)").exec(document.cookie);
                     if (matcher) {
-                        return $.parseJSON(decodeURIComponent(matcher[2]));
+                        return jQuery.parseJSON(decodeURIComponent(matcher[2]));
                     }
                 }
 
                 // Finds and validates the parent socket's trace from the cookie
                 trace = findTrace();
-                if (!trace || $.now() - trace.ts > 1000) {
+                if (!trace || jQuery.now() - trace.ts > 1000) {
                     return;
                 }
 
@@ -492,7 +492,7 @@ jQuery.atmosphere = function() {
                             trace = findTrace();
                             if (!trace || oldTrace.ts === trace.ts) {
                                 // Simulates a close signal
-                                listener($.stringifyJSON({target: "c", type: "close", data: {reason: "error", heir: oldTrace.heir}}));
+                                listener(jQuery.stringifyJSON({target: "c", type: "close", data: {reason: "error", heir: oldTrace.heir}}));
                             }
                         }, 1000);
 
@@ -629,7 +629,7 @@ jQuery.atmosphere = function() {
                     document.cookie = encodeURIComponent(name) + "=" +
                         // Opera's JSON implementation ignores a number whose a last digit of 0 strangely
                         // but has no problem with a number whose a last digit of 9 + 1
-                        encodeURIComponent($.stringifyJSON({ts: $.now() + 1, heir: (storageService.get("children") || [])[0]}));
+                        encodeURIComponent(jQuery.stringifyJSON({ts: jQuery.now() + 1, heir: (storageService.get("children") || [])[0]}));
                 }
 
                 // Chooses a storageService
@@ -2331,7 +2331,7 @@ jQuery.atmosphere = function() {
                     storage.setItem("t", "t");
                     storage.removeItem("t");
                     // The storage event of Internet Explorer and Firefox 3 works strangely
-                    return window.StorageEvent && !$.browser.msie && !($.browser.mozilla && $.browser.version.split(".")[0] === "1");
+                    return window.StorageEvent && !jQuery.browser.msie && !(jQuery.browser.mozilla && jQuery.browser.version.split(".")[0] === "1");
                 } catch (e) {
                 }
             }
