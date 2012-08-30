@@ -142,7 +142,7 @@
 <a class="jxr_linenumber" name="132" href="#132">132</a>         subset.addAll(resources);
 <a class="jxr_linenumber" name="133" href="#133">133</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResource r : resources) {
 <a class="jxr_linenumber" name="134" href="#134">134</a>             <strong class="jxr_keyword">if</strong> (!r.getAtmosphereResourceEvent().isCancelled() &amp;&amp;
-<a class="jxr_linenumber" name="135" href="#135">135</a>                     sessions.contains(((HttpServletRequest) r.getRequest()).getSession())) {
+<a class="jxr_linenumber" name="135" href="#135">135</a>                     sessions.contains(r.getRequest().getSession())) {
 <a class="jxr_linenumber" name="136" href="#136">136</a>                 subset.remove(r);
 <a class="jxr_linenumber" name="137" href="#137">137</a>             }
 <a class="jxr_linenumber" name="138" href="#138">138</a>         }
@@ -176,7 +176,7 @@
 <a class="jxr_linenumber" name="166" href="#166">166</a> 
 <a class="jxr_linenumber" name="167" href="#167">167</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResource r : resources) {
 <a class="jxr_linenumber" name="168" href="#168">168</a>             <strong class="jxr_keyword">if</strong> (!r.getAtmosphereResourceEvent().isCancelled() &amp;&amp;
-<a class="jxr_linenumber" name="169" href="#169">169</a>                     s.equals(((HttpServletRequest) r.getRequest()).getSession())) {
+<a class="jxr_linenumber" name="169" href="#169">169</a>                     s.equals(r.getRequest().getSession())) {
 <a class="jxr_linenumber" name="170" href="#170">170</a>                 subset.remove(r);
 <a class="jxr_linenumber" name="171" href="#171">171</a>             }
 <a class="jxr_linenumber" name="172" href="#172">172</a>         }

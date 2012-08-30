@@ -297,65 +297,73 @@
 <a class="jxr_linenumber" name="287" href="#287">287</a> <em class="jxr_javadoccomment">     * {@inheritDoc}</em>
 <a class="jxr_linenumber" name="288" href="#288">288</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="289" href="#289">289</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">void</strong> destroy() {
-<a class="jxr_linenumber" name="290" href="#290">290</a>         Enumeration&lt;Broadcaster&gt; e = store.elements();
-<a class="jxr_linenumber" name="291" href="#291">291</a>         <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b;
-<a class="jxr_linenumber" name="292" href="#292">292</a>         <em class="jxr_comment">// We just need one when shared.</em>
-<a class="jxr_linenumber" name="293" href="#293">293</a>         <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> bc = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="294" href="#294">294</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
-<a class="jxr_linenumber" name="295" href="#295">295</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="296" href="#296">296</a>                 b = e.nextElement();
-<a class="jxr_linenumber" name="297" href="#297">297</a>                 b.resumeAll();
-<a class="jxr_linenumber" name="298" href="#298">298</a>                 b.destroy();
-<a class="jxr_linenumber" name="299" href="#299">299</a>                 bc = b.getBroadcasterConfig();
-<a class="jxr_linenumber" name="300" href="#300">300</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="301" href="#301">301</a>                 <em class="jxr_comment">// Shield us from any bad behaviour</em>
-<a class="jxr_linenumber" name="302" href="#302">302</a>                 logger.trace(<span class="jxr_string">"Destroy"</span>, t);
-<a class="jxr_linenumber" name="303" href="#303">303</a>             }
-<a class="jxr_linenumber" name="304" href="#304">304</a>         }
-<a class="jxr_linenumber" name="305" href="#305">305</a> 
-<a class="jxr_linenumber" name="306" href="#306">306</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="307" href="#307">307</a>             <strong class="jxr_keyword">if</strong> (bc != <strong class="jxr_keyword">null</strong>) bc.forceDestroy();
-<a class="jxr_linenumber" name="308" href="#308">308</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="309" href="#309">309</a>             logger.trace(<span class="jxr_string">"Destroy"</span>, t);
-<a class="jxr_linenumber" name="310" href="#310">310</a> 
-<a class="jxr_linenumber" name="311" href="#311">311</a>         }
-<a class="jxr_linenumber" name="312" href="#312">312</a> 
-<a class="jxr_linenumber" name="313" href="#313">313</a>         store.clear();
-<a class="jxr_linenumber" name="314" href="#314">314</a>         factory = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="315" href="#315">315</a>     }
-<a class="jxr_linenumber" name="316" href="#316">316</a> 
-<a class="jxr_linenumber" name="317" href="#317">317</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> notifyOnPostCreate(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
-<a class="jxr_linenumber" name="318" href="#318">318</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener l : broadcasterListeners) {
-<a class="jxr_linenumber" name="319" href="#319">319</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="320" href="#320">320</a>                 l.onPostCreate(b);
-<a class="jxr_linenumber" name="321" href="#321">321</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="322" href="#322">322</a>                 logger.warn(<span class="jxr_string">"onPostCreate"</span>, ex);
-<a class="jxr_linenumber" name="323" href="#323">323</a>             }
-<a class="jxr_linenumber" name="324" href="#324">324</a>         }
-<a class="jxr_linenumber" name="325" href="#325">325</a>     }
-<a class="jxr_linenumber" name="326" href="#326">326</a> 
-<a class="jxr_linenumber" name="327" href="#327">327</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="328" href="#328">328</a> <em class="jxr_javadoccomment">     * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.</em>
-<a class="jxr_linenumber" name="329" href="#329">329</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="330" href="#330">330</a> <em class="jxr_javadoccomment">     * @param clazz A class implementing {@link Broadcaster}</em>
-<a class="jxr_linenumber" name="331" href="#331">331</a> <em class="jxr_javadoccomment">     * @param c     An instance of {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="332" href="#332">332</a> <em class="jxr_javadoccomment">     * @return the default {@link BroadcasterFactory}.</em>
-<a class="jxr_linenumber" name="333" href="#333">333</a> <em class="jxr_javadoccomment">     * @throws InstantiationException</em>
-<a class="jxr_linenumber" name="334" href="#334">334</a> <em class="jxr_javadoccomment">     * @throws IllegalAccessException</em>
-<a class="jxr_linenumber" name="335" href="#335">335</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="336" href="#336">336</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> buildAndReplaceDefaultfactory(Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; clazz, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> c)
-<a class="jxr_linenumber" name="337" href="#337">337</a>             <strong class="jxr_keyword">throws</strong> InstantiationException, IllegalAccessException {
-<a class="jxr_linenumber" name="338" href="#338">338</a> 
-<a class="jxr_linenumber" name="339" href="#339">339</a>         factory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(clazz, <span class="jxr_string">"NEVER"</span>, c);
-<a class="jxr_linenumber" name="340" href="#340">340</a>         <strong class="jxr_keyword">return</strong> factory;
-<a class="jxr_linenumber" name="341" href="#341">341</a>     }
-<a class="jxr_linenumber" name="342" href="#342">342</a> 
-<a class="jxr_linenumber" name="343" href="#343">343</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a> <strong class="jxr_keyword">extends</strong> RuntimeException {
-<a class="jxr_linenumber" name="344" href="#344">344</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a>(Throwable t) {
-<a class="jxr_linenumber" name="345" href="#345">345</a>             <strong class="jxr_keyword">super</strong>(t);
-<a class="jxr_linenumber" name="346" href="#346">346</a>         }
-<a class="jxr_linenumber" name="347" href="#347">347</a>     }
-<a class="jxr_linenumber" name="348" href="#348">348</a> }
+<a class="jxr_linenumber" name="290" href="#290">290</a> 
+<a class="jxr_linenumber" name="291" href="#291">291</a>         String s = config.getInitParameter(ApplicationConfig.SHARED);
+<a class="jxr_linenumber" name="292" href="#292">292</a>         <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong> &amp;&amp; s.equalsIgnoreCase(<span class="jxr_string">"true"</span>)) {
+<a class="jxr_linenumber" name="293" href="#293">293</a>             logger.warn(<span class="jxr_string">"Factory shared, will not be destroyed. That can possibly cause memory leaks if"</span> +
+<a class="jxr_linenumber" name="294" href="#294">294</a>                     <span class="jxr_string">"Broadcaster where created. Make sure you destroy them manually."</span>);
+<a class="jxr_linenumber" name="295" href="#295">295</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="296" href="#296">296</a>         }
+<a class="jxr_linenumber" name="297" href="#297">297</a> 
+<a class="jxr_linenumber" name="298" href="#298">298</a>         Enumeration&lt;Broadcaster&gt; e = store.elements();
+<a class="jxr_linenumber" name="299" href="#299">299</a>         <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b;
+<a class="jxr_linenumber" name="300" href="#300">300</a>         <em class="jxr_comment">// We just need one when shared.</em>
+<a class="jxr_linenumber" name="301" href="#301">301</a>         <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> bc = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="302" href="#302">302</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
+<a class="jxr_linenumber" name="303" href="#303">303</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="304" href="#304">304</a>                 b = e.nextElement();
+<a class="jxr_linenumber" name="305" href="#305">305</a>                 b.resumeAll();
+<a class="jxr_linenumber" name="306" href="#306">306</a>                 b.destroy();
+<a class="jxr_linenumber" name="307" href="#307">307</a>                 bc = b.getBroadcasterConfig();
+<a class="jxr_linenumber" name="308" href="#308">308</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="309" href="#309">309</a>                 <em class="jxr_comment">// Shield us from any bad behaviour</em>
+<a class="jxr_linenumber" name="310" href="#310">310</a>                 logger.trace(<span class="jxr_string">"Destroy"</span>, t);
+<a class="jxr_linenumber" name="311" href="#311">311</a>             }
+<a class="jxr_linenumber" name="312" href="#312">312</a>         }
+<a class="jxr_linenumber" name="313" href="#313">313</a> 
+<a class="jxr_linenumber" name="314" href="#314">314</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="315" href="#315">315</a>             <strong class="jxr_keyword">if</strong> (bc != <strong class="jxr_keyword">null</strong>) bc.forceDestroy();
+<a class="jxr_linenumber" name="316" href="#316">316</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="317" href="#317">317</a>             logger.trace(<span class="jxr_string">"Destroy"</span>, t);
+<a class="jxr_linenumber" name="318" href="#318">318</a> 
+<a class="jxr_linenumber" name="319" href="#319">319</a>         }
+<a class="jxr_linenumber" name="320" href="#320">320</a> 
+<a class="jxr_linenumber" name="321" href="#321">321</a>         store.clear();
+<a class="jxr_linenumber" name="322" href="#322">322</a>         factory = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="323" href="#323">323</a>     }
+<a class="jxr_linenumber" name="324" href="#324">324</a> 
+<a class="jxr_linenumber" name="325" href="#325">325</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> notifyOnPostCreate(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
+<a class="jxr_linenumber" name="326" href="#326">326</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener l : broadcasterListeners) {
+<a class="jxr_linenumber" name="327" href="#327">327</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="328" href="#328">328</a>                 l.onPostCreate(b);
+<a class="jxr_linenumber" name="329" href="#329">329</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="330" href="#330">330</a>                 logger.warn(<span class="jxr_string">"onPostCreate"</span>, ex);
+<a class="jxr_linenumber" name="331" href="#331">331</a>             }
+<a class="jxr_linenumber" name="332" href="#332">332</a>         }
+<a class="jxr_linenumber" name="333" href="#333">333</a>     }
+<a class="jxr_linenumber" name="334" href="#334">334</a> 
+<a class="jxr_linenumber" name="335" href="#335">335</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="336" href="#336">336</a> <em class="jxr_javadoccomment">     * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.</em>
+<a class="jxr_linenumber" name="337" href="#337">337</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="338" href="#338">338</a> <em class="jxr_javadoccomment">     * @param clazz A class implementing {@link Broadcaster}</em>
+<a class="jxr_linenumber" name="339" href="#339">339</a> <em class="jxr_javadoccomment">     * @param c     An instance of {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="340" href="#340">340</a> <em class="jxr_javadoccomment">     * @return the default {@link BroadcasterFactory}.</em>
+<a class="jxr_linenumber" name="341" href="#341">341</a> <em class="jxr_javadoccomment">     * @throws InstantiationException</em>
+<a class="jxr_linenumber" name="342" href="#342">342</a> <em class="jxr_javadoccomment">     * @throws IllegalAccessException</em>
+<a class="jxr_linenumber" name="343" href="#343">343</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="344" href="#344">344</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> buildAndReplaceDefaultfactory(Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; clazz, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> c)
+<a class="jxr_linenumber" name="345" href="#345">345</a>             <strong class="jxr_keyword">throws</strong> InstantiationException, IllegalAccessException {
+<a class="jxr_linenumber" name="346" href="#346">346</a> 
+<a class="jxr_linenumber" name="347" href="#347">347</a>         factory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>(clazz, <span class="jxr_string">"NEVER"</span>, c);
+<a class="jxr_linenumber" name="348" href="#348">348</a>         <strong class="jxr_keyword">return</strong> factory;
+<a class="jxr_linenumber" name="349" href="#349">349</a>     }
+<a class="jxr_linenumber" name="350" href="#350">350</a> 
+<a class="jxr_linenumber" name="351" href="#351">351</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a> <strong class="jxr_keyword">extends</strong> RuntimeException {
+<a class="jxr_linenumber" name="352" href="#352">352</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a>(Throwable t) {
+<a class="jxr_linenumber" name="353" href="#353">353</a>             <strong class="jxr_keyword">super</strong>(t);
+<a class="jxr_linenumber" name="354" href="#354">354</a>         }
+<a class="jxr_linenumber" name="355" href="#355">355</a>     }
+<a class="jxr_linenumber" name="356" href="#356">356</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

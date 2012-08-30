@@ -114,7 +114,7 @@
 <a class="jxr_linenumber" name="104" href="#104">104</a>                                 <a href="../../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> resource = session.getAtmosphereResourceImpl();
 <a class="jxr_linenumber" name="105" href="#105">105</a>                                 <em class="jxr_comment">// if BroadcastCache is available, add the message to the cache</em>
 <a class="jxr_linenumber" name="106" href="#106">106</a>                                 <strong class="jxr_keyword">if</strong> (resource != <strong class="jxr_keyword">null</strong> &amp;&amp; DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.isAssignableFrom(resource.getBroadcaster().getClass())) {
-<a class="jxr_linenumber" name="107" href="#107">107</a>                                     DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource.getBroadcaster()).broadcasterCache.addToCache(resource, msg);
+<a class="jxr_linenumber" name="107" href="#107">107</a>                                     DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource.getBroadcaster()).broadcasterCache.addToCache(resource.getBroadcaster().getID(), resource, msg);
 <a class="jxr_linenumber" name="108" href="#108">108</a>                                 }
 <a class="jxr_linenumber" name="109" href="#109">109</a>                             }
 <a class="jxr_linenumber" name="110" href="#110">110</a>                             <strong class="jxr_keyword">break</strong>;
@@ -208,7 +208,7 @@
 <a class="jxr_linenumber" name="198" href="#198">198</a>                                 <strong class="jxr_keyword">if</strong> (DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.isAssignableFrom(resource.getBroadcaster().getClass())) {
 <a class="jxr_linenumber" name="199" href="#199">199</a> 
 <a class="jxr_linenumber" name="200" href="#200">200</a>                                     List&lt;Object&gt; cachedMessages = DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource.getBroadcaster())
-<a class="jxr_linenumber" name="201" href="#201">201</a>                                             .broadcasterCache.retrieveFromCache(resource);
+<a class="jxr_linenumber" name="201" href="#201">201</a>                                             .broadcasterCache.retrieveFromCache(resource.getBroadcaster().getID(), resource);
 <a class="jxr_linenumber" name="202" href="#202">202</a> 
 <a class="jxr_linenumber" name="203" href="#203">203</a>                                     <strong class="jxr_keyword">if</strong> (cachedMessages != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="204" href="#204">204</a>                                         <strong class="jxr_keyword">if</strong> (cachedMessages.size() &gt; 1) {

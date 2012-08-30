@@ -32,7 +32,7 @@
 <a class="jxr_linenumber" name="22" href="#22">22</a>  
 <a class="jxr_linenumber" name="23" href="#23">23</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> newWebSocketProcessor(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket) {
 <a class="jxr_linenumber" name="24" href="#24">24</a>          <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> wp = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="25" href="#25">25</a>          <strong class="jxr_keyword">if</strong> (!webSocketProcessorName.equalsIgnoreCase(WebSocketProcessor.<strong class="jxr_keyword">class</strong>.getName())) {
+<a class="jxr_linenumber" name="25" href="#25">25</a>          <strong class="jxr_keyword">if</strong> (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.<strong class="jxr_keyword">class</strong>.getName())) {
 <a class="jxr_linenumber" name="26" href="#26">26</a>              <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="27" href="#27">27</a>                  wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
 <a class="jxr_linenumber" name="28" href="#28">28</a>                          .loadClass(webSocketProcessorName).newInstance();

@@ -43,7 +43,7 @@
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="34" href="#34">34</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/GlassFishWebSocketHandler.html">GlassFishWebSocketHandler</a> <strong class="jxr_keyword">extends</strong> WebSocketApplication {
 <a class="jxr_linenumber" name="35" href="#35">35</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="36" href="#36">36</a>      
+<a class="jxr_linenumber" name="36" href="#36">36</a>  
 <a class="jxr_linenumber" name="37" href="#37">37</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
 <a class="jxr_linenumber" name="38" href="#38">38</a>  
 <a class="jxr_linenumber" name="39" href="#39">39</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/GlassFishWebSocketHandler.html">GlassFishWebSocketHandler</a>(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
@@ -91,8 +91,8 @@
 <a class="jxr_linenumber" name="81" href="#81">81</a>          <strong class="jxr_keyword">super</strong>.onClose(w, df);
 <a class="jxr_linenumber" name="82" href="#82">82</a>          logger.trace(<span class="jxr_string">"onClose {} "</span>, w);
 <a class="jxr_linenumber" name="83" href="#83">83</a>          DefaultWebSocket webSocket = DefaultWebSocket.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(w);
-<a class="jxr_linenumber" name="84" href="#84">84</a>          <strong class="jxr_keyword">if</strong> (webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="85" href="#85">85</a>              <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="84" href="#84">84</a>          <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="85" href="#85">85</a>          <strong class="jxr_keyword">if</strong> (webSocketProcessor != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="86" href="#86">86</a>              webSocketProcessor.close(1000);
 <a class="jxr_linenumber" name="87" href="#87">87</a>          }
 <a class="jxr_linenumber" name="88" href="#88">88</a>      }
@@ -101,8 +101,8 @@
 <a class="jxr_linenumber" name="91" href="#91">91</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> w, String text) {
 <a class="jxr_linenumber" name="92" href="#92">92</a>          logger.trace(<span class="jxr_string">"onMessage {} "</span>, w);
 <a class="jxr_linenumber" name="93" href="#93">93</a>          DefaultWebSocket webSocket = DefaultWebSocket.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(w);
-<a class="jxr_linenumber" name="94" href="#94">94</a>          <strong class="jxr_keyword">if</strong> (webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="95" href="#95">95</a>              <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="94" href="#94">94</a>          <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="95" href="#95">95</a>          <strong class="jxr_keyword">if</strong> (webSocketProcessor != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="96" href="#96">96</a>              webSocketProcessor.invokeWebSocketProtocol(text);
 <a class="jxr_linenumber" name="97" href="#97">97</a>          }
 <a class="jxr_linenumber" name="98" href="#98">98</a>      }
@@ -111,8 +111,8 @@
 <a class="jxr_linenumber" name="101" href="#101">101</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> w, byte[] bytes) {
 <a class="jxr_linenumber" name="102" href="#102">102</a>         logger.trace(<span class="jxr_string">"onMessage (bytes) {} "</span>, w);
 <a class="jxr_linenumber" name="103" href="#103">103</a>         DefaultWebSocket webSocket = DefaultWebSocket.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(w);
-<a class="jxr_linenumber" name="104" href="#104">104</a>         <strong class="jxr_keyword">if</strong> (webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="105" href="#105">105</a>             <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="104" href="#104">104</a>         <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute(<span class="jxr_string">"grizzly.webSocketProcessor"</span>);
+<a class="jxr_linenumber" name="105" href="#105">105</a>         <strong class="jxr_keyword">if</strong> (webSocketProcessor != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="106" href="#106">106</a>             webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
 <a class="jxr_linenumber" name="107" href="#107">107</a>         }
 <a class="jxr_linenumber" name="108" href="#108">108</a>     }
