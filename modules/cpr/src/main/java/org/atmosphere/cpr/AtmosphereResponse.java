@@ -165,7 +165,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     public void destroy() {
-        if (!destroyable) return;
+        destroy(destroyable);
+    }
+
+    public void destroy(boolean force) {
+        if (!force) return;
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;

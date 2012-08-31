@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.VoidExecutorService;
 import org.slf4j.Logger;
@@ -141,7 +142,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
-
         } else {
             logger.warn("AtmosphereResource was null");
         }
@@ -265,14 +265,24 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     } else {
                         logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                     }
+
+                    // We must always destroy the root resource (the one created when the websocket was opened
+                    // to prevent memory leaks.
+                    resource.setIsInScope(false);
+                    try {
+                        resource.cancel();
+                    } catch (IOException e) {
+                        logger.trace("", e);
+                    }
+                    AsynchronousProcessor.destroyResource(resource);
                 }
             } finally {
                 if (r != null) {
-                    r.destroy();
+                    r.destroy(true);
                 }
 
                 if (s != null) {
-                    s.destroy();
+                    s.destroy(true);
                 }
 
                 if (webSocket != null) {
