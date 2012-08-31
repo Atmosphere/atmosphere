@@ -110,7 +110,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     } catch (UnsupportedEncodingException e) {
                         logger.trace("", e);
                     }
-                    s += s.length() + endString + s;
+                    s = s.length() + endString + s;
 
                     try {
                         return s.getBytes(response.getCharacterEncoding());
@@ -129,7 +129,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     } catch (UnsupportedEncodingException e) {
                         logger.trace("", e);
                     }
-                    s += s.length() + endString + s;
+                    s = s.length() + endString + s;
 
                     try {
                         return s.getBytes(response.getCharacterEncoding());
