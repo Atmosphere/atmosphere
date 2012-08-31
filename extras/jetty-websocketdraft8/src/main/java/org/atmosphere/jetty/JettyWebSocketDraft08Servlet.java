@@ -185,7 +185,12 @@ public class JettyWebSocketDraft08Servlet extends WebSocketServlet {
     public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(final HttpServletRequest request, final String protocol) {
         logger.debug("WebSocket upgrade requested");
         request.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
+        boolean isDestroyable = false;
+        String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            isDestroyable = true;
+        }
         return new JettyWebSocketDraft08Handler(AtmosphereRequest.cloneRequest(request, false,
-                framework().getAtmosphereConfig().isSupportSession()), framework, framework.getWebSocketProtocol());
+                framework().getAtmosphereConfig().isSupportSession(), isDestroyable), framework, framework.getWebSocketProtocol());
     }
 }
