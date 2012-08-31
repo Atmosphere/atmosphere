@@ -569,7 +569,7 @@
 <a class="jxr_linenumber" name="559" href="#559">559</a> 
 <a class="jxr_linenumber" name="560" href="#560">560</a>                 logger.debug(<span class="jxr_string">"Cancelling the connection for request {}"</span>, req);
 <a class="jxr_linenumber" name="561" href="#561">561</a> 
-<a class="jxr_linenumber" name="562" href="#562">562</a>                 r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+<a class="jxr_linenumber" name="562" href="#562">562</a>                 r = (AtmosphereResourceImpl) req.resource();
 <a class="jxr_linenumber" name="563" href="#563">563</a>                 <strong class="jxr_keyword">if</strong> (r != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="564" href="#564">564</a>                     r.getAtmosphereResourceEvent().setCancelled(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="565" href="#565">565</a>                     invokeAtmosphereHandler(r);
