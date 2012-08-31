@@ -1146,6 +1146,8 @@ jQuery.atmosphere = function() {
 
                     if (messageStart != -1 && message.length != 0 && messageLength != message.length) {
                         response.partialMessage = messageLength + request.messageDelimiter + message ;
+                    } else {
+                        response.partialMessage = "";
                     }
 
                     if (messages.length != 0) {
