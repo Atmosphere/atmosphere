@@ -1134,7 +1134,6 @@ jQuery.atmosphere = function() {
                     var messages = [];
                     var messageLength = 0;
                     var messageStart = message.indexOf(request.messageDelimiter);
-
                     while (messageStart != -1) {
                         messageLength = message.substring(messageLength, messageStart);
                         message = message.substring(messageStart + request.messageDelimiter.length, message.length);
@@ -1145,7 +1144,7 @@ jQuery.atmosphere = function() {
                         messages.push(message.substring(0, messageLength));
                     }
 
-                    if (message.length != 0 && messageLength != 0) {
+                    if (messageStart != -1 && message.length != 0 && messageLength != message.length) {
                         response.partialMessage = messageLength + request.messageDelimiter + message ;
                     }
 
