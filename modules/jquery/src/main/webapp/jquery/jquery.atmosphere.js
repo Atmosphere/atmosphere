@@ -29,7 +29,7 @@
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
 jQuery.atmosphere = function() {
-    jQuery(window).bind("beforeunload", function() {
+    jQuery(window).bind("unload.atmosphere", function() {
         jQuery.atmosphere.unsubscribe();
     });
 
