@@ -514,13 +514,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (sc.getServletContext() != null) {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
-
-            logger.info("HttpSession supported: {}", config.isSupportSession());
-            logger.info("Using BroadcasterFactory: {}", BroadcasterFactory.getDefault().getClass().getName());
-            logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
-            logger.info("Using Broadcaster: {}", broadcasterClassName);
-            logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
-
             boolean found = false;
             for (AtmosphereInterceptor i: interceptors) {
                 if (i.getClass().isAssignableFrom(TrackMessageSizeInterceptor.class)) {
@@ -531,6 +524,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (!found) {
                 logger.warn("The TrackMessageSizeInterceptor is not installed. atmosphere.js may receive glued and incomplete message.");
             }
+
+            logger.info("HttpSession supported: {}", config.isSupportSession());
+            logger.info("Using BroadcasterFactory: {}", BroadcasterFactory.getDefault().getClass().getName());
+            logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
+            logger.info("Using Broadcaster: {}", broadcasterClassName);
+            logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
