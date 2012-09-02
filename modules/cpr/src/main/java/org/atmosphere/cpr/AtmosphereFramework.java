@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
@@ -521,8 +522,15 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             }
 
+            for (String i: broadcasterFilters) {
+                if (i.getClass().equals(TrackMessageSizeFilter.class.getName())) {
+                    found = true;
+                }
+            }
+
             if (!found) {
-                logger.warn("The TrackMessageSizeInterceptor is not installed. atmosphere.js may receive glued and incomplete message.");
+                logger.warn("Neither TrackMessageSizeInterceptor or TrackMessageSizeFilter are installed." +
+                        " atmosphere.js may receive glued and incomplete message.");
             }
 
             logger.info("HttpSession supported: {}", config.isSupportSession());
@@ -530,6 +538,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
             logger.info("Using Broadcaster: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
+
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
