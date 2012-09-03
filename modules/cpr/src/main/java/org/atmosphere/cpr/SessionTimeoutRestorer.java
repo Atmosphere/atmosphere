@@ -43,24 +43,30 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
     public void setup(HttpSession session) {
         int oldCount = requestCount.getAndIncrement();
 
-        // Not 100% thread-safe, because the count might have changed before setMaxInactiveInterval is called
-        if (oldCount == 0) {
-            session.setMaxInactiveInterval(-1);
-        }
+        if (oldCount == 0)
+            refreshTimeout(session);
     }
 
     public void restore(HttpSession session) {
         int count = requestCount.decrementAndGet();
 
-        // Not 100% thread-safe, because the count might have changed before setMaxInactiveInterval is called
         if (count == 0)
+            refreshTimeout(session);
+    }
+
+    // Synchronization ensures timeout updates are thread-safe, and the additional check makes sure we know
+    // precisely what the timeout should be.
+    private synchronized void refreshTimeout(HttpSession session) {
+        if (requestCount.get() > 0)
+            session.setMaxInactiveInterval(-1);
+        else
             session.setMaxInactiveInterval(timeout);
     }
 
     @Override
     public void sessionWillPassivate(HttpSessionEvent hse) {
-        hse.getSession().setMaxInactiveInterval(timeout);
         requestCount.set(0);
+        refreshTimeout(hse.getSession());
     }
 
     @Override
