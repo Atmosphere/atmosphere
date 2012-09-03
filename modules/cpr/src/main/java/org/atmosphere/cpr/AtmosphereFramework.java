@@ -523,7 +523,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             for (String i: broadcasterFilters) {
-                if (i.getClass().equals(TrackMessageSizeFilter.class.getName())) {
+                if (i.equals(TrackMessageSizeFilter.class.getName())) {
                     found = true;
                 }
             }
