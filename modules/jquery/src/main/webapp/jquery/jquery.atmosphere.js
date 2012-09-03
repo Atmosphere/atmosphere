@@ -1144,14 +1144,14 @@ jQuery.atmosphere = function() {
                         messages.push(message.substring(0, messageLength));
                     }
 
-                    if (messageStart != -1 && message.length != 0 && messageLength != message.length) {
+                    if (messages.length == 0 || (messageStart != -1 && message.length != 0 && messageLength != message.length)){
                         response.partialMessage = messageLength + request.messageDelimiter + message ;
                     } else {
                         response.partialMessage = "";
                     }
 
                     if (messages.length != 0) {
-                        response.responseBody =messages.join(request.messageDelimiter);
+                        response.responseBody = messages.join(request.messageDelimiter);
                         return false;
                     } else {
                         return true;
