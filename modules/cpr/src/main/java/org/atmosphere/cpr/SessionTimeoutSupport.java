@@ -36,23 +36,32 @@ public final class SessionTimeoutSupport {
      * Disable HTTP session timeout.
      */
     public static void setupTimeout(HttpSession session) {
-        if (session == null) return;
+        if (session == null)
+            return;
 
-        bind(session, createRestorer(session));
+        try {
+            SessionTimeoutRestorer restorer = getOrCreate(session);
 
-        session.setMaxInactiveInterval(-1);
+            restorer.setup(session);
+        } catch (Exception e) {
+            logger.trace("", e);
+        }
     }
 
     /**
      * Try to restore HTTP session timeout that was set before disabling it.
      */
     public static void restoreTimeout(HttpSession session) {
-        if (session == null) return;
+        if (session == null)
+            return;
 
-        SessionTimeoutRestorer restorer = unbind(session);
+        try {
+            SessionTimeoutRestorer restorer = get(session);
 
-        if (restorer != null) {
-            restorer.restore(session);
+            if (restorer != null)
+                restorer.restore(session);
+        } catch (Exception e) {
+            logger.trace("", e);
         }
     }
 
@@ -60,26 +69,20 @@ public final class SessionTimeoutSupport {
         restoreTimeout(request.getSession(false));
     }
 
-    private static SessionTimeoutRestorer createRestorer(HttpSession session) {
-        return new SessionTimeoutRestorer(session.getMaxInactiveInterval());
+    private static SessionTimeoutRestorer get(HttpSession s) {
+        return (SessionTimeoutRestorer) s.getAttribute(KEY);
     }
 
-    private static void bind(HttpSession s, SessionTimeoutRestorer r) {
-        s.setAttribute(KEY, r);
-    }
-
-    private static SessionTimeoutRestorer unbind(HttpSession s) {
-        if (s == null) return null;
-
-        SessionTimeoutRestorer r = null;
-        try {
-            r = (SessionTimeoutRestorer) s.getAttribute(KEY);
-            s.removeAttribute(KEY);
-
-        } catch (Exception ex) {
-            logger.trace("", ex);
+    // NOT 100% thread-safe. The Servlet API does not provide an atomic getAndSet operation. In theory we could use
+    // double-checked locking, but the Servlet spec doesn't guarantee that the session object is always the same
+    // instance, so we have no lock to synchronize with reliably.
+    private static SessionTimeoutRestorer getOrCreate(HttpSession s) {
+        SessionTimeoutRestorer restorer = (SessionTimeoutRestorer) s.getAttribute(KEY);
+        if (restorer == null) {
+            restorer = new SessionTimeoutRestorer(s.getMaxInactiveInterval());
+            s.setAttribute(KEY, restorer);
         }
-        return r;
+        return restorer;
     }
 
 }
