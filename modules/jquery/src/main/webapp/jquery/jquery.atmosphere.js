@@ -29,7 +29,7 @@
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
 jQuery.atmosphere = function() {
-    jQuery(window).bind("unload.atmosphere", function() {
+    jQuery(window).bind("beforeunload", function() {
         jQuery.atmosphere.unsubscribe();
     });
 
@@ -935,7 +935,7 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
-		    _sse.close();
+                    _sse.close();
 
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
@@ -1134,7 +1134,6 @@ jQuery.atmosphere = function() {
                     var messages = [];
                     var messageLength = 0;
                     var messageStart = message.indexOf(request.messageDelimiter);
-
                     while (messageStart != -1) {
                         messageLength = message.substring(messageLength, messageStart);
                         message = message.substring(messageStart + request.messageDelimiter.length, message.length);
@@ -1145,12 +1144,14 @@ jQuery.atmosphere = function() {
                         messages.push(message.substring(0, messageLength));
                     }
 
-                    if (message.length != 0 && messageLength != 0) {
+                    if (messages.length == 0 || (messageStart != -1 && message.length != 0 && messageLength != message.length)){
                         response.partialMessage = messageLength + request.messageDelimiter + message ;
+                    } else {
+                        response.partialMessage = "";
                     }
 
                     if (messages.length != 0) {
-                        response.responseBody =messages.join(request.messageDelimiter);
+                        response.responseBody = messages.join(request.messageDelimiter);
                         return false;
                     } else {
                         return true;
@@ -1850,7 +1851,7 @@ jQuery.atmosphere = function() {
             function _push(message) {
 
                 if (_localStorageService != null) {
-                   _pushLocal(message);
+                    _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
                 } else if (_ieStream != null) {
@@ -1871,7 +1872,7 @@ jQuery.atmosphere = function() {
                 if (message.length == 0) return;
 
                 try {
-                     if (_localStorageService) {
+                    if (_localStorageService) {
                         _localStorageService.localSend(message);
                     } else {
                         _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));

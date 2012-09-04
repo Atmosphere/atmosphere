@@ -892,7 +892,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public void destroy() {
-        if (!b.destroyable || destroyed.getAndSet(true)) return;
+        destroy(b.destroyable);
+    }
+
+    public void destroy(boolean force) {
+        if (!force) return;
 
         b.localAttributes.clear();
         if (bis != null) {
@@ -1526,7 +1530,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession) {
+    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
         Builder b;
         HttpServletRequest r;
         boolean isWrapped = false;
@@ -1546,7 +1550,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .method(request.getMethod())
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
-                .destroyable(false)
+                .destroyable(isDestroyable)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {

@@ -34,6 +34,7 @@ package org.atmosphere.container;
 import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.websocket.StreamInbound;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -111,7 +112,12 @@ public class TomcatWebSocketUtil {
                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
 
             RequestFacade facade = (RequestFacade) hsr;
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, config.isSupportSession()),
+            boolean isDestroyable = false;
+            String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+            if (s != null && Boolean.valueOf(s)) {
+                isDestroyable = true;
+            }
+            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, config.isSupportSession(), isDestroyable),
                     config.framework(), config.framework().getWebSocketProtocol());
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);

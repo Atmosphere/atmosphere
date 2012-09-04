@@ -165,7 +165,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     public void destroy() {
-        if (!destroyable) return;
+        destroy(destroyable);
+    }
+
+    public void destroy(boolean force) {
+        if (!force) return;
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -792,6 +796,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 try {
                     getOutputStream().close();
                 } catch (java.lang.IllegalStateException ex) {
+                    logger.trace("",ex);
                 }
             } else {
                 getWriter().close();
@@ -814,7 +819,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 try {
                     getOutputStream().write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
-                    ex.printStackTrace();
+                    logger.trace("",ex);
                 }
             } else {
                 getWriter().write(data);

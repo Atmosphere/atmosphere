@@ -85,7 +85,14 @@ public class JettyWebSocketUtil {
 
             public org.eclipse.jetty.websocket.WebSocket doWebSocketConnect(HttpServletRequest request, String protocol) {
                 logger.trace("WebSocket-connect request {} with protocol {}", request.getRequestURI(), protocol);
-                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, config.isSupportSession()), config.framework(), config.framework().getWebSocketProtocol());
+
+                boolean isDestroyable = false;
+                String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+                if (s != null && Boolean.valueOf(s)) {
+                    isDestroyable = true;
+                }
+                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, config.isSupportSession(), isDestroyable),
+                        config.framework(), config.framework().getWebSocketProtocol());
             }
         });
 

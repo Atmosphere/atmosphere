@@ -40,6 +40,7 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
     protected final boolean binaryWrite;
 
     public WebSocket(AtmosphereConfig config) {
+        super(null);
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
         if (s != null && Boolean.parseBoolean(s)) {
             binaryWrite = true;

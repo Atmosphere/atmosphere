@@ -26,6 +26,9 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
+import org.glassfish.grizzly.http.server.util.DispatcherHelper;
+import org.glassfish.grizzly.http.server.util.MappingData;
+import org.glassfish.grizzly.http.util.DataChunk;
 import org.glassfish.grizzly.servlet.HttpServletRequestImpl;
 import org.glassfish.grizzly.servlet.HttpServletResponseImpl;
 import org.glassfish.grizzly.servlet.WebappContext;
@@ -44,6 +47,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
 
@@ -139,16 +144,16 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
             try {
 
                 AtmosphereRequest r = AtmosphereRequest.wrap(webSocket.getRequest());
-                try {
-                    // GlassFish http://java.net/jira/browse/GLASSFISH-18681
-                    if (r.getPathInfo().startsWith(r.getContextPath())) {
-                        r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
-                        r.pathInfo(null);
-                    }
-                } catch (Exception e) {
-                    // Whatever exception occurs skip it
-                    LOGGER.trace("", e);
-                }
+//                try {
+//                    // GlassFish http://java.net/jira/browse/GLASSFISH-18681
+//                    if (r.getPathInfo().startsWith(r.getContextPath())) {
+//                        r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
+//                        r.pathInfo(null);
+//                    }
+//                } catch (Exception e) {
+//                    // Whatever exception occurs skip it
+//                    LOGGER.trace("", e);
+//                }
 
                 WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault()
                         .newWebSocketProcessor(new Grizzly2WebSocket(webSocket, config));
@@ -224,8 +229,10 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
                 servletRequest = HttpServletRequestImpl.create();
                 servletResponse = HttpServletResponseImpl.create();
                 try {
-                    servletRequest.initialize(req, (WebappContext) config.getServletContext());
+                    WebappContext context = (WebappContext) config.getServletContext();
+                    servletRequest.initialize(req, context);
                     servletResponse.initialize(res);
+                    mapRequest(context, request, servletRequest);
                 } catch (IOException e) {
                     throw new WebSocketException("Unable to initialize WebSocket instance", e);
                 }
@@ -233,7 +240,7 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
             }
 
 
-            // ------------------------------------------------------ Public Methods
+            // -------------------------------------------------- Public Methods
 
 
             public HttpServletRequest getRequest() {
@@ -242,6 +249,30 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
 
             public HttpServletResponse getResponse() {
                 return servletResponse;
+            }
+
+
+            // ------------------------------------------------- Private Methods
+
+            /*
+             * Hold your nose!
+             */
+            private void mapRequest(WebappContext ctx, HttpRequestPacket request, HttpServletRequestImpl servletRequest) {
+                try {
+                    Field dispatcher = WebappContext.class.getDeclaredField("dispatcherHelper");
+                    dispatcher.setAccessible(true);
+                    MappingData data = new MappingData();
+                    DispatcherHelper helper = (DispatcherHelper) dispatcher.get(ctx);
+                    DataChunk host = DataChunk.newInstance();
+                    host.setString(request.getHeader("host"));
+                    helper.mapPath(host, request.getRequestURIRef().getDecodedRequestURIBC(), data);
+                    servletRequest.setServletPath(data.wrapperPath.toString());
+                    Method m = HttpServletRequestImpl.class.getDeclaredMethod("setPathInfo", String.class);
+                    m.setAccessible(true);
+                    m.invoke(servletRequest, data.pathInfo.toString());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
 
         } // END G2WebSocket

@@ -26,6 +26,9 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
  * useful when used with the atmosphere.js library as the library will read the expected size and wait for the
  * entire messages to be received before invoking its associated callback.
  *
+ * NOTE: The broadcasted message MUST BE a String. If your application is broadcasting another object, you need to
+ * write your own Filter.
+ *
  * If aren't using atmosphere.js, you need to add the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKMESSAGESIZE} header in order to
  * enable that Filter. The delimiter char used is '|'.
  *
