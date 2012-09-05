@@ -33,7 +33,9 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### Latest Publications
 
-[Using Socket.IO with Atmosphere](http://jfarcand.wordpress.com/2012/06/04/writing-socket-io-application-that-runs-on-the-jvm/)
+[Modern JVM/JavaScript framework Atmosphere reaches 1.0, asynchronous future beckons?](http://jaxenter.com/modern-jvm-javascript-framework-atmosphere-reaches-1-0-asynchronous-future-beckons-44330.html)
+
+[1.0.0 announcement](http://jfarcand.wordpress.com/2012/09/04/atmosphere-1-0-the-asynchronous-javascriptjava-framework-now-available/)
 
 [Grails Events Bus and sample](http://groovyflow.com/posts/489#.T8TxDpl1DvU)
 
