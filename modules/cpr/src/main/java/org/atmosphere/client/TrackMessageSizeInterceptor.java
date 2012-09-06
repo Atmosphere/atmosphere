@@ -54,8 +54,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     private byte[] end = END;
     private String endString = "|";
-    private final CharsetDecoder decoder = Charset.forName(IN_ENCODING).newDecoder();
-    private final CharsetEncoder encoder = Charset.forName(OUT_ENCODING).newEncoder();
+    private final Charset inCharset = Charset.forName(IN_ENCODING);
+    private final Charset outCharset = Charset.forName(OUT_ENCODING);
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -137,10 +137,11 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     }
        
     private byte[] transform(byte[] input, int offset, int length) throws CharacterCodingException, UnsupportedEncodingException{                                     
-        CharBuffer cb = decoder.decode(ByteBuffer.wrap(input, offset, length));
+        CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(input, offset, length));
         int size = cb.length();
         CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
         ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
+        CharsetEncoder encoder = outCharset.newEncoder();
         encoder.encode(cb2, bb, false);
         encoder.encode(cb, bb, false);
         bb.flip();
