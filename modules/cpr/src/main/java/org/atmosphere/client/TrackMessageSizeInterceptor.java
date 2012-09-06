@@ -54,8 +54,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     private byte[] end = END;
     private String endString = "|";
-    private CharsetDecoder decoder = Charset.forName(IN_ENCODING).newDecoder();
-    private CharsetEncoder encoder = Charset.forName(OUT_ENCODING).newEncoder();
+    private final CharsetDecoder decoder = Charset.forName(IN_ENCODING).newDecoder();
+    private final CharsetEncoder encoder = Charset.forName(OUT_ENCODING).newEncoder();
 
     @Override
     public void configure(AtmosphereConfig config) {
