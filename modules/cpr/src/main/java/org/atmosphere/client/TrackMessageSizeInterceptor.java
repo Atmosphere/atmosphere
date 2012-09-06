@@ -31,6 +31,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
 
 /**
  * An {@link org.atmosphere.cpr.AtmosphereInterceptor} that add a add message size and delimiter.
@@ -43,9 +49,13 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(TrackMessageSizeInterceptor.class);
     private final static byte[] END = "|".getBytes();
+    private final static String IN_ENCODING = "UTF-8";
+    private final static String OUT_ENCODING = "UTF-8";
 
     private byte[] end = END;
     private String endString = "|";
+    private CharsetDecoder decoder = Charset.forName(IN_ENCODING).newDecoder();
+    private CharsetEncoder encoder = Charset.forName(OUT_ENCODING).newEncoder();
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -72,17 +82,9 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
-
-                        // TODO: This is totally inefficient, I know!
-                        String s = new String(responseDraft, response.getCharacterEncoding());
-                        if (s.trim().length() != 0) {
-                            s = s.length() + endString + s;
-
-                            return s.getBytes(response.getCharacterEncoding());
-                        } else {
-                            return responseDraft;
-                        }
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {                         
+                        response.setCharacterEncoding(OUT_ENCODING);                        
+                        return transform(responseDraft);
                     }
 
                     @Override
@@ -102,18 +104,11 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
                 @Override
                 public byte[] filter(AtmosphereResponse r, byte[] message) {
-
-                    // TODO: This is totally inefficient, I know!
-                    String s = null;
-                    try {
-                        s = new String(message, r.getCharacterEncoding());
-                    } catch (UnsupportedEncodingException e) {
+                    try {                        
+                        r.setCharacterEncoding(OUT_ENCODING);
+                        return transform(message);
+                    } catch (CharacterCodingException e) {
                         logger.trace("", e);
-                    }
-                    s = s.length() + endString + s;
-
-                    try {
-                        return s.getBytes(response.getCharacterEncoding());
                     } catch (UnsupportedEncodingException e) {
                         logger.trace("", e);
                     }
@@ -121,18 +116,12 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 @Override
-                public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {
-                    // TODO: This is totally inefficient, I know!
-                    String s = null;
-                    try {
-                        s = new String(message, offset, length, r.getCharacterEncoding());
-                    } catch (UnsupportedEncodingException e) {
+                public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {                                                
+                    try {                        
+                        r.setCharacterEncoding(OUT_ENCODING);
+                        return transform(message, offset, length);                        
+                    } catch (CharacterCodingException e) {
                         logger.trace("", e);
-                    }
-                    s = s.length() + endString + s;
-
-                    try {
-                        return s.getBytes(response.getCharacterEncoding());
                     } catch (UnsupportedEncodingException e) {
                         logger.trace("", e);
                     }
@@ -142,7 +131,24 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         }
         return Action.CONTINUE;
     }
-
+    
+    private byte[] transform(byte[] input) throws UnsupportedEncodingException, CharacterCodingException{  
+        return transform(input, 0, input.length);              
+    }
+       
+    private byte[] transform(byte[] input, int offset, int length) throws CharacterCodingException, UnsupportedEncodingException{                                     
+        CharBuffer cb = decoder.decode(ByteBuffer.wrap(input, offset, length));
+        int size = cb.length();
+        CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
+        ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
+        encoder.encode(cb2, bb, false);
+        encoder.encode(cb, bb, false);
+        bb.flip();
+        byte[] b = new byte[bb.limit()];
+        bb.get(b);
+        return b;
+    }
+    
     @Override
     public String toString() {
         return " Track Message Size Interceptor using " + endString;
