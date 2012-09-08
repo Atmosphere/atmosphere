@@ -2137,23 +2137,17 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
 
                 _clearState();
-
-                // Are we the parent that hold the real connection.
-                if (_localStorageService == null && _localSocketF != null) {
+                
+                // Stop sharing a connection
+                if (_storageService != null) {
                     // Clears trace timer
                     clearInterval(_traceTimer);
                     // Removes the trace
-                    document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                    document.cookie = encodeURIComponent("atmosphere-" + _request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                     // The heir is the parent unless unloading
                     _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : (_storageService.get("children") || [])[0]});
-
-                }
-
-                if (_storageService != null) {
                     _storageService.close();
                 }
-
-
                 if (_localStorageService != null) {
                     _localStorageService.close();
                 }
