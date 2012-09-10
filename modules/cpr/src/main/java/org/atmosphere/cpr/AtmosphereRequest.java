@@ -1563,6 +1563,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             b.request(r);
         }
 
+        Cookie[] cs = request.getCookies();
+        Set<Cookie> hs = new HashSet();
+        for (Cookie c: cs) {
+            hs.add(c);
+        }
+        b.cookies(hs);
+
         return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
 
