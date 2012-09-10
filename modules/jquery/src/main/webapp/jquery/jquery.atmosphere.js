@@ -137,7 +137,6 @@ jQuery.atmosphere = function() {
             var _response = {
                 status: 200,
                 responseBody : '',
-                expectedBodySize : -1,
                 headers : [],
                 state : "messageReceived",
                 transport : "polling",
@@ -2021,11 +2020,6 @@ jQuery.atmosphere = function() {
 
                 _response.transport = transport;
                 _response.status = errorCode;
-
-                // If not -1, we have buffered the message.
-                if (_response.expectedBodySize == -1) {
-                    _response.responseBody = messageBody;
-                }
                 _response.state = state;
 
                 _invokeCallback();
