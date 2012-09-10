@@ -1304,6 +1304,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 logger.trace(ex.getMessage(), ex);
 
                 asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
+                asyncSupport.init(config.getServletConfig());
                 logger.warn("Using " + asyncSupport.getClass().getName());
 
                 a = asyncSupport.service(req, res);

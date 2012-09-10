@@ -340,6 +340,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                     if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
                         logger.warn("TomcatCometSupport is enabled, switching to it");
                         framework.asyncSupport = new Tomcat7CometSupport(framework.config);
+                        framework.asyncSupport.init(framework.config.getServletConfig());
                     }
                 }
             }
@@ -372,6 +373,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                 if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)) {
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
+                    framework.asyncSupport.init(framework.config.getServletConfig());
                 }
             }
         }
