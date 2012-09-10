@@ -324,6 +324,13 @@
         </dependencies>
     </dependencyManagement>
     <pluginRepositories>
+        <pluginRepository>
+            <id>sonatype releases</id>
+            <url>https://oss.sonatype.org/content/repositories/releases</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
 <!--
         <pluginRepository>
             <id>scala-tools.org</id>
@@ -341,11 +348,11 @@
             <id>oss.sonatype.org-snapshot</id>
             <url>http://oss.sonatype.org/content/repositories/snapshots</url>
         </repository>
-        <repository>
+        <!-- <repository>
             <id>scala-tools.org</id>
             <name>Scala-Tools Maven2 Repository</name>
             <url>http://scala-tools.org/repo-releases</url>
-        </repository>
+        </repository> -->
         <repository>
             <id>jboss</id>
             <url>https://repository.jboss.org/nexus/content/groups/public/</url>
@@ -485,7 +492,7 @@
         <tomcat7-version>7.0.27</tomcat7-version>
         <jgroups-version>2.8.0.GA</jgroups-version>
         <common-logging-version>1.1.1</common-logging-version>
-        <scala.version>2.9.1</scala.version>
+        <scala.version>2.9.2</scala.version>
         <shade-version>1.2.1</shade-version>
         <felix-version>2.3.6</felix-version>
         <jms-version>1.1</jms-version>
