@@ -28,6 +28,7 @@ import java.io.IOException;
  * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
  *
  * @author Jeanfrancois Arcand
+ * @deprecated - Use the {@link TrackMessageSizeInterceptor}
  */
 public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
