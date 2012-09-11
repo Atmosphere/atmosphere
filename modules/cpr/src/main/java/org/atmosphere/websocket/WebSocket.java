@@ -178,9 +178,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         } else {
             String data = null;
             if (transform) {
-                data = new String(transform(b, 0, length), r.getCharacterEncoding());
+                data = new String(transform(b, offset, length), r.getCharacterEncoding());
             } else {
-                data = new String(b, 0, length, r.getCharacterEncoding());
+                data = new String(b, offset, length, r.getCharacterEncoding());
             }
 
             if (data != null) {
