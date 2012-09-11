@@ -20,7 +20,7 @@
         <!-- Uncomment to support caching message when the browser reconnect.
         <init-param>
           <param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
-          <param-value>org.atmosphere.client.HeaderBroadcasterCache</param-value>
+          <param-value>org.atmosphere.cache.HeaderBroadcasterCache</param-value>
         </init-param>
         -->
         <load-on-startup>0</load-on-startup>
