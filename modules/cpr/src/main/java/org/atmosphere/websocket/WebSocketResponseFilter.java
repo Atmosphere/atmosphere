@@ -19,6 +19,8 @@ import org.atmosphere.cpr.AtmosphereResponse;
 
 /**
  * Implementation of this interface allow the customization of the WebSocket message before it gets send.
+ *
+ * @deprecated - Use {@link }AsyncIOWriter} and {@link AtmosphereInterceptor} instead.
  */
 public interface WebSocketResponseFilter {
 

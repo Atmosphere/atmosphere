@@ -16,19 +16,33 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.ByteArrayAsyncWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represent a portable WebSocket implementation which can be used to write message.
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocket extends AsyncIOWriterAdapter {
+public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
+    protected static final Logger logger = LoggerFactory.getLogger(WebSocket.class);
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
@@ -36,11 +50,11 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
 
     private AtmosphereResource r;
     protected long lastWrite = 0;
-    protected WebSocketResponseFilter webSocketResponseFilter = WebSocketResponseFilter.NOOPS_WebSocketResponseFilter;
     protected final boolean binaryWrite;
+    private final ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
+    private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public WebSocket(AtmosphereConfig config) {
-        super(null);
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
         if (s != null && Boolean.parseBoolean(s)) {
             binaryWrite = true;
@@ -89,14 +103,146 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
         return lastWrite == -1 ? System.currentTimeMillis() : lastWrite;
     }
 
+    protected byte[] transform(byte[] b, int offset, int length) throws IOException {
+        AtmosphereResponse response = r.getResponse();
+        AsyncIOWriter a = response.getAsyncIOWriter();
+        try {
+            response.asyncIOWriter(buffer);
+            invokeInterceptor(response, b, offset, length);
+            return buffer.stream().toByteArray();
+        } finally {
+            buffer.close(null);
+            response.asyncIOWriter(a);
+        }
+    }
+
     /**
-     * Associate a {@link WebSocketResponseFilter} that will be invoked before any write operation.
-     *
-     * @param w {@link WebSocketResponseFilter}
-     * @return this
+     * {@inheritDoc}
      */
-    public WebSocket webSocketResponseFilter(WebSocketResponseFilter w) {
-        this.webSocketResponseFilter = w;
+    @Override
+    public WebSocket write(AtmosphereResponse r, String data) throws IOException {
+        firstWrite.set(true);
+        if (!isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write()");
+
+        boolean transform = filters.size() > 0;
+        if (binaryWrite) {
+            byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
+            if (transform) {
+                b = transform(b, 0, b.length);
+            }
+
+            if (b != null) {
+                write(b, 0, b.length);
+            }
+        } else {
+            if (transform) {
+                byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
+                data = new String(transform(b, 0, b.length), r.getCharacterEncoding());
+            }
+
+            if (data != null) {
+                write(data);
+            }
+        }
+        lastWrite = System.currentTimeMillis();
         return this;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
+        return write(r, data, 0, data.length);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket write(AtmosphereResponse r, byte[] b, int offset, int length) throws IOException {
+        firstWrite.set(true);
+        if (!isOpen()) throw new IOException("Connection remotely closed");
+
+        logger.trace("WebSocket.write()");
+        boolean transform = filters.size() > 0;
+        if (binaryWrite) {
+            if (transform) {
+                b = transform(b, offset, b.length);
+            }
+
+            if (b != null) {
+                write(b, 0, b.length);
+            }
+        } else {
+            String data = null;
+            if (transform) {
+                data = new String(transform(b, 0, b.length), r.getCharacterEncoding());
+            } else {
+                data = new String(b, 0, b.length, r.getCharacterEncoding());
+            }
+
+            if (data != null) {
+                write(data);
+            }
+        }
+        lastWrite = System.currentTimeMillis();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+        if (!firstWrite.get()) {
+            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
+                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
+        } else {
+            logger.debug("{} {}", errorCode, message);
+        }
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
+        logger.error("WebSocket Redirect not supported");
+        return this;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void close(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.close()");
+        close();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        return this;
+    }
+
+    /**
+     * Is the underlying WebSocket open.
+     *
+     * @return
+     */
+    abstract public boolean isOpen();
+
+    abstract public void write(String s) throws IOException;
+
+    abstract public void write(byte[] b, int offset, int length) throws IOException;
+
+    abstract public void close();
+
 }

@@ -19,8 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 
 /**
  * An {@link AsyncIOWriter} that delegates the write operation to it's {@link AsyncIOInterceptor}. If no
@@ -30,43 +30,40 @@ import java.util.Collections;
  */
 public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereInterceptorWriter.class);
-    private final AtmosphereResponse response;
+    protected final LinkedList<AsyncIOInterceptor> filters = new LinkedList<AsyncIOInterceptor>();
 
-    private final ArrayList<AsyncIOInterceptor> filters = new ArrayList<AsyncIOInterceptor>();
-
-    public AtmosphereInterceptorWriter(AtmosphereResponse response) {
-        this.response = response;
+    public AtmosphereInterceptorWriter() {
     }
 
     @Override
-    public AsyncIOWriter redirect(String location) throws IOException {
+    public AsyncIOWriter redirect(AtmosphereResponse response, String location) throws IOException {
         response.sendRedirect(location);
         return this;
     }
 
     @Override
-    public AsyncIOWriter writeError(int errorCode, String message) throws IOException {
+    public AsyncIOWriter writeError(AtmosphereResponse response,int errorCode, String message) throws IOException {
         response.sendError(errorCode);
         return this;
     }
 
     @Override
-    public AsyncIOWriter write(String data) throws IOException {
-        write(data.getBytes());
-
-        return this;
+    public AsyncIOWriter write(AtmosphereResponse response, String data) throws IOException {
+        return write(response, data.getBytes());
     }
 
     @Override
-    public AsyncIOWriter write(byte[] data) throws IOException {
-        write(data, 0, data.length);
-
-        return this;
+    public AsyncIOWriter write(AtmosphereResponse response, byte[] data) throws IOException {
+        return write(response, data, 0, data.length);
     }
 
     @Override
-    public AsyncIOWriter write(byte[] data, int offset, int length) throws IOException {
+    public AsyncIOWriter write(AtmosphereResponse response, byte[] data, int offset, int length) throws IOException {
+        invokeInterceptor(response, data, offset, length);
+        return this;
+    }
+
+    protected void invokeInterceptor(AtmosphereResponse response, byte[] data, int offset, int length) throws IOException {
         for (AsyncIOInterceptor i : filters) {
             i.prePayload(response, data, offset, length);
         }
@@ -74,32 +71,38 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
         byte[] responseDraft = new byte[length];
         System.arraycopy(data, offset, responseDraft, 0, length);
         for (AsyncIOInterceptor i : filters) {
-            responseDraft = i.transformPayload(responseDraft, data);
+            responseDraft = i.transformPayload(response, responseDraft, data);
         }
         response.write(responseDraft);
 
-        ArrayList<AsyncIOInterceptor> reversedFilters = (ArrayList<AsyncIOInterceptor>)filters.clone();
+        LinkedList<AsyncIOInterceptor> reversedFilters = (LinkedList<AsyncIOInterceptor>)filters.clone();
         Collections.reverse(reversedFilters);
         for (AsyncIOInterceptor i : reversedFilters) {
             i.postPayload(response, data, offset, length);
         }
 
-        return this;
     }
 
     @Override
-    public void close() throws IOException {
+    public void close(AtmosphereResponse response) throws IOException {
         response.closeStreamOrWriter();
     }
 
     @Override
-    public AsyncIOWriter flush() throws IOException {
+    public AsyncIOWriter flush(AtmosphereResponse response) throws IOException {
         response.flushBuffer();
         return this;
     }
 
+    /**
+     * Add an {@link AsyncIOInterceptor} that will be invoked in the order it was added.
+     * @param filter {@link AsyncIOInterceptor
+     * @return this
+     */
     public AtmosphereInterceptorWriter interceptor(AsyncIOInterceptor filter) {
-        filters.add(filter);
+        if (!filters.contains(filter)) {
+            filters.addFirst(filter);
+        }
         return this;
     }
 }

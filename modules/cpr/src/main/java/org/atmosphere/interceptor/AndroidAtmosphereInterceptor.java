@@ -71,7 +71,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
                         return responseDraft;
                     }
 
@@ -80,7 +80,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
             } else {
-                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

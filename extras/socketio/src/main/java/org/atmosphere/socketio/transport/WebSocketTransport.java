@@ -146,11 +146,7 @@ public class WebSocketTransport extends AbstractTransport {
         public void disconnect() {
             logger.trace("calling from " + this.getClass().getName() + " : " + "disconnect");
             session.onDisconnect(DisconnectReason.DISCONNECT);
-            try {
-                webSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            webSocket.close();
         }
 
         @Override
@@ -224,11 +220,7 @@ public class WebSocketTransport extends AbstractTransport {
         @Override
         public void abort() {
             logger.trace("calling from " + this.getClass().getName() + " : " + "abort");
-            try {
-                webSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            webSocket.close();
             webSocket = null;
             session.onShutdown();
         }

@@ -234,62 +234,23 @@ public class WebSocketProcessorTest {
             this.outputStream = outputStream;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
-        public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-            return this;
+        public boolean isOpen() {
+            return true;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
-        public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
-            return this;
+        public void write(String s) throws IOException {
+            outputStream.write(s.getBytes());
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
-        public WebSocket write(AtmosphereResponse r, String data) throws IOException {
-            outputStream.write(data.getBytes());
-            return this;
+        public void write(byte[] b, int offset, int length) throws IOException {
+            outputStream.write(b, offset, length);
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
-        public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
-            outputStream.write(data);
-            return this;
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-            outputStream.write(data, offset, length);
-            return this;
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public void close(AtmosphereResponse r) throws IOException {
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public WebSocket flush(AtmosphereResponse r) throws IOException {
-            return this;
+        public void close() {
         }
     }
 }

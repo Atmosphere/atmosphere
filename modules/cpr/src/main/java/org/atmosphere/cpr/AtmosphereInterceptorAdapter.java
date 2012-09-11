@@ -30,7 +30,7 @@ public abstract class AtmosphereInterceptorAdapter implements AtmosphereIntercep
     public Action inspect(AtmosphereResource r) {
         AtmosphereResponse res = r.getResponse();
         if (res.getAsyncIOWriter() == null) {
-            res.asyncIOWriter(new AtmosphereInterceptorWriter(res));
+            res.asyncIOWriter(new AtmosphereInterceptorWriter());
         }
         return Action.CONTINUE;
     }

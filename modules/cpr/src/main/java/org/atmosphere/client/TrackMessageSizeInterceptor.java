@@ -24,8 +24,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +33,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 
 /**
@@ -57,6 +54,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private final Charset inCharset = Charset.forName(IN_ENCODING);
     private final Charset outCharset = Charset.forName(OUT_ENCODING);
 
+    private final Interceptor interceptor = new Interceptor();
+
     @Override
     public void configure(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
@@ -70,88 +69,55 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
-            super.inspect(r);
+        super.inspect(r);
 
-            AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
-
-                    @Override
-                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    }
-
-                    @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {                         
-                        response.setCharacterEncoding(OUT_ENCODING);                        
-                        return transform(responseDraft);
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    }
-                });
-            } else {
-                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
-            }
+        AsyncIOWriter writer = response.getAsyncIOWriter();
+        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+            AtmosphereInterceptorWriter.class.cast(writer).interceptor(interceptor);
         } else {
-            ((WebSocket) response.getAsyncIOWriter()).webSocketResponseFilter(new WebSocketResponseFilter() {
-
-                @Override
-                public String filter(AtmosphereResponse r, String message) {
-                    return message.length() + endString + message;
-                }
-
-                @Override
-                public byte[] filter(AtmosphereResponse r, byte[] message) {
-                    try {                        
-                        r.setCharacterEncoding(OUT_ENCODING);
-                        return transform(message);
-                    } catch (CharacterCodingException e) {
-                        logger.trace("", e);
-                    } catch (UnsupportedEncodingException e) {
-                        logger.trace("", e);
-                    }
-                    return message;
-                }
-
-                @Override
-                public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {                                                
-                    try {                        
-                        r.setCharacterEncoding(OUT_ENCODING);
-                        return transform(message, offset, length);                        
-                    } catch (CharacterCodingException e) {
-                        logger.trace("", e);
-                    } catch (UnsupportedEncodingException e) {
-                        logger.trace("", e);
-                    }
-                    return message;
-                }
-            });
+            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
         return Action.CONTINUE;
     }
-    
-    private byte[] transform(byte[] input) throws UnsupportedEncodingException, CharacterCodingException{  
-        return transform(input, 0, input.length);              
-    }
-       
-    private byte[] transform(byte[] input, int offset, int length) throws CharacterCodingException, UnsupportedEncodingException{                                     
-        CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(input, offset, length));
-        int size = cb.length();
-        CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
-        ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
-        CharsetEncoder encoder = outCharset.newEncoder();
-        encoder.encode(cb2, bb, false);
-        encoder.encode(cb, bb, false);
-        bb.flip();
-        byte[] b = new byte[bb.limit()];
-        bb.get(b);
-        return b;
-    }
-    
+
+
     @Override
     public String toString() {
         return " Track Message Size Interceptor using " + endString;
+    }
+
+    private final class Interceptor implements AsyncIOInterceptor {
+
+        @Override
+        public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+        }
+
+        @Override
+        public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
+            response.setCharacterEncoding(OUT_ENCODING);
+            return transform(responseDraft);
+        }
+
+        @Override
+        public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+        }
+
+        private byte[] transform(byte[] input) throws UnsupportedEncodingException, CharacterCodingException {
+             return transform(input, 0, input.length);
+         }
+
+         private byte[] transform(byte[] input, int offset, int length) throws CharacterCodingException, UnsupportedEncodingException {
+             CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(input, offset, length));
+             int size = cb.length();
+             CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
+             ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
+             CharsetEncoder encoder = outCharset.newEncoder();
+             encoder.encode(cb2, bb, false);
+             encoder.encode(cb, bb, false);
+             bb.flip();
+             byte[] b = new byte[bb.limit()];
+             bb.get(b);
+             return b;
+         }
     }
 }
