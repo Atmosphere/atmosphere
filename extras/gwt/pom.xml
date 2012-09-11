@@ -26,7 +26,6 @@
         <module>atmosphere-gwt-js</module>
         <module>atmosphere-gwt-poll</module>
         <module>atmosphere-gwt-server</module>
-        <module>gwtprojsonserializer</module>
 		<module>atmosphere-gwt-jackson</module>
   </modules>
 
