@@ -11,6 +11,18 @@
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <async-supported>true</async-supported>
+        <!-- Uncomment to support tracking of message length (make sure onMessage gets invoked with a complete message
+        <init-param>
+          <param-name>org.atmosphere.cpr.AtmosphereInterceptor</param-name>
+          <param-value>org.atmosphere.client.TrackMessageSizeInterceptor</param-value>
+        </init-param>
+        -->
+        <!-- Uncomment to support caching message when the browser reconnect.
+        <init-param>
+          <param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
+          <param-value>org.atmosphere.client.HeaderBroadcasterCache</param-value>
+        </init-param>
+        -->
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
