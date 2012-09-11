@@ -169,18 +169,18 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         boolean transform = filters.size() > 0;
         if (binaryWrite) {
             if (transform) {
-                b = transform(b, offset, b.length);
+                b = transform(b, offset, length);
             }
 
             if (b != null) {
-                write(b, 0, b.length);
+                write(b, 0, length);
             }
         } else {
             String data = null;
             if (transform) {
-                data = new String(transform(b, 0, b.length), r.getCharacterEncoding());
+                data = new String(transform(b, 0, length), r.getCharacterEncoding());
             } else {
-                data = new String(b, 0, b.length, r.getCharacterEncoding());
+                data = new String(b, 0, length, r.getCharacterEncoding());
             }
 
             if (data != null) {
