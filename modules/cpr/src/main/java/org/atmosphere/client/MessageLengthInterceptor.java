@@ -16,8 +16,8 @@
 package org.atmosphere.client;
 
 import org.atmosphere.cpr.*;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -28,11 +28,13 @@ import java.io.IOException;
  * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
  *
  * @author Jeanfrancois Arcand
+ * @deprecated - Use the {@link TrackMessageSizeInterceptor}
  */
 public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
-    private final static byte[] END = "|".getBytes();
+    private static final Logger logger = LoggerFactory.getLogger(MessageLengthInterceptor.class);
 
+    private final static byte[] END = "|".getBytes();
     private byte[] end = END;
     private String endString = "|";
 
@@ -49,57 +51,28 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
-            super.inspect(r);
+        super.inspect(r);
 
-            AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
-
-                    @Override
-                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    }
-
-                    @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
-                        return responseDraft;
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(end);
-                    }
-                });
-            } else {
-                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
-            }
-        } else {
-            ((WebSocket) response.getAsyncIOWriter()).webSocketResponseFilter(new WebSocketResponseFilter() {
+        AsyncIOWriter writer = response.getAsyncIOWriter();
+        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+            AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
 
                 @Override
-                public String filter(AtmosphereResponse r, String message) {
-                    return message + endString;
+                public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                 }
 
                 @Override
-                public byte[] filter(AtmosphereResponse r, byte[] message) {
-
-                    byte[] nb = new byte[message.length + end.length];
-                    System.arraycopy(message, 0, nb, 0, message.length);
-                    System.arraycopy(end, 0, nb, message.length, nb.length);
-
-                    return nb;
+                public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
+                    return responseDraft;
                 }
 
                 @Override
-                public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {
-                    byte[] nb = new byte[length + end.length];
-                    System.arraycopy(message, offset, nb, 0, length);
-                    System.arraycopy(end, 0, nb, length, nb.length);
-
-                    return nb;
+                public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                    response.write(end);
                 }
             });
+        } else {
+            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
         return Action.CONTINUE;
     }

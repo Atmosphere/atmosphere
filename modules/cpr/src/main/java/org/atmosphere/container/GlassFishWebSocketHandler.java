@@ -35,9 +35,11 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
 
     private final AtmosphereConfig config;
+    private final String contextPath;
 
     public GlassFishWebSocketHandler(AtmosphereConfig config) {
         this.config = config;
+        contextPath = config.getServletContext().getContextPath();
     }
 
     public void onConnect(WebSocket w) {
@@ -73,7 +75,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
 
     @Override
     public boolean isApplicationRequest(Request request) {
-        return true;
+        return request.requestURI().startsWith(contextPath);
     }
 
     @Override

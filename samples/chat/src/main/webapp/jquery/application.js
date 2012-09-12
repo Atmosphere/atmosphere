@@ -51,6 +51,7 @@ $(function () {
         logLevel : 'debug',
         shared : true,
         transport : transport ,
+        // Uncomment to track message length trackMessageLength : true,
         fallbackTransport: 'long-polling'};
 
 

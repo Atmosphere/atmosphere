@@ -16,6 +16,8 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -25,6 +27,8 @@ import java.io.IOException;
  * @author Jeanfrancois Arcand
  */
 public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -67,7 +71,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
                         return responseDraft;
                     }
 
@@ -83,7 +87,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
             } else {
-                throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
             }
         }
         return Action.CONTINUE;

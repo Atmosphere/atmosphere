@@ -13,73 +13,48 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.cpr;
+package org.atmosphere.util;
 
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AtmosphereResponse;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
- * Adapter class for {@link AsyncIOWriter}.
+ * An {@link AsyncWriter} backed by an {@link ByteArrayOutputStream}
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
+public class ByteArrayAsyncWriter extends AsyncIOWriterAdapter {
 
-    public AsyncIOWriterAdapter() {
-    }
+    ByteArrayOutputStream o = new ByteArrayOutputStream();
 
-    /**
-     * No OPS
-     */
-    @Override
-    public AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException {
-        return redirect(r, location);
-    }
-
-    /**
-     * No OPS
-     */
-    @Override
-    public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-        return writeError(r, errorCode,message);
-    }
-
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
+        o.write(data.getBytes(r.getCharacterEncoding()));
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
+        o.write(data);
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+        o.write(data, offset, length);
         return this;
     }
 
-    /**
-     * No OPS
-     */
-    @Override
-    public void close(AtmosphereResponse r) throws IOException {
-        close(r);
+    public ByteArrayOutputStream stream() {
+        return o;
     }
 
-    /**
-     * No OPS
-     */
     @Override
-    public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
-        return flush(r);
+    public void close(AtmosphereResponse r) {
+        o.reset();
     }
 }

@@ -30,7 +30,7 @@ public interface AsyncIOInterceptor {
 
     void prePayload(AtmosphereResponse response, byte[] data, int offset, int length);
 
-    byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException;
+    byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException;
 
     void postPayload(AtmosphereResponse response, byte[] data, int offset, int length);
 }

@@ -98,12 +98,14 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
     private static final class Grizzly2WebSocketApplication extends WebSocketApplication {
 
         private AtmosphereConfig config;
+        private final String contextPath;
 
         // -------------------------------------------------------- Constructors
 
 
         public Grizzly2WebSocketApplication(AtmosphereConfig config) {
             this.config = config;
+            contextPath = config.getServletContext().getContextPath();
         }
 
 
@@ -112,7 +114,7 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
 
         @Override
         public boolean isApplicationRequest(HttpRequestPacket request) {
-            return true;
+            return request.getRequestURI().startsWith(contextPath);
         }
 
         @Override

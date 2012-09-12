@@ -182,7 +182,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                             if (p == null) {
                                 r.getResponse().getOutputStream().write(data);
                             } else {
-                                write(new String(data, r.request().getCharacterEncoding()));
+                                write(r, new String(data, r.request().getCharacterEncoding()));
                             }
                             return this;
                         }
@@ -194,7 +194,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
                             if (p == null) {
                                 r.getResponse().getOutputStream().write(data, offset, length);
                             } else {
-                                write(new String(data, offset, length, r.request().getCharacterEncoding()));
+                                write(r, new String(data, offset, length, r.request().getCharacterEncoding()));
                             }
                             return this;
                         }

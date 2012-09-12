@@ -51,20 +51,11 @@ public class SocketIOWebSocketEventListener extends WebSocketEventListenerAdapte
                     sessionWrapper.getSession().onConnect(sessionWrapper.getSession().getAtmosphereResourceImpl(), sessionWrapper);
                     sessionWrapper.initiated(true);
                 } catch (Exception e) {
-                    e.printStackTrace();
-                    try {
-                        sessionWrapper.webSocket().close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
+                    sessionWrapper.webSocket().close();
                     sessionWrapper.getSession().onShutdown();
                 }
             } else {
-                try {
-                    sessionWrapper.webSocket().close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
+                sessionWrapper.webSocket().close();
                 sessionWrapper.getSession().onShutdown();
             }
         } else {
