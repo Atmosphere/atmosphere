@@ -1144,7 +1144,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (String className : possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
@@ -1199,7 +1199,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (String className : possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
