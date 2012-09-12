@@ -125,7 +125,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         if (!isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
 
-        boolean transform = filters.size() > 0;
+        boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite) {
             byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
             if (transform) {
@@ -166,7 +166,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         if (!isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
-        boolean transform = filters.size() > 0;
+        boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite) {
             if (transform) {
                 b = transform(b, offset, length);
@@ -196,12 +196,14 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     @Override
     public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+        super.writeError(r, errorCode, message);
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
                     "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
         } else {
             logger.debug("{} {}", errorCode, message);
         }
+
         return this;
     }
 

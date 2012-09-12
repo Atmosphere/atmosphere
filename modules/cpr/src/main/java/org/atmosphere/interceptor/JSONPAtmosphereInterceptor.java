@@ -40,7 +40,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     String contentType() {
                         String c = response.getContentType();
@@ -68,11 +68,6 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                         if (contentType != null && !contentType.contains("json")) {
                             response.write("\"");
                         }
-                    }
-
-                    @Override
-                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                        return responseDraft;
                     }
 
                     @Override

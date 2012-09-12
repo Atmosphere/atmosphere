@@ -46,6 +46,15 @@ public class AsyncIOInterceptorTest {
             @Override
             public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
+
+            @Override
+            public byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase) {
+                return new byte[0];
+            }
+
+            @Override
+            public void redirect(AtmosphereResponse response, String location) {
+            }
         })).write("test");
         assertEquals(s.get(), "test");
     }
@@ -69,6 +78,15 @@ public class AsyncIOInterceptorTest {
             @Override
             public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
+
+            @Override
+            public byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase) {
+                return new byte[0];
+            }
+
+            @Override
+            public void redirect(AtmosphereResponse response, String location) {
+            }
         }).interceptor(new AsyncIOInterceptor() {
 
             @Override
@@ -83,6 +101,15 @@ public class AsyncIOInterceptorTest {
 
             @Override
             public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+            }
+
+            @Override
+            public byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase) {
+                return new byte[0];
+            }
+
+            @Override
+            public void redirect(AtmosphereResponse response, String location) {
             }
         })).write("test");
         assertEquals(s.get().toString(), "test-yoyo");

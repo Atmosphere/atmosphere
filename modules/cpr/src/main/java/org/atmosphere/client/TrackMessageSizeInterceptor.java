@@ -18,6 +18,7 @@ package org.atmosphere.client;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
@@ -86,38 +87,22 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         return " Track Message Size Interceptor using " + endString;
     }
 
-    private final class Interceptor implements AsyncIOInterceptor {
-
-        @Override
-        public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-        }
-
+    private final class Interceptor extends AsyncIOInterceptorAdapter {
         @Override
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
             response.setCharacterEncoding(OUT_ENCODING);
-            return transform(responseDraft);
+
+            CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
+            int size = cb.length();
+            CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
+            ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
+            CharsetEncoder encoder = outCharset.newEncoder();
+            encoder.encode(cb2, bb, false);
+            encoder.encode(cb, bb, false);
+            bb.flip();
+            byte[] b = new byte[bb.limit()];
+            bb.get(b);
+            return b;
         }
-
-        @Override
-        public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-        }
-
-        private byte[] transform(byte[] input) throws UnsupportedEncodingException, CharacterCodingException {
-             return transform(input, 0, input.length);
-         }
-
-         private byte[] transform(byte[] input, int offset, int length) throws CharacterCodingException, UnsupportedEncodingException {
-             CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(input, offset, length));
-             int size = cb.length();
-             CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
-             ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
-             CharsetEncoder encoder = outCharset.newEncoder();
-             encoder.encode(cb2, bb, false);
-             encoder.encode(cb, bb, false);
-             bb.flip();
-             byte[] b = new byte[bb.limit()];
-             bb.get(b);
-             return b;
-         }
     }
 }

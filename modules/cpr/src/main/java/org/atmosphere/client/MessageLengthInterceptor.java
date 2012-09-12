@@ -55,21 +55,13 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
         AsyncIOWriter writer = response.getAsyncIOWriter();
         if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-            AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
-
-                @Override
-                public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                }
-
-                @Override
-                public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                    return responseDraft;
-                }
+            AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                 @Override
                 public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                     response.write(end);
                 }
+
             });
         } else {
             logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());

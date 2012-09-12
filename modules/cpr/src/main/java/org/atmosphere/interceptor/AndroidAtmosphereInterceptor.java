@@ -17,6 +17,7 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
@@ -63,21 +64,13 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         response.write(padding);
                     }
 
-                    @Override
-                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                        return responseDraft;
-                    }
-
-                    @Override
-                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    }
                 });
             } else {
                 logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());

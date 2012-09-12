@@ -37,13 +37,18 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     @Override
     public AsyncIOWriter redirect(AtmosphereResponse response, String location) throws IOException {
-        response.sendRedirect(location);
+        for (AsyncIOInterceptor i : filters) {
+            i.redirect(response, location);
+        }
         return this;
     }
 
     @Override
-    public AsyncIOWriter writeError(AtmosphereResponse response,int errorCode, String message) throws IOException {
-        response.sendError(errorCode);
+    public AsyncIOWriter writeError(AtmosphereResponse response, int errorCode, String message) throws IOException {
+        for (AsyncIOInterceptor i : filters) {
+            byte[] b = i.error(response, errorCode, message);
+            writeReady(response, b);
+        }
         return this;
     }
 
@@ -73,14 +78,18 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
         for (AsyncIOInterceptor i : filters) {
             responseDraft = i.transformPayload(response, responseDraft, data);
         }
-        response.write(responseDraft);
+        writeReady(response, responseDraft);
 
-        LinkedList<AsyncIOInterceptor> reversedFilters = (LinkedList<AsyncIOInterceptor>)filters.clone();
+        LinkedList<AsyncIOInterceptor> reversedFilters = (LinkedList<AsyncIOInterceptor>) filters.clone();
         Collections.reverse(reversedFilters);
         for (AsyncIOInterceptor i : reversedFilters) {
             i.postPayload(response, data, offset, length);
         }
 
+    }
+
+    protected void writeReady(AtmosphereResponse response, byte[] responseDraft) throws IOException {
+        response.write(responseDraft);
     }
 
     @Override
@@ -96,6 +105,7 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     /**
      * Add an {@link AsyncIOInterceptor} that will be invoked in the order it was added.
+     *
      * @param filter {@link AsyncIOInterceptor
      * @return this
      */

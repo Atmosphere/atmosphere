@@ -33,4 +33,9 @@ public interface AsyncIOInterceptor {
     byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException;
 
     void postPayload(AtmosphereResponse response, byte[] data, int offset, int length);
+
+    byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase);
+
+    void redirect(AtmosphereResponse response, String location);
+
 }
