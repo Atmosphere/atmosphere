@@ -120,7 +120,7 @@
 <a class="jxr_linenumber" name="110" href="#110">110</a>                     } <strong class="jxr_keyword">catch</strong> (UnsupportedEncodingException e) {
 <a class="jxr_linenumber" name="111" href="#111">111</a>                         logger.trace(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="112" href="#112">112</a>                     }
-<a class="jxr_linenumber" name="113" href="#113">113</a>                     s += s.length() + endString + s;
+<a class="jxr_linenumber" name="113" href="#113">113</a>                     s = s.length() + endString + s;
 <a class="jxr_linenumber" name="114" href="#114">114</a> 
 <a class="jxr_linenumber" name="115" href="#115">115</a>                     <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="116" href="#116">116</a>                         <strong class="jxr_keyword">return</strong> s.getBytes(response.getCharacterEncoding());
@@ -139,7 +139,7 @@
 <a class="jxr_linenumber" name="129" href="#129">129</a>                     } <strong class="jxr_keyword">catch</strong> (UnsupportedEncodingException e) {
 <a class="jxr_linenumber" name="130" href="#130">130</a>                         logger.trace(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="131" href="#131">131</a>                     }
-<a class="jxr_linenumber" name="132" href="#132">132</a>                     s += s.length() + endString + s;
+<a class="jxr_linenumber" name="132" href="#132">132</a>                     s = s.length() + endString + s;
 <a class="jxr_linenumber" name="133" href="#133">133</a> 
 <a class="jxr_linenumber" name="134" href="#134">134</a>                     <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="135" href="#135">135</a>                         <strong class="jxr_keyword">return</strong> s.getBytes(response.getCharacterEncoding());

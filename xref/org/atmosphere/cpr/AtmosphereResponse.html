@@ -806,331 +806,332 @@
 <a class="jxr_linenumber" name="796" href="#796">796</a>                 <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="797" href="#797">797</a>                     getOutputStream().close();
 <a class="jxr_linenumber" name="798" href="#798">798</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
-<a class="jxr_linenumber" name="799" href="#799">799</a>                 }
-<a class="jxr_linenumber" name="800" href="#800">800</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="801" href="#801">801</a>                 getWriter().close();
-<a class="jxr_linenumber" name="802" href="#802">802</a>             }
-<a class="jxr_linenumber" name="803" href="#803">803</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="804" href="#804">804</a>             logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="805" href="#805">805</a>         }
-<a class="jxr_linenumber" name="806" href="#806">806</a>     }
-<a class="jxr_linenumber" name="807" href="#807">807</a> 
-<a class="jxr_linenumber" name="808" href="#808">808</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="809" href="#809">809</a> <em class="jxr_javadoccomment">     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
-<a class="jxr_linenumber" name="810" href="#810">810</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
-<a class="jxr_linenumber" name="811" href="#811">811</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="812" href="#812">812</a> <em class="jxr_javadoccomment">     * @param data the String to write</em>
-<a class="jxr_linenumber" name="813" href="#813">813</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="814" href="#814">814</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(String data) {
-<a class="jxr_linenumber" name="815" href="#815">815</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-<a class="jxr_linenumber" name="816" href="#816">816</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="817" href="#817">817</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
-<a class="jxr_linenumber" name="818" href="#818">818</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="819" href="#819">819</a>                     getOutputStream().write(data.getBytes(getCharacterEncoding()));
-<a class="jxr_linenumber" name="820" href="#820">820</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
-<a class="jxr_linenumber" name="821" href="#821">821</a>                     ex.printStackTrace();
-<a class="jxr_linenumber" name="822" href="#822">822</a>                 }
-<a class="jxr_linenumber" name="823" href="#823">823</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="824" href="#824">824</a>                 getWriter().write(data);
-<a class="jxr_linenumber" name="825" href="#825">825</a>             }
-<a class="jxr_linenumber" name="826" href="#826">826</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="827" href="#827">827</a>             logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="828" href="#828">828</a>         }
-<a class="jxr_linenumber" name="829" href="#829">829</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="830" href="#830">830</a>     }
-<a class="jxr_linenumber" name="831" href="#831">831</a> 
-<a class="jxr_linenumber" name="832" href="#832">832</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="833" href="#833">833</a> <em class="jxr_javadoccomment">     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
-<a class="jxr_linenumber" name="834" href="#834">834</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
-<a class="jxr_linenumber" name="835" href="#835">835</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="836" href="#836">836</a> <em class="jxr_javadoccomment">     * @param data the bytes to write</em>
-<a class="jxr_linenumber" name="837" href="#837">837</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="838" href="#838">838</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(byte[] data) {
-<a class="jxr_linenumber" name="839" href="#839">839</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-<a class="jxr_linenumber" name="840" href="#840">840</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="841" href="#841">841</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
-<a class="jxr_linenumber" name="842" href="#842">842</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="843" href="#843">843</a>                     getOutputStream().write(data);
-<a class="jxr_linenumber" name="844" href="#844">844</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
-<a class="jxr_linenumber" name="845" href="#845">845</a>                 }
-<a class="jxr_linenumber" name="846" href="#846">846</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="847" href="#847">847</a>                 getWriter().write(<strong class="jxr_keyword">new</strong> String(data, getCharacterEncoding()));
-<a class="jxr_linenumber" name="848" href="#848">848</a>             }
-<a class="jxr_linenumber" name="849" href="#849">849</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="850" href="#850">850</a>             logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="851" href="#851">851</a>         }
-<a class="jxr_linenumber" name="852" href="#852">852</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="853" href="#853">853</a>     }
-<a class="jxr_linenumber" name="854" href="#854">854</a> 
-<a class="jxr_linenumber" name="855" href="#855">855</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="856" href="#856">856</a> <em class="jxr_javadoccomment">     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
-<a class="jxr_linenumber" name="857" href="#857">857</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
-<a class="jxr_linenumber" name="858" href="#858">858</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="859" href="#859">859</a> <em class="jxr_javadoccomment">     * @param data   the bytes to write</em>
-<a class="jxr_linenumber" name="860" href="#860">860</a> <em class="jxr_javadoccomment">     * @param offset the first byte position to write</em>
-<a class="jxr_linenumber" name="861" href="#861">861</a> <em class="jxr_javadoccomment">     * @param length the data length</em>
-<a class="jxr_linenumber" name="862" href="#862">862</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="863" href="#863">863</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) {
-<a class="jxr_linenumber" name="864" href="#864">864</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-<a class="jxr_linenumber" name="865" href="#865">865</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="866" href="#866">866</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
-<a class="jxr_linenumber" name="867" href="#867">867</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="868" href="#868">868</a>                     getOutputStream().write(data, offset, length);
-<a class="jxr_linenumber" name="869" href="#869">869</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
-<a class="jxr_linenumber" name="870" href="#870">870</a>                 }
-<a class="jxr_linenumber" name="871" href="#871">871</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="872" href="#872">872</a>                 getWriter().write(<strong class="jxr_keyword">new</strong> String(data, offset, length, getCharacterEncoding()));
-<a class="jxr_linenumber" name="873" href="#873">873</a>             }
-<a class="jxr_linenumber" name="874" href="#874">874</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="875" href="#875">875</a>             logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="876" href="#876">876</a>         }
-<a class="jxr_linenumber" name="877" href="#877">877</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="878" href="#878">878</a>     }
-<a class="jxr_linenumber" name="879" href="#879">879</a> 
-<a class="jxr_linenumber" name="880" href="#880">880</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="881" href="#881">881</a> <em class="jxr_javadoccomment">     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this</em>
-<a class="jxr_linenumber" name="882" href="#882">882</a> <em class="jxr_javadoccomment">     * method will return null.</em>
-<a class="jxr_linenumber" name="883" href="#883">883</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="884" href="#884">884</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResource}, or null.</em>
-<a class="jxr_linenumber" name="885" href="#885">885</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="886" href="#886">886</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource() {
-<a class="jxr_linenumber" name="887" href="#887">887</a>         <strong class="jxr_keyword">if</strong> (atmosphereRequest != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="888" href="#888">888</a>             <strong class="jxr_keyword">return</strong> (AtmosphereResource) atmosphereRequest.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-<a class="jxr_linenumber" name="889" href="#889">889</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="890" href="#890">890</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="891" href="#891">891</a>         }
-<a class="jxr_linenumber" name="892" href="#892">892</a>     }
-<a class="jxr_linenumber" name="893" href="#893">893</a> 
-<a class="jxr_linenumber" name="894" href="#894">894</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setResponse(ServletResponse response) {
-<a class="jxr_linenumber" name="895" href="#895">895</a>         <strong class="jxr_keyword">super</strong>.setResponse(response);
-<a class="jxr_linenumber" name="896" href="#896">896</a>         <strong class="jxr_keyword">if</strong> (HttpServletResponse.<strong class="jxr_keyword">class</strong>.isAssignableFrom(response.getClass())) {
-<a class="jxr_linenumber" name="897" href="#897">897</a>             <strong class="jxr_keyword">this</strong>.response = HttpServletResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response);
-<a class="jxr_linenumber" name="898" href="#898">898</a>         }
-<a class="jxr_linenumber" name="899" href="#899">899</a>     }
-<a class="jxr_linenumber" name="900" href="#900">900</a> 
-<a class="jxr_linenumber" name="901" href="#901">901</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">DummyHttpServletResponse</a> <strong class="jxr_keyword">implements</strong> HttpServletResponse {
-<a class="jxr_linenumber" name="902" href="#902">902</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addCookie(Cookie cookie) {
-<a class="jxr_linenumber" name="903" href="#903">903</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="904" href="#904">904</a>         }
-<a class="jxr_linenumber" name="905" href="#905">905</a> 
-<a class="jxr_linenumber" name="906" href="#906">906</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> containsHeader(String name) {
-<a class="jxr_linenumber" name="907" href="#907">907</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="908" href="#908">908</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="909" href="#909">909</a>         }
-<a class="jxr_linenumber" name="910" href="#910">910</a> 
-<a class="jxr_linenumber" name="911" href="#911">911</a>         <strong class="jxr_keyword">public</strong> String encodeURL(String url) {
-<a class="jxr_linenumber" name="912" href="#912">912</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="913" href="#913">913</a>             <strong class="jxr_keyword">return</strong> url;
-<a class="jxr_linenumber" name="914" href="#914">914</a>         }
-<a class="jxr_linenumber" name="915" href="#915">915</a> 
-<a class="jxr_linenumber" name="916" href="#916">916</a>         <strong class="jxr_keyword">public</strong> String encodeRedirectURL(String url) {
-<a class="jxr_linenumber" name="917" href="#917">917</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="918" href="#918">918</a>             <strong class="jxr_keyword">return</strong> url;
-<a class="jxr_linenumber" name="919" href="#919">919</a>         }
-<a class="jxr_linenumber" name="920" href="#920">920</a> 
-<a class="jxr_linenumber" name="921" href="#921">921</a>         <strong class="jxr_keyword">public</strong> String encodeUrl(String url) {
-<a class="jxr_linenumber" name="922" href="#922">922</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="923" href="#923">923</a>             <strong class="jxr_keyword">return</strong> url;
-<a class="jxr_linenumber" name="924" href="#924">924</a>         }
-<a class="jxr_linenumber" name="925" href="#925">925</a> 
-<a class="jxr_linenumber" name="926" href="#926">926</a>         <strong class="jxr_keyword">public</strong> String encodeRedirectUrl(String url) {
-<a class="jxr_linenumber" name="927" href="#927">927</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="928" href="#928">928</a>             <strong class="jxr_keyword">return</strong> url;
-<a class="jxr_linenumber" name="929" href="#929">929</a>         }
-<a class="jxr_linenumber" name="930" href="#930">930</a> 
-<a class="jxr_linenumber" name="931" href="#931">931</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendError(<strong class="jxr_keyword">int</strong> sc, String msg) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="932" href="#932">932</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="933" href="#933">933</a>         }
-<a class="jxr_linenumber" name="934" href="#934">934</a> 
-<a class="jxr_linenumber" name="935" href="#935">935</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendError(<strong class="jxr_keyword">int</strong> sc) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="936" href="#936">936</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="937" href="#937">937</a>         }
-<a class="jxr_linenumber" name="938" href="#938">938</a> 
-<a class="jxr_linenumber" name="939" href="#939">939</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendRedirect(String location) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="940" href="#940">940</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="941" href="#941">941</a>         }
-<a class="jxr_linenumber" name="942" href="#942">942</a> 
-<a class="jxr_linenumber" name="943" href="#943">943</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setDateHeader(String name, <strong class="jxr_keyword">long</strong> date) {
-<a class="jxr_linenumber" name="944" href="#944">944</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="945" href="#945">945</a>         }
-<a class="jxr_linenumber" name="946" href="#946">946</a> 
-<a class="jxr_linenumber" name="947" href="#947">947</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addDateHeader(String name, <strong class="jxr_keyword">long</strong> date) {
-<a class="jxr_linenumber" name="948" href="#948">948</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="949" href="#949">949</a>         }
-<a class="jxr_linenumber" name="950" href="#950">950</a> 
-<a class="jxr_linenumber" name="951" href="#951">951</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setHeader(String name, String value) {
-<a class="jxr_linenumber" name="952" href="#952">952</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="953" href="#953">953</a>         }
-<a class="jxr_linenumber" name="954" href="#954">954</a> 
-<a class="jxr_linenumber" name="955" href="#955">955</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addHeader(String name, String value) {
-<a class="jxr_linenumber" name="956" href="#956">956</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="957" href="#957">957</a>         }
-<a class="jxr_linenumber" name="958" href="#958">958</a> 
-<a class="jxr_linenumber" name="959" href="#959">959</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setIntHeader(String name, <strong class="jxr_keyword">int</strong> value) {
-<a class="jxr_linenumber" name="960" href="#960">960</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="961" href="#961">961</a>         }
-<a class="jxr_linenumber" name="962" href="#962">962</a> 
-<a class="jxr_linenumber" name="963" href="#963">963</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addIntHeader(String name, <strong class="jxr_keyword">int</strong> value) {
-<a class="jxr_linenumber" name="964" href="#964">964</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="965" href="#965">965</a>         }
-<a class="jxr_linenumber" name="966" href="#966">966</a> 
-<a class="jxr_linenumber" name="967" href="#967">967</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setStatus(<strong class="jxr_keyword">int</strong> sc) {
-<a class="jxr_linenumber" name="968" href="#968">968</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="969" href="#969">969</a>         }
-<a class="jxr_linenumber" name="970" href="#970">970</a> 
-<a class="jxr_linenumber" name="971" href="#971">971</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setStatus(<strong class="jxr_keyword">int</strong> sc, String sm) {
-<a class="jxr_linenumber" name="972" href="#972">972</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="973" href="#973">973</a>         }
-<a class="jxr_linenumber" name="974" href="#974">974</a> 
-<a class="jxr_linenumber" name="975" href="#975">975</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getStatus() {
-<a class="jxr_linenumber" name="976" href="#976">976</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="977" href="#977">977</a>             <strong class="jxr_keyword">return</strong> 200;
-<a class="jxr_linenumber" name="978" href="#978">978</a>         }
-<a class="jxr_linenumber" name="979" href="#979">979</a> 
-<a class="jxr_linenumber" name="980" href="#980">980</a>         <strong class="jxr_keyword">public</strong> String getHeader(String name) {
-<a class="jxr_linenumber" name="981" href="#981">981</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="982" href="#982">982</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="983" href="#983">983</a>         }
-<a class="jxr_linenumber" name="984" href="#984">984</a> 
-<a class="jxr_linenumber" name="985" href="#985">985</a>         <strong class="jxr_keyword">public</strong> Collection&lt;String&gt; getHeaders(String name) {
-<a class="jxr_linenumber" name="986" href="#986">986</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="987" href="#987">987</a>             <strong class="jxr_keyword">return</strong> Collections.emptyList();
-<a class="jxr_linenumber" name="988" href="#988">988</a>         }
-<a class="jxr_linenumber" name="989" href="#989">989</a> 
-<a class="jxr_linenumber" name="990" href="#990">990</a>         <strong class="jxr_keyword">public</strong> Collection&lt;String&gt; getHeaderNames() {
-<a class="jxr_linenumber" name="991" href="#991">991</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="992" href="#992">992</a>             <strong class="jxr_keyword">return</strong> Collections.emptyList();
-<a class="jxr_linenumber" name="993" href="#993">993</a>         }
-<a class="jxr_linenumber" name="994" href="#994">994</a> 
-<a class="jxr_linenumber" name="995" href="#995">995</a>         <strong class="jxr_keyword">public</strong> String getCharacterEncoding() {
-<a class="jxr_linenumber" name="996" href="#996">996</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="997" href="#997">997</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"ISO-8859-1"</span>;
-<a class="jxr_linenumber" name="998" href="#998">998</a>         }
-<a class="jxr_linenumber" name="999" href="#999">999</a> 
-<a class="jxr_linenumber" name="1000" href="#1000">1000</a>         <strong class="jxr_keyword">public</strong> String getContentType() {
-<a class="jxr_linenumber" name="1001" href="#1001">1001</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1002" href="#1002">1002</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"text/plain"</span>;
-<a class="jxr_linenumber" name="1003" href="#1003">1003</a>         }
-<a class="jxr_linenumber" name="1004" href="#1004">1004</a> 
-<a class="jxr_linenumber" name="1005" href="#1005">1005</a>         <strong class="jxr_keyword">public</strong> ServletOutputStream getOutputStream() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1006" href="#1006">1006</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1007" href="#1007">1007</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsOutputStream</a>();
-<a class="jxr_linenumber" name="1008" href="#1008">1008</a>         }
-<a class="jxr_linenumber" name="1009" href="#1009">1009</a> 
-<a class="jxr_linenumber" name="1010" href="#1010">1010</a>         <strong class="jxr_keyword">public</strong> PrintWriter getWriter() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1011" href="#1011">1011</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1012" href="#1012">1012</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> PrintWriter(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsPrintWriter</a>());
-<a class="jxr_linenumber" name="1013" href="#1013">1013</a>         }
-<a class="jxr_linenumber" name="1014" href="#1014">1014</a> 
-<a class="jxr_linenumber" name="1015" href="#1015">1015</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setCharacterEncoding(String charset) {
-<a class="jxr_linenumber" name="1016" href="#1016">1016</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1017" href="#1017">1017</a>         }
-<a class="jxr_linenumber" name="1018" href="#1018">1018</a> 
-<a class="jxr_linenumber" name="1019" href="#1019">1019</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setContentLength(<strong class="jxr_keyword">int</strong> len) {
-<a class="jxr_linenumber" name="1020" href="#1020">1020</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1021" href="#1021">1021</a>         }
-<a class="jxr_linenumber" name="1022" href="#1022">1022</a> 
-<a class="jxr_linenumber" name="1023" href="#1023">1023</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setContentType(String type) {
-<a class="jxr_linenumber" name="1024" href="#1024">1024</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1025" href="#1025">1025</a>         }
-<a class="jxr_linenumber" name="1026" href="#1026">1026</a> 
-<a class="jxr_linenumber" name="1027" href="#1027">1027</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBufferSize(<strong class="jxr_keyword">int</strong> size) {
-<a class="jxr_linenumber" name="1028" href="#1028">1028</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1029" href="#1029">1029</a>         }
-<a class="jxr_linenumber" name="1030" href="#1030">1030</a> 
-<a class="jxr_linenumber" name="1031" href="#1031">1031</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getBufferSize() {
-<a class="jxr_linenumber" name="1032" href="#1032">1032</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1033" href="#1033">1033</a>             <strong class="jxr_keyword">return</strong> -1;
-<a class="jxr_linenumber" name="1034" href="#1034">1034</a>         }
-<a class="jxr_linenumber" name="1035" href="#1035">1035</a> 
-<a class="jxr_linenumber" name="1036" href="#1036">1036</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> flushBuffer() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1037" href="#1037">1037</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1038" href="#1038">1038</a>         }
-<a class="jxr_linenumber" name="1039" href="#1039">1039</a> 
-<a class="jxr_linenumber" name="1040" href="#1040">1040</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> resetBuffer() {
-<a class="jxr_linenumber" name="1041" href="#1041">1041</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1042" href="#1042">1042</a>         }
-<a class="jxr_linenumber" name="1043" href="#1043">1043</a> 
-<a class="jxr_linenumber" name="1044" href="#1044">1044</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isCommitted() {
-<a class="jxr_linenumber" name="1045" href="#1045">1045</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1046" href="#1046">1046</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="1047" href="#1047">1047</a>         }
-<a class="jxr_linenumber" name="1048" href="#1048">1048</a> 
-<a class="jxr_linenumber" name="1049" href="#1049">1049</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> reset() {
-<a class="jxr_linenumber" name="1050" href="#1050">1050</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1051" href="#1051">1051</a>         }
-<a class="jxr_linenumber" name="1052" href="#1052">1052</a> 
-<a class="jxr_linenumber" name="1053" href="#1053">1053</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setLocale(Locale loc) {
-<a class="jxr_linenumber" name="1054" href="#1054">1054</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1055" href="#1055">1055</a>         }
-<a class="jxr_linenumber" name="1056" href="#1056">1056</a> 
-<a class="jxr_linenumber" name="1057" href="#1057">1057</a>         <strong class="jxr_keyword">public</strong> Locale getLocale() {
-<a class="jxr_linenumber" name="1058" href="#1058">1058</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
-<a class="jxr_linenumber" name="1059" href="#1059">1059</a>             <strong class="jxr_keyword">return</strong> Locale.ENGLISH;
-<a class="jxr_linenumber" name="1060" href="#1060">1060</a>         }
-<a class="jxr_linenumber" name="1061" href="#1061">1061</a>     }
-<a class="jxr_linenumber" name="1062" href="#1062">1062</a> 
-<a class="jxr_linenumber" name="1063" href="#1063">1063</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsOutputStream</a> <strong class="jxr_keyword">extends</strong> ServletOutputStream {
-<a class="jxr_linenumber" name="1064" href="#1064">1064</a>         @Override
-<a class="jxr_linenumber" name="1065" href="#1065">1065</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(<strong class="jxr_keyword">int</strong> i) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1066" href="#1066">1066</a>         }
-<a class="jxr_linenumber" name="1067" href="#1067">1067</a>     }
-<a class="jxr_linenumber" name="1068" href="#1068">1068</a> 
-<a class="jxr_linenumber" name="1069" href="#1069">1069</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsPrintWriter</a> <strong class="jxr_keyword">extends</strong> Writer {
-<a class="jxr_linenumber" name="1070" href="#1070">1070</a> 
-<a class="jxr_linenumber" name="1071" href="#1071">1071</a>         @Override
-<a class="jxr_linenumber" name="1072" href="#1072">1072</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(<strong class="jxr_keyword">char</strong>[] chars, <strong class="jxr_keyword">int</strong> i, <strong class="jxr_keyword">int</strong> i1) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1073" href="#1073">1073</a>         }
-<a class="jxr_linenumber" name="1074" href="#1074">1074</a> 
-<a class="jxr_linenumber" name="1075" href="#1075">1075</a>         @Override
-<a class="jxr_linenumber" name="1076" href="#1076">1076</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> flush() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1077" href="#1077">1077</a>         }
-<a class="jxr_linenumber" name="1078" href="#1078">1078</a> 
-<a class="jxr_linenumber" name="1079" href="#1079">1079</a>         @Override
-<a class="jxr_linenumber" name="1080" href="#1080">1080</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="1081" href="#1081">1081</a>         }
-<a class="jxr_linenumber" name="1082" href="#1082">1082</a>     }
-<a class="jxr_linenumber" name="1083" href="#1083">1083</a> 
-<a class="jxr_linenumber" name="1084" href="#1084">1084</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="1085" href="#1085">1085</a> <em class="jxr_javadoccomment">     * Create an instance not associated with any response parent.</em>
-<a class="jxr_linenumber" name="1086" href="#1086">1086</a> <em class="jxr_javadoccomment">     * @return</em>
-<a class="jxr_linenumber" name="1087" href="#1087">1087</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="1088" href="#1088">1088</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> create() {
-<a class="jxr_linenumber" name="1089" href="#1089">1089</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().build();
-<a class="jxr_linenumber" name="1090" href="#1090">1090</a>     }
-<a class="jxr_linenumber" name="1091" href="#1091">1091</a> 
-<a class="jxr_linenumber" name="1092" href="#1092">1092</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="1093" href="#1093">1093</a> <em class="jxr_javadoccomment">     * Wrap an {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="1094" href="#1094">1094</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="1095" href="#1095">1095</a> <em class="jxr_javadoccomment">     * @param response {@link HttpServletResponse}</em>
-<a class="jxr_linenumber" name="1096" href="#1096">1096</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResponse}</em>
-<a class="jxr_linenumber" name="1097" href="#1097">1097</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="1098" href="#1098">1098</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> wrap(HttpServletResponse response) {
-<a class="jxr_linenumber" name="1099" href="#1099">1099</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().response(response).build();
-<a class="jxr_linenumber" name="1100" href="#1100">1100</a>     }
-<a class="jxr_linenumber" name="1101" href="#1101">1101</a> 
-<a class="jxr_linenumber" name="1102" href="#1102">1102</a>     @Override
-<a class="jxr_linenumber" name="1103" href="#1103">1103</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="1104" href="#1104">1104</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResponse{"</span> +
-<a class="jxr_linenumber" name="1105" href="#1105">1105</a>                 <span class="jxr_string">"cookies="</span> + cookies +
-<a class="jxr_linenumber" name="1106" href="#1106">1106</a>                 <span class="jxr_string">", headers="</span> + headers +
-<a class="jxr_linenumber" name="1107" href="#1107">1107</a>                 <span class="jxr_string">", asyncIOWriter="</span> + asyncIOWriter +
-<a class="jxr_linenumber" name="1108" href="#1108">1108</a>                 <span class="jxr_string">", status="</span> + status +
-<a class="jxr_linenumber" name="1109" href="#1109">1109</a>                 <span class="jxr_string">", statusMessage='"</span> + statusMessage + '\'' +
-<a class="jxr_linenumber" name="1110" href="#1110">1110</a>                 <span class="jxr_string">", charSet='"</span> + charSet + '\'' +
-<a class="jxr_linenumber" name="1111" href="#1111">1111</a>                 <span class="jxr_string">", contentLength="</span> + contentLength +
-<a class="jxr_linenumber" name="1112" href="#1112">1112</a>                 <span class="jxr_string">", contentType='"</span> + contentType + '\'' +
-<a class="jxr_linenumber" name="1113" href="#1113">1113</a>                 <span class="jxr_string">", isCommited="</span> + isCommited +
-<a class="jxr_linenumber" name="1114" href="#1114">1114</a>                 <span class="jxr_string">", locale="</span> + locale +
-<a class="jxr_linenumber" name="1115" href="#1115">1115</a>                 <span class="jxr_string">", headerHandled="</span> + headerHandled +
-<a class="jxr_linenumber" name="1116" href="#1116">1116</a>                 <span class="jxr_string">", atmosphereRequest="</span> + atmosphereRequest +
-<a class="jxr_linenumber" name="1117" href="#1117">1117</a>                 <span class="jxr_string">", writeStatusAndHeader="</span> + writeStatusAndHeader +
-<a class="jxr_linenumber" name="1118" href="#1118">1118</a>                 <span class="jxr_string">", delegateToNativeResponse="</span> + delegateToNativeResponse +
-<a class="jxr_linenumber" name="1119" href="#1119">1119</a>                 <span class="jxr_string">", destroyable="</span> + destroyable +
-<a class="jxr_linenumber" name="1120" href="#1120">1120</a>                 <span class="jxr_string">", response="</span> + response +
-<a class="jxr_linenumber" name="1121" href="#1121">1121</a>                 '}';
-<a class="jxr_linenumber" name="1122" href="#1122">1122</a>     }
-<a class="jxr_linenumber" name="1123" href="#1123">1123</a> }
+<a class="jxr_linenumber" name="799" href="#799">799</a>                     logger.trace(<span class="jxr_string">""</span>,ex);
+<a class="jxr_linenumber" name="800" href="#800">800</a>                 }
+<a class="jxr_linenumber" name="801" href="#801">801</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="802" href="#802">802</a>                 getWriter().close();
+<a class="jxr_linenumber" name="803" href="#803">803</a>             }
+<a class="jxr_linenumber" name="804" href="#804">804</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="805" href="#805">805</a>             logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="806" href="#806">806</a>         }
+<a class="jxr_linenumber" name="807" href="#807">807</a>     }
+<a class="jxr_linenumber" name="808" href="#808">808</a> 
+<a class="jxr_linenumber" name="809" href="#809">809</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="810" href="#810">810</a> <em class="jxr_javadoccomment">     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
+<a class="jxr_linenumber" name="811" href="#811">811</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
+<a class="jxr_linenumber" name="812" href="#812">812</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="813" href="#813">813</a> <em class="jxr_javadoccomment">     * @param data the String to write</em>
+<a class="jxr_linenumber" name="814" href="#814">814</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="815" href="#815">815</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(String data) {
+<a class="jxr_linenumber" name="816" href="#816">816</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+<a class="jxr_linenumber" name="817" href="#817">817</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="818" href="#818">818</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
+<a class="jxr_linenumber" name="819" href="#819">819</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="820" href="#820">820</a>                     getOutputStream().write(data.getBytes(getCharacterEncoding()));
+<a class="jxr_linenumber" name="821" href="#821">821</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
+<a class="jxr_linenumber" name="822" href="#822">822</a>                     logger.trace(<span class="jxr_string">""</span>,ex);
+<a class="jxr_linenumber" name="823" href="#823">823</a>                 }
+<a class="jxr_linenumber" name="824" href="#824">824</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="825" href="#825">825</a>                 getWriter().write(data);
+<a class="jxr_linenumber" name="826" href="#826">826</a>             }
+<a class="jxr_linenumber" name="827" href="#827">827</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="828" href="#828">828</a>             logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="829" href="#829">829</a>         }
+<a class="jxr_linenumber" name="830" href="#830">830</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="831" href="#831">831</a>     }
+<a class="jxr_linenumber" name="832" href="#832">832</a> 
+<a class="jxr_linenumber" name="833" href="#833">833</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="834" href="#834">834</a> <em class="jxr_javadoccomment">     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
+<a class="jxr_linenumber" name="835" href="#835">835</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
+<a class="jxr_linenumber" name="836" href="#836">836</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="837" href="#837">837</a> <em class="jxr_javadoccomment">     * @param data the bytes to write</em>
+<a class="jxr_linenumber" name="838" href="#838">838</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="839" href="#839">839</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(byte[] data) {
+<a class="jxr_linenumber" name="840" href="#840">840</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+<a class="jxr_linenumber" name="841" href="#841">841</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="842" href="#842">842</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
+<a class="jxr_linenumber" name="843" href="#843">843</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="844" href="#844">844</a>                     getOutputStream().write(data);
+<a class="jxr_linenumber" name="845" href="#845">845</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
+<a class="jxr_linenumber" name="846" href="#846">846</a>                 }
+<a class="jxr_linenumber" name="847" href="#847">847</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="848" href="#848">848</a>                 getWriter().write(<strong class="jxr_keyword">new</strong> String(data, getCharacterEncoding()));
+<a class="jxr_linenumber" name="849" href="#849">849</a>             }
+<a class="jxr_linenumber" name="850" href="#850">850</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="851" href="#851">851</a>             logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="852" href="#852">852</a>         }
+<a class="jxr_linenumber" name="853" href="#853">853</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="854" href="#854">854</a>     }
+<a class="jxr_linenumber" name="855" href="#855">855</a> 
+<a class="jxr_linenumber" name="856" href="#856">856</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="857" href="#857">857</a> <em class="jxr_javadoccomment">     * Write the bytes by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is</em>
+<a class="jxr_linenumber" name="858" href="#858">858</a> <em class="jxr_javadoccomment">     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM}</em>
+<a class="jxr_linenumber" name="859" href="#859">859</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="860" href="#860">860</a> <em class="jxr_javadoccomment">     * @param data   the bytes to write</em>
+<a class="jxr_linenumber" name="861" href="#861">861</a> <em class="jxr_javadoccomment">     * @param offset the first byte position to write</em>
+<a class="jxr_linenumber" name="862" href="#862">862</a> <em class="jxr_javadoccomment">     * @param length the data length</em>
+<a class="jxr_linenumber" name="863" href="#863">863</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="864" href="#864">864</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> write(byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) {
+<a class="jxr_linenumber" name="865" href="#865">865</a>         <strong class="jxr_keyword">boolean</strong> isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+<a class="jxr_linenumber" name="866" href="#866">866</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="867" href="#867">867</a>             <strong class="jxr_keyword">if</strong> (isUsingStream) {
+<a class="jxr_linenumber" name="868" href="#868">868</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="869" href="#869">869</a>                     getOutputStream().write(data, offset, length);
+<a class="jxr_linenumber" name="870" href="#870">870</a>                 } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
+<a class="jxr_linenumber" name="871" href="#871">871</a>                 }
+<a class="jxr_linenumber" name="872" href="#872">872</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="873" href="#873">873</a>                 getWriter().write(<strong class="jxr_keyword">new</strong> String(data, offset, length, getCharacterEncoding()));
+<a class="jxr_linenumber" name="874" href="#874">874</a>             }
+<a class="jxr_linenumber" name="875" href="#875">875</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="876" href="#876">876</a>             logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="877" href="#877">877</a>         }
+<a class="jxr_linenumber" name="878" href="#878">878</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="879" href="#879">879</a>     }
+<a class="jxr_linenumber" name="880" href="#880">880</a> 
+<a class="jxr_linenumber" name="881" href="#881">881</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="882" href="#882">882</a> <em class="jxr_javadoccomment">     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this</em>
+<a class="jxr_linenumber" name="883" href="#883">883</a> <em class="jxr_javadoccomment">     * method will return null.</em>
+<a class="jxr_linenumber" name="884" href="#884">884</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="885" href="#885">885</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResource}, or null.</em>
+<a class="jxr_linenumber" name="886" href="#886">886</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="887" href="#887">887</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource() {
+<a class="jxr_linenumber" name="888" href="#888">888</a>         <strong class="jxr_keyword">if</strong> (atmosphereRequest != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="889" href="#889">889</a>             <strong class="jxr_keyword">return</strong> (AtmosphereResource) atmosphereRequest.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+<a class="jxr_linenumber" name="890" href="#890">890</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="891" href="#891">891</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="892" href="#892">892</a>         }
+<a class="jxr_linenumber" name="893" href="#893">893</a>     }
+<a class="jxr_linenumber" name="894" href="#894">894</a> 
+<a class="jxr_linenumber" name="895" href="#895">895</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setResponse(ServletResponse response) {
+<a class="jxr_linenumber" name="896" href="#896">896</a>         <strong class="jxr_keyword">super</strong>.setResponse(response);
+<a class="jxr_linenumber" name="897" href="#897">897</a>         <strong class="jxr_keyword">if</strong> (HttpServletResponse.<strong class="jxr_keyword">class</strong>.isAssignableFrom(response.getClass())) {
+<a class="jxr_linenumber" name="898" href="#898">898</a>             <strong class="jxr_keyword">this</strong>.response = HttpServletResponse.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(response);
+<a class="jxr_linenumber" name="899" href="#899">899</a>         }
+<a class="jxr_linenumber" name="900" href="#900">900</a>     }
+<a class="jxr_linenumber" name="901" href="#901">901</a> 
+<a class="jxr_linenumber" name="902" href="#902">902</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">DummyHttpServletResponse</a> <strong class="jxr_keyword">implements</strong> HttpServletResponse {
+<a class="jxr_linenumber" name="903" href="#903">903</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addCookie(Cookie cookie) {
+<a class="jxr_linenumber" name="904" href="#904">904</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="905" href="#905">905</a>         }
+<a class="jxr_linenumber" name="906" href="#906">906</a> 
+<a class="jxr_linenumber" name="907" href="#907">907</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> containsHeader(String name) {
+<a class="jxr_linenumber" name="908" href="#908">908</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="909" href="#909">909</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="910" href="#910">910</a>         }
+<a class="jxr_linenumber" name="911" href="#911">911</a> 
+<a class="jxr_linenumber" name="912" href="#912">912</a>         <strong class="jxr_keyword">public</strong> String encodeURL(String url) {
+<a class="jxr_linenumber" name="913" href="#913">913</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="914" href="#914">914</a>             <strong class="jxr_keyword">return</strong> url;
+<a class="jxr_linenumber" name="915" href="#915">915</a>         }
+<a class="jxr_linenumber" name="916" href="#916">916</a> 
+<a class="jxr_linenumber" name="917" href="#917">917</a>         <strong class="jxr_keyword">public</strong> String encodeRedirectURL(String url) {
+<a class="jxr_linenumber" name="918" href="#918">918</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="919" href="#919">919</a>             <strong class="jxr_keyword">return</strong> url;
+<a class="jxr_linenumber" name="920" href="#920">920</a>         }
+<a class="jxr_linenumber" name="921" href="#921">921</a> 
+<a class="jxr_linenumber" name="922" href="#922">922</a>         <strong class="jxr_keyword">public</strong> String encodeUrl(String url) {
+<a class="jxr_linenumber" name="923" href="#923">923</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="924" href="#924">924</a>             <strong class="jxr_keyword">return</strong> url;
+<a class="jxr_linenumber" name="925" href="#925">925</a>         }
+<a class="jxr_linenumber" name="926" href="#926">926</a> 
+<a class="jxr_linenumber" name="927" href="#927">927</a>         <strong class="jxr_keyword">public</strong> String encodeRedirectUrl(String url) {
+<a class="jxr_linenumber" name="928" href="#928">928</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="929" href="#929">929</a>             <strong class="jxr_keyword">return</strong> url;
+<a class="jxr_linenumber" name="930" href="#930">930</a>         }
+<a class="jxr_linenumber" name="931" href="#931">931</a> 
+<a class="jxr_linenumber" name="932" href="#932">932</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendError(<strong class="jxr_keyword">int</strong> sc, String msg) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="933" href="#933">933</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="934" href="#934">934</a>         }
+<a class="jxr_linenumber" name="935" href="#935">935</a> 
+<a class="jxr_linenumber" name="936" href="#936">936</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendError(<strong class="jxr_keyword">int</strong> sc) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="937" href="#937">937</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="938" href="#938">938</a>         }
+<a class="jxr_linenumber" name="939" href="#939">939</a> 
+<a class="jxr_linenumber" name="940" href="#940">940</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> sendRedirect(String location) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="941" href="#941">941</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="942" href="#942">942</a>         }
+<a class="jxr_linenumber" name="943" href="#943">943</a> 
+<a class="jxr_linenumber" name="944" href="#944">944</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setDateHeader(String name, <strong class="jxr_keyword">long</strong> date) {
+<a class="jxr_linenumber" name="945" href="#945">945</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="946" href="#946">946</a>         }
+<a class="jxr_linenumber" name="947" href="#947">947</a> 
+<a class="jxr_linenumber" name="948" href="#948">948</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addDateHeader(String name, <strong class="jxr_keyword">long</strong> date) {
+<a class="jxr_linenumber" name="949" href="#949">949</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="950" href="#950">950</a>         }
+<a class="jxr_linenumber" name="951" href="#951">951</a> 
+<a class="jxr_linenumber" name="952" href="#952">952</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setHeader(String name, String value) {
+<a class="jxr_linenumber" name="953" href="#953">953</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="954" href="#954">954</a>         }
+<a class="jxr_linenumber" name="955" href="#955">955</a> 
+<a class="jxr_linenumber" name="956" href="#956">956</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addHeader(String name, String value) {
+<a class="jxr_linenumber" name="957" href="#957">957</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="958" href="#958">958</a>         }
+<a class="jxr_linenumber" name="959" href="#959">959</a> 
+<a class="jxr_linenumber" name="960" href="#960">960</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setIntHeader(String name, <strong class="jxr_keyword">int</strong> value) {
+<a class="jxr_linenumber" name="961" href="#961">961</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="962" href="#962">962</a>         }
+<a class="jxr_linenumber" name="963" href="#963">963</a> 
+<a class="jxr_linenumber" name="964" href="#964">964</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addIntHeader(String name, <strong class="jxr_keyword">int</strong> value) {
+<a class="jxr_linenumber" name="965" href="#965">965</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="966" href="#966">966</a>         }
+<a class="jxr_linenumber" name="967" href="#967">967</a> 
+<a class="jxr_linenumber" name="968" href="#968">968</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setStatus(<strong class="jxr_keyword">int</strong> sc) {
+<a class="jxr_linenumber" name="969" href="#969">969</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="970" href="#970">970</a>         }
+<a class="jxr_linenumber" name="971" href="#971">971</a> 
+<a class="jxr_linenumber" name="972" href="#972">972</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setStatus(<strong class="jxr_keyword">int</strong> sc, String sm) {
+<a class="jxr_linenumber" name="973" href="#973">973</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="974" href="#974">974</a>         }
+<a class="jxr_linenumber" name="975" href="#975">975</a> 
+<a class="jxr_linenumber" name="976" href="#976">976</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getStatus() {
+<a class="jxr_linenumber" name="977" href="#977">977</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="978" href="#978">978</a>             <strong class="jxr_keyword">return</strong> 200;
+<a class="jxr_linenumber" name="979" href="#979">979</a>         }
+<a class="jxr_linenumber" name="980" href="#980">980</a> 
+<a class="jxr_linenumber" name="981" href="#981">981</a>         <strong class="jxr_keyword">public</strong> String getHeader(String name) {
+<a class="jxr_linenumber" name="982" href="#982">982</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="983" href="#983">983</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="984" href="#984">984</a>         }
+<a class="jxr_linenumber" name="985" href="#985">985</a> 
+<a class="jxr_linenumber" name="986" href="#986">986</a>         <strong class="jxr_keyword">public</strong> Collection&lt;String&gt; getHeaders(String name) {
+<a class="jxr_linenumber" name="987" href="#987">987</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="988" href="#988">988</a>             <strong class="jxr_keyword">return</strong> Collections.emptyList();
+<a class="jxr_linenumber" name="989" href="#989">989</a>         }
+<a class="jxr_linenumber" name="990" href="#990">990</a> 
+<a class="jxr_linenumber" name="991" href="#991">991</a>         <strong class="jxr_keyword">public</strong> Collection&lt;String&gt; getHeaderNames() {
+<a class="jxr_linenumber" name="992" href="#992">992</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="993" href="#993">993</a>             <strong class="jxr_keyword">return</strong> Collections.emptyList();
+<a class="jxr_linenumber" name="994" href="#994">994</a>         }
+<a class="jxr_linenumber" name="995" href="#995">995</a> 
+<a class="jxr_linenumber" name="996" href="#996">996</a>         <strong class="jxr_keyword">public</strong> String getCharacterEncoding() {
+<a class="jxr_linenumber" name="997" href="#997">997</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="998" href="#998">998</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"ISO-8859-1"</span>;
+<a class="jxr_linenumber" name="999" href="#999">999</a>         }
+<a class="jxr_linenumber" name="1000" href="#1000">1000</a> 
+<a class="jxr_linenumber" name="1001" href="#1001">1001</a>         <strong class="jxr_keyword">public</strong> String getContentType() {
+<a class="jxr_linenumber" name="1002" href="#1002">1002</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1003" href="#1003">1003</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"text/plain"</span>;
+<a class="jxr_linenumber" name="1004" href="#1004">1004</a>         }
+<a class="jxr_linenumber" name="1005" href="#1005">1005</a> 
+<a class="jxr_linenumber" name="1006" href="#1006">1006</a>         <strong class="jxr_keyword">public</strong> ServletOutputStream getOutputStream() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1007" href="#1007">1007</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1008" href="#1008">1008</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsOutputStream</a>();
+<a class="jxr_linenumber" name="1009" href="#1009">1009</a>         }
+<a class="jxr_linenumber" name="1010" href="#1010">1010</a> 
+<a class="jxr_linenumber" name="1011" href="#1011">1011</a>         <strong class="jxr_keyword">public</strong> PrintWriter getWriter() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1012" href="#1012">1012</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1013" href="#1013">1013</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> PrintWriter(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsPrintWriter</a>());
+<a class="jxr_linenumber" name="1014" href="#1014">1014</a>         }
+<a class="jxr_linenumber" name="1015" href="#1015">1015</a> 
+<a class="jxr_linenumber" name="1016" href="#1016">1016</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setCharacterEncoding(String charset) {
+<a class="jxr_linenumber" name="1017" href="#1017">1017</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1018" href="#1018">1018</a>         }
+<a class="jxr_linenumber" name="1019" href="#1019">1019</a> 
+<a class="jxr_linenumber" name="1020" href="#1020">1020</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setContentLength(<strong class="jxr_keyword">int</strong> len) {
+<a class="jxr_linenumber" name="1021" href="#1021">1021</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1022" href="#1022">1022</a>         }
+<a class="jxr_linenumber" name="1023" href="#1023">1023</a> 
+<a class="jxr_linenumber" name="1024" href="#1024">1024</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setContentType(String type) {
+<a class="jxr_linenumber" name="1025" href="#1025">1025</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1026" href="#1026">1026</a>         }
+<a class="jxr_linenumber" name="1027" href="#1027">1027</a> 
+<a class="jxr_linenumber" name="1028" href="#1028">1028</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBufferSize(<strong class="jxr_keyword">int</strong> size) {
+<a class="jxr_linenumber" name="1029" href="#1029">1029</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1030" href="#1030">1030</a>         }
+<a class="jxr_linenumber" name="1031" href="#1031">1031</a> 
+<a class="jxr_linenumber" name="1032" href="#1032">1032</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getBufferSize() {
+<a class="jxr_linenumber" name="1033" href="#1033">1033</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1034" href="#1034">1034</a>             <strong class="jxr_keyword">return</strong> -1;
+<a class="jxr_linenumber" name="1035" href="#1035">1035</a>         }
+<a class="jxr_linenumber" name="1036" href="#1036">1036</a> 
+<a class="jxr_linenumber" name="1037" href="#1037">1037</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> flushBuffer() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1038" href="#1038">1038</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1039" href="#1039">1039</a>         }
+<a class="jxr_linenumber" name="1040" href="#1040">1040</a> 
+<a class="jxr_linenumber" name="1041" href="#1041">1041</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> resetBuffer() {
+<a class="jxr_linenumber" name="1042" href="#1042">1042</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1043" href="#1043">1043</a>         }
+<a class="jxr_linenumber" name="1044" href="#1044">1044</a> 
+<a class="jxr_linenumber" name="1045" href="#1045">1045</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isCommitted() {
+<a class="jxr_linenumber" name="1046" href="#1046">1046</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1047" href="#1047">1047</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="1048" href="#1048">1048</a>         }
+<a class="jxr_linenumber" name="1049" href="#1049">1049</a> 
+<a class="jxr_linenumber" name="1050" href="#1050">1050</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> reset() {
+<a class="jxr_linenumber" name="1051" href="#1051">1051</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1052" href="#1052">1052</a>         }
+<a class="jxr_linenumber" name="1053" href="#1053">1053</a> 
+<a class="jxr_linenumber" name="1054" href="#1054">1054</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setLocale(Locale loc) {
+<a class="jxr_linenumber" name="1055" href="#1055">1055</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1056" href="#1056">1056</a>         }
+<a class="jxr_linenumber" name="1057" href="#1057">1057</a> 
+<a class="jxr_linenumber" name="1058" href="#1058">1058</a>         <strong class="jxr_keyword">public</strong> Locale getLocale() {
+<a class="jxr_linenumber" name="1059" href="#1059">1059</a>             logger.trace(<span class="jxr_string">"Unsupported"</span>);
+<a class="jxr_linenumber" name="1060" href="#1060">1060</a>             <strong class="jxr_keyword">return</strong> Locale.ENGLISH;
+<a class="jxr_linenumber" name="1061" href="#1061">1061</a>         }
+<a class="jxr_linenumber" name="1062" href="#1062">1062</a>     }
+<a class="jxr_linenumber" name="1063" href="#1063">1063</a> 
+<a class="jxr_linenumber" name="1064" href="#1064">1064</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsOutputStream</a> <strong class="jxr_keyword">extends</strong> ServletOutputStream {
+<a class="jxr_linenumber" name="1065" href="#1065">1065</a>         @Override
+<a class="jxr_linenumber" name="1066" href="#1066">1066</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(<strong class="jxr_keyword">int</strong> i) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1067" href="#1067">1067</a>         }
+<a class="jxr_linenumber" name="1068" href="#1068">1068</a>     }
+<a class="jxr_linenumber" name="1069" href="#1069">1069</a> 
+<a class="jxr_linenumber" name="1070" href="#1070">1070</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">NoOpsPrintWriter</a> <strong class="jxr_keyword">extends</strong> Writer {
+<a class="jxr_linenumber" name="1071" href="#1071">1071</a> 
+<a class="jxr_linenumber" name="1072" href="#1072">1072</a>         @Override
+<a class="jxr_linenumber" name="1073" href="#1073">1073</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> write(<strong class="jxr_keyword">char</strong>[] chars, <strong class="jxr_keyword">int</strong> i, <strong class="jxr_keyword">int</strong> i1) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1074" href="#1074">1074</a>         }
+<a class="jxr_linenumber" name="1075" href="#1075">1075</a> 
+<a class="jxr_linenumber" name="1076" href="#1076">1076</a>         @Override
+<a class="jxr_linenumber" name="1077" href="#1077">1077</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> flush() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1078" href="#1078">1078</a>         }
+<a class="jxr_linenumber" name="1079" href="#1079">1079</a> 
+<a class="jxr_linenumber" name="1080" href="#1080">1080</a>         @Override
+<a class="jxr_linenumber" name="1081" href="#1081">1081</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="1082" href="#1082">1082</a>         }
+<a class="jxr_linenumber" name="1083" href="#1083">1083</a>     }
+<a class="jxr_linenumber" name="1084" href="#1084">1084</a> 
+<a class="jxr_linenumber" name="1085" href="#1085">1085</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="1086" href="#1086">1086</a> <em class="jxr_javadoccomment">     * Create an instance not associated with any response parent.</em>
+<a class="jxr_linenumber" name="1087" href="#1087">1087</a> <em class="jxr_javadoccomment">     * @return</em>
+<a class="jxr_linenumber" name="1088" href="#1088">1088</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="1089" href="#1089">1089</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> create() {
+<a class="jxr_linenumber" name="1090" href="#1090">1090</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().build();
+<a class="jxr_linenumber" name="1091" href="#1091">1091</a>     }
+<a class="jxr_linenumber" name="1092" href="#1092">1092</a> 
+<a class="jxr_linenumber" name="1093" href="#1093">1093</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="1094" href="#1094">1094</a> <em class="jxr_javadoccomment">     * Wrap an {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="1095" href="#1095">1095</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="1096" href="#1096">1096</a> <em class="jxr_javadoccomment">     * @param response {@link HttpServletResponse}</em>
+<a class="jxr_linenumber" name="1097" href="#1097">1097</a> <em class="jxr_javadoccomment">     * @return an {@link AtmosphereResponse}</em>
+<a class="jxr_linenumber" name="1098" href="#1098">1098</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="1099" href="#1099">1099</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> wrap(HttpServletResponse response) {
+<a class="jxr_linenumber" name="1100" href="#1100">1100</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a>().response(response).build();
+<a class="jxr_linenumber" name="1101" href="#1101">1101</a>     }
+<a class="jxr_linenumber" name="1102" href="#1102">1102</a> 
+<a class="jxr_linenumber" name="1103" href="#1103">1103</a>     @Override
+<a class="jxr_linenumber" name="1104" href="#1104">1104</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="1105" href="#1105">1105</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResponse{"</span> +
+<a class="jxr_linenumber" name="1106" href="#1106">1106</a>                 <span class="jxr_string">"cookies="</span> + cookies +
+<a class="jxr_linenumber" name="1107" href="#1107">1107</a>                 <span class="jxr_string">", headers="</span> + headers +
+<a class="jxr_linenumber" name="1108" href="#1108">1108</a>                 <span class="jxr_string">", asyncIOWriter="</span> + asyncIOWriter +
+<a class="jxr_linenumber" name="1109" href="#1109">1109</a>                 <span class="jxr_string">", status="</span> + status +
+<a class="jxr_linenumber" name="1110" href="#1110">1110</a>                 <span class="jxr_string">", statusMessage='"</span> + statusMessage + '\'' +
+<a class="jxr_linenumber" name="1111" href="#1111">1111</a>                 <span class="jxr_string">", charSet='"</span> + charSet + '\'' +
+<a class="jxr_linenumber" name="1112" href="#1112">1112</a>                 <span class="jxr_string">", contentLength="</span> + contentLength +
+<a class="jxr_linenumber" name="1113" href="#1113">1113</a>                 <span class="jxr_string">", contentType='"</span> + contentType + '\'' +
+<a class="jxr_linenumber" name="1114" href="#1114">1114</a>                 <span class="jxr_string">", isCommited="</span> + isCommited +
+<a class="jxr_linenumber" name="1115" href="#1115">1115</a>                 <span class="jxr_string">", locale="</span> + locale +
+<a class="jxr_linenumber" name="1116" href="#1116">1116</a>                 <span class="jxr_string">", headerHandled="</span> + headerHandled +
+<a class="jxr_linenumber" name="1117" href="#1117">1117</a>                 <span class="jxr_string">", atmosphereRequest="</span> + atmosphereRequest +
+<a class="jxr_linenumber" name="1118" href="#1118">1118</a>                 <span class="jxr_string">", writeStatusAndHeader="</span> + writeStatusAndHeader +
+<a class="jxr_linenumber" name="1119" href="#1119">1119</a>                 <span class="jxr_string">", delegateToNativeResponse="</span> + delegateToNativeResponse +
+<a class="jxr_linenumber" name="1120" href="#1120">1120</a>                 <span class="jxr_string">", destroyable="</span> + destroyable +
+<a class="jxr_linenumber" name="1121" href="#1121">1121</a>                 <span class="jxr_string">", response="</span> + response +
+<a class="jxr_linenumber" name="1122" href="#1122">1122</a>                 '}';
+<a class="jxr_linenumber" name="1123" href="#1123">1123</a>     }
+<a class="jxr_linenumber" name="1124" href="#1124">1124</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
