@@ -36,15 +36,15 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-						<Import-Package>
-							com.sun*;resolution:=optional,
-							org.glassfish.grizzly*;resolution:=optional,
-							org.apache.catalina*;resolution:=optional,
-							org.apache.tomcat*;resolution:=optional,
-							org.eclipse.jetty*;resolution:=optional,
-							org.jboss.servlet*;resolution:=optional,
-							*,
-						</Import-Package>
+                        <Import-Package>
+                            com.sun*;resolution:=optional,
+                            org.glassfish.grizzly*;resolution:=optional,
+                            org.apache.catalina*;resolution:=optional,
+                            org.apache.tomcat*;resolution:=optional,
+                            org.eclipse.jetty*;resolution:=optional,
+                            org.jboss.servlet*;resolution:=optional,
+                            *,
+                        </Import-Package>
                         <Export-Package>
                             org.atmosphere.*,
                         </Export-Package>
