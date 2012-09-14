@@ -76,11 +76,11 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
      * required setup here and tie the AtmosphereResource to a Broadcaster, but do not send anything to
      * the client yet. If you wish to do so it is best to let the client send a notification to the server
      * using the {@link AtmosphereClient#post} method in the onConnected event.
-     * 
+     *
      * @param resource
      * @return
      * @throws ServletException
-     * @throws IOException 
+     * @throws IOException
      */
     public int doComet(GwtAtmosphereResource resource) throws ServletException, IOException {
         Broadcaster broadcaster = BroadcasterFactory.getDefault().lookup(Broadcaster.class, GWT_BROADCASTER_ID);
@@ -93,17 +93,17 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
 
     /**
      * When the connection has died this method will be called to let you know about it.
-     * 
-     * 
+     *
+     *
      * @param cometResponse
-     * @param serverInitiated 
+     * @param serverInitiated
      */
     public void cometTerminated(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
     }
 
     /**
      * Called when a message is sent from the client using the post method.
-     * 
+     *
      * Default implementation echo's the message back to the client
      *
      * @param messages
@@ -144,6 +144,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     // -------------- you most likely don't need to override the functions below -----------------
 
     private Map<Integer, GwtAtmosphereResource> resources;
+    private Map<GwtAtmosphereResource, SerialMode> resourceSerialModeMap;
     private ServletContext context;
 
     @Override
@@ -196,7 +197,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (resources != null) {
             for (GwtAtmosphereResource resource : resources.values()) {
                 if (!resource.isAlive()) {
-                    resources.remove(resource.getConnectionID());
+                    resourceSerialModeMap.remove(resources.remove(resource.getConnectionID()));
                 }
             }
         }
@@ -276,13 +277,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (resource == null) {
             return;
         }
-        String mode = resource.getRequest().getParameter(Constants.CLIENT_SERIALZE_MODE_PARAMETER);
-        SerialMode serialMode;
-        if (mode != null) {
-            serialMode = SerialMode.valueOf(mode);
-        } else {
-            serialMode = SerialMode.RPC;
-        }
+
+        final SerialMode serialMode = this.getSerialMode(resource);
 
         try {
             while (true) {
@@ -340,6 +336,32 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             post(request, response, postMessages, resource);
         }
     }
+
+    private SerialMode getSerialMode(GwtAtmosphereResource resource) {
+        SerialMode serialMode = this.resourceSerialModeMap.get(resource);
+        if (resource.isAlive()) {
+            String mode = resource.getRequest().getParameter(Constants.CLIENT_SERIALZE_MODE_PARAMETER);
+            if (mode != null)
+                serialMode = SerialMode.valueOf(mode);
+        }
+        if (serialMode == null)
+            serialMode = this.getDefaultSerialMode();
+
+        this.resourceSerialModeMap.put(resource, serialMode);
+
+        return serialMode;
+    }
+
+    /**
+     * <p>
+     * Specifies the default {@link SerialMode} for this {@link org.atmosphere.cpr.AtmosphereHandler}.  This value is used if no
+     * serial mode parameter is sent with the suspended request.
+     * @return default {@link SerialMode} if not specified in the suspended request's parameter map
+     */
+    protected SerialMode getDefaultSerialMode() {
+        return SerialMode.RPC;
+    }
+
 //    protected void writePostResponse(HttpServletRequest request,
 //            HttpServletResponse response, ServletContext context, String responsePayload) throws IOException {
 //        boolean gzipEncode = RPCServletUtils.acceptsGzipEncoding(request)
@@ -357,21 +379,21 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             default:
             case RPC:
                 return getGwtRpc().deserialize(data);
-                
+
             case JSON:
                 return getJSONDeserializer().deserialize(data);
             case PLAIN:
                 return data;
         }
     }
-    
+
     protected GwtRpcDeserializer getGwtRpc() {
         if (gwtRpc == null) {
             gwtRpc = new GwtRpcDeserializer();
         }
         return gwtRpc;
     }
-    
+
     protected JSONDeserializer getJSONDeserializer() {
         if (jsonSerializer == null) {
             ServiceLoader<JSONSerializerProvider> loader = ServiceLoader.load(JSONSerializerProvider.class,
@@ -451,6 +473,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             resource.getWriterImpl().initiate();
             if (resources == null) {
                 resources = new ConcurrentHashMap<Integer, GwtAtmosphereResource>(5);
+                resourceSerialModeMap = new ConcurrentHashMap<GwtAtmosphereResource, SerialMode>(5);
                 scheduler.scheduleWithFixedDelay(new Runnable() {
                     @Override
                     public void run() {
@@ -485,9 +508,9 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         // so we have to be careful about concurrency from here on
         resource.suspend(timeout);
     }
-    
+
     public void terminate(GwtAtmosphereResource cometResponse, boolean serverInitiated) {
-        resources.remove(cometResponse.getConnectionID());
+        resourceSerialModeMap.remove(resources.remove(cometResponse.getConnectionID()));
         cometTerminated(cometResponse, serverInitiated);
     }
 
