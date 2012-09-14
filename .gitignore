@@ -18,3 +18,4 @@ target
 test-output
 nbactions.xml
 samples/gwt-demo/src/main/webapp/WEB-INF/classes/
+atlassian-ide-plugin.xml

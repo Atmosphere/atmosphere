@@ -615,7 +615,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
                     r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
                 }
-                trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
+                trackBroadcastMessage(r, entry);
 
                 if (entry.future != null) {
                     entry.future.done();
@@ -667,7 +667,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     } else {
                         // See https://github.com/Atmosphere/atmosphere/issues/572
                         if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                            trackBroadcastMessage(null, finalMsg);
+                            entry.message = finalMsg;
+                            trackBroadcastMessage(null, entry);
                         }
                     }
                 }
@@ -711,7 +712,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                    trackBroadcastMessage(r, finalMsg);
+                    msg.message = finalMsg;
+                    trackBroadcastMessage(r, msg);
                 }
             }
         }
@@ -839,10 +841,11 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    protected void trackBroadcastMessage(final AtmosphereResource r, Object msg) {
+    protected void trackBroadcastMessage(final AtmosphereResource r, Entry entry) {
         if (destroyed.get() || broadcasterCache == null) return;
+        Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
         try {
-            broadcasterCache.addToCache(getID(), r, msg);
+            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
@@ -911,7 +914,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
-                broadcasterCache.addToCache(getID(), r, m);
+                broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(token.future.hashCode()), m));
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {

@@ -51,15 +51,21 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 
 /**
- * Simple {@link javax.servlet.http.HttpSession} based {@link org.atmosphere.cpr.BroadcasterCache}
+ * Simple {@link org.atmosphere.cpr.BroadcasterCache} that use an {@link javax.servlet.http.HttpSession} to cache
+ * lost message.
  *
  * @author Jeanfrancois Arcand
  */
@@ -71,29 +77,53 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
     public SessionBroadcasterCache() {
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public void cache(String id, AtmosphereResource r, CachedMessage cm) {
-        if (r != null) {
-            HttpSession session = r.session();
-            if (session == null) {
-                logger.error(ERROR_MESSAGE);
-                return;
+    @Override
+    public void addToCache(String broadcasterId, AtmosphereResource r, Message message) {
+        String id = message.id;
+        long now = System.currentTimeMillis();
+        readWriteLock.writeLock().lock();
+        try {
+            boolean hasMessageWithSameId = messagesIds.contains(id);
+            if (!hasMessageWithSameId) {
+                CacheMessage cacheMessage = new CacheMessage(id, now, message.message);
+                messages.add(cacheMessage);
+                messagesIds.add(id);
             }
-            session.setAttribute(id, cm);
+        } finally {
+            readWriteLock.writeLock().unlock();
         }
-    }
 
-    /**
-     * {@inheritDoc}
-     */
-    public CachedMessage retrieveLastMessage(String id, AtmosphereResource r) {
         HttpSession session = r.session();
         if (session == null) {
             logger.error(ERROR_MESSAGE);
-            return null;
+            return;
         }
-        return (CachedMessage) session.getAttribute(id);
+        session.setAttribute(id, messages);
+    }
+
+    @Override
+    public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+        if (r == null) {
+            throw new IllegalArgumentException("AtmosphereResource can't be null");
+        }
+
+        List<Object> result = new ArrayList<Object>();
+        HttpSession session = r.session();
+        if (session == null) {
+            logger.error(ERROR_MESSAGE);
+            return result;
+        }
+        List<CacheMessage> m = (List<CacheMessage>)session.getAttribute(id);
+
+        readWriteLock.readLock().lock();
+        try {
+            for (CacheMessage cacheMessage : m) {
+                result.add(cacheMessage.getMessage());
+            }
+
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+        return result;
     }
 }
