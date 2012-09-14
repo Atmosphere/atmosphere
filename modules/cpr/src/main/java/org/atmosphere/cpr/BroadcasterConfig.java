@@ -52,7 +52,6 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.BroadcasterCacheBase;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -532,9 +531,6 @@ public class BroadcasterConfig {
      */
     public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
         this.broadcasterCache = broadcasterCache;
-        if (BroadcasterCacheBase.class.isAssignableFrom(broadcasterCache.getClass())) {
-            BroadcasterCacheBase.class.cast(broadcasterCache).setExecutorService(getScheduledExecutorService());
-        }
         return this;
     }
 
@@ -560,7 +556,7 @@ public class BroadcasterConfig {
         }
 
         @Override
-        public void addToCache(String id, AtmosphereResource r, Object e) {
+        public void addToCache(String id, AtmosphereResource r, Message e) {
         }
 
         @Override

@@ -52,6 +52,7 @@
 package org.atmosphere.cpr;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A BroadcasterCache is used to persist broadcasted Object {@link Broadcaster#broadcast(Object)}. Disconnected clients
@@ -59,14 +60,11 @@ import java.util.List;
  * a the long polling technique is used and prevent application from loosing event between re-connection.
  * <p/>
  * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
- * defining it in your web/application.xml or by using the {@link BroadcasterCacheService}
- *
+ * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
  */
 public interface BroadcasterCache {
 
-    public final static String BROADCASTER_CACHE_TRACKER = BroadcasterCache.class.getName();
-
-    public enum STRATEGY { BEFORE_FILTER, AFTER_FILTER }
+    public enum STRATEGY {BEFORE_FILTER, AFTER_FILTER}
 
     /**
      * Start
@@ -81,17 +79,34 @@ public interface BroadcasterCache {
     /**
      * Start tracking messages associated with {@link AtmosphereResource} from the cache
      *
-     * @param r {@link AtmosphereResource}
-     * @param e a broadcasted message.
+     * @param id The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
+     * @param r  {@link AtmosphereResource}
+     * @param e  a broadcasted message.
      */
-    void addToCache(String id, AtmosphereResource r, Object e);
+    void addToCache(String id, AtmosphereResource r, Message e);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}
      *
-     * @param r {@link AtmosphereResource}
+     * @param id The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
+     * @param r  {@link AtmosphereResource}
      * @return a {@link List} of messages (String).
      */
     List<Object> retrieveFromCache(String id, AtmosphereResource r);
 
+
+    public final static class Message {
+
+        public final String id;
+        public final Object message;
+
+        public Message(String id, Object message) {
+            this.id = id;
+            this.message = message;
+        }
+
+        public Message(Object message) {
+            this(UUID.randomUUID().toString(), message);
+        }
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeanfrancois Arcand
+ * Copyright 2012 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,95 +13,79 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-/*
- *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
- * and Distribution License("CDDL") (collectively, the "License").  You
- * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
- * language governing permissions and limitations under the License.
- *
- * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
- * Sun designates this particular file as subject to the "Classpath" exception
- * as provided by Sun in the GPL Version 2 section of the License file that
- * accompanied this code.  If applicable, add the following below the License
- * Header, with the fields enclosed by brackets [] replaced by your own
- * identifying information: "Portions Copyrighted [year]
- * [name of copyright owner]"
- *
- * Contributor(s):
- *
- * If you wish your version of this file to be governed by only the CDDL or
- * only the GPL Version 2, indicate your decision by adding "[Contributor]
- * elects to include this software in this distribution under the [CDDL or GPL
- * Version 2] license."  If you don't indicate a single choice of license, a
- * recipient has the option to distribute your version of this file under
- * either the CDDL, the GPL Version 2 or to extend the choice of license to
- * its licensees as provided above.  However, if you add GPL Version 2 code
- * and therefore, elected the GPL Version 2 license, then the option applies
- * only if the new code is made subject to such option by the copyright
- * holder.
- */
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.BroadcasterCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 
 /**
- * Simple header based {@link org.atmosphere.cpr.BroadcasterCache}. The returned header is "X-Cache-Date" and
- * containg the time, in milliseconds, of the last broadcasted message.
+ * {@link BroadcasterCache} implementation based on the X-Cache-Date headers sent by the client.
  *
  * @author Jeanfrancois Arcand
  */
 public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
 
-    /**
-     * {@inheritDoc}
-     */
-    public void cache(String id, AtmosphereResource ar, CachedMessage cm) {
-        long time = cm.next() == null ? cm.currentTime() : cm.next().currentTime();
+    private final Logger logger = LoggerFactory.getLogger(HeaderBroadcasterCache.class);
 
-        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
-        if (r != null && r.isInScope() && !r.getResponse().isCommitted()) {
-            r.getResponse().addHeader(X_CACHE_DATE, String.valueOf(time));
+    @Override
+    public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
+
+        String id = e.id;
+        long now = System.currentTimeMillis();
+        readWriteLock.writeLock().lock();
+        try {
+            boolean hasMessageWithSameId = messagesIds.contains(id);
+            if (!hasMessageWithSameId) {
+                logger.trace("Added {} to the cache", e.message);
+                CacheMessage cacheMessage = new CacheMessage(id, now, e.message);
+                messages.add(cacheMessage);
+                messagesIds.add(id);
+            }
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+
+        if (r != null) {
+            r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public CachedMessage retrieveLastMessage(String id, AtmosphereResource ar) {
-        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
-
-        if (!r.isInScope()) return null;
+    @Override
+    public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+        if (r == null) {
+            throw new IllegalArgumentException("AtmosphereResource can't be null");
+        }
 
         AtmosphereRequest request = r.getRequest();
-        return retrieveUsingHeader(request.getHeader(X_CACHE_DATE));
-    }
-
-    public CachedMessage retrieveUsingHeader(final String dateString) {
-
-        if (dateString == null) return null;
-
-        long currentTime = Long.valueOf(dateString);
-        CachedMessage prev = null;
-        for (CachedMessage cm : queue) {
-            if (cm.currentTime() > currentTime) {
-                return prev;
-            }
-            prev = cm;
+        String cacheHeader = request.getHeader(X_CACHE_DATE);
+        r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(System.currentTimeMillis()));
+        if (cacheHeader == null || cacheHeader.isEmpty()) {
+            return Collections.emptyList();
         }
-        return prev;
-    }
 
+        long cacheHeaderTime = Long.valueOf(cacheHeader);
+        List<Object> result = new ArrayList<Object>();
+
+        readWriteLock.readLock().lock();
+        try {
+            for (CacheMessage cacheMessage : messages) {
+                if (cacheMessage.getCreateTime() > cacheHeaderTime) {
+                    result.add(cacheMessage.getMessage());
+                }
+            }
+
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+        return result;
+    }
 }
