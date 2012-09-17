@@ -977,7 +977,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, 1, broadcasterListeners, this);
         messages.offer(new Entry(newMsg, r, f, msg));
         return f;
     }
