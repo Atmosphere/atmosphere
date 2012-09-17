@@ -111,7 +111,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg) {
+   public Future<Object> broadcast(Object msg) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
@@ -132,7 +132,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
+   public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
@@ -153,7 +153,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
+   public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");

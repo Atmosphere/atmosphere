@@ -63,11 +63,10 @@ public class ExcludeSessionBroadcaster
      *
      * @param msg
      * @param r
-     * @param <T>
      * @return
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
+    public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -93,11 +92,10 @@ public class ExcludeSessionBroadcaster
      *
      * @param msg
      * @param subset
-     * @param <T>
      * @return
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
+    public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -120,10 +118,9 @@ public class ExcludeSessionBroadcaster
      *
      * @param msg
      * @param sessions
-     * @param <T>
      * @return
      */
-    public <T> Future<T> broadcast(T msg, List<HttpSession> sessions) {
+    public Future<Object> broadcast(Object msg, List<HttpSession> sessions) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
@@ -152,10 +149,9 @@ public class ExcludeSessionBroadcaster
      *
      * @param msg
      * @param s
-     * @param <T>
      * @return
      */
-    public <T> Future<T> broadcast(T msg, HttpSession s) {
+    public Future<Object> broadcast(Object msg, HttpSession s) {
 
         if (destroyed.get()) {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");

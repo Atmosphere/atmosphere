@@ -444,7 +444,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> awaitAndBroadcast(T t, long time, TimeUnit timeUnit) {
+    public Future<Object> awaitAndBroadcast(Object t, long time, TimeUnit timeUnit) {
         if (resources.isEmpty()) {
             synchronized (awaitBarrier) {
                 try {
@@ -932,7 +932,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg) {
+    public Future<Object> broadcast(Object msg) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcast(T msg)");
@@ -966,10 +966,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, AtmosphereResource r) {
+    public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource<?, ?> r");
+            logger.debug(DESTROYED, getID(), "broadcast(Object msg, AtmosphereResource<?, ?> r");
             return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
@@ -986,7 +986,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcastOnResume(T msg) {
+    public Future<Object> broadcastOnResume(Object msg) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "broadcastOnResume(T msg)");
@@ -1019,10 +1019,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     @Override
-    public <T> Future<T> broadcast(T msg, Set<AtmosphereResource> subset) {
+    public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource<?, ?>> subset)");
+            logger.debug(DESTROYED, getID(), "broadcast(Object msg, Set<AtmosphereResource<?, ?>> subset)");
             return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
         }
 
@@ -1182,14 +1182,14 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public <T> Future<T> delayBroadcast(T o) {
+    public Future<Object> delayBroadcast(Object o) {
         return delayBroadcast(o, 0, null);
     }
 
     /**
      * {@inheritDoc}
      */
-    public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
+    public Future<Object> delayBroadcast(final Object o, long delay, TimeUnit t) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "delayBroadcast(final T o, long delay, TimeUnit t)");
@@ -1202,11 +1202,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg, broadcasterListeners, this);
         final Entry e = new Entry(msg, null, future, o);
-        Future<T> f;
+        Future<Object> f;
         if (delay > 0) {
-            f = bc.getScheduledExecutorService().schedule(new Callable<T>() {
+            f = bc.getScheduledExecutorService().schedule(new Callable<Object>() {
 
-                public T call() throws Exception {
+                public Object call() throws Exception {
                     delayedBroadcast.remove(e);
                     if (Callable.class.isAssignableFrom(o.getClass())) {
                         try {
@@ -1216,7 +1216,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                 Entry entry = new Entry(msg, null, null, r);
                                 push(entry);
                             }
-                            return (T) msg;
+                            return msg;
                         } catch (Exception e1) {
                             logger.error("", e);
                         }
@@ -1225,7 +1225,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     final Object msg = filter(o);
                     final Entry e = new Entry(msg, null, null, o);
                     push(e);
-                    return (T) msg;
+                    return msg;
                 }
             }, delay, t);
 
@@ -1238,14 +1238,14 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public Future<?> scheduleFixedBroadcast(final Object o, long period, TimeUnit t) {
+    public Future<Object> scheduleFixedBroadcast(final Object o, long period, TimeUnit t) {
         return scheduleFixedBroadcast(o, 0, period, t);
     }
 
     /**
      * {@inheritDoc}
      */
-    public Future<?> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
+    public Future<Object> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t)");
@@ -1260,7 +1260,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        return bc.getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
+        return (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
             public void run() {
                 if (Callable.class.isAssignableFrom(o.getClass())) {
                     try {

@@ -18,7 +18,6 @@ package org.atmosphere.samples.chat;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.socketio.transport.SocketIOPacketImpl;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
 
@@ -33,21 +32,21 @@ public class SocketIOBroadcaster extends ExcludeSessionBroadcaster {
     }
 
     @Override
-    public <T> Future<T> broadcast(T m) {
+    public Future<Object> broadcast(Object m) {
         Object msg = new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.EVENT, m.toString()).toString();
-        return super.broadcast((T) msg);
+        return super.broadcast(msg);
     }
 
     @Override
-    public <T> Future<T> broadcast(T m, AtmosphereResource resource) {
+    public Future<Object> broadcast(Object m, AtmosphereResource resource) {
         Object msg = new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.EVENT, m.toString()).toString();
-        return super.broadcast((T) msg, resource);
+        return super.broadcast(msg, resource);
     }
 
     @Override
-    public <T> Future<T> broadcast(T m, Set<AtmosphereResource> subset) {
+    public Future<Object> broadcast(Object m, Set<AtmosphereResource> subset) {
         Object msg = new SocketIOPacketImpl(SocketIOPacketImpl.PacketType.EVENT, m.toString()).toString();
-        return super.broadcast((T) msg, subset);
+        return super.broadcast(msg, subset);
     }
 
 }
