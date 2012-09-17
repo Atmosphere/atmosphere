@@ -32,7 +32,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException {
-        return redirect(r, location);
+        return this;
     }
 
     /**
@@ -40,7 +40,7 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
-        return writeError(r, errorCode,message);
+        return this;
     }
 
     /**
@@ -72,7 +72,6 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
-        close(r);
     }
 
     /**
@@ -80,6 +79,6 @@ public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
      */
     @Override
     public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
-        return flush(r);
+        return this;
     }
 }
