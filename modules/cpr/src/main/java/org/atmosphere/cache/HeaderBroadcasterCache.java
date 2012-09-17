@@ -39,20 +39,8 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
 
-        String id = e.id;
         long now = System.currentTimeMillis();
-        readWriteLock.writeLock().lock();
-        try {
-            boolean hasMessageWithSameId = messagesIds.contains(id);
-            if (!hasMessageWithSameId) {
-                logger.trace("Added {} to the cache", e.message);
-                CacheMessage cacheMessage = new CacheMessage(id, now, e.message);
-                messages.add(cacheMessage);
-                messagesIds.add(id);
-            }
-        } finally {
-            readWriteLock.writeLock().unlock();
-        }
+        put(e, now);
 
         if (r != null) {
             r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
@@ -73,19 +61,6 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         }
 
         long cacheHeaderTime = Long.valueOf(cacheHeader);
-        List<Object> result = new ArrayList<Object>();
-
-        readWriteLock.readLock().lock();
-        try {
-            for (CacheMessage cacheMessage : messages) {
-                if (cacheMessage.getCreateTime() > cacheHeaderTime) {
-                    result.add(cacheMessage.getMessage());
-                }
-            }
-
-        } finally {
-            readWriteLock.readLock().unlock();
-        }
-        return result;
+        return get(cacheHeaderTime);
     }
 }

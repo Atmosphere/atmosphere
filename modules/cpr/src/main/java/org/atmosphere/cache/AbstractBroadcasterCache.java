@@ -15,12 +15,11 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,8 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
-
 /**
  * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers or query parameters or
  * session based caching.
@@ -42,6 +39,8 @@ import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
  * @author Jeanfrancois Arcand
  */
 public abstract class AbstractBroadcasterCache implements BroadcasterCache {
+    private final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
+
     protected final List<CacheMessage> messages = new LinkedList<CacheMessage>();
     protected final Set<String> messagesIds = new HashSet<String>();
     protected final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -91,5 +90,36 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
+    }
+
+    protected void put(Message message, Long now) {
+        readWriteLock.writeLock().lock();
+        try {
+            boolean hasMessageWithSameId = messagesIds.contains(message.id);
+            if (!hasMessageWithSameId) {
+                logger.trace("Added {} to the cache", message.message);
+                CacheMessage cacheMessage = new CacheMessage(message.id, now, message.message);
+                messages.add(cacheMessage);
+                messagesIds.add(message.id);
+            }
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    protected List<Object> get(long cacheHeaderTime) {
+        List<Object> result = new ArrayList<Object>();
+        readWriteLock.readLock().lock();
+        try {
+            for (CacheMessage cacheMessage : messages) {
+                if (cacheMessage.getCreateTime() > cacheHeaderTime) {
+                    result.add(cacheMessage.getMessage());
+                }
+            }
+
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+        return result;
     }
 }
