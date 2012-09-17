@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.socketio.SocketIOClosedException;
 import org.atmosphere.socketio.SocketIOException;
@@ -104,7 +105,9 @@ public abstract class XHRTransport extends AbstractTransport {
                                 AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
                                 // if BroadcastCache is available, add the message to the cache
                                 if (resource != null && DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())) {
-                                    DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.addToCache(resource.getBroadcaster().getID(), resource, msg);
+                                    DefaultBroadcaster.class.cast(resource.getBroadcaster()).
+                                            broadcasterCache.addToCache(resource.getBroadcaster().getID(), resource,
+                                            new BroadcasterCache.Message(msg));
                                 }
                             }
                             break;
