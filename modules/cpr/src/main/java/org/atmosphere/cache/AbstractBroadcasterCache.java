@@ -48,6 +48,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected long maxCacheTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
+    protected boolean isShared = false;
 
     @Override
     public void start() {
@@ -82,7 +83,10 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
-        reaper.shutdown();
+
+        if (!isShared) {
+            reaper.shutdown();
+        }
     }
 
     protected void put(Message message, Long now) {
@@ -116,16 +120,51 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         return result;
     }
 
+    /**
+     * Set to true the associated {@link #getReaper()} is shared amongs {@link BroadcasterCache}
+     * @param isShared to true if shared. False by default.
+     * @return this
+     */
+    public AbstractBroadcasterCache setShared(boolean isShared) {
+        this.isShared = isShared;
+        return this;
+    }
+
+    /**
+     * Set the {@link ScheduledExecutorService} to clear the cached message.
+     * @param reaper the {@link ScheduledExecutorService} to clear the cached message.
+     * @return this
+     */
     public AbstractBroadcasterCache setReaper(ScheduledExecutorService reaper) {
         this.reaper = reaper;
         return this;
     }
 
-    public void setInvalidateCacheInterval(long invalidateCacheInterval) {
-        this.invalidateCacheInterval = invalidateCacheInterval;
+    /**
+     * Return the {@link ScheduledExecutorService}
+     * @return the {@link ScheduledExecutorService}
+     */
+    public ScheduledExecutorService getReaper() {
+        return reaper;
     }
 
-    public void setMaxCacheTime(long maxCacheTime) {
+    /**
+     * Set the time, in millisecond, the cache will be checked and purged.
+     * @param invalidateCacheInterval
+     * @return this
+     */
+    public AbstractBroadcasterCache setInvalidateCacheInterval(long invalidateCacheInterval) {
+        this.invalidateCacheInterval = invalidateCacheInterval;
+        return this;
+    }
+
+    /**
+     * Set the maxium time, in millisecond, a message stay alive in the cache.
+     * @param maxCacheTime the maxium time, in millisecond, a message stay alive in the cache.
+     * @return this
+     */
+    public AbstractBroadcasterCache setMaxCacheTime(long maxCacheTime) {
         this.maxCacheTime = maxCacheTime;
+        return this;
     }
 }
