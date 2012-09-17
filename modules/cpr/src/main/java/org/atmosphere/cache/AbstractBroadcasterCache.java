@@ -49,14 +49,6 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 
-    public void setInvalidateCacheInterval(long invalidateCacheInterval) {
-        this.invalidateCacheInterval = invalidateCacheInterval;
-    }
-
-    public void setMaxCacheTime(long maxCacheTime) {
-        this.maxCacheTime = maxCacheTime;
-    }
-
     @Override
     public void start() {
         reaper.scheduleAtFixedRate(new Runnable() {
@@ -90,6 +82,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
+        reaper.shutdown();
     }
 
     protected void put(Message message, Long now) {
@@ -121,5 +114,18 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
             readWriteLock.readLock().unlock();
         }
         return result;
+    }
+
+    public AbstractBroadcasterCache setReaper(ScheduledExecutorService reaper) {
+        this.reaper = reaper;
+        return this;
+    }
+
+    public void setInvalidateCacheInterval(long invalidateCacheInterval) {
+        this.invalidateCacheInterval = invalidateCacheInterval;
+    }
+
+    public void setMaxCacheTime(long maxCacheTime) {
+        this.maxCacheTime = maxCacheTime;
     }
 }
