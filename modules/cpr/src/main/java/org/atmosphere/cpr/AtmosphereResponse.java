@@ -317,7 +317,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setHeader(String name, String value) {
-        addHeader(name, value);
+        headers.put(name, value);
+
+        if (delegateToNativeResponse) {
+            _r().setHeader(name, value);
+        }
     }
 
     /**
