@@ -137,7 +137,6 @@ jQuery.atmosphere = function() {
             var _response = {
                 status: 200,
                 responseBody : '',
-                expectedBodySize : -1,
                 headers : [],
                 state : "messageReceived",
                 transport : "polling",
@@ -701,7 +700,7 @@ jQuery.atmosphere = function() {
                 if (rq.attachHeadersAsQueryString) {
                     url = _attachHeaders(rq);
                     if (data != '') {
-                        url += "&X-Atmosphere-Post-Body=" + data;
+                        url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(data);
                     }
                     data = '';
                 }
@@ -770,7 +769,7 @@ jQuery.atmosphere = function() {
                 if (rq.attachHeadersAsQueryString) {
                     url = _attachHeaders(rq);
                     if (data != '') {
-                        url += "&X-Atmosphere-Post-Body=" + data;
+                        url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(data);
                     }
                     data = '';
                 }
@@ -1680,7 +1679,7 @@ jQuery.atmosphere = function() {
                         }
                         var url = _attachHeaders(rq);
                         if (rq.method == 'POST') {
-                            url += "&X-Atmosphere-Post-Body=" + rq.data;
+                            url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
                         }
                         xdr.open(rq.method, rewriteURL(url));
                         xdr.send();
@@ -1730,7 +1729,7 @@ jQuery.atmosphere = function() {
 
                         url = _attachHeaders(rq);
                         if (rq.data != '') {
-                            url += "&X-Atmosphere-Post-Body=" + rq.data;
+                            url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
                         }
 
                         // Finally attach a timestamp to prevent Android and IE caching.
@@ -2021,11 +2020,6 @@ jQuery.atmosphere = function() {
 
                 _response.transport = transport;
                 _response.status = errorCode;
-
-                // If not -1, we have buffered the message.
-                if (_response.expectedBodySize == -1) {
-                    _response.responseBody = messageBody;
-                }
                 _response.state = state;
 
                 _invokeCallback();
@@ -2137,23 +2131,17 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
 
                 _clearState();
-
-                // Are we the parent that hold the real connection.
-                if (_localStorageService == null && _localSocketF != null) {
+                
+                // Stop sharing a connection
+                if (_storageService != null) {
                     // Clears trace timer
                     clearInterval(_traceTimer);
                     // Removes the trace
-                    document.cookie = encodeURIComponent(name) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                    document.cookie = encodeURIComponent("atmosphere-" + _request.url) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                     // The heir is the parent unless unloading
                     _storageService.signal("close", {reason: "", heir: !_abordingConnection ? guid : (_storageService.get("children") || [])[0]});
-
-                }
-
-                if (_storageService != null) {
                     _storageService.close();
                 }
-
-
                 if (_localStorageService != null) {
                     _localStorageService.close();
                 }
