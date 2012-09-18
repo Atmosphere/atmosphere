@@ -71,7 +71,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AtmosphereHandlerService.class,
                         BroadcasterCacheService.class,
                         BroadcasterFilterService.class,
-                        BroadcasterFactory.class,
+                        BroadcasterFactoryService.class,
                         BroadcasterService.class,
                         MeteorService.class,
                         WebSocketHandlerService.class,
