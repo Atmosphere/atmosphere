@@ -1528,7 +1528,8 @@ jQuery.atmosphere = function() {
                 } else {
                     if (_request.logLevel == 'debug') {
                         jQuery.atmosphere.log(rq.logLevel, ["Max re-connection reached."]);
-                    }                    _onError();
+                    }
+                    _onError();
                 }
             }
 
