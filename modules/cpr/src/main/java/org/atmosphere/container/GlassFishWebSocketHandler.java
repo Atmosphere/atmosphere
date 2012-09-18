@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GlassFishWebSocketHandler extends WebSocketApplication {
     private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
-    
+
     private final AtmosphereConfig config;
 
     public GlassFishWebSocketHandler(AtmosphereConfig config) {
@@ -81,8 +81,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         super.onClose(w, df);
         logger.trace("onClose {} ", w);
         DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-            WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        if (webSocketProcessor != null) {
             webSocketProcessor.close(1000);
         }
     }
@@ -91,8 +91,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, String text) {
         logger.trace("onMessage {} ", w);
         DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-            WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        if (webSocketProcessor != null) {
             webSocketProcessor.invokeWebSocketProtocol(text);
         }
     }
@@ -101,8 +101,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, byte[] bytes) {
         logger.trace("onMessage (bytes) {} ", w);
         DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-            WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
+        if (webSocketProcessor != null) {
             webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
         }
     }

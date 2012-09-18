@@ -70,14 +70,11 @@ import java.util.concurrent.TimeUnit;
  * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers or query parameters or
  * session based caching.
  *
- * NOTE: This cache is deprecated, use AbstractBroadcasterCache instead.
- *
  * @author Jeanfrancois Arcand
  */
-@Deprecated
-public abstract class BroadcasterCacheBase implements BroadcasterCache {
+public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheBase.class);
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
     protected final List<CachedMessage> queue = new CopyOnWriteArrayList<CachedMessage>();
 
@@ -85,7 +82,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
 
     protected int maxCachedinMs = 1000 * 5 * 60;
 
-    public BroadcasterCacheBase() {
+    public AbstractBroadcasterCache() {
     }
 
     /**
@@ -129,8 +126,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
     /**
      * {@inheritDoc}
      */
-    public final synchronized void addToCache(
-            String id, AtmosphereResource resource, final Object object) {
+    public final synchronized void addToCache(String id, final AtmosphereResource resource, final Object object) {
         logger.trace("Adding message for resource: {}, object: {}", resource, object);
 
         CachedMessage cm = new CachedMessage(object, System.currentTimeMillis(), null);
@@ -152,31 +148,31 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
             cm = new CachedMessage(true);
         }
 
-        cache(resource, cm);
+        cache(id, resource, cm);
     }
 
     /**
      * Cache the last message broadcasted.
      *
      * @param r  {@link org.atmosphere.cpr.AtmosphereResource}.
-     * @param cm {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}
+     * @param cm {@link org.atmosphere.cache.AbstractBroadcasterCache.CachedMessage}
      */
-    public abstract void cache(final AtmosphereResource r, CachedMessage cm);
+    public abstract void cache(String id, AtmosphereResource r, CachedMessage cm);
 
     /**
      * Return the last message broadcasted to the {@link org.atmosphere.cpr.AtmosphereResource}.
      *
      * @param r {@link org.atmosphere.cpr.AtmosphereResource}.
-     * @return a {@link org.atmosphere.cache.BroadcasterCacheBase.CachedMessage}, or null if not matched.
+     * @return a {@link org.atmosphere.cache.AbstractBroadcasterCache.CachedMessage}, or null if not matched.
      */
-    public abstract CachedMessage retrieveLastMessage(final AtmosphereResource r);
+    public abstract CachedMessage retrieveLastMessage(String id, AtmosphereResource r);
 
     /**
      * {@inheritDoc}
      */
     public final synchronized List<Object> retrieveFromCache(String id, AtmosphereResource r) {
 
-        CachedMessage cm = retrieveLastMessage(r);
+        CachedMessage cm = retrieveLastMessage(id, r);
         boolean isNew = false;
         if (cm == null && AtmosphereResourceImpl.class.cast(r).isInScope() && r.getRequest().getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) != null) {
             isNew = true;
@@ -213,7 +209,7 @@ public abstract class BroadcasterCacheBase implements BroadcasterCache {
         }
 
         if (prev != null)
-            cache(r, prev);
+            cache(id, r, prev);
 
         return l;
     }

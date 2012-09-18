@@ -207,9 +207,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
-            synchronized (handlerWrapper) {
-                config.getBroadcasterFactory().remove(b, b.getID());
-                handlerWrapper.broadcaster = config.getBroadcasterFactory().get(b.getID());
+            BroadcasterFactory f = BroadcasterFactory.getDefault();
+            synchronized (f) {
+                f.remove(b, b.getID());
+                try {
+                    handlerWrapper.broadcaster = f.get(b.getID());
+                } catch (IllegalStateException ex) {
+                    // Something wrong occurred, let's not fail and loookup the value
+                    logger.trace("", ex);
+                    // fallback to lookup
+                    handlerWrapper.broadcaster = f.lookup(b.getID(), true);
+                }
             }
         }
 
@@ -551,7 +559,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
                 logger.debug("Cancelling the connection for request {}", req);
 
-                r = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                r = (AtmosphereResourceImpl) req.resource();
                 if (r != null) {
                     r.getAtmosphereResourceEvent().setCancelled(true);
                     invokeAtmosphereHandler(r);

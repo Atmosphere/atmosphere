@@ -16,27 +16,17 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-
-import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 
 /**
  * Fix for the Android 2.2.x bogus HTTP implementation
@@ -49,6 +39,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final byte[] padding;
     private static final String paddingText;
+
     static {
         StringBuffer whitespace = new StringBuffer();
         for (int i = 0; i < 4096; i++) {
@@ -73,19 +64,19 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
+
                     @Override
-                    public void intercept(AtmosphereResponse response, String data) {
-                        response.write(paddingText).write(data);
+                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        response.write(padding);
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data) {
-                        response.write(padding).write(data);
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                        return responseDraft;
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(padding).write(data, offset, length);
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                     }
                 });
             } else {

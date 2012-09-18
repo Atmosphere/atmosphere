@@ -96,8 +96,10 @@ public abstract class BaseTest {
 
                 @Override
                 public void onMessage(String message) {
-                    response.set(message);
-                }
+                    // There is a regression in Jetty or AHC as we are getting some junk .
+                    if (response.get() == null) {
+                        response.set(message);
+                    }                }
 
                 @Override
                 public void onFragment(String fragment, boolean last) {

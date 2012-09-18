@@ -111,7 +111,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
                     .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
             webSocketProcessor.open(request);
         } catch (Exception e) {
-            logger.warn("failed to connect to web socket", e);
+            logger.warn("Failed to connect to WebSocket", e);
         }
     }
 

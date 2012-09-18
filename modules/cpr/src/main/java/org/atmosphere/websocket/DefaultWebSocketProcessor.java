@@ -141,7 +141,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
-
         } else {
             logger.warn("AtmosphereResource was null");
         }
@@ -237,6 +236,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public void close(int closeCode) {
         logger.trace("WebSocket closed with {}", closeCode);
+        // A message might be in the process of being processed and the websocket gets closed. In that corner
+        // case the webSocket.resource will be set to false and that might cause NPE in some WebSocketProcol implementation
+        // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
+        // synchronized (webSocket) {
+
         notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
@@ -260,14 +264,24 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     } else {
                         logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                     }
+
+                    // We must always destroy the root resource (the one created when the websocket was opened
+                    // to prevent memory leaks.
+                    resource.setIsInScope(false);
+                    try {
+                        resource.cancel();
+                    } catch (IOException e) {
+                        logger.trace("", e);
+                    }
+                    AsynchronousProcessor.destroyResource(resource);
                 }
             } finally {
                 if (r != null) {
-                    r.destroy();
+                    r.destroy(true);
                 }
 
                 if (s != null) {
-                    s.destroy();
+                    s.destroy(true);
                 }
 
                 if (webSocket != null) {

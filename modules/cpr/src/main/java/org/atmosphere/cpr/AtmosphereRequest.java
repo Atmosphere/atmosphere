@@ -133,7 +133,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getQueryString() {
-        return b.request.getQueryString();
+        return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : "";
     }
 
     /**
@@ -892,7 +892,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public void destroy() {
-        if (!b.destroyable || destroyed.getAndSet(true)) return;
+        destroy(b.destroyable);
+    }
+
+    public void destroy(boolean force) {
+        if (!force) return;
 
         b.localAttributes.clear();
         if (bis != null) {
@@ -951,7 +955,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
-        public HttpSession webSocketFakeSession;
+        private HttpSession webSocketFakeSession;
+        private String queryString = "";
 
         public Builder() {
         }
@@ -1033,6 +1038,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder pathInfo(String pathInfo) {
             this.pathInfo = pathInfo;
+            return this;
+        }
+
+        public Builder queryString(String queryString) {
+            this.queryString = queryString;
             return this;
         }
 
@@ -1520,7 +1530,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession) {
+    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
         Builder b;
         HttpServletRequest r;
         boolean isWrapped = false;
@@ -1540,7 +1550,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .method(request.getMethod())
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
-                .destroyable(false)
+                .destroyable(isDestroyable)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
@@ -1575,6 +1585,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             s = e.nextElement();
             b.queryStrings.put(s, request.getParameterValues(s));
         }
+        b.queryString = request.getQueryString();
     }
 
     @Override

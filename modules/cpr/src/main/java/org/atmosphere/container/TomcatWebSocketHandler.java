@@ -74,7 +74,7 @@ public class TomcatWebSocketHandler extends MessageInbound {
     @Override
     protected void onBinaryMessage(ByteBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(message.array(), 0, message.array().length);
+        webSocketProcessor.invokeWebSocketProtocol(message.array(), 0, message.limit());
     }
 
     @Override

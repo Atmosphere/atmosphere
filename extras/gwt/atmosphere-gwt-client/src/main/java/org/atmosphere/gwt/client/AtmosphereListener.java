@@ -55,7 +55,8 @@ public interface AtmosphereListener {
     public void onBeforeDisconnected();
 
     /**
-     * The connection has disconnected. When the disconnect was unexpected the connecting will be refreshed.
+     * The connection has disconnected. When the disconnect was unexpected ({@link AtmosphereClient#isRunning()} == true)
+     * the connecting will be refreshed after this and you can expect the next event to be {@link #onAfterRefresh() }
      */
     public void onDisconnected();
 

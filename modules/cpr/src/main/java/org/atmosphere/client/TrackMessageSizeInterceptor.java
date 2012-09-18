@@ -15,22 +15,33 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOInterceptor;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketResponseFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
- * An {@link AtmosphereInterceptor} that add a special String "|" at the end of a message, allowing the
- * atmosphere.js to detect if one or several messages where aggregated in one write operations.
+ * An {@link org.atmosphere.cpr.AtmosphereInterceptor} that add a add message size and delimiter.
  * <p/>
- * The special String is configurable using {@link ApplicationConfig#MESSAGE_DELIMITER}
+ * The special String is configurable using {@link org.atmosphere.cpr.ApplicationConfig#MESSAGE_DELIMITER}
  *
  * @author Jeanfrancois Arcand
  */
-public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
+public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
+    private static final Logger logger = LoggerFactory.getLogger(TrackMessageSizeInterceptor.class);
     private final static byte[] END = "|".getBytes();
 
     private byte[] end = END;
@@ -62,12 +73,20 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
-                        return responseDraft;
+
+                        // TODO: This is totally inefficient, I know!
+                        String s = new String(responseDraft, response.getCharacterEncoding());
+                        if (s.trim().length() != 0) {
+                            s = s.length() + endString + s;
+
+                            return s.getBytes(response.getCharacterEncoding());
+                        } else {
+                            return responseDraft;
+                        }
                     }
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(end);
                     }
                 });
             } else {
@@ -78,26 +97,46 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
                 @Override
                 public String filter(AtmosphereResponse r, String message) {
-                    return message + endString;
+                    return message.length() + endString + message;
                 }
 
                 @Override
                 public byte[] filter(AtmosphereResponse r, byte[] message) {
 
-                    byte[] nb = new byte[message.length + end.length];
-                    System.arraycopy(message, 0, nb, 0, message.length);
-                    System.arraycopy(end, 0, nb, message.length, nb.length);
+                    // TODO: This is totally inefficient, I know!
+                    String s = null;
+                    try {
+                        s = new String(message, r.getCharacterEncoding());
+                    } catch (UnsupportedEncodingException e) {
+                        logger.trace("", e);
+                    }
+                    s = s.length() + endString + s;
 
-                    return nb;
+                    try {
+                        return s.getBytes(response.getCharacterEncoding());
+                    } catch (UnsupportedEncodingException e) {
+                        logger.trace("", e);
+                    }
+                    return message;
                 }
 
                 @Override
                 public byte[] filter(AtmosphereResponse r, byte[] message, int offset, int length) {
-                    byte[] nb = new byte[length + end.length];
-                    System.arraycopy(message, offset, nb, 0, length);
-                    System.arraycopy(end, 0, nb, length, nb.length);
+                    // TODO: This is totally inefficient, I know!
+                    String s = null;
+                    try {
+                        s = new String(message, offset, length, r.getCharacterEncoding());
+                    } catch (UnsupportedEncodingException e) {
+                        logger.trace("", e);
+                    }
+                    s = s.length() + endString + s;
 
-                    return nb;
+                    try {
+                        return s.getBytes(response.getCharacterEncoding());
+                    } catch (UnsupportedEncodingException e) {
+                        logger.trace("", e);
+                    }
+                    return message;
                 }
             });
         }
@@ -106,6 +145,6 @@ public class MessageLengthInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public String toString() {
-        return endString + " End Message Interceptor";
+        return " Track Message Size Interceptor using " + endString;
     }
 }

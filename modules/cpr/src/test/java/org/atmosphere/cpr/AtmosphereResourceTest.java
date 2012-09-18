@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
-public class AtmosphereRequestTest {
+public class AtmosphereResourceTest {
     private AtmosphereFramework framework;
 
     @BeforeMethod
@@ -62,8 +62,9 @@ public class AtmosphereRequestTest {
         });
     }
 
+
     @Test
-    public void testQueryStringAsRequest() throws IOException, ServletException {
+    public void testUUID() throws IOException, ServletException {
         framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
             @Override
             public void onRequest(AtmosphereResource resource) throws IOException {
@@ -74,11 +75,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        Map<String,String[]> qs = new HashMap<String,String[]>();
-        qs.put("Content-Type", new String[]{"application/xml"});
-        qs.put("X-Atmosphere-Transport", new String[]{"long-polling"});
-
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryStrings(qs).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
 
         final AtomicReference<String> e = new AtomicReference<String>();
         final AtomicReference<String> e2 = new AtomicReference<String>();
@@ -90,8 +87,8 @@ public class AtmosphereRequestTest {
 
             @Override
             public Action inspect(AtmosphereResource r) {
-                e.set(r.getRequest().getContentType());
-                e2.set(r.transport().name());
+                e.set(r.uuid());
+                e2.set(r.getResponse().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID));
                 return Action.CANCELLED;
             }
 
@@ -101,43 +98,6 @@ public class AtmosphereRequestTest {
         });
         framework.doCometSupport(request, AtmosphereResponse.create());
 
-        assertEquals(e.get(), "application/xml");
-        assertEquals(e2.get().toLowerCase(), "long_polling");
-    }
-
-    @Test
-    public void testQueryStringBuilder() throws IOException, ServletException {
-        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
-            @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-            }
-
-            @Override
-            public void destroy() {
-            }
-        });
-
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString("a=b").pathInfo("/a").build();
-
-        final AtomicReference<String> e = new AtomicReference<String>();
-
-        framework.interceptor(new AtmosphereInterceptor() {
-            @Override
-            public void configure(AtmosphereConfig config) {
-            }
-
-            @Override
-            public Action inspect(AtmosphereResource r) {
-                e.set(r.getRequest().getQueryString());
-                return Action.CANCELLED;
-            }
-
-            @Override
-            public void postInspect(AtmosphereResource r) {
-            }
-        });
-        framework.doCometSupport(request, AtmosphereResponse.create());
-
-        assertEquals(e.get(), "a=b");
+        assertEquals(e.get(), e2.get());
     }
 }

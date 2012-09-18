@@ -70,6 +70,7 @@ package org.atmosphere.util;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -169,7 +170,11 @@ public final class AtmosphereFilterChain implements FilterChain {
             if (servlet != null) {
                 servlet.service(request, response);
             } else {
-                throw new ServletException("No Servlet Defined");
+                RequestDispatcher rd = configImpl.getServletContext().getNamedDispatcher("default");
+                if (rd == null) {
+                    throw new ServletException("No Servlet Found");
+                }
+                rd.forward(request,  response);
             }
 
         } catch (IOException e) {

@@ -15,19 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsyncIOInterceptor;
-import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereInterceptorWriter;
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.*;
 
 import java.io.IOException;
 
@@ -56,7 +44,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
                         }
 
-                        if (c  == null) {
+                        if (c == null) {
                             c = request.getContentType();
                         }
 
@@ -68,40 +56,30 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, String data) {
-                        String contentType = contentType();
+                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String callbackName = callbackName();
-                        if (!data.startsWith("\"") && !contentType.contains("json")) {
-                            data = callbackName + "({\"message\" : \"" + data + "\"});";
-                        } else {
-                            data = callbackName + "({\"message\" :" + data + "});";
-                        }
-
-                        response.write(data);
-                    }
-
-                    @Override
-                    public void intercept(AtmosphereResponse response, byte[] data) {
                         String contentType = contentType();
-                        String callbackName = callbackName();
 
+                        response.write(callbackName + "({\"message\" : ");
                         if (contentType != null && !contentType.contains("json")) {
-                            response.write(callbackName + "({\"message\" : \"").write(data).write("\"});");
-                        } else {
-                            response.write(callbackName + "({\"message\" :").write(data).write("});");
+                            response.write("\"");
                         }
                     }
 
                     @Override
-                    public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+                    public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                        return responseDraft;
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String contentType = contentType();
-                        String callbackName = callbackName();
 
                         if (contentType != null && !contentType.contains("json")) {
-                            response.write(callbackName + "({\"message\" : \"").write(data, offset, length).write("\"});");
-                        } else {
-                            response.write(callbackName + "({\"message\" :").write(data, offset, length).write("});");
+                            response.write("\"");
                         }
+
+                        response.write("});");
                     }
                 });
             } else {

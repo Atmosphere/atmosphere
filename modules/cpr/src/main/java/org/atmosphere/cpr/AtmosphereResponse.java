@@ -165,7 +165,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     public void destroy() {
-        if (!destroyable) return;
+        destroy(destroyable);
+    }
+
+    public void destroy(boolean force) {
+        if (!force) return;
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -313,11 +317,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setHeader(String name, String value) {
-        if (!delegateToNativeResponse) {
-            headers.put(name, value);
-        } else {
-            _r().setHeader(name, value);
-        }
+        addHeader(name, value);
     }
 
     /**
@@ -325,9 +325,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void addHeader(String name, String value) {
-        if (!delegateToNativeResponse) {
-            headers.put(name, value);
-        } else {
+        headers.put(name, value);
+
+        if (delegateToNativeResponse) {
             _r().addHeader(name, value);
         }
     }
@@ -337,11 +337,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setIntHeader(String name, int value) {
-        if (!delegateToNativeResponse) {
-            headers.put(name, String.valueOf(value));
-        } else {
-            _r().setIntHeader(name, value);
-        }
+        setHeader(name, String.valueOf(value));
     }
 
     /**
@@ -349,11 +345,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void addIntHeader(String name, int value) {
-        if (!delegateToNativeResponse) {
-            headers.put(name, String.valueOf(value));
-        } else {
-            _r().addIntHeader(name, value);
-        }
+        setHeader(name, String.valueOf(value));
     }
 
     /**
@@ -804,6 +796,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 try {
                     getOutputStream().close();
                 } catch (java.lang.IllegalStateException ex) {
+                    logger.trace("",ex);
                 }
             } else {
                 getWriter().close();
@@ -826,7 +819,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 try {
                     getOutputStream().write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
-                    ex.printStackTrace();
+                    logger.trace("",ex);
                 }
             } else {
                 getWriter().write(data);

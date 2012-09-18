@@ -237,7 +237,7 @@ public interface ApplicationConfig {
      * Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
      * a Container
      */
-    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.class.getPackage().getName() + "recycleAtmosphereRequestResponse";
+    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.class.getPackage().getName() + ".recycleAtmosphereRequestResponse";
     /**
      * The location of classes implementing the {@link AtmosphereHandler} interface. Default to "/WEB-INF/classes".
      */

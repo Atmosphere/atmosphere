@@ -32,17 +32,19 @@ public class AsyncIOInterceptorTest {
         AtmosphereResponse res = AtmosphereResponse.create().request(AtmosphereRequest.create());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
+
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
-                s.set(data);
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                s.set(new String(data));
+                return responseDraft;
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
         })).write("test");
         assertEquals(s.get(), "test");
@@ -54,30 +56,33 @@ public class AsyncIOInterceptorTest {
         AtmosphereResponse res = AtmosphereResponse.create().request(AtmosphereRequest.create());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter(res).interceptor(new AsyncIOInterceptor() {
+
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
-                s.get().append(data);
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                return responseDraft;
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
         }).interceptor(new AsyncIOInterceptor() {
+
             @Override
-            public void intercept(AtmosphereResponse response, String data) {
-                s.get().append("-yoyo");
+            public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data) {
+            public byte[] transformPayload(byte[] responseDraft, byte[] data) throws IOException {
+                s.get().append(new String(responseDraft) + "-yoyo");
+                return responseDraft;
             }
 
             @Override
-            public void intercept(AtmosphereResponse response, byte[] data, int offset, int length) {
+            public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
             }
         })).write("test");
         assertEquals(s.get().toString(), "test-yoyo");
