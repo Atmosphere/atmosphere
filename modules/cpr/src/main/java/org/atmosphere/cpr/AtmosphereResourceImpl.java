@@ -359,7 +359,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
         }
 
-        return suspend(timeoutms, true);
+        return suspend(timeoutms, flushComment);
     }
 
     public AtmosphereResource suspend(long timeout, boolean flushComment) {
