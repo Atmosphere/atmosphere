@@ -49,7 +49,7 @@ jQuery.atmosphere = function() {
     };
 
     return {
-        version : "1.0",
+        version : "1.1",
         requests : [],
         callbacks : [],
 
@@ -2147,7 +2147,7 @@ jQuery.atmosphere = function() {
                 _invokeCallback();
 
                 _clearState();
-                
+
                 // Stop sharing a connection
                 if (_storageService != null) {
                     // Clears trace timer
