@@ -874,20 +874,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public int hashCode() {
-        int result = req != null ? req.hashCode() : 0;
-        result = 31 * result + (response != null ? response.hashCode() : 0);
-        result = 31 * result + (broadcaster != null ? broadcaster.hashCode() : 0);
-        result = 31 * result + (isInScope ? 1 : 0);
-        result = 31 * result + (injectCacheHeaders ? 1 : 0);
-        result = 31 * result + (enableAccessControl ? 1 : 0);
-        result = 31 * result + (isSuspendEvent != null ? isSuspendEvent.hashCode() : 0);
-        result = 31 * result + (atmosphereHandler != null ? atmosphereHandler.hashCode() : 0);
-        result = 31 * result + (writeHeaders ? 1 : 0);
-        return result;
-    }
-
-    @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
                 "\n hasCode" + hashCode() +
