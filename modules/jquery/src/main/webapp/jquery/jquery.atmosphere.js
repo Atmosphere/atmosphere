@@ -1667,7 +1667,8 @@ jQuery.atmosphere = function() {
                     if (lastMessage != xdr.responseText) {
                         xdrCallback(xdr);
                     }
-                    if (rq.transport == "long-polling") {
+
+                    if (rq.transport == "long-polling" && rq.requestCount++ < rq.maxRequest) {
                         _executeRequest();
                     }
                 };
