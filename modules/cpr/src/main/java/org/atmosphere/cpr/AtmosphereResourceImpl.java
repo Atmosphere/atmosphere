@@ -852,28 +852,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
-
-        if (enableAccessControl != that.enableAccessControl) return false;
-        if (injectCacheHeaders != that.injectCacheHeaders) return false;
-        if (isInScope != that.isInScope) return false;
-        if (writeHeaders != that.writeHeaders) return false;
-        if (atmosphereHandler != null ? !atmosphereHandler.equals(that.atmosphereHandler) : that.atmosphereHandler != null)
-            return false;
-        if (broadcaster != null ? !broadcaster.equals(that.broadcaster) : that.broadcaster != null) return false;
-        if (isSuspendEvent != null ? !isSuspendEvent.equals(that.isSuspendEvent) : that.isSuspendEvent != null)
-            return false;
-        if (req != null ? !req.equals(that.req) : that.req != null) return false;
-        if (response != null ? !response.equals(that.response) : that.response != null) return false;
-
-        return true;
-    }
-
-    @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
                 "\n hasCode" + hashCode() +
