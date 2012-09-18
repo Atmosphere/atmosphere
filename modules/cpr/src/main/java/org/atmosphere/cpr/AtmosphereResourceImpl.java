@@ -305,12 +305,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
                 try {
                     req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
-                    Meteor m = (Meteor) req.getAttribute(METEOR);
-                    if (m != null) {
-                        m.destroy();
-                    }
                 } catch (Exception ex) {
-                    logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+                    logger.debug("Resume exception: Cannot resume an already resumed/cancelled request", ex);
+                } finally {
+                    try {
+                        Meteor m = (Meteor) req.getAttribute(METEOR);
+                        if (m != null) {
+                            m.destroy();
+                        }
+                    } catch (Exception ex) {
+                        logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+                    }
                 }
 
                 if (req.getAttribute(PRE_SUSPEND) == null) {
