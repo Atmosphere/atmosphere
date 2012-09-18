@@ -16,7 +16,6 @@
         <module>commons</module>
         <module>chat</module>
         <module>rest-chat</module>
-        <module>jaxrs2-chat</module>
         <module>scala-chat</module>
         <module>meteor-chat</module>
         <module>chat-guice</module>

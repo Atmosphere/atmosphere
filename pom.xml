@@ -261,6 +261,14 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>snapArtifacts</id>
+            <modules>
+                <module>modules</module>
+                <module>extras</module>
+                <module>integration-tests</module>
+            </modules>
+        </profile>
     </profiles>
     <modules>
         <module>modules</module>
