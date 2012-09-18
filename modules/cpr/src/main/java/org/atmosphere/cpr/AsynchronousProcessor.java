@@ -493,14 +493,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
                 synchronized (r) {
-                    atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-
-                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (m != null) {
-                        m.destroy();
+                    try {
+                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                    } finally {
+                        Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                        if (m != null) {
+                            m.destroy();
+                        }
+                        req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     }
                 }
-                req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             }
         } catch (IOException ex) {
             try {
