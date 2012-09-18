@@ -142,10 +142,9 @@ public interface AtmosphereResource {
      * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
      * @param timeout The maximum amount of time, in milliseconds,
-     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
-     *                nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                , the {@link AtmosphereResponse} will be automatically
-     *                resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
+     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
+     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponse} that
      *                times out will throw an {@link IllegalStateException}.
      */
     AtmosphereResource suspend(long timeout);
@@ -163,12 +162,11 @@ public interface AtmosphereResource {
      * behavior by setting a request attribute named org.atmosphere.useStream to
      * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
-     * @param timeout  The maximum amount of time,
-     *                 a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
-     *                 nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                 , the {@link AtmosphereResponse} will be automatically
-     *                 resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
-     *                 times out will throw an {@link IllegalStateException}.
+     * @param timeout The maximum amount of time, in milliseconds,
+     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
+     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponse} that
+     *                times out will throw an {@link IllegalStateException}.
      * @param timeunit The time unit of the timeout value
      */
 
@@ -187,12 +185,11 @@ public interface AtmosphereResource {
      * behavior by setting a request attribute named org.atmosphere.useStream to
      * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
-     * @param timeout      The maximum amount of time, in milliseconds,
-     *                     a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
-     *                     nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                     , the {@link AtmosphereResponse} will be automatically
-     *                     resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
-     *                     times out will throw an {@link IllegalStateException}.
+     * @param timeout The maximum amount of time, in milliseconds,
+     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
+     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponse} that
+     *                times out will throw an {@link IllegalStateException}.
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
      *                     browser working. Set it to false if you want to remove it.
      */
@@ -211,12 +208,11 @@ public interface AtmosphereResource {
      * behavior by setting a request attribute named org.atmosphere.useStream to
      * so the framework will use {@link AtmosphereResponse#getOutputStream()}
      *
-     * @param timeout      The maximum amount of time, in milliseconds,
-     *                     a {@link AtmosphereResponse} can be suspended. When the timeout expires (because
-     *                     nothing has been written or because the {@link AtmosphereResource#resume()}
-     *                     , the {@link AtmosphereResponse} will be automatically
-     *                     resumed and commited. Usage of any methods of a {@link AtmosphereResponse} that
-     *                     times out will throw an {@link IllegalStateException}.
+     * @param timeout The maximum amount of time, in milliseconds,
+     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
+     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponse} that
+     *                times out will throw an {@link IllegalStateException}.
      * @param timeunit     The time unit of the timeout value
      * @param flushComment By default, Atmosphere will output some comments to make WebKit based
      *                     browser working. Set it to false if you want to remove it.
