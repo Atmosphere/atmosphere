@@ -77,4 +77,10 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
             r.getBroadcaster().broadcast(stringBuilder.toString());
         }
     }
+
+    @Override
+    public String toString() {
+        return "Broadcast POST Body Interceptor";
+    }
+
 }
