@@ -845,7 +845,10 @@ public class DefaultBroadcaster implements Broadcaster {
         if (destroyed.get() || broadcasterCache == null) return;
         Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
         try {
-            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
+            String uniqueHashCode = String.valueOf(entry.future.hashCode();
+
+
+            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(),msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
@@ -1213,7 +1216,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             Object r = Callable.class.cast(o).call();
                             final Object msg = filter(r);
                             if (msg != null) {
-                                Entry entry = new Entry(msg, null, null, r);
+                                Entry entry = new Entry(msg, null, future, r);
                                 push(entry);
                             }
                             return msg;
@@ -1223,7 +1226,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     final Object msg = filter(o);
-                    final Entry e = new Entry(msg, null, null, o);
+                    final Entry e = new Entry(msg, null, future, o);
                     push(e);
                     return msg;
                 }
@@ -1260,6 +1263,8 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
+        final BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg, null, DefaultBroadcaster.this);
+
         return (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
             public void run() {
                 if (Callable.class.isAssignableFrom(o.getClass())) {
@@ -1267,7 +1272,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = Callable.class.cast(o).call();
                         final Object msg = filter(r);
                         if (msg != null) {
-                            Entry entry = new Entry(msg, null, null, r);
+                            Entry entry = new Entry(msg, null, f, r);
                             push(entry);
                         }
                         return;
@@ -1276,7 +1281,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
                 final Object msg = filter(o);
-                final Entry e = new Entry(msg, null, null, o);
+                final Entry e = new Entry(msg, null, f, o);
                 push(e);
             }
         }, waitFor, period, t);
