@@ -66,3 +66,6 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 0.8 release: [0.8.6](http://is.gd/Pi4ZPo) [0.8.5](http://is.gd/yVgcaj) [0.8.4](http://is.gd/Pi4ZPo) [0.8.3](http://is.gd/znZBKZ) [0.8.2](http://is.gd/9BesxI) [0.8.0](https://github.com/Atmosphere/atmosphere/blob/master/CHANGELOGS.txt#L1)
 
 [Top](#Top)
+
+## Build Status
+Powered by [Cloudbees](https://jfarcabd.ci.cloudbees.com/)
