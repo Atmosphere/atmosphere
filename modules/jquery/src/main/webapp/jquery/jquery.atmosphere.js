@@ -1829,8 +1829,9 @@ jQuery.atmosphere = function() {
 
                                         // Empties response every time that it is handled
                                         res.innerText = "";
-                                        rq.lastIndex = 0;
                                         _prepareCallback(text, "messageReceived", 200, rq.transport);
+
+                                        rq.lastIndex = 0;
                                     }
 
                                     if (cdoc.readyState === "complete") {
