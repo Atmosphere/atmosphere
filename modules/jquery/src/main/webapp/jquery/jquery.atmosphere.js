@@ -1826,11 +1826,11 @@ jQuery.atmosphere = function() {
                                     var text = readResponse();
                                     if (text.length > rq.lastIndex) {
                                         _response.status = 200;
-                                        _prepareCallback(text, "messageReceived", 200, rq.transport);
 
                                         // Empties response every time that it is handled
                                         res.innerText = "";
                                         rq.lastIndex = 0;
+                                        _prepareCallback(text, "messageReceived", 200, rq.transport);
                                     }
 
                                     if (cdoc.readyState === "complete") {
