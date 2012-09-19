@@ -845,10 +845,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (destroyed.get() || broadcasterCache == null) return;
         Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
         try {
-            String uniqueHashCode = String.valueOf(entry.future.hashCode();
-
-
-            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(),msg));
+            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
