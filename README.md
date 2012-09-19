@@ -66,4 +66,4 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [Top](#Top)
 
 ## Build Status
-[![Build Status](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/badge/icon)](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/)
+Powered by [Cloudbees](https://jfarcabd.ci.cloudbees.com/)
