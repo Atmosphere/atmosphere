@@ -101,7 +101,7 @@ public class MeteorServlet extends AtmosphereServlet {
         }
 
         // The annotation was used.
-        if (servletClass != null && filterClass != null) {
+        if (servletClass != null || filterClass != null) {
             ReflectorServletProcessor r = new ReflectorServletProcessor();
             r.setServletClassName(servletClass);
             r.setFilterClassName(filterClass);
