@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
