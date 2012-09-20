@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
+@AtmosphereHandlerService(path = "/*")
 public class NativeSocketIOAtmosphereHandler extends SocketIOAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(NativeSocketIOAtmosphereHandler.class);
