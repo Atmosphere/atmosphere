@@ -1275,8 +1275,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
             if (s == null || s.equals("0")) {
-                s = HeaderConfig.UUID.randomUUID().toString();
-                res.setHeader(WebSocket, s);
+                s = UUID.randomUUID().toString();
+                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
             } else {
                 // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
                 // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
