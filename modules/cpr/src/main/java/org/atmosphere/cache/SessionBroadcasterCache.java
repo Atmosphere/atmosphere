@@ -78,6 +78,8 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         long now = System.currentTimeMillis();
         put(message, now);
 
+        if (r == null) return;
+
         HttpSession session = r.session();
         if (session == null) {
             logger.error(ERROR_MESSAGE);
