@@ -2284,7 +2284,7 @@ jQuery.atmosphere = function() {
         checkCORSSupport : function() {
             if (jQuery.browser.msie && !window.XDomainRequest) {
                 return true;
-            } else if (jQuery.browser.opera) {
+            } else if (jQuery.browser.opera && jQuery.browser.version < 12.0) {
                 return true;
             }
 
