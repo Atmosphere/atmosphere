@@ -1144,7 +1144,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (String className : possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
@@ -1275,8 +1275,19 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
             if (s == null || s.equals("0")) {
-                s = UUID.randomUUID().toString();
-                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+                s = HeaderConfig.UUID.randomUUID().toString();
+                res.setHeader(WebSocket, s);
+            } else {
+                // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
+                // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
+                // Null means it is not an HTTP request.
+                if (req.resource() == null) {
+                    res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+                } else if (req.getAttribute(WebSocket.WEBSOCKET_INITIATED) == null){
+                    // WebSocket reconnect, in case an application manually set the header
+                    // (impossible to retrieve the headers normally with WebSocket or SSE)
+                    res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+                }
             }
 
             if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
