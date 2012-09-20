@@ -25,7 +25,10 @@
 			<param-name>socketio-suspendTime</param-name>
 			<param-value>30000</param-value>
 		</init-param>
-
+        <init-param>
+            <param-name>org.atmosphere.cpr.sessionSupport</param-name>
+            <param-value>true</param-value>
+        </init-param>
 		<load-on-startup>0</load-on-startup>
 	</servlet>
 	<servlet-mapping>

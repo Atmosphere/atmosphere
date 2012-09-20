@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
@@ -39,6 +40,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
  */
+@AtmosphereHandlerService(path = "/*")
 public class NativeSocketIOAtmosphereHandler extends SocketIOAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(NativeSocketIOAtmosphereHandler.class);
