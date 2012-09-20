@@ -694,6 +694,9 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _jsonp(request) {
+                // When CORS is enabled, make sure we force the proper transport.
+                request.transport="jsonp";
+
                 var rq = _request;
                 if ((request != null) && (typeof(request) != 'undefined')) {
                     rq = request;
