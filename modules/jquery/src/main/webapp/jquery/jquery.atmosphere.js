@@ -727,6 +727,8 @@ jQuery.atmosphere = function() {
                     success: function(json) {
 
                         if (rq.requestCount++ < rq.maxRequest) {
+                            _readHeaders(_jqxhr, rq);
+
                             if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
