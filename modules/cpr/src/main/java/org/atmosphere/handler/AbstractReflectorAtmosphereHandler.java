@@ -133,18 +133,26 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                 }
             }
 
-            Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
-            if (!resumeOnBroadcast) {
-                // For legacy reason, check the attribute as well
-                Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-                if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
-                    resumeOnBroadcast = Boolean.class.cast(o);
-                }
-            }
+            postStateChange(event);
+        }
+    }
 
-            if (resumeOnBroadcast != null && resumeOnBroadcast) {
-                event.getResource().resume();
+    /**
+     * Inspect the event and decide if the underlying connection must be resumed.
+     * @param event
+     */
+    protected final void postStateChange(AtmosphereResourceEvent event) {
+        Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
+        if (!resumeOnBroadcast) {
+            // For legacy reason, check the attribute as well
+            Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+                resumeOnBroadcast = Boolean.class.cast(o);
             }
+        }
+
+        if (resumeOnBroadcast != null && resumeOnBroadcast) {
+            event.getResource().resume();
         }
     }
 }
