@@ -1,5 +1,3 @@
-com.kfuntak.gwt.json.serialization
-com.kfuntak.gwt.json.serialization.client
 org.apache.catalina
 org.apache.catalina.comet
 org.atmosphere.annotation

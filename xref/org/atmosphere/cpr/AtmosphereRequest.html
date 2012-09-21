@@ -1573,55 +1573,62 @@
 <a class="jxr_linenumber" name="1563" href="#1563">1563</a>             b.request(r);
 <a class="jxr_linenumber" name="1564" href="#1564">1564</a>         }
 <a class="jxr_linenumber" name="1565" href="#1565">1565</a> 
-<a class="jxr_linenumber" name="1566" href="#1566">1566</a>         <strong class="jxr_keyword">return</strong> isWrapped ? AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(request) : b.build();
-<a class="jxr_linenumber" name="1567" href="#1567">1567</a>     }
-<a class="jxr_linenumber" name="1568" href="#1568">1568</a> 
-<a class="jxr_linenumber" name="1569" href="#1569">1569</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> load(HttpServletRequest request, <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a> b) {
-<a class="jxr_linenumber" name="1570" href="#1570">1570</a>         Enumeration&lt;String&gt; e = request.getHeaderNames();
-<a class="jxr_linenumber" name="1571" href="#1571">1571</a>         String s;
-<a class="jxr_linenumber" name="1572" href="#1572">1572</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
-<a class="jxr_linenumber" name="1573" href="#1573">1573</a>             s = e.nextElement();
-<a class="jxr_linenumber" name="1574" href="#1574">1574</a>             b.headers.put(s, request.getHeader(s));
-<a class="jxr_linenumber" name="1575" href="#1575">1575</a>         }
-<a class="jxr_linenumber" name="1576" href="#1576">1576</a> 
-<a class="jxr_linenumber" name="1577" href="#1577">1577</a>         e = request.getAttributeNames();
-<a class="jxr_linenumber" name="1578" href="#1578">1578</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
-<a class="jxr_linenumber" name="1579" href="#1579">1579</a>             s = e.nextElement();
-<a class="jxr_linenumber" name="1580" href="#1580">1580</a>             b.localAttributes.put(s, request.getAttribute(s));
-<a class="jxr_linenumber" name="1581" href="#1581">1581</a>         }
-<a class="jxr_linenumber" name="1582" href="#1582">1582</a> 
-<a class="jxr_linenumber" name="1583" href="#1583">1583</a>         e = request.getParameterNames();
-<a class="jxr_linenumber" name="1584" href="#1584">1584</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
-<a class="jxr_linenumber" name="1585" href="#1585">1585</a>             s = e.nextElement();
-<a class="jxr_linenumber" name="1586" href="#1586">1586</a>             b.queryStrings.put(s, request.getParameterValues(s));
-<a class="jxr_linenumber" name="1587" href="#1587">1587</a>         }
-<a class="jxr_linenumber" name="1588" href="#1588">1588</a>         b.queryString = request.getQueryString();
-<a class="jxr_linenumber" name="1589" href="#1589">1589</a>     }
-<a class="jxr_linenumber" name="1590" href="#1590">1590</a> 
-<a class="jxr_linenumber" name="1591" href="#1591">1591</a>     @Override
-<a class="jxr_linenumber" name="1592" href="#1592">1592</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="1593" href="#1593">1593</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="1594" href="#1594">1594</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
-<a class="jxr_linenumber" name="1595" href="#1595">1595</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
-<a class="jxr_linenumber" name="1596" href="#1596">1596</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
-<a class="jxr_linenumber" name="1597" href="#1597">1597</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
-<a class="jxr_linenumber" name="1598" href="#1598">1598</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
-<a class="jxr_linenumber" name="1599" href="#1599">1599</a>                     <span class="jxr_string">" requestURL="</span> + getRequestURL() +
-<a class="jxr_linenumber" name="1600" href="#1600">1600</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
-<a class="jxr_linenumber" name="1601" href="#1601">1601</a>                     '}';
-<a class="jxr_linenumber" name="1602" href="#1602">1602</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="1603" href="#1603">1603</a>             <em class="jxr_comment">// Jetty error</em>
-<a class="jxr_linenumber" name="1604" href="#1604">1604</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
-<a class="jxr_linenumber" name="1605" href="#1605">1605</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
-<a class="jxr_linenumber" name="1606" href="#1606">1606</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
-<a class="jxr_linenumber" name="1607" href="#1607">1607</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
-<a class="jxr_linenumber" name="1608" href="#1608">1608</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
-<a class="jxr_linenumber" name="1609" href="#1609">1609</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
-<a class="jxr_linenumber" name="1610" href="#1610">1610</a>                     '}';
-<a class="jxr_linenumber" name="1611" href="#1611">1611</a> 
-<a class="jxr_linenumber" name="1612" href="#1612">1612</a>         }
-<a class="jxr_linenumber" name="1613" href="#1613">1613</a>     }
-<a class="jxr_linenumber" name="1614" href="#1614">1614</a> }
+<a class="jxr_linenumber" name="1566" href="#1566">1566</a>         Cookie[] cs = request.getCookies();
+<a class="jxr_linenumber" name="1567" href="#1567">1567</a>         Set&lt;Cookie&gt; hs = <strong class="jxr_keyword">new</strong> HashSet();
+<a class="jxr_linenumber" name="1568" href="#1568">1568</a>         <strong class="jxr_keyword">for</strong> (Cookie c: cs) {
+<a class="jxr_linenumber" name="1569" href="#1569">1569</a>             hs.add(c);
+<a class="jxr_linenumber" name="1570" href="#1570">1570</a>         }
+<a class="jxr_linenumber" name="1571" href="#1571">1571</a>         b.cookies(hs);
+<a class="jxr_linenumber" name="1572" href="#1572">1572</a> 
+<a class="jxr_linenumber" name="1573" href="#1573">1573</a>         <strong class="jxr_keyword">return</strong> isWrapped ? AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(request) : b.build();
+<a class="jxr_linenumber" name="1574" href="#1574">1574</a>     }
+<a class="jxr_linenumber" name="1575" href="#1575">1575</a> 
+<a class="jxr_linenumber" name="1576" href="#1576">1576</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> load(HttpServletRequest request, <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a> b) {
+<a class="jxr_linenumber" name="1577" href="#1577">1577</a>         Enumeration&lt;String&gt; e = request.getHeaderNames();
+<a class="jxr_linenumber" name="1578" href="#1578">1578</a>         String s;
+<a class="jxr_linenumber" name="1579" href="#1579">1579</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
+<a class="jxr_linenumber" name="1580" href="#1580">1580</a>             s = e.nextElement();
+<a class="jxr_linenumber" name="1581" href="#1581">1581</a>             b.headers.put(s, request.getHeader(s));
+<a class="jxr_linenumber" name="1582" href="#1582">1582</a>         }
+<a class="jxr_linenumber" name="1583" href="#1583">1583</a> 
+<a class="jxr_linenumber" name="1584" href="#1584">1584</a>         e = request.getAttributeNames();
+<a class="jxr_linenumber" name="1585" href="#1585">1585</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
+<a class="jxr_linenumber" name="1586" href="#1586">1586</a>             s = e.nextElement();
+<a class="jxr_linenumber" name="1587" href="#1587">1587</a>             b.localAttributes.put(s, request.getAttribute(s));
+<a class="jxr_linenumber" name="1588" href="#1588">1588</a>         }
+<a class="jxr_linenumber" name="1589" href="#1589">1589</a> 
+<a class="jxr_linenumber" name="1590" href="#1590">1590</a>         e = request.getParameterNames();
+<a class="jxr_linenumber" name="1591" href="#1591">1591</a>         <strong class="jxr_keyword">while</strong> (e.hasMoreElements()) {
+<a class="jxr_linenumber" name="1592" href="#1592">1592</a>             s = e.nextElement();
+<a class="jxr_linenumber" name="1593" href="#1593">1593</a>             b.queryStrings.put(s, request.getParameterValues(s));
+<a class="jxr_linenumber" name="1594" href="#1594">1594</a>         }
+<a class="jxr_linenumber" name="1595" href="#1595">1595</a>         b.queryString = request.getQueryString();
+<a class="jxr_linenumber" name="1596" href="#1596">1596</a>     }
+<a class="jxr_linenumber" name="1597" href="#1597">1597</a> 
+<a class="jxr_linenumber" name="1598" href="#1598">1598</a>     @Override
+<a class="jxr_linenumber" name="1599" href="#1599">1599</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="1600" href="#1600">1600</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="1601" href="#1601">1601</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
+<a class="jxr_linenumber" name="1602" href="#1602">1602</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
+<a class="jxr_linenumber" name="1603" href="#1603">1603</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
+<a class="jxr_linenumber" name="1604" href="#1604">1604</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
+<a class="jxr_linenumber" name="1605" href="#1605">1605</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
+<a class="jxr_linenumber" name="1606" href="#1606">1606</a>                     <span class="jxr_string">" requestURL="</span> + getRequestURL() +
+<a class="jxr_linenumber" name="1607" href="#1607">1607</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
+<a class="jxr_linenumber" name="1608" href="#1608">1608</a>                     '}';
+<a class="jxr_linenumber" name="1609" href="#1609">1609</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="1610" href="#1610">1610</a>             <em class="jxr_comment">// Jetty error</em>
+<a class="jxr_linenumber" name="1611" href="#1611">1611</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
+<a class="jxr_linenumber" name="1612" href="#1612">1612</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
+<a class="jxr_linenumber" name="1613" href="#1613">1613</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
+<a class="jxr_linenumber" name="1614" href="#1614">1614</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
+<a class="jxr_linenumber" name="1615" href="#1615">1615</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
+<a class="jxr_linenumber" name="1616" href="#1616">1616</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
+<a class="jxr_linenumber" name="1617" href="#1617">1617</a>                     '}';
+<a class="jxr_linenumber" name="1618" href="#1618">1618</a> 
+<a class="jxr_linenumber" name="1619" href="#1619">1619</a>         }
+<a class="jxr_linenumber" name="1620" href="#1620">1620</a>     }
+<a class="jxr_linenumber" name="1621" href="#1621">1621</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
