@@ -16,11 +16,10 @@
 package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.handler.OnMessage;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 
 import java.io.IOException;
 import java.util.Date;
@@ -30,59 +29,17 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(path="/chat")
-public class ChatAtmosphereHandler implements AtmosphereHandler {
+@AtmosphereHandlerService(path="/chat", interceptors = {AtmosphereResourceLifecycleInterceptor.class, BroadcastOnPostAtmosphereInterceptor.class})
+public class ChatAtmosphereHandler extends OnMessage<String> {
 
     @Override
-    public void onRequest(AtmosphereResource r) throws IOException {
+    public void onMessage(AtmosphereResponse response, String message) throws IOException {
+        // Simple JSON -- Use Jackson for more complex structure
+        // Message looks like { "author" : "foo", "message" : "bar" }
+        String author = message.substring(message.indexOf(":") + 2, message.indexOf(",") - 1);
+        String chat = message.substring(message.lastIndexOf(":") + 2, message.length() - 2);
 
-        AtmosphereRequest req = r.getRequest();
-
-        // First, tell Atmosphere to allow bi-directional communication by suspending.
-        if (req.getMethod().equalsIgnoreCase("GET")) {
-            // The negotiation header is just needed by the sample to list all the supported transport.
-            if (req.getHeader("negotiating") == null) {
-                r.suspend();
-            } else {
-                r.getResponse().getWriter().write("OK");
-            }
-        // Second, broadcast message to all connected users.
-        } else if (req.getMethod().equalsIgnoreCase("POST")) {
-            r.getBroadcaster().broadcast(req.getReader().readLine().trim());
-        }
-    }
-
-    @Override
-    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        AtmosphereResource r = event.getResource();
-        AtmosphereResponse res = r.getResponse();
-
-        if (event.isSuspended()) {
-            String body = event.getMessage().toString();
-
-            // Simple JSON -- Use Jackson for more complex structure
-            // Message looks like { "author" : "foo", "message" : "bar" }
-            String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);
-            String message = body.substring(body.lastIndexOf(":") + 2, body.length() - 2);
-
-            res.getWriter().write(new Data(author, message).toString());
-            switch (r.transport()) {
-                case JSONP:
-                case AJAX:
-                case LONG_POLLING:
-                    event.getResource().resume();
-                    break;
-                default:
-                    res.getWriter().flush();
-                    break;
-            }
-        } else if (!event.isResuming()){
-            event.broadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
-        }
-    }
-
-    @Override
-    public void destroy() {
+        response.getWriter().write(new Data(author, chat).toString());
     }
 
     private final static class Data {
