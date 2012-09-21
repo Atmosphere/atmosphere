@@ -24,7 +24,7 @@ import java.util.List;
 public class AtmosphereHandlerConfig {
 
     // "" means unset
-    private String supportSession = "";
+    private String supportSession = "false";
     private String contextRoot;
     private String className;
     private String broadcaster;
