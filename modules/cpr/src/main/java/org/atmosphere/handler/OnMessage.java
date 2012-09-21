@@ -29,7 +29,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class OnMessage<T> implements AtmosphereHandler {
+public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
     }
@@ -39,6 +39,7 @@ public abstract class OnMessage<T> implements AtmosphereHandler {
         if (event.isSuspended()) {
             onMessage(event.getResource().getResponse(), (T) event.getMessage());
         }
+        postStateChange(event);
     }
 
     @Override
