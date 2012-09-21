@@ -122,6 +122,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                             }
                         }
                         framework.addAtmosphereHandler(a.path(), handler, l);
+
+                        framework.sessionSupport(a.supportSession());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
