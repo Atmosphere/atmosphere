@@ -61,6 +61,7 @@ import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
+import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.container.NettyCometSupport;
@@ -94,6 +95,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY = "org.mortbay.util.ajax.Continuation";
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
+    public final static String JETTY_9 = "org.eclipse.jetty.websocket.server.WebSocketServerFactory";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
     public final static String GRIZZLY2 = "org.glassfish.grizzly.http.servlet.ServletHandler";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
@@ -144,6 +146,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                 if (testClassExists(JETTY_8))
                     add(Jetty7CometSupport.class);
 
+                if (testClassExists(JETTY_9))
+                    add(Jetty7CometSupport.class);
+
                 if (testClassExists(JBOSSWEB))
                     add(JBossWebCometSupport.class);
 
@@ -174,6 +179,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             {
                 if (testClassExists(TOMCAT_WEBSOCKET))
                     add(Tomcat7AsyncSupportWithWebSocket.class);
+
+                if (testClassExists(JETTY_9))
+                    add(Jetty9AsyncSupportWithWebSocket.class);
 
                 if (testClassExists(JETTY_8))
                     add(JettyAsyncSupportWithWebSocket.class);
