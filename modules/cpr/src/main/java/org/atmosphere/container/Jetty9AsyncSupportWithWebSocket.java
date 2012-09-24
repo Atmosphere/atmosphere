@@ -22,10 +22,12 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
+import org.eclipse.jetty.websocket.core.api.Extension;
 import org.eclipse.jetty.websocket.core.api.UpgradeRequest;
 import org.eclipse.jetty.websocket.core.api.UpgradeResponse;
 import org.eclipse.jetty.websocket.core.api.WebSocketBehavior;
 import org.eclipse.jetty.websocket.core.api.WebSocketPolicy;
+import org.eclipse.jetty.websocket.server.ServletWebSocketRequest;
 import org.eclipse.jetty.websocket.server.WebSocketCreator;
 import org.eclipse.jetty.websocket.server.WebSocketServerFactory;
 import org.slf4j.Logger;
@@ -33,9 +35,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.List;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
+/**
+ * Jetty 9 WebSocket support.
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
     private static final Logger logger = LoggerFactory.getLogger(Jetty9AsyncSupportWithWebSocket.class);
     private final WebSocketServerFactory webSocketFactory;
@@ -69,6 +77,11 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
 
             @Override
             public Object createWebSocket(UpgradeRequest upgradeRequest, UpgradeResponse upgradeResponse) {
+                // Workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=390263
+                // TODO: Remove me.
+                ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
+                r.getExtensions().clear();
+
                 return new Jetty9WebSocketHandler(upgradeRequest, config.framework(), config.framework().getWebSocketProtocol());
             }
         });
