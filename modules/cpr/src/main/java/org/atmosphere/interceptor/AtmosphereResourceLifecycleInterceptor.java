@@ -57,7 +57,7 @@ import static org.atmosphere.cpr.ApplicationConfig.*;
 public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterceptor {
 
     private String method = "GET";
-    private static final Logger logger = LoggerFactory.getLogger(SSEAtmosphereInterceptor.class);
+    private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceLifecycleInterceptor.class);
 
     @Override
     public void configure(AtmosphereConfig config) {
