@@ -65,8 +65,8 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
         }
 
         webSocketFactory = new WebSocketServerFactory(policy);
-
         webSocketFactory.setCreator(new WebSocketCreator() {
+
             @Override
             public Object createWebSocket(UpgradeRequest upgradeRequest, UpgradeResponse upgradeResponse) {
                 return new Jetty9WebSocketHandler(upgradeRequest, config.framework(), config.framework().getWebSocketProtocol());
@@ -99,7 +99,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
                 res.sendError(501, "Websocket protocol not supported");
                 return Action.CANCELLED;
             } else {
-                return null;
+                return super.service(req, res);
             }
         } else {
             if (webSocketFactory != null && !b) {
