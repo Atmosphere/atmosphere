@@ -123,6 +123,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return false;
         } catch (NoClassDefFoundError ex) {
             return false;
+        // JDK 7
+        }  catch (UnsupportedClassVersionError ex) {
+            return false;
         }
     }
 
