@@ -855,6 +855,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void sessionSupport(boolean sessionSupport) {
         if (!isSessionSupportSpecified) {
             config.setSupportSession(sessionSupport);
+        } else if (!config.isSupportSession()) {
+            // Don't turn off session support.  Once it's on, leave it on.
+            config.setSupportSession(sessionSupport);
         }
     }
 
