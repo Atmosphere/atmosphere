@@ -16,6 +16,7 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -51,23 +52,23 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
     public Jetty9AsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
-        String bs = config.getInitParameter("bufferSize");
+        String bs = config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
         WebSocketPolicy policy = new WebSocketPolicy(WebSocketBehavior.SERVER);
         if (bs != null) {
             policy.setBufferSize(Integer.parseInt(bs));
         }
 
-        String max = config.getInitParameter("maxIdleTime");
+        String max = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (max != null) {
             policy.setIdleTimeout(Integer.parseInt(max));
         }
 
-        max = config.getInitParameter("maxTextMessageSize");
+        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
         if (max != null) {
             policy.setMaxTextMessageSize(Integer.parseInt(max));
         }
 
-        max = config.getInitParameter("maxBinaryMessageSize");
+        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
         if (max != null) {
             policy.setMaxBinaryMessageSize(Integer.parseInt(max));
         }
