@@ -300,6 +300,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             path = path + MAPPING_REGEX;
         }
 
+        InjectorProvider.getInjector().inject(w.atmosphereHandler);
         atmosphereHandlers.put(path, w);
         return this;
     }
@@ -948,7 +949,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
                     handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
-                    InjectorProvider.getInjector().inject(handler);
                 } else {
                     handler = new ReflectorServletProcessor();
                 }
