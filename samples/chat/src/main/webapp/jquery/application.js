@@ -87,7 +87,7 @@ $(function () {
 
             var me = json.author == author;
             var date = typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
-            addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(date));
+            addMessage(json.author, json.message, me ? 'blue' : 'black', new Date(date));
         }
     };
 
