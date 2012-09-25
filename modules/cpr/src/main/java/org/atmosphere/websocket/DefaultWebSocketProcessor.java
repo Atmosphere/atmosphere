@@ -75,10 +75,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
 
-    public DefaultWebSocketProcessor(AtmosphereFramework framework, WebSocket webSocket, WebSocketProtocol webSocketProtocol) {
+    public DefaultWebSocketProcessor(WebSocket webSocket) {
         this.webSocket = webSocket;
-        this.framework = framework;
-        this.webSocketProtocol = webSocketProtocol;
+        this.framework = webSocket.config().framework();
+        this.webSocketProtocol = framework.getWebSocketProtocol();
 
         String s = framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
         if (s != null && Boolean.valueOf(s)) {

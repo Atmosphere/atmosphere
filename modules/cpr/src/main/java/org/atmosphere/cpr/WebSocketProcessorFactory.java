@@ -27,21 +27,17 @@ import org.atmosphere.websocket.WebSocketProcessor;
 public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
-    private final AtmosphereConfig config;
-    private final String webSocketProcessorName;
 
-    protected WebSocketProcessorFactory(AtmosphereConfig config) {
-        this.config = config;
-        factory = this;
-        webSocketProcessorName = config.framework().getWebSocketProcessorClassName();
-    }
-
-    public final static WebSocketProcessorFactory getDefault() {
+    public final static synchronized WebSocketProcessorFactory getDefault() {
+        if (factory == null) {
+            factory = new WebSocketProcessorFactory();
+        }
         return factory;
     }
 
     public WebSocketProcessor newWebSocketProcessor(WebSocket webSocket) {
         WebSocketProcessor wp = null;
+        String webSocketProcessorName = webSocket.config().framework().getWebSocketProcessorClassName();
         if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
             try {
                 wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
@@ -56,7 +52,7 @@ public class WebSocketProcessorFactory {
         }
 
         if (wp == null) {
-            wp = new DefaultWebSocketProcessor(config.framework(), webSocket, config.framework().getWebSocketProtocol());
+            wp = new DefaultWebSocketProcessor(webSocket);
         }
 
         return wp;

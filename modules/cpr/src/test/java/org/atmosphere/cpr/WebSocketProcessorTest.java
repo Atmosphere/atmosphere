@@ -226,11 +226,12 @@ public class WebSocketProcessorTest {
         assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
     }
 
-    public final static class ArrayBaseWebSocket extends WebSocket {
+    public final class ArrayBaseWebSocket extends WebSocket {
 
         private final OutputStream outputStream;
 
         public ArrayBaseWebSocket(OutputStream outputStream) {
+            super(framework.getAtmosphereConfig());
             this.outputStream = outputStream;
         }
 

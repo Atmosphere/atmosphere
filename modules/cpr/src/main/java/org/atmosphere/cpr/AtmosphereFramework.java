@@ -906,8 +906,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
         webSocketProtocol.configure(config);
-
-        new WebSocketProcessorFactory(config);
     }
 
     public AtmosphereFramework destroy() {
