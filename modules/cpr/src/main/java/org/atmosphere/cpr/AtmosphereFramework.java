@@ -145,7 +145,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isSessionSupportSpecified = false;
     protected BroadcasterFactory broadcasterFactory;
     protected String broadcasterFactoryClassName;
-    protected static String broadcasterCacheClassName;
+    protected String broadcasterCacheClassName;
     protected boolean webSocketEnabled = true;
     protected String broadcasterLifeCyclePolicy = "NEVER";
     protected String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();

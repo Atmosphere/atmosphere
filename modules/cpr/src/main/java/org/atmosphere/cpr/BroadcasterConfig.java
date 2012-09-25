@@ -115,14 +115,15 @@ public class BroadcasterConfig {
 
     private void configureBroadcasterCache() {
         try {
-            if (AtmosphereFramework.broadcasterCacheClassName != null) {
+            String className = config.framework().getBroadcasterCacheClassName();
+            if (className != null) {
                 BroadcasterCache cache;
                 try {
                     cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                            .loadClass(className).newInstance();
                 } catch (ClassNotFoundException ex) {
                     cache = (BroadcasterCache) getClass().getClassLoader()
-                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                            .loadClass(className).newInstance();
                 }
                 InjectorProvider.getInjector().inject(cache);
                 setBroadcasterCache(cache);
