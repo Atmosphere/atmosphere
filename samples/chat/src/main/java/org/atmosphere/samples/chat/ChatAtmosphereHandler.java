@@ -37,7 +37,7 @@ import java.util.Date;
                         BroadcastOnPostAtmosphereInterceptor.class})
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
-    private ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void onMessage(AtmosphereResponse response, String message) throws IOException {
