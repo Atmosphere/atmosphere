@@ -253,7 +253,7 @@ public interface ApplicationConfig {
     /**
      * The default content-type value used when Atmosphere requires one. Default is text/plain.
      */
-    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContextType";
+    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContentType";
     /**
      * Wrap the request/response with associated {@link javax.servlet.http.HttpServletRequest} and
      * {@link javax.servlet.http.HttpServletResponse}
