@@ -39,7 +39,7 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
 
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
         put(e, now);
 
         if (r != null) {
@@ -55,7 +55,7 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
 
         AtmosphereRequest request = r.getRequest();
         String cacheHeader = request.getHeader(X_CACHE_DATE);
-        r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(System.currentTimeMillis()));
+        r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(System.nanoTime()));
         if (cacheHeader == null || cacheHeader.isEmpty()) {
             return Collections.emptyList();
         }
