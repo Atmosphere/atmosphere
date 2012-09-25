@@ -31,7 +31,10 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(path="/chat", interceptors = {AtmosphereResourceLifecycleInterceptor.class, BroadcastOnPostAtmosphereInterceptor.class})
+@AtmosphereHandlerService(
+        path="/chat",
+        interceptors = {AtmosphereResourceLifecycleInterceptor.class,
+                        BroadcastOnPostAtmosphereInterceptor.class})
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private ObjectMapper mapper = new ObjectMapper();
@@ -72,7 +75,6 @@ public class ChatAtmosphereHandler extends OnMessage<String> {
         public void setMessage(String message) {
             this.message = message;
         }
-
 
         public long getTime() {
             return time;
