@@ -57,11 +57,11 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
             public void run() {
                 readWriteLock.writeLock().lock();
                 try {
-                    long now = System.nanoTime();
+                    long now = System.currentTimeMillis();
                     List<CacheMessage> expiredMessages = new ArrayList<CacheMessage>();
 
                     for (CacheMessage message : messages) {
-                        if (message.getCreateTime() <= now - maxCacheTime) {
+                        if (TimeUnit.NANOSECONDS.toMillis(message.getCreateTime())<= now - maxCacheTime) {
                             expiredMessages.add(message);
                         }
                     }
