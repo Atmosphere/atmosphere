@@ -32,6 +32,9 @@ import java.io.IOException;
 public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
+        if (resource.getRequest().getMethod().equalsIgnoreCase("GET")) {
+            onOpen(resource);
+        }
     }
 
     @Override
@@ -54,20 +57,31 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     }
 
     /**
+     * This method will be invoked when an connection has been received and not haven't yet be suspended. Note that
+     * the connection will be suspended AFTER the method has been invoked when used with {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+     *
+     * @param resource an {@link AtmosphereResource}
+     * @throws IOException
+     */
+    public void onOpen(AtmosphereResource resource) throws IOException {
+    }
+
+    /**
      * Implement this method to get invoked every time a new {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
      * occurs.
      *
      * @param response an {@link AtmosphereResponse}
-     * @param message a message of type T
+     * @param message  a message of type T
      */
     abstract public void onMessage(AtmosphereResponse response, T message) throws IOException;
 
     /**
      * This method will be invoked during the process of resuming a connection. By default this method does nothing.
+     *
      * @param response an {@link AtmosphereResponse}.
      * @throws IOException
      */
-    public void onResume(AtmosphereResponse response) throws IOException{
+    public void onResume(AtmosphereResponse response) throws IOException {
     }
 
     /**
@@ -77,7 +91,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * @param response an {@link AtmosphereResponse}.
      * @throws IOException
      */
-    public void onTimeout(AtmosphereResponse response) throws IOException{
+    public void onTimeout(AtmosphereResponse response) throws IOException {
     }
 
     /**
@@ -87,6 +101,6 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * @param response an {@link AtmosphereResponse}.
      * @throws IOException
      */
-    public void onDisconnect(AtmosphereResponse response) throws IOException{
+    public void onDisconnect(AtmosphereResponse response) throws IOException {
     }
 }
