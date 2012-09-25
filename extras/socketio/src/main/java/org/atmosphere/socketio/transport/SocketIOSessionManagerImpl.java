@@ -52,8 +52,8 @@ public class SocketIOSessionManagerImpl implements SocketIOSessionManager, Socke
 
     private static final int SESSION_ID_LENGTH = 20;
     private static Random random = new SecureRandom();
-    private ConcurrentMap<String, SocketIOSession> socketIOSessions = new ConcurrentHashMap<String, SocketIOSession>();
-    private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private final ConcurrentMap<String, SocketIOSession> socketIOSessions = new ConcurrentHashMap<String, SocketIOSession>();
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
     private long heartbeatInterval = 15;
     private long timeout = 2500;
