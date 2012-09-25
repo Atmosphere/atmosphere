@@ -23,7 +23,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import java.io.IOException;
 
 /**
- * Simple {@link AtmosphereHandler} that can be used with the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+ * Simple {@link AtmosphereHandler} that must be used with the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
  * and {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} to reduce the handling of the suspend/resume/disconnect and
  * broadcast operation.
  *
@@ -36,8 +36,15 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        AtmosphereResponse response = event.getResource().getResponse();
         if (event.isSuspended()) {
-            onMessage(event.getResource().getResponse(), (T) event.getMessage());
+            onMessage(response, (T) event.getMessage());
+        } else if (event.isResuming()) {
+            onResume(response);
+        } else if (event.isResumedOnTimeout()) {
+            onTimeout(response);
+        } else if (event.isCancelled()) {
+            onDisconnect(response);
         }
         postStateChange(event);
     }
@@ -50,8 +57,36 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * Implement this method to get invoked every time a new {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
      * occurs.
      *
+     * @param response an {@link AtmosphereResponse}
      * @param message a message of type T
      */
     abstract public void onMessage(AtmosphereResponse response, T message) throws IOException;
 
+    /**
+     * This method will be invoked during the process of resuming a connection. By default this method does nothing.
+     * @param response an {@link AtmosphereResponse}.
+     * @throws IOException
+     */
+    public void onResume(AtmosphereResponse response) throws IOException{
+    }
+
+    /**
+     * This method will be invoked when a suspended connection times out, e.g no activity has occurred for the
+     * specified time used when suspending. By default this method does nothing.
+     *
+     * @param response an {@link AtmosphereResponse}.
+     * @throws IOException
+     */
+    public void onTimeout(AtmosphereResponse response) throws IOException{
+    }
+
+    /**
+     * This method will be invoked when the underlying WebServer detects a connection has been closed. Please
+     * note that not all WebServer supports that features (see Atmosphere's WIKI for help). By default this method does nothing.
+     *
+     * @param response an {@link AtmosphereResponse}.
+     * @throws IOException
+     */
+    public void onDisconnect(AtmosphereResponse response) throws IOException{
+    }
 }
