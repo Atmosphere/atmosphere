@@ -291,4 +291,8 @@ public interface ApplicationConfig {
      * but available to all transport.
      */
     String SUSPENDED_ATMOSPHERE_RESOURCE_UUID = AtmosphereResource.class.getName() + "suspended.uuid";
+    /**
+     * Change the default regex used when mapping AtmosphereHandler. Default is {@link AtmosphereFramework#MAPPING_REGEX}
+     */
+    String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
 }

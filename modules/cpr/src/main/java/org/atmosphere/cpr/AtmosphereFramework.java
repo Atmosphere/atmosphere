@@ -93,7 +93,6 @@ import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -135,6 +134,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
     protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
 
+    protected String mappingRegex = MAPPING_REGEX;
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
     protected boolean useStreamForFlushingComments = false;
@@ -293,11 +293,11 @@ public class AtmosphereFramework implements ServletContextProvider {
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
-            path = path.replace("*", MAPPING_REGEX);
+            path = path.replace("*", mappingRegex);
         }
 
         if (path.endsWith("/")) {
-            path = path + MAPPING_REGEX;
+            path = path + mappingRegex;
         }
 
         InjectorProvider.getInjector().inject(w.atmosphereHandler);
@@ -390,7 +390,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework removeAtmosphereHandler(String mapping) {
 
         if (mapping.endsWith("/")) {
-            mapping += MAPPING_REGEX;
+            mapping += mappingRegex;
         }
 
         atmosphereHandlers.remove(mapping);
@@ -756,6 +756,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
         if (s != null) {
             atmosphereDotXmlPath = s;
+        }
+        s = sc.getInitParameter(ApplicationConfig.HANDLER_MAPPING_REGEX);
+        if (s != null) {
+            mappingRegex = s;
         }
     }
 
