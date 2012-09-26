@@ -29,13 +29,11 @@
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
 
-        <!-- Uncomment to use Hazelcast
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-hazelcast</artifactId>
             <version>${project.version}</version>
         </dependency>
-        -->
 
         <!-- Uncomment to use Redis
         <dependency>
