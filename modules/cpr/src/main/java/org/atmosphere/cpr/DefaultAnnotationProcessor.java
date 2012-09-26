@@ -16,10 +16,12 @@
 package org.atmosphere.cpr;
 
 import eu.infomas.annotation.AnnotationDetector;
+import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
@@ -80,7 +82,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         BroadcasterListenerService.class,
                         AsyncSupportService.class,
                         AsyncSupportListenerService.class,
-                        WebSocketProcessorService.class
+                        WebSocketProcessorService.class,
+                        BroadcasterCacheInspectorService.class
                 };
             }
 
@@ -129,6 +132,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     }
                 } else if (BroadcasterCacheService.class.equals(annotation)) {
                     framework.setBroadcasterCacheClassName(className);
+                } else if (BroadcasterCacheInspectorService.class.equals(annotation)) {
+                    try {
+                        framework.addBroadcasterCacheInjector((BroadcasterCacheInspector)cl.loadClass(className).newInstance());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
                 } else if (MeteorService.class.equals(annotation)) {
                     try {
                         ReflectorServletProcessor r = new ReflectorServletProcessor();

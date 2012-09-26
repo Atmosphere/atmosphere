@@ -52,6 +52,7 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -78,6 +79,7 @@ public class BroadcasterConfig {
 
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<BroadcastFilter>();
     protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
+
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
     private ExecutorService defaultExecutorService;
@@ -85,7 +87,7 @@ public class BroadcasterConfig {
     private ScheduledExecutorService scheduler;
     private final Object[] lock = new Object[0];
     private BroadcasterCache broadcasterCache;
-    private AtmosphereConfig config;
+    private final AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
@@ -117,17 +119,21 @@ public class BroadcasterConfig {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
             if (className != null) {
-                BroadcasterCache cache;
                 try {
-                    cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                    broadcasterCache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
                             .loadClass(className).newInstance();
                 } catch (ClassNotFoundException ex) {
-                    cache = (BroadcasterCache) getClass().getClassLoader()
+                    broadcasterCache = (BroadcasterCache) getClass().getClassLoader()
                             .loadClass(className).newInstance();
                 }
-                InjectorProvider.getInjector().inject(cache);
-                setBroadcasterCache(cache);
+                InjectorProvider.getInjector().inject(broadcasterCache);
             }
+
+            for (BroadcasterCacheInspector b : config.framework().inspectors()) {
+                broadcasterCache.inspector(b);
+                InjectorProvider.getInjector().inject(b);
+            }
+
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
         } catch (IllegalAccessException e) {
@@ -564,6 +570,11 @@ public class BroadcasterConfig {
         public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
             return list;
         }
+
+        @Override
+        public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
+            return this;
+        }
     }
 
     void configureBroadcasterFilter(List<String> list) {
@@ -602,14 +613,5 @@ public class BroadcasterConfig {
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
-    }
-
-    /**
-     * Set the {@link AtmosphereConfig}
-     *
-     * @param config {@link AtmosphereConfig}
-     */
-    public void setAtmosphereConfig(AtmosphereConfig config) {
-        this.config = config;
     }
 }

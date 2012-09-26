@@ -51,6 +51,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcasterCacheInspector;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -94,7 +96,16 @@ public interface BroadcasterCache {
      */
     List<Object> retrieveFromCache(String id, AtmosphereResource r);
 
+    /**
+     * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.
+     * @param interceptor
+     * @return
+     */
+    BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
 
+    /**
+     * A wrapper around a the object passed to {@link Broadcaster#broadcast(Object)}
+     */
     public final static class Message {
 
         public final String id;

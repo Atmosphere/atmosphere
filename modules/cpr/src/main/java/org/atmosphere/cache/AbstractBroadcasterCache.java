@@ -49,6 +49,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared = false;
+    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
 
     @Override
     public void start() {
@@ -90,6 +91,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     protected void put(Message message, Long now) {
+        if (!inspect(message)) return;
+
         readWriteLock.writeLock().lock();
         try {
             boolean hasMessageWithSameId = messagesIds.contains(message.id);
@@ -171,5 +174,18 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     public AbstractBroadcasterCache setMaxCacheTime(long maxCacheTime) {
         this.maxCacheTime = maxCacheTime;
         return this;
+    }
+
+    @Override
+    public BroadcasterCache inspector(BroadcasterCacheInspector b) {
+        inspectors.add(b);
+        return this;
+    }
+
+    protected boolean inspect(Message m) {
+        for (BroadcasterCacheInspector b : inspectors) {
+              if (!b.inspect(m)) return false;
+        }
+        return true;
     }
 }

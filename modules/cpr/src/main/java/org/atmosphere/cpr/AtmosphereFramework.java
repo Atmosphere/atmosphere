@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.ApplicationConfiguration;
@@ -133,6 +134,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final boolean isFilter;
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
     protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
+    protected final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<BroadcasterCacheInspector>();
 
     protected String mappingRegex = MAPPING_REGEX;
     protected boolean useNativeImplementation = false;
@@ -1592,6 +1594,23 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
+    /**
+     * Add a {@link BroadcasterCacheInspector} which will be associated with the defined {@link BroadcasterCache}
+     * @param b {@link BroadcasterCacheInspector}
+     * @return this;
+     */
+    public AtmosphereFramework addBroadcasterCacheInjector(BroadcasterCacheInspector b) {
+        inspectors.add(b);
+        return this;
+    }
+
+    /**
+     * Return the list of {@link BroadcasterCacheInspector}
+     * @return the list of {@link BroadcasterCacheInspector}
+     */
+    public ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors(){
+        return inspectors;
+    }
 
     protected void autoConfigureService(ServletContext sc) throws IOException {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();

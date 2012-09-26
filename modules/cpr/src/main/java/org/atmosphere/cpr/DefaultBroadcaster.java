@@ -122,7 +122,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected Future<?> notifierFuture;
     protected Future<?> asyncWriteFuture;
-    public BroadcasterCache broadcasterCache;
 
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
@@ -142,7 +141,6 @@ public class DefaultBroadcaster implements Broadcaster {
         this.uri = uri;
         this.config = config;
 
-        broadcasterCache = new DefaultBroadcasterCache();
         bc = createBroadcasterConfig(config);
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
@@ -202,9 +200,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 bc.destroy();
             }
 
-            if (broadcasterCache != null) {
-                broadcasterCache.stop();
-            }
             resources.clear();
             broadcastOnResume.clear();
             messages.clear();
@@ -244,12 +239,14 @@ public class DefaultBroadcaster implements Broadcaster {
                     Broadcaster b = BroadcasterFactory.getDefault()
                             .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
+                    /* TODO: This can cause regression?
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
                         BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
                         InjectorProvider.getInjector().inject(cache);
                         DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
-                        DefaultBroadcaster.class.cast(b).getBroadcasterConfig().setBroadcasterCache(cache);
-                    }
+                        b.getBroadcasterConfig().setBroadcasterCache(cache);
+                    }*/
+
                     resource.setBroadcaster(b);
                     b.setScope(SCOPE.REQUEST);
                     if (resource.getAtmosphereResourceEvent().isSuspended()) {
@@ -543,8 +540,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void start() {
         if (!started.getAndSet(true)) {
-            broadcasterCache = bc.getBroadcasterCache();
-            broadcasterCache.start();
+            bc.getBroadcasterCache().start();
 
             setID(name);
             notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
@@ -833,7 +829,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        List<?> missedMsg = broadcasterCache.retrieveFromCache(getID(), r);
+        List<?> missedMsg = bc.getBroadcasterCache().retrieveFromCache(getID(), r);
         if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
@@ -842,10 +838,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void trackBroadcastMessage(final AtmosphereResource r, Entry entry) {
-        if (destroyed.get() || broadcasterCache == null) return;
+        if (destroyed.get() ||  bc.getBroadcasterCache() == null) return;
         Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
         try {
-            broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
+            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
@@ -914,7 +910,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
-                broadcasterCache.addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(token.future.hashCode()), m));
+                bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(token.future.hashCode()), m));
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {
@@ -1287,7 +1283,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public String toString() {
         return new StringBuilder().append("\nName: ").append(name).append("\n")
                 .append("\n\tScope: ").append(scope).append("\n")
-                .append("\n\tBroasdcasterCache ").append(broadcasterCache).append("\n")
+                .append("\n\tBroasdcasterCache ").append(bc.getBroadcasterCache()).append("\n")
                 .append("\n\tAtmosphereResource: ").append(resources.size()).append("\n")
                 .append(this.getClass().getName()).append("@").append(this.hashCode())
                 .toString();
