@@ -32,7 +32,7 @@ public class RecyclableBroadcaster extends JerseyBroadcaster {
      * {@inheritDoc}
      */
     public void destroy() {
-        broadcasterCache = new BroadcasterConfig.DefaultBroadcasterCache();
+        bc.setBroadcasterCache(new BroadcasterConfig.DefaultBroadcasterCache());
         setScope(SCOPE.APPLICATION);
     }
 }
