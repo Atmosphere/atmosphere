@@ -311,8 +311,13 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
                 synchronized (framework.asyncSupport) {
                     if (!framework.asyncSupport.getClass().equals(TomcatCometSupport.class)) {
+                        AsyncSupport current = framework.asyncSupport;
                         logger.warn("TomcatCometSupport is enabled, switching to it");
                         framework.asyncSupport = new TomcatCometSupport(framework.config);
+                        if(current instanceof AsynchronousProcessor) {
+                            ((AsynchronousProcessor)current).shutdown();
+                        }
+                        framework.asyncSupport.init(framework.config.getServletConfig());
                     }
                 }
             }
@@ -338,8 +343,12 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
                 synchronized (framework.asyncSupport) {
                     if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
-                        logger.warn("TomcatCometSupport is enabled, switching to it");
+                        AsyncSupport current = framework.asyncSupport;
+                        logger.warn("TomcatCometSupport7 is enabled, switching to it");
                         framework.asyncSupport = new Tomcat7CometSupport(framework.config);
+                        if(current instanceof AsynchronousProcessor) {
+                            ((AsynchronousProcessor)current).shutdown();
+                        }
                         framework.asyncSupport.init(framework.config.getServletConfig());
                     }
                 }
@@ -371,8 +380,12 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
             synchronized (framework.asyncSupport) {
                 if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)) {
+                    AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
+                    if(current instanceof AsynchronousProcessor) {
+                        ((AsynchronousProcessor)current).shutdown();
+                    }
                     framework.asyncSupport.init(framework.config.getServletConfig());
                 }
             }
