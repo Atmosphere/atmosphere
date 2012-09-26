@@ -961,11 +961,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                     initParams.put(a.getParamName(), a.getParamValue());
                 }
 
-                boolean isJersey = false;
                 for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
 
                     if (handlerProperty.getValue() != null && handlerProperty.getValue().indexOf("jersey") != -1) {
-                        isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
