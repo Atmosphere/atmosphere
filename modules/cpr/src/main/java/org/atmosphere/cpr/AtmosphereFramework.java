@@ -121,7 +121,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
-    public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=;\\?]+";
+    public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=@;\\?]+";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
