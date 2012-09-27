@@ -71,7 +71,10 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
 
         final AtmosphereResponse response = r.getResponse();
-        if (!r.transport().equals(TRANSPORT.AJAX) && !r.transport().equals(TRANSPORT.POLLING)) {
+        if (r.transport().equals(TRANSPORT.STREAMING)
+                || r.transport().equals(TRANSPORT.SSE)
+                || r.transport().equals(TRANSPORT.WEBSOCKET)) {
+
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
