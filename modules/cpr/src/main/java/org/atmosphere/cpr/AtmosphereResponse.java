@@ -24,6 +24,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -817,16 +818,30 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param data the String to write
      */
     public AtmosphereResponse write(String data) {
+        return write(data, false);
+    }
+
+    /**
+     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
+     * execute the write without invoking the defined {@link AsyncIOWriter}
+     *
+     * @param data the String to write
+     * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
+     */
+    public AtmosphereResponse write(String data, boolean writeUsingOriginalResponse) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
                 try {
-                    getOutputStream().write(data.getBytes(getCharacterEncoding()));
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
+                    o.write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
                     logger.trace("",ex);
                 }
             } else {
-                getWriter().write(data);
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
+                w.write(data);
             }
         } catch (IOException e) {
             logger.trace("", e);
@@ -841,15 +856,29 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param data the bytes to write
      */
     public AtmosphereResponse write(byte[] data) {
+        return write(data, false);
+    }
+
+    /**
+     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
+     * execute the write without invoking the defined {@link AsyncIOWriter}
+     *
+     * @param data the bytes to write
+     * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
+     */
+    public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
                 try {
-                    getOutputStream().write(data);
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
+                    o.write(data);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                getWriter().write(new String(data, getCharacterEncoding()));
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
+                w.write(new String(data, getCharacterEncoding()));
             }
         } catch (IOException e) {
             logger.trace("", e);
@@ -866,15 +895,31 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param length the data length
      */
     public AtmosphereResponse write(byte[] data, int offset, int length) {
+        return write(data, offset, length, false);
+    }
+
+    /**
+     * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
+     * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
+     * execute the write without invoking the defined {@link AsyncIOWriter}
+     *
+     * @param data   the bytes to write
+     * @param offset the first byte position to write
+     * @param length the data length
+     * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
+     */
+    public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
                 try {
-                    getOutputStream().write(data, offset, length);
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
+                    o.write(data, offset, length);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                getWriter().write(new String(data, offset, length, getCharacterEncoding()));
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
+                w.write(new String(data, offset, length, getCharacterEncoding()));
             }
         } catch (IOException e) {
             logger.trace("", e);

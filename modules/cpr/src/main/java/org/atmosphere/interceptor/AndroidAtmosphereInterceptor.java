@@ -68,7 +68,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(padding);
+                        response.write(padding, true);
                     }
 
                 });

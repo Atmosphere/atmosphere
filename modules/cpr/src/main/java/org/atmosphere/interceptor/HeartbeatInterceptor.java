@@ -96,14 +96,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                         writeFuture = heartBeat.schedule(new Callable<Object>() {
                             @Override
                             public Object call() throws Exception {
-                                // Skip AsyncWriter.
-                                try {
-                                    response.getResponse().getOutputStream().write(padding);
-                                    response.getResponse().getOutputStream().flush();
-                                } catch (Exception ex) {
-                                    response.getResponse().getWriter().write(paddingText);
-                                    response.getResponse().getWriter().flush();
-                                }
+                                response.write(paddingText, true);
                                 return null;
                             }
                         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
