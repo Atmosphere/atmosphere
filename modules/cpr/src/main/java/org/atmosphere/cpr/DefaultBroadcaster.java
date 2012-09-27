@@ -56,6 +56,7 @@ import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -833,6 +834,26 @@ public class DefaultBroadcaster implements Broadcaster {
             // Must make sure execute only one thread
             synchronized (r) {
                 invokeOnStateChange(r, e);
+                // TODO: CAST is dangerous
+                for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+                    l.onBroadcast(e);
+                }
+
+                switch (r.transport()) {
+                    case JSONP:
+                    case AJAX:
+                    case LONG_POLLING:
+                    case SSE:
+                        break;
+                    default:
+                        try {
+                            r.getResponse().flushBuffer();
+                        } catch (IOException ioe) {
+                            logger.warn("", ioe);
+                            AsynchronousProcessor.destroyResource(r);
+                        }
+                        break;
+                }
             }
         }
     }
