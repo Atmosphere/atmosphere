@@ -34,6 +34,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
  *
  * For example, broadcasting String 'helloword' will be received by the client as '9 | helloword' but delivered as 'helloword'
  * to the Javascript function/callback.
+ *
  */
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 

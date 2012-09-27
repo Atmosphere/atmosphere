@@ -53,8 +53,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
-import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
-import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -763,7 +761,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
-            broadcast(r, event);
+            invokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {
                 r.notifyListeners();
@@ -819,11 +817,22 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
+
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, broadcasterListeners, this);
+
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
+
+            List<Object> filteredMessage = new ArrayList<Object>();
+            for (Object o : ((List) e.getMessage())) {
+                filteredMessage.add(perRequestFilter(r, new Entry(o, r, f, o)));
+            }
+
+            e.setMessage(filteredMessage);
+
             r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
-                broadcast(r, e);
+                invokeOnStateChange(r, e);
             }
         }
     }
@@ -838,16 +847,16 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void trackBroadcastMessage(final AtmosphereResource r, Entry entry) {
-        if (destroyed.get() ||  bc.getBroadcasterCache() == null) return;
+        if (destroyed.get() || bc.getBroadcasterCache() == null) return;
         Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
         try {
-            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()),msg));
+            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()), msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
     }
 
-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
@@ -939,7 +948,9 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return (new BroadcasterFuture<Object>(msg, broadcasterListeners, this)).done();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), broadcasterListeners, this);
+        int callee = resources.size() == 0 ? 1 : resources.size();
+
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee, broadcasterListeners, this);
         messages.offer(new Entry(newMsg, null, f, msg));
         return f;
     }

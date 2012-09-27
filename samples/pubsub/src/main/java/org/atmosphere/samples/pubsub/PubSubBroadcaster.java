@@ -79,13 +79,13 @@ public class PubSubBroadcaster extends JerseyBroadcaster {
     }
 
     @Override
-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (!isSet.getAndSet(true)) {
             logger.info("This is just an example that demonstrate " +
                     "how a Broadcaster can be customized using atmosphere.xml or by " +
                     "defining it inside web.xml");
         }
 
-        super.broadcast(r, e);
+        super.invokeOnStateChange(r, e);
     }
 }
