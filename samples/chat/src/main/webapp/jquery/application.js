@@ -18,7 +18,7 @@ $(function () {
         logLevel : 'debug',
         shared : true,
         transport : transport ,
-        // Uncomment to track message length trackMessageLength : true,
+        trackMessageLength : true,
         fallbackTransport: 'long-polling'};
 
 
@@ -66,9 +66,6 @@ $(function () {
 
     request.onMessage = function (response) {
 
-        // We need to be logged first.
-        if (!myName) return;
-
         var message = response.responseBody;
         try {
             var json = jQuery.parseJSON(message);
@@ -77,7 +74,7 @@ $(function () {
             return;
         }
 
-        if (!logged) {
+        if (!logged && myName) {
             logged = true;
             status.text(myName + ': ').css('color', 'blue');
             input.removeAttr('disabled').focus();
