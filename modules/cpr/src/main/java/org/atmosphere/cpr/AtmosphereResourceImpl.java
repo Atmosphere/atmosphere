@@ -456,9 +456,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
+            notifyListeners();
             broadcaster.addAtmosphereResource(this);
             req.removeAttribute(PRE_SUSPEND);
-            notifyListeners();
         }
         return this;
     }
