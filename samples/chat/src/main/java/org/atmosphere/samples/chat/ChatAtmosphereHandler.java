@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
@@ -37,7 +38,8 @@ import java.util.Date;
         broadcasterCache = HeaderBroadcasterCache.class,
         interceptors = {AtmosphereResourceLifecycleInterceptor.class,
                         BroadcastOnPostAtmosphereInterceptor.class,
-                        TrackMessageSizeInterceptor.class})
+                        TrackMessageSizeInterceptor.class,
+                        HeartbeatInterceptor.class})
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private final ObjectMapper mapper = new ObjectMapper();
