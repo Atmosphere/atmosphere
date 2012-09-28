@@ -291,4 +291,39 @@ public class BroadcastFilterTest {
         broadcaster.addAtmosphereResource(ar);
         assertEquals(atmosphereHandler.value.get().toString(), "1|0");
     }
+
+    @Test
+    public void testComplexTrackMessageSizeFilter() throws ExecutionException, InterruptedException {
+        //Make sure we are empty.
+        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
+            @Override
+            public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
+
+                long now = System.nanoTime() * 2;
+                put(e, now);
+            }
+
+            @Override
+            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+                long cacheHeaderTime = Long.valueOf(System.nanoTime());
+                return get(cacheHeaderTime);
+            }
+        }).addFilter(new TrackMessageSizeFilter() {
+            @Override
+            public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
+
+                String msg = message.toString();
+                msg = msg.length() + "|" + msg;
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
+            }
+        });
+        broadcaster.broadcast("0").get();
+        broadcaster.addAtmosphereResource(ar);
+
+        broadcaster.broadcast("XXX").get();
+        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.addAtmosphereResource(ar);
+        assertEquals(atmosphereHandler.value.get().toString(), "1|03|XXX1|0");
+    }
 }
