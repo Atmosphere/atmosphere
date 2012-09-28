@@ -101,7 +101,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             return result;
         }
 
-        Long cacheHeaderTime = (Long) session.getAttribute(broadcasterId);
+        Long cacheHeaderTime = Long.valueOf((String) session.getAttribute(broadcasterId));
         if (cacheHeaderTime == null) return result;
 
         return get(cacheHeaderTime);
