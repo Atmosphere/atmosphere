@@ -20,7 +20,6 @@ import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

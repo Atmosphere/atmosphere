@@ -26,6 +26,13 @@ public class EventsLogger implements AtmosphereResourceEventListener {
 
     public EventsLogger() {
     }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+        System.out.println("onPreSuspend: " + event);
+    }
 
     public void onSuspend(final AtmosphereResourceEvent event) {
         logger.info("onSuspend(): {}", event);

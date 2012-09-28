@@ -22,6 +22,7 @@ import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -106,28 +107,11 @@ public class BroadcasterScopeTest {
             broadcasterId.set(m.getBroadcaster().getID());
 
             res.getOutputStream().write("resume".getBytes());
-            m.addListener(new AtmosphereResourceEventListener() {
+            m.addListener(new AtmosphereResourceEventListenerAdapter() {
 
                 @Override
                 public void onSuspend(final AtmosphereResourceEvent event) {
                     event.getResource().getRequest().setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "true");
-                }
-
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onDisconnect(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onBroadcast(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onThrowable(AtmosphereResourceEvent event) {
-
                 }
             });
 

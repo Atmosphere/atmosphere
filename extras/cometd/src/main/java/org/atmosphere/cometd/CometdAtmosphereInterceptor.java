@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationListener;
@@ -136,7 +137,7 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
 
         @Override
         public void addContinuationListener(final ContinuationListener listener) {
-            r.addEventListener(new AtmosphereResourceEventListener() {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                 }
@@ -155,18 +156,6 @@ public class CometdAtmosphereInterceptor implements AtmosphereInterceptor {
                         }
                         listener.onTimeout(AtmosphereContinuation.this);
                     }
-                }
-
-                @Override
-                public void onDisconnect(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onBroadcast(AtmosphereResourceEvent event) {
-                }
-
-                @Override
-                public void onThrowable(AtmosphereResourceEvent event) {
                 }
             });
         }

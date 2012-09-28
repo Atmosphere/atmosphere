@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.Serializer;
@@ -299,7 +300,7 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         }
     };
 
-    private final AtmosphereResourceEventListener eventListener = new AtmosphereResourceEventListener() {
+    private final AtmosphereResourceEventListener eventListener = new AtmosphereResourceEventListenerAdapter() {
 
         @Override
         public void onSuspend(AtmosphereResourceEvent are) {
@@ -316,14 +317,6 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         public void onDisconnect(AtmosphereResourceEvent event) {
             suspended = false;
             writer.setTerminated(false);
-        }
-
-        @Override
-        public void onBroadcast(AtmosphereResourceEvent event) {
-        }
-
-        @Override
-        public void onThrowable(AtmosphereResourceEvent event) {
         }
     };
 }

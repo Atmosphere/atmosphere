@@ -384,6 +384,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return this;
         }
 
+        onPreSuspend(event);
         if (!event.isResumedOnTimeout()) {
 
             Enumeration<String> connection = req.getHeaders("Connection");
@@ -456,9 +457,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            notifyListeners();
             broadcaster.addAtmosphereResource(this);
             req.removeAttribute(PRE_SUSPEND);
+            notifyListeners();
         }
         return this;
     }
@@ -796,6 +797,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onSuspend(e);
+        }
+    }
+
+    void onPreSuspend(AtmosphereResourceEvent e) {
+        for (AtmosphereResourceEventListener r : listeners) {
+            r.onPreSuspend(e);
         }
     }
 

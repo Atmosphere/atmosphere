@@ -83,6 +83,10 @@ public class PushPage extends WebPage implements AtmosphereResourceEventListener
         }
     }
 
+    @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+    }
+
     public void onSuspend(AtmosphereResourceEvent event) {
         String transport = event.getResource().getRequest().getHeader(X_ATMOSPHERE_TRANSPORT);
         HttpServletRequest req = event.getResource().getRequest();

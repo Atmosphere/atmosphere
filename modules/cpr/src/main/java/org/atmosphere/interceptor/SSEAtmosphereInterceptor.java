@@ -98,7 +98,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
-                public void onSuspend(AtmosphereResourceEvent event) {
+                public void onPreSuspend(AtmosphereResourceEvent event) {
                     writePadding(response);
                 }
             });
