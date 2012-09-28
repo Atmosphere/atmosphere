@@ -237,10 +237,11 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 store.remove(b.getID(), b);
             }
 
-            Broadcaster existingOne = store.putIfAbsent(id, createBroadcaster(c, id));
-            if (existingOne != null) {
+            Broadcaster newOne = createBroadcaster(c, id);
+            Broadcaster existingOne = store.putIfAbsent(id, newOne);
+            if (existingOne == null) {
                 logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
-            } else {
+            } else if (!existingOne.equals(newOne)) {
                 logger.warn("Duplicate Broadcaster's name {}. You must invoke Broadcaster.destroy() on that instance to prevent memory leak.", existingOne);
             }
 
