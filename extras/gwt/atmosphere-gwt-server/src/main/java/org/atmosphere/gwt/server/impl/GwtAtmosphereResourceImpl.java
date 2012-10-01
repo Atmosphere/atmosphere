@@ -45,7 +45,7 @@ import org.atmosphere.gwt.server.SerializationException;
 public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
 
     public static final String HEARTBEAT_MESSAGE = "4dc5bdb9-edc8-4edf-8833-ab478326d8c9";
-
+    
     public GwtAtmosphereResourceImpl(AtmosphereResource resource,
                                      AtmosphereGwtHandler servlet, int heartBeatInterval) throws IOException {
         this(resource, servlet, heartBeatInterval, true);
@@ -207,6 +207,15 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
         return writer;
     }
 
+    @Override
+    public void sendError(int statusCode, String message) {
+        try {
+            writer.sendError(statusCode, message);
+        } catch (IOException ex) {
+            logger.error("Failed to send error to client", ex);
+        }
+    }
+
     ScheduledFuture<?> scheduleHeartbeat() {
         return getBroadcaster().getBroadcasterConfig().getScheduledExecutorService()
                 .schedule(heartBeatTask, heartBeatInterval, TimeUnit.MILLISECONDS);
@@ -300,6 +309,11 @@ public class GwtAtmosphereResourceImpl implements GwtAtmosphereResource {
     };
 
     private final AtmosphereResourceEventListener eventListener = new AtmosphereResourceEventListener() {
+
+        @Override
+        public void onPreSuspend(AtmosphereResourceEvent arg0) {
+            
+        }
 
         @Override
         public void onSuspend(AtmosphereResourceEvent are) {

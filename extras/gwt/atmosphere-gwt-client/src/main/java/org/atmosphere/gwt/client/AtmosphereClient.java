@@ -41,6 +41,7 @@ import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.gwt.user.client.rpc.StatusCodeException;
 import org.atmosphere.gwt.client.impl.CometTransport;
 import org.atmosphere.gwt.client.impl.WebSocketCometTransport;
 
@@ -417,7 +418,9 @@ public class AtmosphereClient implements UserInterface {
         } else {
             listener.onDisconnected();
 
-            scheduleConnect(transport);
+            if (running) {
+                scheduleConnect(transport);
+            }
         }
     }
 
@@ -497,6 +500,8 @@ public class AtmosphereClient implements UserInterface {
     private void doOnError(Throwable exception, boolean connected, CometClientTransportWrapper transport) {
         if (connected) {
             transport.disconnect();
+        } else if (exception instanceof StatusCodeException) {
+            running = false;
         }
 
         listener.onError(exception, connected);

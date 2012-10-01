@@ -63,6 +63,7 @@ abstract public class StreamingProtocolResponseWriter extends ManagedStreamRespo
         // send connection parameters to client
         writer.append('!').append(String.valueOf(resource.getHeartBeatInterval())).append(':');
         writer.append(String.valueOf(connectionID)).append('\n');
+        writer.flush();
     }
 
 
@@ -125,7 +126,9 @@ abstract public class StreamingProtocolResponseWriter extends ManagedStreamRespo
     protected void doSendError(int statusCode, String message) throws IOException {
         getResponse().setStatus(statusCode);
         if (message != null) {
-            writer.append(message);
+            writer.append("$").append(Integer.toString(statusCode)).append(":").append(message);
+            writer.append("\n");
+            writer.flush();
         }
     }
 

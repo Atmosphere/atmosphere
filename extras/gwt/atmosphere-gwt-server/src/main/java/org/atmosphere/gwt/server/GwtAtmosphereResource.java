@@ -57,4 +57,6 @@ public interface GwtAtmosphereResource {
     public int getConnectionID();
 
     public boolean isSystemMessage(Serializable message);
+    
+    public void sendError(int statusCode, String message);
 }

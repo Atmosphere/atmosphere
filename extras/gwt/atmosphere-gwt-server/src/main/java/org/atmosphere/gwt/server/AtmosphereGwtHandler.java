@@ -59,6 +59,8 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         implements Executor, AtmosphereServletProcessor {
 
     public static final int NO_TIMEOUT = -1;
+    public static final int DO_COMET_RESUME = -2;
+    
     public static final String GWT_BROADCASTER_ID = "GWT_BROADCASTER";
 
     private static final int DEFAULT_HEARTBEAT = 15 * 1000; // 15 seconds by default
@@ -491,7 +493,7 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         try {
             // call the application code
             timeout = doComet(resource);
-            if (timeout == -1) {
+            if (timeout == NO_TIMEOUT) {
                 logger.info("You have set an infinite timeout for your comet connection this is not recommended");
             }
         } catch (ServletException e) {
@@ -504,9 +506,11 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
             return;
         }
 
-        // at this point the application may have spawned threads to process this response
-        // so we have to be careful about concurrency from here on
-        resource.suspend(timeout);
+        if (timeout == DO_COMET_RESUME) {
+            resource.resume();
+        } else {
+            resource.suspend(timeout);
+        }
     }
 
     public void terminate(GwtAtmosphereResource cometResponse, boolean serverInitiated) {

@@ -95,6 +95,17 @@ abstract public class StreamingProtocolTransport extends BaseCometTransport {
                         listener.onError(new AtmosphereClientException("Unexpected init parameters: " + initParameters), true);
                     }
                     break;
+                case '$':
+                    String parameters = message.substring(1);
+                    try {
+                        String[] params = parameters.split(":");
+                        int statusCode = Integer.parseInt(params[0]);
+                        expectingDisconnection = true;
+                        listener.onError(new StatusCodeException(statusCode, params[1]), false);
+                    } catch (NumberFormatException e) {
+                        listener.onError(new AtmosphereClientException("Unexpected error parameters: " + parameters), true);
+                    }
+                    break;
                 case '?':
                     // clean disconnection
                     expectingDisconnection = true;
