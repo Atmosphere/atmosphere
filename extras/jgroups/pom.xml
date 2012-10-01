@@ -58,7 +58,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>jgroups</groupId>
+            <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
             <version>${jgroups-version}</version>
         </dependency>

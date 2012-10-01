@@ -15,16 +15,17 @@
  */
 package org.atmosphere.plugin.jgroups;
 
+import java.io.Serializable;
+import java.util.concurrent.CountDownLatch;
+
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.util.AbstractBroadcasterProxy;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
+import org.jgroups.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Serializable;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation based on JGroups
@@ -90,7 +91,12 @@ public class JGroupsBroadcaster extends AbstractBroadcasterProxy {
     public synchronized void destroy() {
         super.destroy();
         if (!jchannel.isOpen()) return;
-        jchannel.shutdown();
+        try {
+            Util.shutdown(jchannel);
+        } catch (Throwable t) {
+            Util.close(jchannel);
+            logger.warn("failed to properly shutdown jgroups channel, closing abnormally", t);
+        }
     }
 
     public static class BroadcastMessage implements Serializable {

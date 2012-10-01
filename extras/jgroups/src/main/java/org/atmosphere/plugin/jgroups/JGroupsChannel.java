@@ -16,10 +16,10 @@
 package org.atmosphere.plugin.jgroups;
 
 import org.atmosphere.cpr.Broadcaster;
-import org.jgroups.ChannelException;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
+import org.jgroups.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +97,12 @@ public class JGroupsChannel extends ReceiverAdapter {
      * Shutdown the cluster.
      */
     public void destroy() {
-        jchannel.shutdown();
+        try {
+            Util.shutdown(jchannel);
+        } catch (Throwable t) {
+            Util.close(jchannel);
+            logger.warn("failed to properly shutdown jgroups channel, closing abnormally", t);
+        }
         receivedMessages.clear();
         broadcasters.clear();
     }
@@ -154,9 +159,9 @@ public class JGroupsChannel extends ReceiverAdapter {
 	            	Message jgroupMsg = new Message(null, null, broadcastMsg);
 	            	
 	                jchannel.send(jgroupMsg);
-	            } catch (ChannelException e) {
+	            } catch (Exception e) {
 	                logger.warn("Failed to send message {}", message, e);
-	            }
+                }
 	        }
 		}
 	}
