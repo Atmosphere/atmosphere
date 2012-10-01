@@ -26,7 +26,11 @@ public class EventsLogger implements WebSocketEventListener {
 	public EventsLogger() {
 	}
 
-	public void onSuspend(
+    @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+    }
+
+    public void onSuspend(
 			final AtmosphereResourceEvent event) {
 		logger.debug("onSuspend(): "
 				+ event.getResource().getRequest().getRemoteAddr() + ":"

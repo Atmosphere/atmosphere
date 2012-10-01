@@ -70,7 +70,7 @@ public class JerseySimpleBroadcaster extends SimpleBroadcaster {
     }
 
     @Override
-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         JerseyBroadcasterUtil.broadcast(r, e, this);
     }
 }

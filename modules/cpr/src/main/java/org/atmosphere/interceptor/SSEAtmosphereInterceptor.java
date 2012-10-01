@@ -65,7 +65,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         if (isUsingStream) {
             OutputStream stream = null;
             try {
-                stream = response.getOutputStream();
+                stream = response.getResponse().getOutputStream();
             } catch (IOException e) {
                 logger.trace("", e);
             }
@@ -79,7 +79,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         } else {
             PrintWriter w = null;
             try {
-                w = response.getWriter();
+                w = response.getResponse().getWriter();
             } catch (IOException e) {
                 logger.trace("", e);
             }
@@ -98,7 +98,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
-                public void onSuspend(AtmosphereResourceEvent event) {
+                public void onPreSuspend(AtmosphereResourceEvent event) {
                     writePadding(response);
                 }
             });
@@ -116,12 +116,12 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         padding();
-                        response.write("data:");
+                        response.write("data:", true);
                     }
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write("\n\n".getBytes());
+                        response.write("\n\n".getBytes(), true);
                     }
                 });
             } else {

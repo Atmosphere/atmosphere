@@ -105,7 +105,7 @@ public class BroadcasterFuture<E> implements Future {
         } else {
             latch = null;
         }
-        this.listeners = listeners;
+        this.listeners = (listeners == null ? new CopyOnWriteArrayList<BroadcasterListener>() : listeners);
     }
 
     /**

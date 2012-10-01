@@ -97,7 +97,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (r.getRequest() instanceof HttpServletRequest) {
             if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
                 try {
@@ -107,10 +107,10 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
                     }
                     jerseyBroadcast.invoke(null, new Object[]{r, e});
                 } catch (Throwable t) {
-                    super.broadcast(r, e);
+                    super.invokeOnStateChange(r, e);
                 }
             } else {
-                super.broadcast(r, e);
+                super.invokeOnStateChange(r, e);
             }
         }
     }

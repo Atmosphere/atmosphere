@@ -32,6 +32,14 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      * {@inheritDoc}
      */
     @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+        logger.trace("", event);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void onHandshake(WebSocketEvent event) {
         logger.trace("", event);
     }

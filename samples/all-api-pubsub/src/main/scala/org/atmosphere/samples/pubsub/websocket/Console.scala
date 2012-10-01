@@ -26,6 +26,10 @@ class Console extends WebSocketEventListener {
 
   private final val logger: Logger = LoggerFactory.getLogger(classOf[Console])
 
+  def onPreSuspend(event: AtmosphereResourceEvent): Unit = {
+    logger.info("onSuspend(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
+  }
+
   def onSuspend(event: AtmosphereResourceEvent): Unit = {
     logger.info("onSuspend(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }

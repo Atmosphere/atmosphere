@@ -21,15 +21,22 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Simple {@link AtmosphereHandler} that must be used with the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
  * and {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} to reduce the handling of the suspend/resume/disconnect and
  * broadcast operation.
+ * <p/>
+ * You can also safely used this class with {@link org.atmosphere.cpr.BroadcasterCache}.
+ * method
  *
  * @author Jeanfrancois Arcand
  */
 public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
+
+    public final static String MESSAGE_DELIMITER = "|";
+
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
         if (resource.getRequest().getMethod().equalsIgnoreCase("GET")) {
@@ -40,7 +47,13 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
         AtmosphereResponse response = event.getResource().getResponse();
-        if (event.isSuspended()) {
+
+        if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
+            List<T> messages = List.class.cast(event.getMessage());
+            for (T t: messages) {
+                onMessage(response, t);
+            }
+        }else if (event.isSuspended()) {
             onMessage(response, (T) event.getMessage());
         } else if (event.isResuming()) {
             onResume(response);

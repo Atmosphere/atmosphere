@@ -32,6 +32,10 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     @Inject
     private Service service;
 
+    @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+    }
+
     public void onSuspend(final AtmosphereResourceEvent event) {
         if (service == null) {
             throw new AssertionError();

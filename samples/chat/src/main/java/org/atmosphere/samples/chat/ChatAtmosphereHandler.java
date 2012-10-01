@@ -15,12 +15,14 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.cache.HeaderBroadcasterCache;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
-import org.codehaus.jackson.annotate.JsonIgnore;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
@@ -32,9 +34,12 @@ import java.util.Date;
  * @author Jeanfrancois Arcand
  */
 @AtmosphereHandlerService(
-        path="/chat",
+        path = "/chat",
+        broadcasterCache = HeaderBroadcasterCache.class,
         interceptors = {AtmosphereResourceLifecycleInterceptor.class,
-                        BroadcastOnPostAtmosphereInterceptor.class})
+                        BroadcastOnPostAtmosphereInterceptor.class,
+                        TrackMessageSizeInterceptor.class,
+                        HeartbeatInterceptor.class})
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -51,7 +56,7 @@ public class ChatAtmosphereHandler extends OnMessage<String> {
         private long time;
 
         public Data() {
-            this("","");
+            this("", "");
         }
 
         public Data(String author, String message) {

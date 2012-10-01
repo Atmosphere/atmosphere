@@ -61,6 +61,15 @@ package org.atmosphere.cpr;
 public interface AtmosphereResourceEventListener {
 
     /**
+     * Invoked when the {@link AtmosphereResource#suspend} is in the process of being suspended
+     * but nothing has yet been written on the connection. An implementation could configure the request's headers,
+     * flush some data etc during that stage.
+     *
+     * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
+     */
+    void onPreSuspend(AtmosphereResourceEvent event);
+
+    /**
      * Invoked when the {@link AtmosphereResource#suspend} has been completed and the response
      * considered as suspended.
      *

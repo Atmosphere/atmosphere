@@ -31,6 +31,14 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      * {@inheritDoc}
      */
     @Override
+    public void onPreSuspend(AtmosphereResourceEvent event) {
+        logger.trace("", event);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void onSuspend(AtmosphereResourceEvent event) {
         logger.trace("", event);
     }

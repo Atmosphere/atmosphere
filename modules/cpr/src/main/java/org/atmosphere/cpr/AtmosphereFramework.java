@@ -1606,9 +1606,10 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the list of {@link BroadcasterCacheInspector}
+     *
      * @return the list of {@link BroadcasterCacheInspector}
      */
-    public ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors(){
+    protected ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() {
         return inspectors;
     }
 

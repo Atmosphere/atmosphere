@@ -66,7 +66,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                         response.write(callbackName + "({\"message\" : ");
                         if (contentType != null && !contentType.contains("json")) {
-                            response.write("\"");
+                            response.write("\"", true);
                         }
                     }
 
@@ -75,10 +75,10 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                         String contentType = contentType();
 
                         if (contentType != null && !contentType.contains("json")) {
-                            response.write("\"");
+                            response.write("\"", true);
                         }
 
-                        response.write("});");
+                        response.write("});", true);
                     }
                 });
             } else {
