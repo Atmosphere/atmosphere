@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -52,9 +51,6 @@ public class JGroupsChannel extends ReceiverAdapter {
 	/** JChannel cluster name */
 	private final String clusterName;
 	
-	/** globally unique ID for this JGroupsChannel object to tag it's messages with */
-	private final String id;
-	
 	/** registers all the Broadcasters that are filtered via a JGroupsFilter */
 	private final Map<String, Broadcaster> broadcasters = new HashMap<String, Broadcaster>();
 	
@@ -72,7 +68,6 @@ public class JGroupsChannel extends ReceiverAdapter {
 		
 		this.jchannel = jchannel;
 		this.clusterName = clusterName;
-		this.id = UUID.randomUUID().toString() + "_"+System.currentTimeMillis();
 	}
 	
 	/**
@@ -86,6 +81,7 @@ public class JGroupsChannel extends ReceiverAdapter {
 		try {
 			this.jchannel.setReceiver(this);
 			this.jchannel.connect(clusterName);
+			this.jchannel.setDiscardOwnMessages(true);
 		} catch (Exception e) {
 			logger.warn("Failed to connect to cluster: " + this.clusterName, e);
 			throw e;
@@ -118,9 +114,6 @@ public class JGroupsChannel extends ReceiverAdapter {
 		
 		if (BroadcastMessage.class.isAssignableFrom(payload.getClass())) {
 			BroadcastMessage broadcastMsg = BroadcastMessage.class.cast(payload);
-			
-			// make sure the message wasn't sent from yourself
-			if (this.id.equalsIgnoreCase(broadcastMsg.getClusterChannelId())) return;
 			
 			// original message from the sending node's JGroupsFilter.filter() method 
 			Object origMessage = broadcastMsg.getMessage();
@@ -155,7 +148,7 @@ public class JGroupsChannel extends ReceiverAdapter {
 	        if (!receivedMessages.remove(message)) {
 	            try {
 	            	
-	            	BroadcastMessage broadcastMsg = new BroadcastMessage(this.id, topic, message);
+	            	BroadcastMessage broadcastMsg = new BroadcastMessage(topic, message);
 	            	Message jgroupMsg = new Message(null, null, broadcastMsg);
 	            	
 	                jchannel.send(jgroupMsg);
