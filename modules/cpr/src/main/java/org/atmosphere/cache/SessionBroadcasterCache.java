@@ -100,8 +100,10 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             logger.error(ERROR_MESSAGE);
             return result;
         }
-
-        Long cacheHeaderTime = Long.valueOf((String) session.getAttribute(broadcasterId));
+        
+        String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
+        if (cacheHeaderTimeStr == null) return result;
+        Long cacheHeaderTime = Long.valueOf(cacheHeaderTimeStr);
         if (cacheHeaderTime == null) return result;
 
         return get(cacheHeaderTime);
