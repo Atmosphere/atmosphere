@@ -1267,8 +1267,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                     body = null;
                 }
 
-                // We need to string Atmosphere's header from the request in case an
-                // interceptor re-inject the request.
+                // We need to strip Atmosphere's own query string from the request in case an
+                // interceptor re-inject the request because the wrong body will be passed.
                 StringBuilder queryStrings = new StringBuilder("");
                 Enumeration<String> e = req.getParameterNames();
                 String name;
