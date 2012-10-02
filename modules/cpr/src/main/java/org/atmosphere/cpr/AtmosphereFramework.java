@@ -55,6 +55,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1266,11 +1267,25 @@ public class AtmosphereFramework implements ServletContextProvider {
                     body = null;
                 }
 
+                // We need to string Atmosphere's header from the request in case an
+                // interceptor re-inject the request.
+                StringBuilder queryStrings = new StringBuilder("");
+                Enumeration<String> e = req.getParameterNames();
+                String name;
+                while (e.hasMoreElements()) {
+                    name = e.nextElement().toLowerCase().trim();
+                    if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date") ) {
+                        queryStrings.append(name).append("=").append(req.getParameter(name));
+                    }
+                }
+
+                // Reconfigure the request. Clear the Atmosphere queryString
                 req.headers(headers)
-                        .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+                   .queryString(queryStrings.toString())
+                   .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
 
                 if (body != null) {
-                    req.body(body);
+                    req.body( URLDecoder.decode(body, req.getCharacterEncoding() == null ? "UTF-8" : req.getCharacterEncoding() ) );
                 }
             }
 

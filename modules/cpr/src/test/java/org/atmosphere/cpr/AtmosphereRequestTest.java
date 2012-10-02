@@ -140,4 +140,78 @@ public class AtmosphereRequestTest {
 
         assertEquals(e.get(), "a=b");
     }
+
+    @Test
+    public void testNormalQueryStringBuilder() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        request.queryString("a=b");
+
+        final AtomicReference<String> e = new AtomicReference<String>();
+
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                e.set(r.getRequest().getQueryString());
+                return Action.CANCELLED;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
+        });
+        framework.doCometSupport(request, AtmosphereResponse.create());
+
+        assertEquals(e.get(), "a=b");
+    }
+
+    @Test
+    public void testStrinpQueryStringBuilder() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        request.queryString("a=b&X-Atmosphere-Transport=websocket");
+
+        final AtomicReference<String> e = new AtomicReference<String>();
+
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                e.set(r.getRequest().getQueryString());
+                return Action.CANCELLED;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
+        });
+        framework.doCometSupport(request, AtmosphereResponse.create());
+
+        assertEquals(e.get(), "a=b");
+    }
 }

@@ -470,10 +470,33 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      *
      * @param name
      * @param value
-     * @return
+     * @return this
      */
     public AtmosphereRequest header(String name, String value) {
         b.headers.put(name, value);
+        return this;
+    }
+
+    /**
+     * Set the query string
+     *
+     * @param queryString
+     * @return this
+     */
+    public AtmosphereRequest queryString(String queryString) {
+        // Don't override the builder
+        if (!queryString.isEmpty()) {
+            b.queryString = queryString;
+            if (queryString.length() != 0) {
+                String[] qs = queryString.split("&");
+                Map<String, String[]> m = new HashMap<String, String[]>();
+                for (String q : qs) {
+                    String[] nameValue = q.split("=");
+                    m.put(nameValue[0], new String[]{nameValue[1]});
+                }
+                b.queryStrings(m);
+            }
+        }
         return this;
     }
 
@@ -1565,7 +1588,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         Cookie[] cs = request.getCookies();
         Set<Cookie> hs = new HashSet();
-        for (Cookie c: cs) {
+        for (Cookie c : cs) {
             hs.add(c);
         }
         b.cookies(hs);
