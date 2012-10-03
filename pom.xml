@@ -499,7 +499,7 @@
         <jetty9-version>9.0.0.M0</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.27</tomcat7-version>
-        <jgroups-version>2.8.0.GA</jgroups-version>
+        <jgroups-version>3.1.0.Final</jgroups-version>
         <common-logging-version>1.1.1</common-logging-version>
         <scala.version>2.9.2</scala.version>
         <shade-version>1.2.1</shade-version>
