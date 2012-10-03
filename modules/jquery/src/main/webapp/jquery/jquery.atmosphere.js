@@ -1675,19 +1675,38 @@ jQuery.atmosphere = function() {
                     if (!rq.executeCallbackBeforeReconnect) {
                         xdrCallback(xdr);
                     }
+
                 };
 
                 return {
                     open: function() {
                         var url = _attachHeaders(rq);
                         // IE may not POST the body when the xdr.send(data) for an unknown reason
-                        // when the page reload.
-                        // So the code below MUST not be changed.
-                        if (rq.method == 'POST') {
-                            url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
-                        }
+                        // when the page reload. Only observed during an unload events, rollback
+                        // to the code below in case of issue.
+                        /*
+                            var url = _attachHeaders(rq);
+                            if (rq.method == 'POST') {
+                                url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
+                            }
+                            xdr.open(rq.method, rewriteURL(url));
+                            xdr.send();
+                            if (rq.connectTimeout > -1) {
+                                rq.id = setTimeout(function () {
+                                    if (rq.requestCount == 0) {
+                                        xdr.abort();
+                                        _prepareCallback("Connect timeout", "closed", 200, rq.transport);
+                                    }
+                                }, rq.connectTimeout);
+                            }
+                         */
                         xdr.open(rq.method, rewriteURL(url));
-                        xdr.send();
+                        if (rq.method == 'GET') {
+                            xdr.send();
+                        } else {
+                            xdr.send(rq.data);
+                        }
+
                         if (rq.connectTimeout > -1) {
                             rq.id = setTimeout(function() {
                                 if (rq.requestCount == 0) {
