@@ -1680,7 +1680,7 @@ jQuery.atmosphere = function() {
                 return {
                     open: function() {
                         var url = _attachHeaders(rq);
-                        // IE 9 may not POST the body when the xdr.send(data) for an unknown reason
+                        // IE may not POST the body when the xdr.send(data) for an unknown reason
                         // So the code below MUST not be changed.
                         if (rq.method == 'POST') {
                             url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
