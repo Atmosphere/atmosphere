@@ -913,8 +913,8 @@ jQuery.atmosphere = function() {
                 };
 
                 _sse.onmessage = function(message) {
-                    if (message.origin != window.location.protocol + "//" + window.location.host) {
-                        jQuery.atmosphere.log(_request.logLevel, ["Origin was not " + window.location.protocol + "//" + window.location.host]);
+                    if (message.origin != "http://" + window.location.host) {
+                        jQuery.atmosphere.log(_request.logLevel, ["Origin was not " + "http://" + window.location.host]);
                         return;
                     }
 
@@ -1657,6 +1657,7 @@ jQuery.atmosphere = function() {
                     // XDomain loop forever on itself without this.
                     // TODO: Clearly I need to come with something better than that solution
                     if (rq.lastMessage == xdr.responseText) return;
+                    rq.lastMessage = xdr.responseText;
 
                     if (rq.executeCallbackBeforeReconnect) {
                         xdrCallback(xdr);
@@ -1674,20 +1675,18 @@ jQuery.atmosphere = function() {
                     if (!rq.executeCallbackBeforeReconnect) {
                         xdrCallback(xdr);
                     }
-                    rq.lastMessage = xdr.responseText;
                 };
 
                 return {
                     open: function() {
-                        if (rq.method == 'POST') {
-                            rq.attachHeadersAsQueryString = true;
-                        }
                         var url = _attachHeaders(rq);
-                        if (rq.method == 'POST') {
-                            url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
-                        }
                         xdr.open(rq.method, rewriteURL(url));
-                        xdr.send();
+                        if (rq.method == 'GET') {
+                            xdr.send();
+                        } else {
+                            xdr.send(rq.data);
+                        }
+
                         if (rq.connectTimeout > -1) {
                             rq.id = setTimeout(function() {
                                 if (rq.requestCount == 0) {
