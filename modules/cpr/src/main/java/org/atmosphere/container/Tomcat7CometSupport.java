@@ -51,9 +51,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
     private final Boolean closeConnectionOnInputStream;
 
-    private static final IllegalStateException unableToDetectComet
-            = new IllegalStateException(unableToDetectComet());
-
     public Tomcat7CometSupport(AtmosphereConfig config) {
         super(config);
         Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
@@ -76,7 +73,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
-            throw unableToDetectComet;
+            throw new IllegalStateException(unableToDetectComet());
         }
 
         Action action = null;

@@ -79,8 +79,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
     public static final String HTTP_EVENT = "HttpEvent";
     private final static String SUSPENDED = JBossWebCometSupport.class.getName() + ".suspended";
-
-    private static final IllegalStateException unableToDetectComet = new IllegalStateException(unableToDetectComet());
     private final Boolean closeConnectionOnInputStream;
 
     public JBossWebCometSupport(AtmosphereConfig config) {
@@ -103,7 +101,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
-            throw unableToDetectComet;
+            throw new IllegalStateException(unableToDetectComet());
         }
 
         Action action = null;

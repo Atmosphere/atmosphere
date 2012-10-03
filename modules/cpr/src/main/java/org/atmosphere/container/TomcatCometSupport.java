@@ -80,9 +80,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
 
     public static final String COMET_EVENT = "CometEvent";
     private final static String SUSPENDED = TomcatCometSupport.class.getName() + ".suspended";
-
-    private static final IllegalStateException unableToDetectComet
-            = new IllegalStateException(unableToDetectComet());
     private final Boolean closeConnectionOnInputStream;
 
     public TomcatCometSupport(AtmosphereConfig config) {
@@ -106,7 +103,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
-            throw unableToDetectComet;
+            throw new IllegalStateException(unableToDetectComet());
         }
 
         Action action = null;
