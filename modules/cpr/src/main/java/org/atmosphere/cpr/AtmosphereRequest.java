@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.atmosphere.util.QueryStringDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -487,15 +489,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         // Don't override the builder
         if (!queryString.isEmpty()) {
             b.queryString = queryString;
-            if (queryString.length() != 0) {
-                String[] qs = queryString.split("&");
-                Map<String, String[]> m = new HashMap<String, String[]>();
-                for (String q : qs) {
-                    String[] nameValue = q.split("=");
-                    m.put(nameValue[0], new String[]{nameValue[1]});
-                }
-                b.queryStrings(m);
+            QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + queryString);
+            Map<String, List<String>> m = decoder.getParameters();
+            Map<String, String[]> newM = new HashMap<String, String[]>();
+            for (Map.Entry<String, List<String>> q : m.entrySet()) {
+                newM.put(q.getKey(), q.getValue().toArray(new String[m.size()]));
             }
+            b.queryStrings(newM);
         }
         return this;
     }
