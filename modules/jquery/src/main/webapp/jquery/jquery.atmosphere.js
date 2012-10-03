@@ -1680,13 +1680,13 @@ jQuery.atmosphere = function() {
                 return {
                     open: function() {
                         var url = _attachHeaders(rq);
-                        xdr.open(rq.method, rewriteURL(url));
-                        if (rq.method == 'GET') {
-                            xdr.send();
-                        } else {
-                            xdr.send(rq.data);
+                        // IE 9 may not POST the body when the xdr.send(data) for an unknown reason
+                        // So the code below MUST not be changed.
+                        if (rq.method == 'POST') {
+                            url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(rq.data);
                         }
-
+                        xdr.open(rq.method, rewriteURL(url));
+                        xdr.send();
                         if (rq.connectTimeout > -1) {
                             rq.id = setTimeout(function() {
                                 if (rq.requestCount == 0) {
