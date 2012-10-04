@@ -625,7 +625,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         try {
             // Check auto supported one
-            if (broadcasterClassName.equalsIgnoreCase(DefaultBroadcaster.class.getName())) {
+            if (!broadcasterClassName.equalsIgnoreCase(DefaultBroadcaster.class.getName())) {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
