@@ -52,6 +52,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.Utils;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
@@ -63,7 +65,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,6 +93,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
+    private final EndpointMapper<AtmosphereHandlerWrapper> mapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
@@ -203,7 +205,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
-        AtmosphereHandlerWrapper handlerWrapper = map(req);
+        AtmosphereHandlerWrapper handlerWrapper = mapper.map(req, config.handlers());
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
@@ -296,25 +298,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
     }
 
-    protected AtmosphereHandlerWrapper map(String path) {
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = config.handlers().get(path);
-
-        if (atmosphereHandlerWrapper == null) {
-            final Map<String, String> m = new HashMap<String, String>();
-            for (Map.Entry<String, AtmosphereHandlerWrapper> e : config.handlers().entrySet()) {
-                UriTemplate t = new UriTemplate(e.getKey());
-                logger.trace("Trying to map {} to {}", t, path);
-                if (t.match(path, m)) {
-                    atmosphereHandlerWrapper = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue().atmosphereHandler);
-                    break;
-                }
-            }
-        }
-        return atmosphereHandlerWrapper;
-    }
-
-    /**
+   /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
      * @param req the {@link AtmosphereResponse}
@@ -322,52 +306,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @throws javax.servlet.ServletException
      */
     protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
-        String path;
-        String pathInfo = null;
-        try {
-            pathInfo = req.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = req.getServletPath() + pathInfo;
-        } else {
-            path = req.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-
-        AtmosphereHandlerWrapper atmosphereHandlerWrapper = map(path + (path.endsWith("/") ? "all" : "/all"));
+        AtmosphereHandlerWrapper atmosphereHandlerWrapper = mapper.map(req, config.handlers());
         if (atmosphereHandlerWrapper == null) {
-            // (2) First, try exact match
-            atmosphereHandlerWrapper = map(path);
-
-            if (atmosphereHandlerWrapper == null) {
-                // (3) Wildcard
-                atmosphereHandlerWrapper = map(path + "*");
-
-                // (4) try without a path
-                if (atmosphereHandlerWrapper == null) {
-                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
-                    while (p.length() > 0) {
-                        atmosphereHandlerWrapper = map(p);
-
-                        // (3.1) Try path wildcard
-                        if (atmosphereHandlerWrapper != null) {
-                            break;
-                        }
-                        p = p.substring(0, p.lastIndexOf("/"));
-                    }
-                }
-            }
-        }
-
-        if (atmosphereHandlerWrapper == null) {
-            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", path, config.handlers());
-            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + path);
+            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getRequestURI(), config.handlers());
+            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getRequestURI());
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
