@@ -38,11 +38,13 @@
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
+        <!-- Uncomment to use RedisPubSub
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-redis</artifactId>
             <version>${project.version}</version>
         </dependency>
+        -->
         <!-- This is ONLY required if you use Atmosphere's annotation. If you use atmosphere.xml, not required -->
         <dependency>
             <groupId>eu.infomas</groupId>
