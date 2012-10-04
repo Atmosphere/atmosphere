@@ -23,7 +23,9 @@ import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
+import org.codehaus.jackson.map.ObjectMapper;
 
+import java.io.IOException;
 import java.util.Date;
 
 /**
@@ -34,37 +36,58 @@ import java.util.Date;
 @WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class)
 public class WebSocketChat extends WebSocketHandlerAdapter {
 
+    private final ObjectMapper mapper = new ObjectMapper();
+
     @Override
-    public void onOpen(WebSocket webSocket) {
+    public void onOpen(WebSocket webSocket) throws IOException {
         webSocket.resource().setBroadcaster(BroadcasterFactory.getDefault().lookup("/chat", true));
     }
 
-    public void onTextMessage(WebSocket webSocket, String message) {
-
+    public void onTextMessage(WebSocket webSocket, String message) throws IOException {
         AtmosphereResource r = webSocket.resource();
         Broadcaster b = r.getBroadcaster();
-
-        // Simple JSON -- Use Jackson for more complex structure
-        // Message looks like { "author" : "foo", "message" : "bar" }
-        String author = message.substring(message.indexOf(":") + 2, message.indexOf(",") - 1);
-        String chat = message.substring(message.lastIndexOf(":") + 2, message.length() - 2);
-
-        b.broadcast(new Data(author, chat).toString());
+        b.broadcast(mapper.writeValueAsString(mapper.readValue(message, Data.class)));
     }
 
-    private final static class Data {
+    public final static class Data {
 
-        private final String text;
-        private final String author;
+        private String message;
+        private String author;
+        private long time;
 
-        public Data(String author, String text) {
+        public Data() {
+            this("", "");
+        }
+
+        public Data(String author, String message) {
             this.author = author;
-            this.text = text;
+            this.message = message;
+            this.time = new Date().getTime();
         }
 
-        public String toString() {
-            return "{ \"text\" : \"" + text + "\", \"author\" : \"" + author
-                    + "\" , \"time\" : " + new Date().getTime() + "}";
+        public String getMessage() {
+            return message;
         }
+
+        public String getAuthor() {
+            return author;
+        }
+
+        public void setAuthor(String author) {
+            this.author = author;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public long getTime() {
+            return time;
+        }
+
+        public void setTime(long time) {
+            this.time = time;
+        }
+
     }
 }

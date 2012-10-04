@@ -38,5 +38,10 @@
             <artifactId>annotation-detector</artifactId>
             <version>3.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+            <version>1.9.3</version>
+        </dependency>
     </dependencies>
 </project>

@@ -14,25 +14,13 @@ $(function () {
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
-        logLevel : 'debug',
-        transport : 'websocket' ,
-        fallbackTransport: 'long-polling'};
-
+        shared : true,
+        transport : 'websocket'};
 
     request.onOpen = function(response) {
         content.html($('<p>', { text: 'Atmosphere connected using ' + response.transport }));
         input.removeAttr('disabled').focus();
         status.text('Choose name:');
-    };
-
-    <!-- For demonstration of how you can customize the fallbackTransport based on the browser -->
-    request.onTransportFailure = function(errorMsg, request) {
-        jQuery.atmosphere.info(errorMsg);
-        header.html($('<h3>', { text: 'WebSocket Protocol not supported'}));
-    };
-
-    request.onReconnect = function (request, response) {
-        socket.info("Reconnecting")
     };
 
     request.onMessage = function (response) {
@@ -44,16 +32,17 @@ $(function () {
             return;
         }
 
-        if (!logged) {
+        if (!logged && myName) {
             logged = true;
             status.text(myName + ': ').css('color', 'blue');
             input.removeAttr('disabled').focus();
+            subSocket.pushLocal(myName);
         } else {
             input.removeAttr('disabled');
 
             var me = json.author == author;
             var date = typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
-            addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(date));
+            addMessage(json.author, json.message, me ? 'blue' : 'black', new Date(date));
         }
     };
 
