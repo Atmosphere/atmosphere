@@ -542,9 +542,24 @@ public class DefaultBroadcaster implements Broadcaster {
             bc.getBroadcasterCache().start();
 
             setID(name);
-            notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
-            asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+            // Only start if we know a child haven't started them.
+            if (notifierFuture == null && asyncWriteFuture == null) {
+                spawnReactor();
+            }
         }
+    }
+
+    protected void spawnReactor() {
+        if (notifierFuture != null) {
+            notifierFuture.cancel(true);
+        }
+
+        if (asyncWriteFuture != null) {
+            asyncWriteFuture.cancel(true);
+        }
+
+        notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
+        asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
     }
 
     protected void push(Entry entry) {

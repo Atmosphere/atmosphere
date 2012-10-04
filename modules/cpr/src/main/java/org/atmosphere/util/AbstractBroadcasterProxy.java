@@ -67,7 +67,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
                 try {
                     incomingBroadcast();
                 } catch (Throwable t) {
-                    logger.debug("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
+                    logger.warn("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
                     destroy();
                     return;
                 }
@@ -81,16 +81,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         }
 
         logger.debug("Reconfiguring Broadcaster {}", getID());
-        if (notifierFuture != null) {
-            notifierFuture.cancel(true);
-        }
-
-        if (asyncWriteFuture != null) {
-            asyncWriteFuture.cancel(true);
-        }
-
-        notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
-        asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+        spawnReactor();
     }
 
     /**
