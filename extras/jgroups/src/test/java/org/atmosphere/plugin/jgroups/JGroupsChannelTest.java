@@ -15,7 +15,7 @@ import org.testng.annotations.Test;
 
 public class JGroupsChannelTest {
 
-    @Test
+    @Test (enabled = false)
     public void broadcastsClusteredMessage() throws Exception {
         Broadcaster broadcaster = mock(Broadcaster.class);
         Future broadcastedMessage = mock(Future.class);
