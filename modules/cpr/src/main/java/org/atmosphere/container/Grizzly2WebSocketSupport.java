@@ -99,6 +99,7 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
 
         private AtmosphereConfig config;
         private final String contextPath;
+        private final WebSocketProcessor webSocketProcessor;
 
         // -------------------------------------------------------- Constructors
 
@@ -106,6 +107,8 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
         public Grizzly2WebSocketApplication(AtmosphereConfig config) {
             this.config = config;
             contextPath = config.getServletContext().getContextPath();
+            this.webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                    .newWebSocketProcessor(config.framework());
         }
 
 
@@ -126,10 +129,10 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
         public void onClose(WebSocket socket, DataFrame frame) {
             super.onClose(socket, frame);
             LOGGER.trace("onClose {} ", socket);
-            G2WebSocket webSocket = G2WebSocket.class.cast(socket);
-            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
-                webSocketProcessor.close(1000);
+            G2WebSocket g2w = G2WebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            if (webSocket != null) {
+                webSocketProcessor.close(webSocket, 1000);
             }
         }
 
@@ -142,25 +145,13 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
                 throw new IllegalStateException();
             }
 
-            G2WebSocket webSocket = G2WebSocket.class.cast(socket);
+            G2WebSocket g2WebSocket = G2WebSocket.class.cast(socket);
             try {
 
-                AtmosphereRequest r = AtmosphereRequest.wrap(webSocket.getRequest());
-//                try {
-//                    // GlassFish http://java.net/jira/browse/GLASSFISH-18681
-//                    if (r.getPathInfo().startsWith(r.getContextPath())) {
-//                        r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
-//                        r.pathInfo(null);
-//                    }
-//                } catch (Exception e) {
-//                    // Whatever exception occurs skip it
-//                    LOGGER.trace("", e);
-//                }
-
-                WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                        .newWebSocketProcessor(new Grizzly2WebSocket(webSocket, config));
-                webSocket.getRequest().setAttribute("grizzly.webSocketProcessor", webSocketProcessor);
-                webSocketProcessor.open(r);
+                AtmosphereRequest r = AtmosphereRequest.wrap(g2WebSocket.getRequest());
+                org.atmosphere.websocket.WebSocket webSocket = new Grizzly2WebSocket(g2WebSocket, config);
+                g2WebSocket.getRequest().setAttribute("grizzly.webSocket", webSocket);
+                webSocketProcessor.open(webSocket, r);
             } catch (Exception e) {
                 LOGGER.warn("failed to connect to web socket", e);
             }
@@ -170,10 +161,10 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
         public void onMessage(WebSocket socket, String text) {
             super.onMessage(socket, text);
             LOGGER.trace("onMessage(String) {} ", socket);
-            G2WebSocket webSocket = G2WebSocket.class.cast(socket);
-            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
-                webSocketProcessor.invokeWebSocketProtocol(text);
+            G2WebSocket g2w = G2WebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            if (webSocket != null) {
+                webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
             }
         }
 
@@ -181,10 +172,10 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
         public void onMessage(WebSocket socket, byte[] bytes) {
             super.onMessage(socket, bytes);
             LOGGER.trace("onMessage(byte[]) {} ", socket);
-            G2WebSocket webSocket = G2WebSocket.class.cast(socket);
-            if (webSocket.getRequest().getAttribute("grizzly.webSocketProcessor") != null) {
-                WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
-                webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
+            G2WebSocket g2w = G2WebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            if (webSocket != null) {
+                webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);
             }
         }
 

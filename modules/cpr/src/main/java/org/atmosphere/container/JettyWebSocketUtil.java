@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +85,7 @@ public class JettyWebSocketUtil {
         }
     }
 
-    public final static WebSocketFactory getFactory(final AtmosphereConfig config) {
+    public final static WebSocketFactory getFactory(final AtmosphereConfig config, final WebSocketProcessor webSocketProcessor) {
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
             public boolean checkOrigin(HttpServletRequest request, String origin) {
                 // Allow all origins
@@ -101,7 +102,7 @@ public class JettyWebSocketUtil {
                     isDestroyable = true;
                 }
                 return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, config.isSupportSession(), isDestroyable),
-                        config.framework(), config.framework().getWebSocketProtocol());
+                        config.framework(), webSocketProcessor);
             }
         });
 

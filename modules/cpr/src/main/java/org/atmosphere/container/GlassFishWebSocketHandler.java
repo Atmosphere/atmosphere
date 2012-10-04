@@ -36,23 +36,31 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
 
     private final AtmosphereConfig config;
     private final String contextPath;
+    private final WebSocketProcessor webSocketProcessor;
+    private org.atmosphere.websocket.WebSocket webSocket;
 
     public GlassFishWebSocketHandler(AtmosphereConfig config) {
         this.config = config;
         contextPath = config.getServletContext().getContextPath();
+
+        webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                .newWebSocketProcessor(config.framework());
     }
 
     public void onConnect(WebSocket w) {
         super.onConnect(w);
+
+        webSocket = new GrizzlyWebSocket(w, config);
+
         //logger.debug("onOpen");
         if (!DefaultWebSocket.class.isAssignableFrom(w.getClass())) {
             throw new IllegalStateException();
         }
 
-        DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
+        DefaultWebSocket dws = DefaultWebSocket.class.cast(w);
         try {
 
-            AtmosphereRequest r = AtmosphereRequest.wrap(webSocket.getRequest());
+            AtmosphereRequest r = AtmosphereRequest.wrap(dws.getRequest());
             try {
                 // GlassFish http://java.net/jira/browse/GLASSFISH-18681
                 if (r.getPathInfo().startsWith(r.getContextPath())) {
@@ -63,11 +71,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
                 // Whatever exception occurs skip it
                 logger.trace("", e);
             }
-
-            WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new GrizzlyWebSocket(webSocket, config));
-            webSocket.getRequest().setAttribute("grizzly.webSocketProcessor", webSocketProcessor);
-            webSocketProcessor.open(r);
+            webSocketProcessor.open(webSocket, r);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -82,30 +86,24 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onClose(WebSocket w, DataFrame df) {
         super.onClose(w, df);
         logger.trace("onClose {} ", w);
-        DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
         if (webSocketProcessor != null) {
-            webSocketProcessor.close(1000);
+            webSocketProcessor.close(webSocket, 1000);
         }
     }
 
     @Override
     public void onMessage(WebSocket w, String text) {
         logger.trace("onMessage {} ", w);
-        DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(text);
+            webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
         }
     }
 
     @Override
     public void onMessage(WebSocket w, byte[] bytes) {
         logger.trace("onMessage (bytes) {} ", w);
-        DefaultWebSocket webSocket = DefaultWebSocket.class.cast(w);
-        WebSocketProcessor webSocketProcessor = (WebSocketProcessor) webSocket.getRequest().getAttribute("grizzly.webSocketProcessor");
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(bytes, 0, bytes.length);
+            webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);
         }
     }
 

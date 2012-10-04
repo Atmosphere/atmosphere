@@ -24,12 +24,12 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * A very simple {@link WebSocketProtocol} adapter class that implements all methods and expose a WebSocket API
+ * A very simple interface adapter class that implements all methods and expose a WebSocket API
  * close to the JavaScript Counterpart.
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocketHandler implements WebSocketProtocol {
+public abstract class WebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
 
@@ -54,51 +54,25 @@ public abstract class WebSocketHandler implements WebSocketProtocol {
     }
 
     /**
-     * {@inheritDoc}
+     * Invoked when a {@link WebSocket} is opened.
+     * @param webSocket
      */
-    @Override
-    public final void configure(AtmosphereConfig config) {
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public void onOpen(WebSocket webSocket) {
         webSocket.resource().suspend(-1);
     }
 
     /**
-     * {@inheritDoc}
+     * Invoked when a {@link WebSocket} is closed.
+     * @param webSocket
      */
-    @Override
     public void onClose(WebSocket webSocket) {
         webSocket.resource().resume();
     }
-
     /**
-     * {@inheritDoc}
+     * Invoked when a {@link WebSocket} produces an error.
+     * @param webSocket
      */
-    @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
         logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public final List<AtmosphereRequest> onMessage(WebSocket webSocket, String data) {
-        onTextMessage(webSocket, data);
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public final List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
-        onByteMessage(webSocket, data, offset, length);
-        return null;
     }
 }

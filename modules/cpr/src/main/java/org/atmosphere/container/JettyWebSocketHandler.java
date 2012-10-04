@@ -19,6 +19,7 @@ import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -41,28 +42,28 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketHandler.class);
 
-    private WebSocketProcessor webSocketProcessor;
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
-    private final WebSocketProtocol webSocketProtocol;
+    private final WebSocketProcessor webSocketProcessor;
+    private WebSocket webSocket;
 
-    public JettyWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
+    public JettyWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.request = request;
         this.framework = framework;
-        this.webSocketProtocol = webSocketProtocol;
+        this.webSocketProcessor = webSocketProcessor;
     }
 
     @Override
     public void onMessage(byte[] data, int offset, int length) {
         logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, data, offset, length);
     }
 
     @Override
     public boolean onControl(byte controlCode, byte[] data, int offset, int length) {
         logger.trace("WebSocket.onControl.");
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocketProcessor.webSocket()));
+            webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), CONTROL, webSocket));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -87,29 +88,21 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onHandshake(org.eclipse.jetty.websocket.WebSocket.FrameConnection connection) {
         logger.trace("WebSocket.onHandshake");
-        try {
-            webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
-        } catch (Exception e) {
-            logger.warn("failed to connect to web socket", e);
-        }
-
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", HANDSHAKE, webSocketProcessor.webSocket()));
+        webSocket = new Jetty8WebSocket(connection, framework.getAtmosphereConfig());
+        webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", HANDSHAKE, webSocket));
     }
 
     @Override
     public void onMessage(String data) {
         logger.trace("WebSocket.onMessage");
-        webSocketProcessor.invokeWebSocketProtocol(data);
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, data);
     }
 
     @Override
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen.");
         try {
-            webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new Jetty8WebSocket(connection, framework.getAtmosphereConfig()));
-            webSocketProcessor.open(request);
+            webSocketProcessor.open(webSocket, request);
         } catch (Exception e) {
             logger.warn("Failed to connect to WebSocket", e);
         }
@@ -118,9 +111,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     @Override
     public void onClose(int closeCode, String message) {
         request.destroy();
-        if (webSocketProcessor == null) return;
-
-        webSocketProcessor.close(closeCode);
+        webSocketProcessor.close(webSocket, closeCode);
 
     }
 }

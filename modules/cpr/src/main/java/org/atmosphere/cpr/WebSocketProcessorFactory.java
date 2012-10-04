@@ -35,9 +35,9 @@ public class WebSocketProcessorFactory {
         return factory;
     }
 
-    public WebSocketProcessor newWebSocketProcessor(WebSocket webSocket) {
+    public WebSocketProcessor newWebSocketProcessor(AtmosphereFramework framework) {
         WebSocketProcessor wp = null;
-        String webSocketProcessorName = webSocket.config().framework().getWebSocketProcessorClassName();
+        String webSocketProcessorName = framework.getWebSocketProcessorClassName();
         if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
             try {
                 wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
@@ -52,7 +52,7 @@ public class WebSocketProcessorFactory {
         }
 
         if (wp == null) {
-            wp = new DefaultWebSocketProcessor(webSocket);
+            wp = new DefaultWebSocketProcessor(framework);
         }
 
         return wp;

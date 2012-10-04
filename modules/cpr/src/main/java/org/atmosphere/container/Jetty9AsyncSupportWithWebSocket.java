@@ -21,8 +21,10 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.websocket.core.api.Extension;
 import org.eclipse.jetty.websocket.core.api.UpgradeRequest;
 import org.eclipse.jetty.websocket.core.api.UpgradeResponse;
@@ -72,6 +74,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
         if (max != null) {
             policy.setMaxBinaryMessageSize(Integer.parseInt(max));
         }
+        final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
 
         webSocketFactory = new WebSocketServerFactory(policy);
         webSocketFactory.setCreator(new WebSocketCreator() {
@@ -83,7 +86,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
                 ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
                 r.getExtensions().clear();
 
-                return new Jetty9WebSocketHandler(upgradeRequest, config.framework(), config.framework().getWebSocketProtocol());
+                return new Jetty9WebSocketHandler(upgradeRequest, config.framework(), webSocketProcessor);
             }
         });
 

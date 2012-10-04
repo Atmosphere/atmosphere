@@ -66,7 +66,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebSocketProcessor.class);
 
     private final AtmosphereFramework framework;
-    private final WebSocket webSocket;
     private final WebSocketProtocol webSocketProtocol;
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean destroyable;
@@ -75,9 +74,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
 
-    public DefaultWebSocketProcessor(WebSocket webSocket) {
-        this.webSocket = webSocket;
-        this.framework = webSocket.config().framework();
+    public DefaultWebSocketProcessor(AtmosphereFramework framework) {
+        this.framework = framework;
         this.webSocketProtocol = framework.getWebSocketProtocol();
 
         String s = framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
@@ -97,11 +95,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         voidExecutor = VoidExecutorService.VOID;
     }
 
+    @Override
+    public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler) {
+        return null;
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public final void open(final AtmosphereRequest request) throws IOException {
+    public final void open(final WebSocket webSocket, final AtmosphereRequest request) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
@@ -119,7 +122,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
-        dispatch(request, wsr);
+        dispatch(webSocket, request, wsr);
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
@@ -144,20 +147,20 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             logger.warn("AtmosphereResource was null");
         }
-        notifyListener(new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void invokeWebSocketProtocol(String webSocketMessage) {
+    public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-        dispatch(list);
-        notifyListener(new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
+        dispatch(webSocket, list);
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
     }
 
-    private void dispatch(List<AtmosphereRequest> list) {
+    private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
         if (list == null) return;
 
         for (final AtmosphereRequest r : list) {
@@ -171,7 +174,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
                         try {
-                            dispatch(r, w);
+                            dispatch(webSocket, r, w);
                         } finally {
                             r.destroy();
                             w.destroy();
@@ -186,11 +189,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-    public void invokeWebSocketProtocol(byte[] data, int offset, int length) {
+    public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
         List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        dispatch(list);
+        dispatch(webSocket, list);
         try {
-            notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
+            notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -203,7 +206,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * @param request a {@link AtmosphereRequest}
      * @param r       a {@link AtmosphereResponse}
      */
-    public final void dispatch(final AtmosphereRequest request, final AtmosphereResponse r) {
+    public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;
         try {
             framework.doCometSupport(request, r);
@@ -226,22 +229,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-    public WebSocket webSocket() {
-        return webSocket;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void close(int closeCode) {
+    public void close(WebSocket webSocket, int closeCode) {
         logger.trace("WebSocket closed with {}", closeCode);
         // A message might be in the process of being processed and the websocket gets closed. In that corner
         // case the webSocket.resource will be set to false and that might cause NPE in some WebSocketProcol implementation
         // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
         // synchronized (webSocket) {
 
-        notifyListener(new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
         if (resource == null) {
@@ -298,15 +293,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-    public String toString() {
-        return "DefaultWebSocketProtocol{ webSocket=" + webSocket + " }";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void notifyListener(WebSocketEventListener.WebSocketEvent event) {
+    public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent event) {
         AtmosphereResource resource = webSocket.resource();
         if (resource == null) return;
 

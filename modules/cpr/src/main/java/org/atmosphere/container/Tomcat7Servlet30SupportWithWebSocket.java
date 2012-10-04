@@ -35,6 +35,8 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,14 +49,16 @@ import java.io.IOException;
 public class Tomcat7Servlet30SupportWithWebSocket extends Servlet30CometSupport implements TomcatWebSocketUtil.Delegate {
     private static final Logger logger = LoggerFactory.getLogger(Tomcat7Servlet30SupportWithWebSocket.class);
     private static final long serialVersionUID = 1L;
+    private final WebSocketProcessor webSocketProcessor;
 
     public Tomcat7Servlet30SupportWithWebSocket(AtmosphereConfig config) {
         super(config);
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
     }
 
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-        return TomcatWebSocketUtil.doService(req, res, this, config);
+        return TomcatWebSocketUtil.doService(req, res, this, config, webSocketProcessor);
     }
 
     public Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {

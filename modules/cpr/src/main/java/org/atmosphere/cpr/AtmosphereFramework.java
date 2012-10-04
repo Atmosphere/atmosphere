@@ -500,10 +500,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             configureBroadcaster();
             loadConfiguration(scFacade);
+            initWebSocket();
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
-            initWebSocket();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
             configureAtmosphereInterceptor(sc);

@@ -23,7 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
- * An {@link AsyncWriter} backed by an {@link ByteArrayOutputStream}
+ * An {@link AsyncIOWriter} backed by an {@link ByteArrayOutputStream}
  *
  * @author Jeanfrancois Arcand
  */

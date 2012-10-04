@@ -4,6 +4,7 @@ import org.atmosphere.container.version.Jetty9WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.eclipse.jetty.websocket.core.api.UpgradeRequest;
@@ -19,15 +20,15 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty9WebSocketHandler.class);
 
-    private WebSocketProcessor webSocketProcessor;
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
-    private final WebSocketProtocol webSocketProtocol;
+    private final WebSocketProcessor webSocketProcessor;
+    private WebSocket webSocket;
 
-    public Jetty9WebSocketHandler(UpgradeRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
+    public Jetty9WebSocketHandler(UpgradeRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
         this.request = cloneRequest(request);
-        this.webSocketProtocol = webSocketProtocol;
+        this.webSocketProcessor = webSocketProcessor;
     }
 
     private AtmosphereRequest cloneRequest(final UpgradeRequest request) {
@@ -42,24 +43,21 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     @Override
     public void onWebSocketBinary(byte[] data, int offset, int length) {
         logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(data, offset, length);
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, data, offset, length);
     }
 
     @Override
     public void onWebSocketClose(int closeCode, String s) {
         request.destroy();
-        if (webSocketProcessor == null) return;
-
-        webSocketProcessor.close(closeCode);
+        webSocketProcessor.close(webSocket, closeCode);
     }
 
     @Override
     public void onWebSocketConnect(WebSocketConnection webSocketConnection) {
         logger.trace("WebSocket.onOpen.");
+        webSocket = new Jetty9WebSocket(webSocketConnection, framework.getAtmosphereConfig());
         try {
-            webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new Jetty9WebSocket(webSocketConnection, framework.getAtmosphereConfig()));
-            webSocketProcessor.open(request);
+            webSocketProcessor.open(webSocket, request);
         } catch (Exception e) {
             logger.warn("Failed to connect to WebSocket", e);
         }
@@ -73,6 +71,6 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     @Override
     public void onWebSocketText(String s) {
         logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(s);
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
     }
 }
