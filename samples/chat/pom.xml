@@ -20,9 +20,15 @@
             <type>war</type>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.6.1</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback-version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback-version}</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
@@ -31,6 +37,11 @@
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-redis</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <!-- This is ONLY required if you use Atmosphere's annotation. If you use atmosphere.xml, not required -->
         <dependency>
