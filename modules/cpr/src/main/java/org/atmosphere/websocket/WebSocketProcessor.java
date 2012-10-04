@@ -75,6 +75,12 @@ public interface WebSocketProcessor {
      */
     void notifyListener(WebSocket webSocket, WebSocketEvent webSocketEvent);
 
+
+    /**
+     * Destroy all resources associated with this class.
+     */
+    void destroy();
+
     /**
      * An exception that can be used to flag problems with the WebSocket processing.
      */

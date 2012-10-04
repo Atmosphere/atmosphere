@@ -54,6 +54,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     private final ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
+    private WebSocketHandler webSocketHandler;
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -67,6 +68,15 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     public AtmosphereConfig config() {
         return config;
+    }
+
+    protected WebSocket webSocketHandler(WebSocketHandler webSocketHandler) {
+        this.webSocketHandler = webSocketHandler;
+        return this;
+    }
+
+    protected WebSocketHandler webSocketHandler() {
+        return webSocketHandler;
     }
 
     /**

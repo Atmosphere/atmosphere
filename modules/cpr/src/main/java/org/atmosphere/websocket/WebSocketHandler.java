@@ -15,13 +15,7 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
+import java.io.IOException;
 
 /**
  * A very simple interface adapter class that implements all methods and expose a WebSocket API
@@ -29,9 +23,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocketHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
+public interface WebSocketHandler {
 
     /**
      * Invoked when a byte message is received.
@@ -41,8 +33,7 @@ public abstract class WebSocketHandler {
      * @param offset
      * @param length
      */
-    public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) {
-    }
+    void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException;
 
     /**
      * Invoked when a String message is received
@@ -50,29 +41,26 @@ public abstract class WebSocketHandler {
      * @param webSocket a {@link WebSocket}
      * @param data
      */
-    public void onTextMessage(WebSocket webSocket, String data) {
-    }
+    void onTextMessage(WebSocket webSocket, String data) throws IOException;
 
     /**
      * Invoked when a {@link WebSocket} is opened.
+     *
      * @param webSocket
      */
-    public void onOpen(WebSocket webSocket) {
-        webSocket.resource().suspend(-1);
-    }
+    void onOpen(WebSocket webSocket) throws IOException;
 
     /**
      * Invoked when a {@link WebSocket} is closed.
+     *
      * @param webSocket
      */
-    public void onClose(WebSocket webSocket) {
-        webSocket.resource().resume();
-    }
+    void onClose(WebSocket webSocket);
+
     /**
      * Invoked when a {@link WebSocket} produces an error.
+     *
      * @param webSocket
      */
-    public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
-        logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
-    }
+    void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t);
 }

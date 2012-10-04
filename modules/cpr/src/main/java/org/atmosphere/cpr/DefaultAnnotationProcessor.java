@@ -33,6 +33,8 @@ import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.IntrospectionUtils;
+import org.atmosphere.websocket.WebSocketHandler;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
@@ -134,7 +136,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     framework.setBroadcasterCacheClassName(className);
                 } else if (BroadcasterCacheInspectorService.class.equals(annotation)) {
                     try {
-                        framework.addBroadcasterCacheInjector((BroadcasterCacheInspector)cl.loadClass(className).newInstance());
+                        framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
@@ -177,7 +179,23 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 } else if (BroadcasterService.class.equals(annotation)) {
                     framework.setDefaultBroadcasterClassName(className);
                 } else if (WebSocketHandlerService.class.equals(annotation)) {
-                    framework.setWebSocketProtocolClassName(className);
+                    try {
+                        framework.initWebSocket();
+                        Class<WebSocketHandler> s = (Class<WebSocketHandler>) cl.loadClass(className);
+                        WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
+
+                        WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+                        p.registerWebSocketHandler(m.path(), s.newInstance());
+
+                        framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
+                        Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
+                        for (Class<? extends BroadcastFilter> b : bf) {
+                            framework.broadcasterFilters().add(b.getName());
+                        }
+                        framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
                 } else if (WebSocketProtocolService.class.equals(annotation)) {
                     framework.setWebSocketProtocolClassName(className);
                 } else if (AtmosphereInterceptorService.class.equals(annotation)) {

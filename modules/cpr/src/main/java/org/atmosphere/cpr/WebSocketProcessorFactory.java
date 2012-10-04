@@ -27,6 +27,7 @@ import org.atmosphere.websocket.WebSocketProcessor;
 public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
+    private WebSocketProcessor webSocketprocessor;
 
     public final static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
@@ -35,27 +36,40 @@ public class WebSocketProcessorFactory {
         return factory;
     }
 
-    public WebSocketProcessor newWebSocketProcessor(AtmosphereFramework framework) {
-        WebSocketProcessor wp = null;
-        String webSocketProcessorName = framework.getWebSocketProcessorClassName();
-        if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
-            try {
-                wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
-                        .loadClass(webSocketProcessorName).newInstance();
-            } catch (Exception ex) {
+    /**
+     * Return the {@link WebSocketProcessor}
+     * @param framework {@link AtmosphereFramework}
+     * @return an instance of {@link WebSocketProcessor}
+     */
+    public synchronized WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
+        if (webSocketprocessor == null) {
+            String webSocketProcessorName = framework.getWebSocketProcessorClassName();
+            if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
                 try {
-                    wp = (WebSocketProcessor) getClass().getClassLoader()
+                    webSocketprocessor = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
                             .loadClass(webSocketProcessorName).newInstance();
-                } catch (Exception ex2) {
+                } catch (Exception ex) {
+                    try {
+                        webSocketprocessor = (WebSocketProcessor) getClass().getClassLoader()
+                                .loadClass(webSocketProcessorName).newInstance();
+                    } catch (Exception ex2) {
+                    }
                 }
+            }
+
+            if (webSocketprocessor == null) {
+                webSocketprocessor = new DefaultWebSocketProcessor(framework);
             }
         }
 
-        if (wp == null) {
-            wp = new DefaultWebSocketProcessor(framework);
-        }
+        return webSocketprocessor;
+    }
 
-        return wp;
+    public synchronized void destroy() {
+        if (webSocketprocessor != null) {
+            webSocketprocessor.destroy();
+            webSocketprocessor = null;
+        }
     }
 
 }

@@ -19,6 +19,7 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
+import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -43,8 +44,9 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 
-public class WebSocketProcessorTest {
+public class WebSocketHandlerTest {
 
     private AtmosphereFramework framework;
 
@@ -87,150 +89,110 @@ public class WebSocketProcessorTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-
-        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
-
-            @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-                resource.getBroadcaster().addAtmosphereResource(resource);
-                resource.getResponse().write(resource.getRequest().getReader().readLine());
-            }
-
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                event.write(event.getMessage().toString().getBytes());
-            }
-
-            @Override
-            public void destroy() {
-            }
-        });
+        processor.registerWebSocketHandler("/*", new EchoHandler());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request);
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
 
-        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcastyoBroadcast");
-
+        assertEquals(b.toString(), "yoWebSocket");
     }
 
     @Test
-    public void basicWebSocketCookieTest() throws IOException, ServletException, ExecutionException, InterruptedException {
-        final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
-        final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
-        ByteArrayOutputStream b = new ByteArrayOutputStream();
-        WebSocket w = new ArrayBaseWebSocket(b);
-        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
-                .getWebSocketProcessor(framework);
-
-        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
-
-            @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-                r.set(resource);
-                resource.getBroadcaster().addAtmosphereResource(resource);
-            }
-
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                Cookie[] c = event.getResource().getRequest().getCookies();
-                cValue.set(c[0]);
-            }
-
-            @Override
-            public void destroy() {
-            }
-        });
-        Set<Cookie> c = new HashSet<Cookie>();
-        c.add(new Cookie("yo", "man"));
-
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        processor.open(w, request);
-
-        r.get().getBroadcaster().broadcast("yo").get();
-        assertNotNull(cValue.get());
-
-        Cookie i = c.iterator().next();
-        assertEquals(i.getName(), cValue.get().getName());
-        assertEquals(i.getValue(), cValue.get().getValue());
-    }
-
-    @Test
-    public void onDisconnectAtmosphereRequestAttribute() throws IOException, ServletException, ExecutionException, InterruptedException {
+    public void invalidPathHandler() throws IOException, ServletException, ExecutionException, InterruptedException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        final AtomicReference<String> uuid = new AtomicReference<String>();
+        processor.registerWebSocketHandler("/a", new EchoHandler());
 
-        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
-
-            @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-                resource.addEventListener(new WebSocketEventListenerAdapter() {
-                    @Override
-                    public void onDisconnect(WebSocketEvent event) {
-                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
-                    }
-                });
-            }
-
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-            }
-
-            @Override
-            public void destroy() {
-            }
-        });
-
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
-        processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Disconnect", DISCONNECT, w));
-
-        assertNotNull(uuid.get());
-        assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
+        try {
+            processor.open(w, request);
+            fail();
+        } catch (Exception ex) {
+            assertEquals(ex.getClass(), AtmosphereMappingException.class);
+        }
     }
 
     @Test
-    public void onCloseAtmosphereRequestAttribute() throws IOException, ServletException, ExecutionException, InterruptedException {
+    public void multipleWebSocketHandler() throws IOException, ServletException, ExecutionException, InterruptedException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        final AtomicReference<String> uuid = new AtomicReference<String>();
 
-        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+        processor.registerWebSocketHandler("/a", new EchoHandler());
+        processor.registerWebSocketHandler("/b", new EchoHandler());
 
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
+        processor.open(w, request);
+        processor.invokeWebSocketProtocol(w, "a");
+
+        assertEquals(b.toString(), "a");
+
+        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        processor.open(w, request);
+        processor.invokeWebSocketProtocol(w, "b");
+
+        // The WebSocketHandler is shared.
+        assertEquals(b.toString(), "ab");
+    }
+
+    @Test
+    public void multipleWebSocketAndHandler() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        processor.registerWebSocketHandler("/a", new EchoHandler());
+        processor.registerWebSocketHandler("/b", new EchoHandler() {
             @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-                resource.addEventListener(new WebSocketEventListenerAdapter() {
-                    @Override
-                    public void onClose(WebSocketEvent event) {
-                        uuid.set((String) event.webSocket().resource().getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
-                    }
-                });
-            }
-
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-            }
-
-            @Override
-            public void destroy() {
+            public void onTextMessage(WebSocket webSocket, String data) throws IOException {
+                webSocket.write("2" + data);
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request);
-        processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
+        processor.invokeWebSocketProtocol(w, "a");
 
-        assertNotNull(uuid.get());
-        assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
+        assertEquals(b.toString(), "a");
+        ByteArrayOutputStream b2 = new ByteArrayOutputStream();
+        final WebSocket w2 = new ArrayBaseWebSocket(b2);
+        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        processor.open(w2, request);
+        processor.invokeWebSocketProtocol(w2, "b");
+
+        // The WebSocketHandler is shared.
+        assertEquals(b2.toString(), "2b");
     }
+
+    public static class EchoHandler implements WebSocketHandler {
+        @Override
+        public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
+            webSocket.write(data, offset, length);
+        }
+
+        @Override
+        public void onTextMessage(WebSocket webSocket, String data) throws IOException {
+            webSocket.write(data);
+        }
+
+        @Override
+        public void onOpen(WebSocket webSocket) throws IOException {
+        }
+
+        @Override
+        public void onClose(WebSocket webSocket) {
+        }
+
+        @Override
+        public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
+        }
+    }
+
 
     public final class ArrayBaseWebSocket extends WebSocket {
 

@@ -931,6 +931,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             factory.destroy();
             BroadcasterFactory.factory = null;
         }
+        WebSocketProcessorFactory.getDefault().destroy();
         return this;
     }
 

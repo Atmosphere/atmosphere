@@ -37,8 +37,6 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
@@ -51,7 +49,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implem
 
     public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
         super(config);
-        webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
     }
 
     @Override

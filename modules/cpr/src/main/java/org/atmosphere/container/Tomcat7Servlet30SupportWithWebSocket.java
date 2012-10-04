@@ -53,7 +53,7 @@ public class Tomcat7Servlet30SupportWithWebSocket extends Servlet30CometSupport 
 
     public Tomcat7Servlet30SupportWithWebSocket(AtmosphereConfig config) {
         super(config);
-        webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
     }
 
     @Override

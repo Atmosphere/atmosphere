@@ -44,7 +44,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         contextPath = config.getServletContext().getContextPath();
 
         webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                .newWebSocketProcessor(config.framework());
+                .getWebSocketProcessor(config.framework());
     }
 
     public void onConnect(WebSocket w) {

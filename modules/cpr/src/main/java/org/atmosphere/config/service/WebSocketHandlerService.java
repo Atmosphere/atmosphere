@@ -15,6 +15,12 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterConfig;
+import org.atmosphere.cpr.DefaultBroadcaster;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -30,4 +36,30 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface WebSocketHandlerService {
+
+    /**
+     * A list of {@link org.atmosphere.cpr.BroadcastFilter}
+     */
+    Class<? extends BroadcastFilter>[] broadcastFilters() default {};
+
+    /**
+     * The {@link org.atmosphere.cpr.BroadcasterCache} class name
+     *
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name
+     */
+    Class<? extends BroadcasterCache> broadcasterCache() default BroadcasterConfig.DefaultBroadcasterCache.class;
+
+    /**
+     * The mapping path, or context-root used to map this WebSocketHandler
+     *
+     * @return mapping path, or context-root used to map this WebSocketHandler
+     */
+    String path() default "/";
+
+    /**
+     * The {@link org.atmosphere.cpr.Broadcaster} class name
+     *
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name
+     */
+    Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 }

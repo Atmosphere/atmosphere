@@ -19,8 +19,10 @@ import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
+import org.atmosphere.websocket.WebSocketHandlerAdapter;
 
 import java.util.Date;
 
@@ -29,12 +31,12 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@WebSocketHandlerService
-public class WebSocketChat extends WebSocketHandler {
+@WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class)
+public class WebSocketChat extends WebSocketHandlerAdapter {
 
     @Override
     public void onOpen(WebSocket webSocket) {
-        webSocket.resource().setBroadcaster(BroadcasterFactory.getDefault().lookup("/chat", true)).suspend(-1);
+        webSocket.resource().setBroadcaster(BroadcasterFactory.getDefault().lookup("/chat", true));
     }
 
     public void onTextMessage(WebSocket webSocket, String message) {

@@ -40,7 +40,7 @@ public class JettyAsyncSupportWithWebSocket extends Jetty7CometSupport {
 
     public JettyAsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
-        final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
+        final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
         WebSocketFactory wsf;
         try {

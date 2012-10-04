@@ -108,7 +108,7 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
             this.config = config;
             contextPath = config.getServletContext().getContextPath();
             this.webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(config.framework());
+                    .getWebSocketProcessor(config.framework());
         }
 
 

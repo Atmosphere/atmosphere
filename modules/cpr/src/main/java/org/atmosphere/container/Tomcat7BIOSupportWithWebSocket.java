@@ -53,7 +53,7 @@ public class Tomcat7BIOSupportWithWebSocket extends BlockingIOCometSupport imple
 
     public Tomcat7BIOSupportWithWebSocket(AtmosphereConfig config) {
         super(config);
-        webSocketProcessor = WebSocketProcessorFactory.getDefault().newWebSocketProcessor(config.framework());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
     }
 
     @Override

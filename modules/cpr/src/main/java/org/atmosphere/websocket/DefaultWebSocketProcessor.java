@@ -18,6 +18,7 @@ package org.atmosphere.websocket;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -26,6 +27,8 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.VoidExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +76,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService asyncExecutor;
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+    private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
+    private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -97,7 +102,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler) {
-        return null;
+        handlers.put(path, webSockethandler);
+        return this;
     }
 
     /**
@@ -122,7 +128,19 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
-        dispatch(webSocket, request, wsr);
+        // No WebSocketHandler defined.
+        if (handlers.size() == 0) {
+            dispatch(webSocket, request, wsr);
+        } else {
+            WebSocketHandler handler = mapper.map(request, handlers);
+            if (handler == null) {
+                logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
+                throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
+            }
+            handler.onOpen(webSocket);
+            // Force suspend.
+            webSocket.webSocketHandler(handler).resource().suspend(-1);
+        }
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
@@ -155,8 +173,22 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     @Override
     public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
-        List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-        dispatch(webSocket, list);
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+
+        if (webSocketHandler == null) {
+            List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
+            dispatch(webSocket, list);
+        } else {
+            try {
+                webSocketHandler.onTextMessage(webSocket, webSocketMessage);
+            } catch (Exception ex) {
+                webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                        new AtmosphereResponse.Builder()
+                                .request(webSocket.resource().getRequest())
+                                .status(500)
+                                .statusMessage("Server Error").build()));
+            }
+        }
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
     }
 
@@ -190,13 +222,27 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
-        List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
-        dispatch(webSocket, list);
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+
+        if (webSocketHandler == null) {
+            List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
+            dispatch(webSocket, list);
+        } else {
+            try {
+                webSocketHandler.onByteMessage(webSocket, data, offset, length);
+            } catch (Exception ex) {
+                webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                        new AtmosphereResponse.Builder()
+                                .request(webSocket.resource().getRequest())
+                                .status(500)
+                                .statusMessage("Server Error").build()));
+            }
+        }
+
         try {
             notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
-
         }
     }
 
@@ -208,6 +254,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;
+
         try {
             framework.doCometSupport(request, r);
         } catch (Throwable e) {
@@ -231,6 +278,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public void close(WebSocket webSocket, int closeCode) {
         logger.trace("WebSocket closed with {}", closeCode);
+
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
         // A message might be in the process of being processed and the websocket gets closed. In that corner
         // case the webSocket.resource will be set to false and that might cause NPE in some WebSocketProcol implementation
         // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
@@ -256,8 +305,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         } else {
                             h.closed();
                         }
-                    } else {
+                    } else if (webSocketHandler == null) {
                         logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
+                    }
+
+                    if (webSocketHandler != null) {
+                        webSocketHandler.onClose(webSocket);
                     }
 
                     // We must always destroy the root resource (the one created when the websocket was opened
@@ -284,9 +337,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
-        asyncExecutor.shutdown();
-        voidExecutor.shutdown();
-        scheduler.shutdown();
     }
 
     /**
@@ -333,6 +383,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void destroy() {
+        asyncExecutor.shutdown();
+        voidExecutor.shutdown();
+        scheduler.shutdown();
     }
 
     public static final Map<String, String> configureHeader(AtmosphereRequest request) {
