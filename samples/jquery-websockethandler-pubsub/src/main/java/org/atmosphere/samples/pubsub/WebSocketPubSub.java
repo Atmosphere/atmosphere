@@ -22,6 +22,7 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketHandler;
+import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * @author Jeanfrancois Arcand
  */
 @WebSocketHandlerService
-public class WebSocketPubSub extends WebSocketHandler {
+public class WebSocketPubSub extends WebSocketHandlerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);
 
@@ -55,9 +56,7 @@ public class WebSocketPubSub extends WebSocketHandler {
         AtmosphereResource r = webSocket.resource();
         // Create a Broadcaster based on the path
         Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
-        r.setBroadcaster(b);
-        r.addEventListener(new WebSocketEventListenerAdapter());
-        r.suspend(-1);
+        r.setBroadcaster(b).addEventListener(new WebSocketEventListenerAdapter());
     }
 
     /**
