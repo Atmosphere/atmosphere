@@ -237,15 +237,17 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 store.remove(b.getID(), b);
             }
 
-            Broadcaster newOne = createBroadcaster(c, id);
-            Broadcaster existingOne = store.putIfAbsent(id, newOne);
-            if (existingOne == null) {
-                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
-            } else if (!existingOne.equals(newOne)) {
-                logger.warn("Duplicate Broadcaster's name {}. You must invoke Broadcaster.destroy() on that instance to prevent memory leak.", existingOne);
+            Broadcaster nb = store.get(id);
+            if (nb == null) {
+                nb = createBroadcaster(c, id);
+                store.put(id, nb);
             }
 
-            b = store.get(id);
+            if (nb == null) {
+                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+            }
+
+            b = nb;
         }
 
         return b;
