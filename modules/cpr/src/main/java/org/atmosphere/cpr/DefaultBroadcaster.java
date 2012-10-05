@@ -636,7 +636,7 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 if (entry.multipleAtmoResources == null) {
                     for (AtmosphereResource r : resources) {
-                        finalMsg = perRequestFilter(r, entry);
+                        finalMsg = perRequestFilter(r, entry, true);
 
                         if (finalMsg == null) {
                             logger.debug("Skipping broadcast delivery resource {} ", r);
@@ -648,7 +648,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                 } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
-                    finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry);
+                    finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry, true);
 
                     if (finalMsg == null) {
                         logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
@@ -663,7 +663,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     if (sub.size() != 0) {
                         for (AtmosphereResource r : sub) {
-                            finalMsg = perRequestFilter(r, entry);
+                            finalMsg = perRequestFilter(r, entry, true);
 
                             if (finalMsg == null) {
                                 logger.debug("Skipping broadcast delivery resource {} ", r);
@@ -693,7 +693,7 @@ public class DefaultBroadcaster implements Broadcaster {
         asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
     }
 
-    protected Object perRequestFilter(AtmosphereResource r, Entry msg) {
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
 
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
@@ -721,7 +721,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
                 }
 
-                if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
                     msg.message = finalMsg;
                     trackBroadcastMessage(r, msg);
                 }
@@ -840,7 +840,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             List<Object> filteredMessage = new ArrayList<Object>();
             for (Object o : ((List) e.getMessage())) {
-                filteredMessage.add(perRequestFilter(r, new Entry(o, r, f, o)));
+                filteredMessage.add(perRequestFilter(r, new Entry(o, r, f, o), false));
             }
 
             e.setMessage(filteredMessage);
@@ -864,7 +864,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         try {
                             r.getResponse().flushBuffer();
                         } catch (IOException ioe) {
-                            logger.warn("", ioe);
+                            logger.trace("", ioe);
                             AsynchronousProcessor.destroyResource(r);
                         }
                         break;

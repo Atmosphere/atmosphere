@@ -93,11 +93,12 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected void put(Message message, Long now) {
         if (!inspect(message)) return;
 
+        logger.trace("Caching message {} for Broadcaster {}", message.message);
+
         readWriteLock.writeLock().lock();
         try {
             boolean hasMessageWithSameId = messagesIds.contains(message.id);
             if (!hasMessageWithSameId) {
-                logger.trace("Added {} to the cache", message.message);
                 CacheMessage cacheMessage = new CacheMessage(message.id, now, message.message);
                 messages.add(cacheMessage);
                 messagesIds.add(message.id);
@@ -120,6 +121,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         } finally {
             readWriteLock.readLock().unlock();
         }
+
+        logger.trace("Retrieved messages {}", result);
         return result;
     }
 
