@@ -29,6 +29,7 @@
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
 
+        <!-- Uncomment, or install atmosphere-<module>-demo -->
         <!-- Uncomment to use Hazelcast
         <dependency>
             <groupId>org.atmosphere</groupId>
