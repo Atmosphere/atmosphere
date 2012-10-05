@@ -24,17 +24,16 @@
     <MERGE2 max_interval="30000"
             min_interval="10000"/>
     <FD_SOCK/>
-    <FD timeout="10000" max_tries="5"   shun="true"/>
+    <FD timeout="10000" max_tries="5"/>
     <VERIFY_SUSPECT timeout="1500"  />
     <pbcast.NAKACK
-                   use_mcast_xmit="false" gc_lag="0"
+                   use_mcast_xmit="false"
                    retransmit_timeout="300,600,1200,2400,4800"
                    discard_delivered_msgs="true"/>
     <UNICAST timeout="300,600,1200,2400,3600"/>
     <pbcast.STABLE stability_delay="1000" desired_avg_gossip="50000"
                    max_bytes="400000"/>
     <pbcast.GMS print_local_addr="true" join_timeout="3000"
-                shun="false"
                 view_bundling="true"/>
     <FC max_credits="20000000"
                     min_threshold="0.10"/>
