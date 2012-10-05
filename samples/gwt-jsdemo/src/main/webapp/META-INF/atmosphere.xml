@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="windows-1252"?>
-
-<atmosphere-handlers>
-    <atmosphere-handler context-root="/comet"
-                        class-name="org.atmosphere.gwt.server.AtmosphereGwtHandler">
-    </atmosphere-handler>
-</atmosphere-handlers>

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="windows-1252"?>
-
-<atmosphere-handlers>
-    <atmosphere-handler context-root="/gwtDemo/gwtComet/*"
-                        class-name="org.atmosphere.samples.server.ChatHandler">
-        <property name="heartbeat" value="20000"/>
-    </atmosphere-handler>
-</atmosphere-handlers>

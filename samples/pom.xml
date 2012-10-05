@@ -18,15 +18,8 @@
         <module>rest-chat</module>
         <module>scala-chat</module>
         <module>meteor-chat</module>
-        <module>chat-guice</module>
         <module>sse-chat</module>
         <module>sse-rest-chat</module>
-
-        <!-- sample using GWT -->
-        <module>gwt-demo</module>
-        <module>gwt-jsdemo</module>
-        <module>gwt-conn-share</module>
-        <module>gwt-chat</module>
 
         <!-- sample using jQuery.atmosphere.js-->
         <module>pubsub</module>
@@ -41,17 +34,7 @@
         <module>async-annotation-pubsub</module>
         <module>all-api-pubsub</module>
         <module>jquery-multirequest</module>
-        <module>spring-websocket</module>
-        <module>spring-tiles</module>
-
-        <!-- SocketIO -->
-        <module>socketio-chat</module>
-        <module>native-socketio-chat</module>
         <module>websocket-chat</module>
-
-        <!-- Cometd -->
-        <module>cometd</module>
-
     </modules>
     <build>
         <finalName>${project.artifactId}</finalName>
