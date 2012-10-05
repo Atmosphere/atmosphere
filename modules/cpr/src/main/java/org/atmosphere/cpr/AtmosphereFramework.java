@@ -163,6 +163,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
+    protected boolean webSocketProtocolInitialized = false;
 
     @Override
     public ServletContext getServletContext() {
@@ -902,6 +903,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     protected void initWebSocket() {
+        if(webSocketProtocolInitialized) return;
         if (webSocketProtocol == null) {
             try {
                 webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
@@ -912,6 +914,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 webSocketProtocol = new SimpleHttpProtocol();
             }
         }
+        webSocketProtocolInitialized = true;
         webSocketProtocol.configure(config);
     }
 
@@ -1490,6 +1493,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public WebSocketProtocol getWebSocketProtocol() {
+        // TODO: Spagetthi code, needs to rework.
+        // Make sure we initialized the WebSocketProtocol
+        initWebSocket();
         return webSocketProtocol;
     }
 
