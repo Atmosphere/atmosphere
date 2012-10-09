@@ -282,7 +282,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 notifyListeners();
-                listeners.clear();
 
                 try {
                     if (!b.isDestroyed()) {
@@ -331,6 +330,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
         notifyListeners(new AtmosphereResourceEventImpl(this, true, false));
+        listeners.clear();
         return this;
     }
 
@@ -753,10 +753,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isResuming() || event.isResumedOnTimeout()) {
-                onResume(event);
-            } else if (event.isCancelled()) {
+            if (event.isCancelled()) {
                 onDisconnect(event);
+            } else if (event.isResuming() || event.isResumedOnTimeout()) {
+                onResume(event);
             } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
                 onSuspend(event);
             } else if (event.throwable() != null) {
