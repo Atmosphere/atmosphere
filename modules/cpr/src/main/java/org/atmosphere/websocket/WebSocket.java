@@ -38,6 +38,7 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
     protected long lastWrite = 0;
     protected WebSocketResponseFilter webSocketResponseFilter = WebSocketResponseFilter.NOOPS_WebSocketResponseFilter;
     protected final boolean binaryWrite;
+    private final AtmosphereConfig config;
 
     public WebSocket(AtmosphereConfig config) {
         super(null);
@@ -47,10 +48,11 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
         } else {
             binaryWrite = false;
         }
+        this.config = config;
     }
 
-    public WebSocket() {
-        binaryWrite = false;
+    public AtmosphereConfig config() {
+        return config;
     }
 
     /**

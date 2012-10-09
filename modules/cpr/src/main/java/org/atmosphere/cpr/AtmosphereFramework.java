@@ -610,6 +610,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 if (mapping == null) {
                     mapping = "/*";
                 }
+
                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
@@ -902,8 +903,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
         webSocketProtocol.configure(config);
-
-        new WebSocketProcessorFactory(config);
     }
 
     public AtmosphereFramework destroy() {
