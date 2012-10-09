@@ -145,7 +145,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isSessionSupportSpecified = false;
     protected BroadcasterFactory broadcasterFactory;
     protected String broadcasterFactoryClassName;
-    protected static String broadcasterCacheClassName;
+    protected String broadcasterCacheClassName;
     protected boolean webSocketEnabled = true;
     protected String broadcasterLifeCyclePolicy = "NEVER";
     protected String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
@@ -300,6 +300,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             path = path + MAPPING_REGEX;
         }
 
+        InjectorProvider.getInjector().inject(w.atmosphereHandler);
         atmosphereHandlers.put(path, w);
         return this;
     }
@@ -610,7 +611,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                 if (mapping == null) {
                     mapping = "/*";
                 }
-
                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
@@ -856,6 +856,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void sessionSupport(boolean sessionSupport) {
         if (!isSessionSupportSpecified) {
             config.setSupportSession(sessionSupport);
+        } else if (!config.isSupportSession()) {
+            // Don't turn off session support.  Once it's on, leave it on.
+            config.setSupportSession(sessionSupport);
         }
     }
 
@@ -944,7 +947,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
                     handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
-                    InjectorProvider.getInjector().inject(handler);
                 } else {
                     handler = new ReflectorServletProcessor();
                 }
@@ -959,11 +961,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                     initParams.put(a.getParamName(), a.getParamValue());
                 }
 
-                boolean isJersey = false;
                 for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
 
                     if (handlerProperty.getValue() != null && handlerProperty.getValue().indexOf("jersey") != -1) {
-                        isJersey = true;
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
@@ -1194,7 +1194,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (String className : possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
+                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
@@ -1298,7 +1298,13 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
                 logger.trace(ex.getMessage(), ex);
 
+                AsyncSupport current = asyncSupport;
                 asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
+                if(current instanceof AsynchronousProcessor) {
+                    ((AsynchronousProcessor)current).shutdown();
+                }
+
+                asyncSupport.init(config.getServletConfig());
                 logger.warn("Using " + asyncSupport.getClass().getName());
 
                 a = asyncSupport.service(req, res);

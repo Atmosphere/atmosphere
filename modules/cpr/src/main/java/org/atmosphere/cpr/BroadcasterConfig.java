@@ -116,17 +116,16 @@ public class BroadcasterConfig {
 
     private void configureBroadcasterCache() {
         try {
-            if (AtmosphereFramework.broadcasterCacheClassName != null) {
-                BroadcasterCache cache;
+            String className = config.framework().getBroadcasterCacheClassName();
+            if (className != null) {
                 try {
-                    cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                    broadcasterCache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
+                            .loadClass(className).newInstance();
                 } catch (ClassNotFoundException ex) {
-                    cache = (BroadcasterCache) getClass().getClassLoader()
-                            .loadClass(AtmosphereFramework.broadcasterCacheClassName).newInstance();
+                    broadcasterCache = (BroadcasterCache) getClass().getClassLoader()
+                            .loadClass(className).newInstance();
                 }
-                InjectorProvider.getInjector().inject(cache);
-                setBroadcasterCache(cache);
+                InjectorProvider.getInjector().inject(broadcasterCache);
             }
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
