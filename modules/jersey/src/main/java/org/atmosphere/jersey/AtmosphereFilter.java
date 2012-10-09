@@ -154,9 +154,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         SUBSCRIBE, PUBLISH, ASYNCHRONOUS
     }
 
-    protected @Context HttpServletRequest servletReq;
+    protected
+    @Context
+    HttpServletRequest servletReq;
 
-    private @Context UriInfo uriInfo;
+    private
+    @Context
+    UriInfo uriInfo;
 
     private boolean useResumeAnnotation = false;
 
@@ -341,74 +345,77 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
                     final boolean waitForResource = waitFor == -1 ? true : false;
+                    Broadcaster newBroadcaster;
+                    // See issue https://github.com/Atmosphere/atmosphere/issues/676
                     synchronized (BroadcasterFactory.getDefault()) {
-                        final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                        newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                    }
+                    final Broadcaster bcaster = newBroadcaster;
 
-                        if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
-                            boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
-                            final boolean resumeOnBroadcast = resumeOnBroadcast(false);
+                    if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
+                        boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
+                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
 
-                            if (listeners != null) {
-                                for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
-                                    try {
-                                        AtmosphereResourceEventListener el = listener.newInstance();
-                                        InjectorProvider.getInjector().inject(el);
-                                        r.addEventListener(el);
-                                    } catch (Throwable t) {
-                                        throw new WebApplicationException(
-                                                new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
-                                    }
-                                }
-                            }
-                            final Object entity = response.getEntity();
-
-                            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                                @Override
-                                public void onSuspend(AtmosphereResourceEvent event) {
-                                    try {
-                                        if (entity != null) {
-                                            if (waitForResource) {
-                                                bcaster.awaitAndBroadcast(entity, 10, TimeUnit.SECONDS);
-                                            } else {
-                                                bcaster.broadcast(entity);
-                                            }
-                                        }
-                                    } finally {
-                                        event.getResource().removeEventListener(this);
-                                    }
-                                }
-                            });
-
-                            if (resumeOnBroadcast) {
-                                servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
-                            }
-
-                            r.setBroadcaster(bcaster);
-                            executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
-                        } else {
-                            Object entity = response.getEntity();
-                            if (waitForResource) {
-                                bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
-                            } else {
-                                bcaster.broadcast(entity);
-                            }
-
-                            if (subProtocol == null && writeEntity) {
+                        if (listeners != null) {
+                            for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                                 try {
-                                    if (Callable.class.isAssignableFrom(entity.getClass())) {
-                                        entity = Callable.class.cast(entity).call();
-                                    }
-                                    synchronized (response) {
-                                        response.setEntity(entity);
-                                        response.write();
-                                    }
+                                    AtmosphereResourceEventListener el = listener.newInstance();
+                                    InjectorProvider.getInjector().inject(el);
+                                    r.addEventListener(el);
                                 } catch (Throwable t) {
-                                    logger.debug("Error running Callable", t);
-                                    response.setEntity(null);
+                                    throw new WebApplicationException(
+                                            new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
                                 }
-                            } else {
+                            }
+                        }
+                        final Object entity = response.getEntity();
+
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                            @Override
+                            public void onSuspend(AtmosphereResourceEvent event) {
+                                try {
+                                    if (entity != null) {
+                                        if (waitForResource) {
+                                            bcaster.awaitAndBroadcast(entity, 10, TimeUnit.SECONDS);
+                                        } else {
+                                            bcaster.broadcast(entity);
+                                        }
+                                    }
+                                } finally {
+                                    event.getResource().removeEventListener(this);
+                                }
+                            }
+                        });
+
+                        if (resumeOnBroadcast) {
+                            servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
+                        }
+
+                        r.setBroadcaster(bcaster);
+                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
+                    } else {
+                        Object entity = response.getEntity();
+                        if (waitForResource) {
+                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                        } else {
+                            bcaster.broadcast(entity);
+                        }
+
+                        if (subProtocol == null && writeEntity) {
+                            try {
+                                if (Callable.class.isAssignableFrom(entity.getClass())) {
+                                    entity = Callable.class.cast(entity).call();
+                                }
+                                synchronized (response) {
+                                    response.setEntity(entity);
+                                    response.write();
+                                }
+                            } catch (Throwable t) {
+                                logger.debug("Error running Callable", t);
                                 response.setEntity(null);
                             }
+                        } else {
+                            response.setEntity(null);
                         }
                     }
                     break;
@@ -563,7 +570,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             s = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-            if (s != null && s != "0"){
+            if (s != null && s != "0") {
                 return s;
             } else {
                 return r.uuid();
