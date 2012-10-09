@@ -347,10 +347,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     final boolean waitForResource = waitFor == -1 ? true : false;
                     Broadcaster newBroadcaster;
                     // See issue https://github.com/Atmosphere/atmosphere/issues/676
-                    synchronized (BroadcasterFactory.getDefault()) {
+                    synchronized (broadcasterName.intern()) {
                         newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
                     }
                     final Broadcaster bcaster = newBroadcaster;
+                    logger.debug("Broadcaster {} was created {}", broadcasterName, bcaster);
 
                     if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
                         boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
@@ -396,7 +397,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     } else {
                         Object entity = response.getEntity();
                         if (waitForResource) {
-                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                            bcaster.awaitAndBroadcast(entity, 5, TimeUnit.SECONDS);
                         } else {
                             bcaster.broadcast(entity);
                         }
