@@ -123,10 +123,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             }
         }
 
-        if (servlet == null) {
-            throw new IllegalStateException("Servlet cannot be null");
-        }
-
         logger.info("Installing Servlet {}", servletClassName);
         filterChain.setServlet(sc, servlet);
 
