@@ -60,7 +60,16 @@ public class JettyWebSocketUtil {
         } else {
             if (webSocketFactory != null && !b) {
                 req.setAttribute(WebSocket.WEBSOCKET_INITIATED, true);
-                webSocketFactory.acceptWebSocket(req, res);
+                try {
+                    webSocketFactory.acceptWebSocket(req, res);
+                } catch (IllegalStateException ex) {
+                    logger.trace("Invalid WebSocket Specification {}", req);
+                    logger.trace("", ex);
+
+                    res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                    res.sendError(501, "Websocket protocol not supported");
+                    return Action.CANCELLED;
+                }
                 req.setAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE, true);
                 return new Action();
             }
