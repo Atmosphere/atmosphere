@@ -97,11 +97,7 @@ public abstract class BaseTest {
      * @return message when Atmosphere suspend a connection.
      */
     public static String createStreamingPadding(String padding) {
-        StringBuilder s = new StringBuilder();
-
-        for (int i = 0; i < 4096; i++) {
-            s.append(" ");
-        }
+        StringBuilder s = new StringBuilder("");
         return s.toString();
     }
 }

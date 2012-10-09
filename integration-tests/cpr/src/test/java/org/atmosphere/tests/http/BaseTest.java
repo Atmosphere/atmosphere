@@ -241,7 +241,7 @@ public abstract class BaseTest {
     }
 
 
-    @Test(timeOut = 60000, enabled = true)
+    @Test(timeOut = 60000, enabled = false)
     public void testSuspendWithCommentsTimeout() {
         logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
@@ -381,12 +381,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -402,6 +397,8 @@ public abstract class BaseTest {
 
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -453,12 +450,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -474,6 +466,8 @@ public abstract class BaseTest {
 
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -535,12 +529,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -555,6 +544,8 @@ public abstract class BaseTest {
             }
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -684,12 +675,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -765,12 +751,8 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
+
                     return null;
                 }
             });
@@ -845,12 +827,8 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
+
                     return null;
                 }
             });
@@ -919,12 +897,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -1126,12 +1099,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -1193,12 +1161,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -1432,11 +1395,7 @@ public abstract class BaseTest {
      * @return message when Atmosphere suspend a connection.
      */
     public static String createStreamingPadding(String padding) {
-        StringBuilder s = new StringBuilder();
-
-        for (int i = 0; i < 4096; i++) {
-            s.append(" ");
-        }
+        StringBuilder s = new StringBuilder("");
         return s.toString();
     }
 }
