@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere.samples</groupId>
         <artifactId>atmosphere-samples</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.2-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-all-api-pubsub</artifactId>
     <packaging>war</packaging>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
     <name>atmosphere-all-api-pubsub</name>
     <url>http://maven.apache.org</url>
     <dependencies>
@@ -59,24 +59,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.1</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <arguments>
-                        <argument>http://localhost:9999/app/</argument>
-                    </arguments>
-                    <mainClass>org.atmosphere.samples.lpchat.ChatServer</mainClass>
-                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -30,10 +30,12 @@ import static org.atmosphere.cpr.ApplicationConfig.*;
 
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
- * {@link AtmosphereResource} and takes care of managing the response's state (flusing, resuming,
- * etc.). When used, {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
+ * {@link AtmosphereResource} and takes care of managing the response's state (flushing, resuming,
+ * etc.) when a {@link org.atmosphere.cpr.Broadcaster#broadcast} is invoked. When used, {@link org.atmosphere.cpr.AtmosphereHandler} implementations no longer need to make calls to
  * {@link AtmosphereResource#suspend}.
  * </p>
+ * If your application doesn't use {@link org.atmosphere.cpr.Broadcaster}, this interceptor will not work and you need to programmatically
+ * resume, flush, etc.
  * <p/>
  * <p>By default, intercepted {@link AtmosphereResource} instances are suspended when a GET
  * request is received. You can change the triggering http method by configuring
@@ -46,7 +48,9 @@ import static org.atmosphere.cpr.ApplicationConfig.*;
  * {@link org.atmosphere.cpr.Meteor} instances) or extensions (GWT, Jersey, Wicket, etc...)
  * </p>
  * <strong>For this mechanism to work properly, each client must set the
- * {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT} header.</strong>
+ * {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT} header. Your AtmosphereHandler must also extends the
+ * {@link org.atmosphere.handler.AbstractReflectorAtmosphereHandler} or implements the logic defined inside
+ * {@link org.atmosphere.handler.AbstractReflectorAtmosphereHandler#postStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} </strong>
  *
  * @author Jeanfrancois Arcand
  */

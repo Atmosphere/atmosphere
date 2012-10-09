@@ -94,11 +94,16 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             return null;
         }
         String pathInfo = resource.getRequest().getPathInfo();
+
         if (d.startsWith(delimiter)) {
-            String[] token = d.split(delimiter);
-            pathInfo = token[1];
-            d = token[2];
+            int delimiterLength = delimiter.length();
+            int bodyBeginIndex = d.indexOf(delimiter, delimiterLength);
+            if (bodyBeginIndex != -1) {
+                pathInfo = d.substring(delimiterLength, bodyBeginIndex);
+                d = d.substring(bodyBeginIndex + delimiterLength);
+            }
         }
+
         Map<String,Object> m = new HashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
         // Propagate the original attribute to WebSocket message.

@@ -976,11 +976,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     IntrospectionUtils.addProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
                 }
 
-                config.setSupportSession(!isJersey);
-
-                if (!atmoHandler.getSupportSession().equals("")) {
-                    sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
-                }
+                sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
 
                 String broadcasterClass = atmoHandler.getBroadcaster();
                 Broadcaster b;
