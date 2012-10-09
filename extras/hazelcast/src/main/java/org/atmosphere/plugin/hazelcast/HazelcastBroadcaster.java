@@ -46,6 +46,12 @@ public class HazelcastBroadcaster extends AbstractBroadcasterProxy {
 
     public void setUp() {
         topic = Hazelcast.<String>getTopic(getID());
+        topic.addMessageListener(new MessageListener<String>() {
+            @Override
+            public void onMessage(String message) {
+                broadcastReceivedMessage(message);
+            }
+        });
     }
 
     @Override
@@ -68,12 +74,6 @@ public class HazelcastBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void incomingBroadcast() {
         logger.info("Subscribing to: {}", getID());
-        topic.addMessageListener(new MessageListener<String>() {
-            @Override
-            public void onMessage(String message) {
-                broadcastReceivedMessage(message);
-            }
-        });
     }
 
     /**
