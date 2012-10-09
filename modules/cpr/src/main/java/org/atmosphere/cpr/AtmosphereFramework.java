@@ -622,7 +622,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         try {
             // Check auto supported one
-            if (broadcasterClassName.equalsIgnoreCase(DefaultBroadcaster.class.getName())) {
+            if (isBroadcasterSpecified == false) {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
