@@ -30,6 +30,7 @@ import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
+import org.atmosphere.interceptor.DefaultHeadersInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.StreamingAtmosphereInterceptor;
@@ -604,7 +605,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
             // WebKit & IE Padding
             interceptors.addFirst(newAInterceptor(StreamingAtmosphereInterceptor.class));
-
+            // Default Interceptor
+            interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
         }
         logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.");
     }

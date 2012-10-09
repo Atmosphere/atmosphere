@@ -105,11 +105,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
 
-    private final boolean injectCacheHeaders;
-    private final boolean enableAccessControl;
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
     private AtmosphereHandler atmosphereHandler;
-    private final boolean writeHeaders;
     private final String uuid;
     protected HttpSession session;
 
@@ -133,18 +130,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         this.asyncSupport = asyncSupport;
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
-
-        String nocache = config.getInitParameter(ApplicationConfig.NO_CACHE_HEADERS);
-        injectCacheHeaders = nocache != null ? false : true;
-
-        String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-        enableAccessControl = ac != null ? !Boolean.parseBoolean(ac) : true;
-
-        String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
-        writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
-
-        req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
-        req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
         String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         uuid = s == null ? UUID.randomUUID().toString() : s;
@@ -376,7 +361,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String[] e = connection.nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                        if (writeHeaders && !asyncSupport.supportWebSocket()) {
+                        if (!asyncSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
                             req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
@@ -387,20 +372,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
-            }
-
-            if (writeHeaders && injectCacheHeaders) {
-                // Set to expire far in the past.
-                response.setHeader(EXPIRES, "-1");
-                // Set standard HTTP/1.1 no-cache headers.
-                response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
-                // Set standard HTTP/1.0 no-cache header.
-                response.setHeader(PRAGMA, "no-cache");
-            }
-
-            if (writeHeaders && enableAccessControl) {
-                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
-                response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             }
 
             req.setAttribute(PRE_SUSPEND, "true");
