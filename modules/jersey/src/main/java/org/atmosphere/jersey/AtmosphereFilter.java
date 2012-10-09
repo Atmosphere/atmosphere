@@ -341,72 +341,74 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
                     final boolean waitForResource = waitFor == -1 ? true : false;
-                    final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                    synchronized (BroadcasterFactory.getDefault()) {
+                        final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
 
-                    if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
-                        boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
-                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
+                        if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
+                            boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
+                            final boolean resumeOnBroadcast = resumeOnBroadcast(false);
 
-                        if (listeners != null) {
-                            for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
-                                try {
-                                    AtmosphereResourceEventListener el = listener.newInstance();
-                                    InjectorProvider.getInjector().inject(el);
-                                    r.addEventListener(el);
-                                } catch (Throwable t) {
-                                    throw new WebApplicationException(
-                                            new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
-                                }
-                            }
-                        }
-                        final Object entity = response.getEntity();
-
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                            @Override
-                            public void onSuspend(AtmosphereResourceEvent event) {
-                                try {
-                                    if (entity != null) {
-                                        if (waitForResource) {
-                                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
-                                        } else {
-                                            bcaster.broadcast(entity);
-                                        }
+                            if (listeners != null) {
+                                for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
+                                    try {
+                                        AtmosphereResourceEventListener el = listener.newInstance();
+                                        InjectorProvider.getInjector().inject(el);
+                                        r.addEventListener(el);
+                                    } catch (Throwable t) {
+                                        throw new WebApplicationException(
+                                                new IllegalStateException("Invalid AtmosphereResourceEventListener " + listener));
                                     }
-                                } finally {
-                                    event.getResource().removeEventListener(this);
                                 }
                             }
-                        });
+                            final Object entity = response.getEntity();
 
-                        if (resumeOnBroadcast) {
-                            servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
-                        }
+                            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                                @Override
+                                public void onSuspend(AtmosphereResourceEvent event) {
+                                    try {
+                                        if (entity != null) {
+                                            if (waitForResource) {
+                                                bcaster.awaitAndBroadcast(entity, 10, TimeUnit.SECONDS);
+                                            } else {
+                                                bcaster.broadcast(entity);
+                                            }
+                                        }
+                                    } finally {
+                                        event.getResource().removeEventListener(this);
+                                    }
+                                }
+                            });
 
-                        r.setBroadcaster(bcaster);
-                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
-                    } else {
-                        Object entity = response.getEntity();
-                        if (waitForResource) {
-                            bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                            if (resumeOnBroadcast) {
+                                servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
+                            }
+
+                            r.setBroadcaster(bcaster);
+                            executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
                         } else {
-                            bcaster.broadcast(entity);
-                        }
+                            Object entity = response.getEntity();
+                            if (waitForResource) {
+                                bcaster.awaitAndBroadcast(entity, 30, TimeUnit.SECONDS);
+                            } else {
+                                bcaster.broadcast(entity);
+                            }
 
-                        if (subProtocol == null && writeEntity) {
-                            try {
-                                if (Callable.class.isAssignableFrom(entity.getClass())) {
-                                    entity = Callable.class.cast(entity).call();
+                            if (subProtocol == null && writeEntity) {
+                                try {
+                                    if (Callable.class.isAssignableFrom(entity.getClass())) {
+                                        entity = Callable.class.cast(entity).call();
+                                    }
+                                    synchronized (response) {
+                                        response.setEntity(entity);
+                                        response.write();
+                                    }
+                                } catch (Throwable t) {
+                                    logger.debug("Error running Callable", t);
+                                    response.setEntity(null);
                                 }
-                                synchronized (response) {
-                                    response.setEntity(entity);
-                                    response.write();
-                                }
-                            } catch (Throwable t) {
-                                logger.debug("Error running Callable", t);
+                            } else {
                                 response.setEntity(null);
                             }
-                        } else {
-                            response.setEntity(null);
                         }
                     }
                     break;
