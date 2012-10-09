@@ -55,15 +55,14 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Collection;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.servlet.http.HttpSession;
 
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -282,8 +281,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 notifyListeners();
-                listeners.clear();
-
                 try {
                     if (!b.isDestroyed()) {
                         broadcaster.removeAtmosphereResource(this);
@@ -321,12 +318,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (req.getAttribute(PRE_SUSPEND) == null) {
                     asyncSupport.action(this);
                 }
+
+                // https://github.com/Atmosphere/atmosphere/issues/651
+                response.closeStreamOrWriter();
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
+        notifyListeners(new AtmosphereResourceEventImpl(this, true, false));
+        listeners.clear();
         return this;
     }
 
@@ -748,10 +750,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isResuming() || event.isResumedOnTimeout()) {
-                onResume(event);
-            } else if (event.isCancelled()) {
+            if (event.isCancelled()) {
                 onDisconnect(event);
+            } else if (event.isResuming() || event.isResumedOnTimeout()) {
+                onResume(event);
             } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
                 onSuspend(event);
             } else if (event.throwable() != null) {
