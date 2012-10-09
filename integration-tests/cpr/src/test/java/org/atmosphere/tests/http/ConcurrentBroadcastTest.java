@@ -173,7 +173,7 @@ public class ConcurrentBroadcastTest {
                     broadcasterReady.countDown();
                 }
             });
-            r.suspend(-1, false);
+            r.suspend(-1);
         }
 
         @Override

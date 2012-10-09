@@ -28,15 +28,7 @@ class AtmosphereHandler extends AbstractReflectorAtmosphereHandler {
       r.addEventListener(new Console)
       res.setContentType("text/html;charset=ISO-8859-1")
       var b: Broadcaster = lookupBroadcaster(req.getPathInfo)
-      r.setBroadcaster(b)
-
-      if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
-        req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true)
-        r.suspend(-1, false)
-      }
-      else {
-        r.suspend(-1)
-      }
+      r.setBroadcaster(b).suspend(-1)
     }
     else if ("POST".equalsIgnoreCase(method)) {
       var b: Broadcaster = lookupBroadcaster(req.getPathInfo)

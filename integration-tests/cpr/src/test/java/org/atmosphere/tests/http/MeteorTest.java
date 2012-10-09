@@ -109,7 +109,7 @@ public class MeteorTest {
                 public void onSuspend(AtmosphereResourceEvent event) {
                     event.getResource().getBroadcaster().broadcast("resume");
                 }
-            }).suspend(5000, false);
+            }).suspend(5000);
 
             if (servletLatch != null) {
                 servletLatch.countDown();
@@ -128,7 +128,7 @@ public class MeteorTest {
                 public void onSuspend(AtmosphereResourceEvent event) {
                     event.getResource().getBroadcaster().broadcast("resume");
                 }
-            }).resumeOnBroadcast(true).suspend(20000, false);
+            }).resumeOnBroadcast(true).suspend(20000);
 
             if (servletLatch != null) {
                 servletLatch.countDown();

@@ -30,9 +30,6 @@ class Meteor extends HttpServlet {
 
     if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
       req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, true)
-      m.suspend(-1, false)
-    }
-    else {
       m.suspend(-1)
     }
   }

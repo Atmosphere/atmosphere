@@ -80,7 +80,7 @@ public abstract class BasePubSubTest extends BaseTest {
             String resume = r.getResponseBody();
             String[] ct = r.getContentType().toLowerCase().split(";");
             assertEquals(ct[0].trim(), "text/plain");
-            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
+            assertEquals(resume, createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -217,7 +217,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foo\nbar\n");
+            assertEquals(r.getResponseBody(), createStreamingPadding(null) + "foo\nbar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
             logger.error("test failed", e);
@@ -264,7 +264,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foo\nbar\n");
+            assertEquals(r.getResponseBody(), createStreamingPadding(null) + "foo\nbar\n");
             assertEquals(r.getStatusCode(), 200);
             long current = System.currentTimeMillis() - t1;
             assertTrue(current > 5000 && current < 10000);
@@ -499,7 +499,7 @@ public abstract class BasePubSubTest extends BaseTest {
             Response r = response.get();
 
             assertNotNull(r);
-            assertEquals(r.getResponseBody(), AtmosphereResourceImpl.createStreamingPadding(null) + "foobar\n");
+            assertEquals(r.getResponseBody(), createStreamingPadding(null) + "foobar\n");
             assertEquals(r.getStatusCode(), 200);
         } catch (Exception e) {
             logger.error("test failed", e);
@@ -507,4 +507,5 @@ public abstract class BasePubSubTest extends BaseTest {
         }
         c.close();
     }
+
 }

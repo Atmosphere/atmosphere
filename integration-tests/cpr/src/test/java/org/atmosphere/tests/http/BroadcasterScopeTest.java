@@ -100,7 +100,7 @@ public class BroadcasterScopeTest {
         public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
             final Meteor m = Meteor.build(req);
 
-            m.suspend(5000, false);
+            m.suspend(5000);
             m.getBroadcaster().setScope(Broadcaster.SCOPE.REQUEST);
             req.getSession().setAttribute("meteor", m);
 

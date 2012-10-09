@@ -183,7 +183,7 @@ public class BroadcasterLifecycleTest {
             broadcaster = BroadcasterFactory.getDefault().get("Test-Destroy");
             r.setBroadcaster(broadcaster);
             ref.set(r);
-            r.suspend(-1, false);
+            r.suspend(-1);
         }
 
         @Override

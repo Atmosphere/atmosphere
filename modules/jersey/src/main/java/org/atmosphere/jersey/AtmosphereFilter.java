@@ -174,7 +174,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         private final Suspend.SCOPE scope;
         private final Class<BroadcastFilter>[] filters;
         private Class<? extends AtmosphereResourceEventListener>[] listeners = null;
-        private final boolean outputComments;
         private final ArrayList<ClusterBroadcastFilter> clusters = new ArrayList<ClusterBroadcastFilter>();
         private final String topic;
         private final boolean writeEntity;
@@ -192,30 +191,24 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this(action, timeout, waitFor, Suspend.SCOPE.APPLICATION);
         }
 
-        protected Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope) {
-            this(action, timeout, waitFor, scope, true);
-        }
-
-        public Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope, boolean outputComments) {
-            this(action, timeout, waitFor, scope, outputComments, null, null, true);
+        public Filter(Action action, long timeout, int waitFor, Suspend.SCOPE scope) {
+            this(action, timeout, waitFor, scope, null, null, true);
         }
 
         protected Filter(Action action,
                          long timeout,
                          int waitFor,
                          Suspend.SCOPE scope,
-                         boolean outputComments,
                          Class<BroadcastFilter>[] filters,
                          String topic,
                          boolean writeEntity) {
-            this(action, timeout, waitFor, scope, outputComments, filters, topic, writeEntity, null);
+            this(action, timeout, waitFor, scope, filters, topic, writeEntity, null);
         }
 
         protected Filter(Action action,
                          long timeout,
                          int waitFor,
                          Suspend.SCOPE scope,
-                         boolean outputComments,
                          Class<BroadcastFilter>[] filters,
                          String topic,
                          boolean writeEntity,
@@ -224,7 +217,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             this.action = action;
             this.timeout = timeout;
             this.scope = scope;
-            this.outputComments = outputComments;
             this.waitFor = waitFor;
             this.filters = filters;
             this.topic = topic;
@@ -246,15 +238,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 return true;
             }
             return resumeOnBroadcast;
-        }
-
-        boolean outputJunk(AtmosphereResource r, boolean outputJunk) {
-            if (outputJunk && !r.transport().equals(AtmosphereResource.TRANSPORT.STREAMING)
-                    && !r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) {
-                return false;
-            }
-
-            return outputJunk;
         }
 
         /**
@@ -383,7 +366,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
 
                         r.setBroadcaster(bcaster);
-                        executeSuspend(r, timeout, outputJunk, resumeOnBroadcast, null, request, response, writeEntity);
+                        executeSuspend(r, timeout, resumeOnBroadcast, null, request, response, writeEntity);
                     } else {
                         Object entity = response.getEntity();
                         if (waitForResource) {
@@ -412,15 +395,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     break;
                 case SUSPEND_RESPONSE:
                     SuspendResponse<?> s = SuspendResponse.class.cast(JResponseAsResponse.class.cast(response.getResponse()).getJResponse());
-
-                    boolean outputJunk = outputJunk(r, s.outputComments());
                     boolean resumeOnBroadcast = resumeOnBroadcast(s.resumeOnBroadcast());
 
                     for (AtmosphereResourceEventListener el : s.listeners()) {
                         r.addEventListener(el);
                     }
 
-                    if (s.getEntity() == null && outputJunk) {
+                    if (s.getEntity() == null) {
                         //https://github.com/Atmosphere/atmosphere/issues/423
                         response.setEntity("");
                     }
@@ -430,14 +411,13 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         bc = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     }
 
-                    suspend(resumeOnBroadcast, outputJunk,
+                    suspend(resumeOnBroadcast,
                             translateTimeUnit(s.period().value(), s.period().timeUnit()), request, response, bc, r, s.scope(), s.writeEntity());
 
                     break;
                 case SUBSCRIBE:
                 case SUSPEND:
                 case SUSPEND_RESUME:
-                    outputJunk = outputJunk(r, outputComments);
                     resumeOnBroadcast = resumeOnBroadcast((action == Action.SUSPEND_RESUME));
 
                     if (listeners != null) {
@@ -465,7 +445,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         broadcaster = BroadcasterFactory.getDefault().lookup(c, topic, true);
                     }
 
-                    suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
+                    suspend(resumeOnBroadcast, timeout, request, response,
                             broadcaster, r, scope, writeEntity);
 
                     break;
@@ -730,7 +710,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         void suspend(boolean resumeOnBroadcast,
-                     boolean comments,
                      long timeout,
                      ContainerRequest request,
                      ContainerResponse response,
@@ -805,13 +784,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 servletReq.setAttribute(RESUME_ON_BROADCAST, new Boolean(true));
             }
 
-            executeSuspend(r, timeout, comments, resumeOnBroadcast, location, request, response, flushEntity);
+            executeSuspend(r, timeout, resumeOnBroadcast, location, request, response, flushEntity);
 
         }
 
         void executeSuspend(AtmosphereResource r,
                             long timeout,
-                            boolean comments,
                             boolean resumeOnBroadcast,
                             URI location,
                             ContainerRequest request,
@@ -869,38 +847,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
                 servletReq.setAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE, ct);
 
-                boolean eclipse362468 = false;
-                String serverInfo = r.getAtmosphereConfig().getServletContext().getServerInfo();
-                if (serverInfo.indexOf("jetty") != -1) {
-                    try {
-                        String[] jettyVersion = serverInfo.substring(6).split("\\.");
-                        // https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468
-                        eclipse362468 = ((Integer.valueOf(jettyVersion[0]) == 8 && Integer.valueOf(jettyVersion[1]) == 0 && Integer.valueOf(jettyVersion[2]) > 1))
-                                || ((Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) == 5 && Integer.valueOf(jettyVersion[2]) == 4));
-                    } catch (Throwable t) {
-                        logger.warn("Unable to parse server name {}", serverInfo);
-                    }
-
-                    if (comments && eclipse362468) {
-                        logger.debug("Padding response is disabled to workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=362468");
-                    }
-                }
-
-                if (!eclipse362468 && comments && !resumeOnBroadcast) {
-                    String padding = (String) servletReq.getAttribute(STREAMING_PADDING_MODE);
-                    String paddingData = AtmosphereResourceImpl.createStreamingPadding(padding);
-
-                    if (location != null) {
-                        b = b.header(HttpHeaders.LOCATION, location);
-                        location = null;
-                    }
-
-                    synchronized (response) {
-                        response.setResponse(b.entity(paddingData).build());
-                        response.write();
-                    }
-                }
-
                 if (entity != null && flushEntity) {
                     try {
                         if (Callable.class.isAssignableFrom(entity.getClass())) {
@@ -922,7 +868,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 }
 
                 response.setEntity(null);
-                r.suspend(timeout, false);
+                r.suspend(timeout);
             } catch (IOException ex) {
                 throw new WebApplicationException(ex);
             }
@@ -961,10 +907,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Broadcast.class).value();
 
             if (am.getAnnotation(Broadcast.class).resumeOnBroadcast()) {
-                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, broadcastFilter, null,
                         am.getAnnotation(Broadcast.class).writeEntity());
             } else {
-                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, true, broadcastFilter, null,
+                f = new Filter(Action.BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, broadcastFilter, null,
                         am.getAnnotation(Broadcast.class).writeEntity());
             }
 
@@ -990,7 +936,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Asynchronous.class).broadcastFilter();
 
             boolean wait = am.getAnnotation(Asynchronous.class).waitForResource();
-            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter,
+            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, broadcastFilter,
                     am.getAnnotation(Asynchronous.class).header(), am.getAnnotation(Asynchronous.class).writeEntity());
             f.setListeners(am.getAnnotation(Asynchronous.class).eventListeners());
             list.addFirst(f);
@@ -1003,14 +949,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             suspendTimeout = translateTimeUnit(suspendTimeout, tu);
 
             Suspend.SCOPE scope = am.getAnnotation(Suspend.class).scope();
-            boolean outputComments = am.getAnnotation(Suspend.class).outputComments();
 
             if (am.getAnnotation(Suspend.class).resumeOnBroadcast()) {
                 f = new Filter(Action.SUSPEND_RESUME,
                         suspendTimeout,
                         0,
                         scope,
-                        outputComments,
                         null,
                         null,
                         true,
@@ -1020,7 +964,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         suspendTimeout,
                         0,
                         scope,
-                        outputComments,
                         null,
                         null,
                         true,
@@ -1033,7 +976,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Subscribe.class)) {
             f = new Filter(Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
+                     null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
             list.addFirst(f);
@@ -1041,7 +984,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Publish.class)) {
             f = new Filter(Action.PUBLISH, -1, -1, Suspend.SCOPE.APPLICATION,
-                    false, null, am.getAnnotation(Publish.class).value(), true);
+                     null, am.getAnnotation(Publish.class).value(), true);
             list.addFirst(f);
         }
 

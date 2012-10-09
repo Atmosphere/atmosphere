@@ -212,7 +212,7 @@ public class Meteor {
 
     /**
      * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be
-     * explicitly set by the client by adding the appropriate {@link HeaderConfig.X_ATMOSPHERE_TRANSPORT} value,
+     * explicitly set by the client by adding the appropriate {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT} value,
      * which can be long-polling, streaming, websocket or jsonp.
      * @return
      */
@@ -232,36 +232,6 @@ public class Meteor {
     public Meteor suspend(long timeout, TimeUnit timeunit) {
         if (destroyed()) return null;
         r.suspend(timeout, timeunit);
-        return this;
-    }
-
-    /**
-     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-     * suspend the response forever.
-     *
-     * @param l              the maximum time a response stay suspended.
-     * @param outputComments the maximum time a response stay suspended.
-     * @return {@link Meteor}
-     */
-    public Meteor suspend(long l, boolean outputComments) {
-        if (destroyed()) return null;
-        r.suspend(l, outputComments);
-        return this;
-    }
-
-    /**
-     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-     * suspend the response forever.
-     *
-     * @param timeout        the maximum time a response stay suspended.
-     * @param timeunit       The time unit of the timeout value
-     * @param outputComments the maximum time a response stay suspended.
-     * @return {@link Meteor}
-     */
-
-    public Meteor suspend(long timeout, TimeUnit timeunit, boolean outputComments) {
-        if (destroyed()) return null;
-        r.suspend(timeout, timeunit, outputComments);
         return this;
     }
 

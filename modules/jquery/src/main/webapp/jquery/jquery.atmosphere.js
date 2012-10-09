@@ -1374,43 +1374,15 @@ jQuery.atmosphere = function() {
                         }
 
                         if (update) {
-                            var responseText = ajaxRequest.responseText;
+                            var responseText = jQuery.trim(ajaxRequest.responseText);
 
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
                                 var text = responseText.substring(rq.lastIndex, responseText.length);
-                                _response.isJunkEnded = true;
 
-                                //fix junk is comming in parts
-                                if (!_response.junkFull && (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1 || text.indexOf("<!-- EOD -->") == -1)) {
-                                    if (!jQuery.browser.opera)
-                                        return;
-                                }
-                                _response.junkFull = true;
-
-                                //if it's the start and we see the junk start
-                                //fix for reconnecting on chrome - junk is comming in parts
-                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1 && text.indexOf("<!-- EOD -->") != -1) {
-                                    _response.isJunkEnded = false;
-                                }
-
-                                if (!_response.isJunkEnded) {
-                                    var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLength = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
-
-                                    if (junkEnd > endOfJunkLength && junkEnd != text.length) {
-                                        _response.responseBody = text.substring(junkEnd);
-                                        //fix cached messages
-                                        skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
-                                    } else {
-                                        skipCallbackInvocation = true;
-                                    }
-                                } else {
-                                    var message = responseText.substring(rq.lastIndex, responseText.length);
-                                    skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                }
+                                var message = responseText.substring(rq.lastIndex, responseText.length);
+                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                 rq.lastIndex = responseText.length;
 
                                 if (jQuery.browser.opera) {
@@ -1434,25 +1406,17 @@ jQuery.atmosphere = function() {
                                                 _response.status = 404;
                                             }
 
-                                            if (!_response.junkFull) {
-                                                var endOfJunk = "<!-- EOD -->";
-                                                var endOfJunkLength = endOfJunk.length;
-                                                var junkEnd = ajaxRequest.responseText.indexOf(endOfJunk) + endOfJunkLength;
-                                                rq.lastIndex = junkEnd; //skip to end of junk
-                                                _response.junkFull = true;
-                                            } else {
-                                                //any message from the server will reset the last ping time
-                                                rq.lastPingTime = (new Date()).getTime();
-                                                _response.state = "messageReceived";
-                                                _response.responseBody = ajaxRequest.responseText.substring(rq.lastIndex);
-                                                rq.lastIndex = ajaxRequest.responseText.length;
+                                            //any message from the server will reset the last ping time
+                                            rq.lastPingTime = (new Date()).getTime();
+                                            _response.state = "messageReceived";
+                                            _response.responseBody = ajaxRequest.responseText.substring(rq.lastIndex);
+                                            rq.lastIndex = ajaxRequest.responseText.length;
 
-                                                _invokeCallback();
-                                                if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
-                                                    // Close and reopen connection on large data received
-                                                    ajaxRequest.abort();
-                                                    _doRequest(ajaxRequest, rq, true);
-                                                }
+                                            _invokeCallback();
+                                            if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
+                                                // Close and reopen connection on large data received
+                                                ajaxRequest.abort();
+                                                _doRequest(ajaxRequest, rq, true);
                                             }
                                         }
                                     }, 0);

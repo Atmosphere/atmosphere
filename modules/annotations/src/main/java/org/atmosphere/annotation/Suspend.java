@@ -111,7 +111,9 @@ public @interface Suspend {
 
     /**
      * By default, output some comments when suspending the connection.
+     * Deprecated. No longer required
      */
+    @Deprecated
     boolean outputComments() default true;
 
     /**

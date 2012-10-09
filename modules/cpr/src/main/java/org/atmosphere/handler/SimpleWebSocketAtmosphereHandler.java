@@ -75,7 +75,7 @@ public class SimpleWebSocketAtmosphereHandler extends AbstractReflectorAtmospher
      */
     public void upgrade(AtmosphereResource resource) throws IOException {
         logger.debug("Suspending request: {}", resource.getRequest());
-        resource.suspend(-1, false);
+        resource.suspend(-1);
     }
 
     @Override
