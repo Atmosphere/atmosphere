@@ -2018,12 +2018,12 @@ jQuery.atmosphere = function() {
 
                 try {
                     var tempDate = xdr.getResponseHeader('X-Cache-Date');
-                    if (tempDate != null || tempDate != undefined) {
+                    if (tempDate != null && tempDate != undefined) {
                         request.lastTimestamp = tempDate.split(" ").pop();
                     }
 
                     tempUUID = xdr.getResponseHeader('X-Atmosphere-tracking-id');
-                    if (tempUUID != null || tempUUID != undefined) {
+                    if (tempUUID != null && tempUUID != undefined) {
                         request.uuid = tempUUID.split(" ").pop();
                     }
 
