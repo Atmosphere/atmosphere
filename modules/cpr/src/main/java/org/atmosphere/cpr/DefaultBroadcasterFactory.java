@@ -83,9 +83,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
-    
+
     private final Class<? extends Broadcaster> clazz;
-    
+
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
@@ -236,11 +236,13 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 logger.debug("Removing destroyed Broadcaster {}", b.getID());
                 store.remove(b.getID(), b);
             }
-            if (store.putIfAbsent(id, createBroadcaster(c, id)) == null) {
-                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
-            }
 
             b = store.get(id);
+            if (b == null) {
+                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+                b = createBroadcaster(c, id);
+                store.put(id, b);
+            }
         }
 
         return b;
