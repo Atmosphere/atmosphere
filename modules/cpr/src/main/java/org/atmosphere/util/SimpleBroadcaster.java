@@ -93,8 +93,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     protected void start() {
         if (!started.getAndSet(true)) {
             setID(name);
-            broadcasterCache = bc.getBroadcasterCache();
-            broadcasterCache.start();
         }
     }
 
