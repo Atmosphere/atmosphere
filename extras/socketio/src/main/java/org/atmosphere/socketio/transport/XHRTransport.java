@@ -104,7 +104,8 @@ public abstract class XHRTransport extends AbstractTransport {
                                 AtmosphereResourceImpl resource = session.getAtmosphereResourceImpl();
                                 // if BroadcastCache is available, add the message to the cache
                                 if (resource != null && DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())) {
-                                    DefaultBroadcaster.class.cast(resource.getBroadcaster()).broadcasterCache.addToCache(resource.getBroadcaster().getID(), resource, msg);
+                                    DefaultBroadcaster.class.cast(resource.getBroadcaster()).getBroadcasterConfig().getBroadcasterCache()
+                                            .addToCache(resource.getBroadcaster().getID(), resource, msg);
                                 }
                             }
                             break;
@@ -198,7 +199,8 @@ public abstract class XHRTransport extends AbstractTransport {
                                 if (DefaultBroadcaster.class.isAssignableFrom(resource.getBroadcaster().getClass())) {
 
                                     List<Object> cachedMessages = DefaultBroadcaster.class.cast(resource.getBroadcaster())
-                                            .broadcasterCache.retrieveFromCache(resource.getBroadcaster().getID(), resource);
+                                            .getBroadcasterConfig().getBroadcasterCache()
+                                            .retrieveFromCache(resource.getBroadcaster().getID(), resource);
 
                                     if (cachedMessages != null) {
                                         if (cachedMessages.size() > 1) {
