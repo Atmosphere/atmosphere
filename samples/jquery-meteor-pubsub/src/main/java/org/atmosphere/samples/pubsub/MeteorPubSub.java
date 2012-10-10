@@ -50,14 +50,7 @@ public class MeteorPubSub extends HttpServlet {
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
         m.setBroadcaster(b);
 
-        String header = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (header != null && header.equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
-            req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, Boolean.TRUE);
-            m.suspend(-1, false);
-        } else {
-            m.suspend(-1);
-        }
-
+        m.suspend(-1);
     }
 
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {

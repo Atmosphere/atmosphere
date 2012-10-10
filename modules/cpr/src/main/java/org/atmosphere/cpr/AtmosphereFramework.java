@@ -30,8 +30,10 @@ import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
+import org.atmosphere.interceptor.DefaultHeadersInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
+import org.atmosphere.interceptor.StreamingAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
@@ -524,12 +526,23 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (AtmosphereInterceptor i: interceptors) {
                 if (i.getClass().isAssignableFrom(TrackMessageSizeInterceptor.class)) {
                     found = true;
+                    break;
+                }
+            }
+
+            for (Entry<String, AtmosphereHandlerWrapper> e : atmosphereHandlers.entrySet()) {
+                for (AtmosphereInterceptor i : e.getValue().interceptors) {
+                    if (i.getClass().isAssignableFrom(TrackMessageSizeInterceptor.class)) {
+                        found = true;
+                        break;
+                    }
                 }
             }
 
             for (String i: broadcasterFilters) {
                 if (i.equals(TrackMessageSizeFilter.class.getName())) {
                     found = true;
+                    break;
                 }
             }
 
@@ -581,6 +594,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
 
+        logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null) {
             // ADD JSONP support
@@ -589,9 +603,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(SSEAtmosphereInterceptor.class));
             // Android 2.3.x streaming support
             interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
+            // WebKit & IE Padding
+            interceptors.addFirst(newAInterceptor(StreamingAtmosphereInterceptor.class));
+            // Default Interceptor
+            interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
         }
-        logger.info("Installed Default AtmosphereInterceptor {}. " +
-                "Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
+        logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.");
     }
 
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
@@ -599,6 +616,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         try {
             ai = (AtmosphereInterceptor) getClass().getClassLoader().loadClass(a.getName()).newInstance();
             ai.configure(config);
+            logger.info("\t{} : {}", a.getName(), ai);
         } catch (Exception ex) {
             logger.warn("", ex);
         }

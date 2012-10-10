@@ -55,15 +55,14 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Collection;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.servlet.http.HttpSession;
 
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -97,8 +96,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private Serializer serializer;
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
-    private String beginCompatibleData;
-    private boolean useWriter = true;
     private boolean isResumed = false;
     private boolean isCancelled = false;
     private boolean resumeOnBroadcast = false;
@@ -108,12 +105,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
 
-    private final boolean injectCacheHeaders;
-    private final boolean enableAccessControl;
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
     private AtmosphereHandler atmosphereHandler;
-    private final boolean writeHeaders;
-    private String padding;
     private final String uuid;
     protected HttpSession session;
 
@@ -137,22 +130,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         this.asyncSupport = asyncSupport;
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
-
-        String nocache = config.getInitParameter(ApplicationConfig.NO_CACHE_HEADERS);
-        injectCacheHeaders = nocache != null ? false : true;
-
-        String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-        enableAccessControl = ac != null ? !Boolean.parseBoolean(ac) : true;
-
-        String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
-        writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
-
-
-        req.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
-        req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
-
-        padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
-        req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
         String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         uuid = s == null ? UUID.randomUUID().toString() : s;
@@ -282,7 +259,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 notifyListeners();
-                listeners.clear();
 
                 try {
                     if (!b.isDestroyed()) {
@@ -330,6 +306,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
+        notifyListeners(new AtmosphereResourceEventImpl(this, true, false));
+        listeners.clear();
         return this;
     }
 
@@ -345,32 +323,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereResource suspend(long timeout) {
-        return suspend(timeout, true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public AtmosphereResource suspend(long timeout, TimeUnit timeunit) {
-        return suspend(timeout, timeunit, true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AtmosphereResource suspend(long timeout, TimeUnit timeunit, boolean flushComment) {
         long timeoutms = -1;
         if (timeunit != null) {
             timeoutms = TimeUnit.MILLISECONDS.convert(timeout, timeunit);
         }
 
-        return suspend(timeoutms, flushComment);
+        return suspend(timeoutms);
     }
 
-    public AtmosphereResource suspend(long timeout, boolean flushComment) {
+    public AtmosphereResource suspend(long timeout) {
 
         if (event.isSuspended() || disableSuspend) return this;
 
@@ -399,43 +361,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String[] e = connection.nextElement().toString().split(",");
                 for (String upgrade : e) {
                     if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                        if (writeHeaders && !asyncSupport.supportWebSocket()) {
+                        if (!asyncSupport.supportWebSocket()) {
                             response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         } else {
                             req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.WEBSOCKET_TRANSPORT);
-                            flushComment = false;
                         }
                     }
                 }
             }
 
-            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) != null && !req.getHeader(X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase("streaming")) {
-                flushComment = false;
-            }
-
-            if (flushComment) {
-                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
-            } else if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
             }
 
-            if (writeHeaders && injectCacheHeaders) {
-                // Set to expire far in the past.
-                response.setHeader(EXPIRES, "-1");
-                // Set standard HTTP/1.1 no-cache headers.
-                response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
-                // Set standard HTTP/1.0 no-cache header.
-                response.setHeader(PRAGMA, "no-cache");
-            }
-
-            if (writeHeaders && enableAccessControl) {
-                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
-                response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            }
-
-            if (flushComment) {
-                write(true);
-            }
             req.setAttribute(PRE_SUSPEND, "true");
             action.type(Action.TYPE.SUSPEND);
             action.timeout(timeout);
@@ -465,38 +403,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             notifyListeners();
         }
         return this;
-    }
-
-    void write(boolean flushPadding) {
-
-        if (beginCompatibleData == null) {
-            beginCompatibleData = createStreamingPadding(padding);
-        }
-
-        try {
-            if (useWriter && !((Boolean) req.getAttribute(ApplicationConfig.PROPERTY_USE_STREAM))) {
-                try {
-                    response.getWriter();
-                } catch (IllegalStateException e) {
-                    return;
-                }
-
-                if (flushPadding) response.getWriter().write(beginCompatibleData);
-                response.getWriter().flush();
-            } else {
-                try {
-                    response.getOutputStream();
-                } catch (IllegalStateException e) {
-                    return;
-                }
-
-                if (flushPadding) response.getOutputStream().write(beginCompatibleData.getBytes());
-                response.getOutputStream().flush();
-            }
-
-        } catch (Throwable ex) {
-            logger.warn("failed to write to response", ex);
-        }
     }
 
     /**
@@ -673,35 +579,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Output message when Atmosphere suspend a connection.
-     *
-     * @return message when Atmosphere suspend a connection.
-     */
-    public static String createStreamingPadding(String padding) {
-        StringBuilder s = new StringBuilder();
-
-        if (padding == null || padding.equalsIgnoreCase("atmosphere")) {
-            s.append("<!-- ----------------------------------------------------------" +
-                    "------ http://github.com/Atmosphere ----------------------------" +
-                    "-------------------------------------------- -->\n");
-            s.append("<!-- Welcome to the Atmosphere Framework. To work with all the" +
-                    " browsers when suspending connection, Atmosphere must output some" +
-                    " data to makes WebKit based browser working.-->\n");
-            for (int i = 0; i < 10; i++) {
-                s.append("<!-- ----------------------------------------------------------" +
-                        "---------------------------------------------------------------" +
-                        "-------------------------------------------- -->\n");
-            }
-            s.append("<!-- EOD -->");
-        } else {
-            for (int i = 0; i < 4096; i++) {
-                s.append(" ");
-            }
-        }
-        return s.toString();
-    }
-
-    /**
      * Add a {@link AtmosphereResourceEventListener}.
      *
      * @param e an instance of AtmosphereResourceEventListener
@@ -752,10 +629,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isResuming() || event.isResumedOnTimeout()) {
-                onResume(event);
-            } else if (event.isCancelled()) {
+            if (event.isCancelled()) {
                 onDisconnect(event);
+            } else if (event.isResuming() || event.isResumedOnTimeout()) {
+                onResume(event);
             } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {
                 onSuspend(event);
             } else if (event.throwable() != null) {
@@ -870,7 +747,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 ",\n asyncSupport=" + asyncSupport +
                 ",\n serializer=" + serializer +
                 ",\n isInScope=" + isInScope +
-                ",\n useWriter=" + useWriter +
                 ",\n listeners=" + listeners +
                 '}';
     }
@@ -890,15 +766,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             session = req.getSession(create);
         }
         return session;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public AtmosphereResource padding(String padding) {
-        this.padding = padding;
-        return this;
     }
 
     /**

@@ -47,7 +47,7 @@ public class TestResource {
     AtmosphereResource ar;
 
     @GET
-    @Suspend(period = 5000, outputComments = false)
+    @Suspend(period = 5000)
     public String subscribe() {
         assertNotNull(topic.toString());
         assertNotNull(bf.toString());

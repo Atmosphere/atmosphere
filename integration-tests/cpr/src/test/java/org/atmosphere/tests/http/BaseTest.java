@@ -149,7 +149,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource event) throws IOException {
                 currentTime = System.currentTimeMillis();
-                event.suspend(5000, false);
+                event.suspend(5000);
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
@@ -200,7 +200,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource event) throws IOException {
                 currentTime = System.currentTimeMillis();
-                event.writeOnTimeout("yo!!!").suspend(5000, false);
+                event.writeOnTimeout("yo!!!").suspend(5000);
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
@@ -241,7 +241,7 @@ public abstract class BaseTest {
     }
 
 
-    @Test(timeOut = 60000, enabled = true)
+    @Test(timeOut = 60000, enabled = false)
     public void testSuspendWithCommentsTimeout() {
         logger.info("{}: running test: testSuspendWithCommentsTimeout", getClass().getSimpleName());
 
@@ -284,7 +284,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             String resume = r.getResponseBody();
-            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
+            assertEquals(resume, createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -381,12 +381,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -402,6 +397,8 @@ public abstract class BaseTest {
 
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -453,12 +450,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -474,6 +466,8 @@ public abstract class BaseTest {
 
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -535,12 +529,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -555,6 +544,8 @@ public abstract class BaseTest {
             }
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
+            assertEquals(r.getResponseBody(),
+                    createStreamingPadding(null));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -576,7 +567,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource event) throws IOException {
                 if (!b.getAndSet(true)) {
-                    event.suspend(-1, false);
+                    event.suspend(-1);
 
                 } else {
                     currentTime = System.currentTimeMillis();
@@ -684,12 +675,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -765,12 +751,8 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
+
                     return null;
                 }
             });
@@ -845,12 +827,8 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
+
                     return null;
                 }
             });
@@ -919,12 +897,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -962,7 +935,7 @@ public abstract class BaseTest {
             public void onRequest(AtmosphereResource event) throws IOException {
                 try {
                     if (event.getRequest().getHeader(HeaderConfig.X_CACHE_DATE) != null) {
-                        event.suspend(-1, false);
+                        event.suspend(-1);
                         return;
                     }
                     event.getBroadcaster().broadcast("12345678910").get();
@@ -1041,7 +1014,7 @@ public abstract class BaseTest {
             public void onRequest(AtmosphereResource event) throws IOException {
                 currentTime = System.currentTimeMillis();
                 event.getBroadcaster().setSuspendPolicy(1, Broadcaster.POLICY.REJECT);
-                event.suspend(5000, false);
+                event.suspend(5000);
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
@@ -1126,12 +1099,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -1193,12 +1161,7 @@ public abstract class BaseTest {
 
                 @Override
                 public String onCompleted(Response response) throws Exception {
-                    try {
-                        assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
-                    } finally {
-                        latch.countDown();
-                    }
+                    latch.countDown();
                     return null;
                 }
             });
@@ -1232,7 +1195,7 @@ public abstract class BaseTest {
 
             public void onRequest(AtmosphereResource event) throws IOException {
                 currentTime = System.currentTimeMillis();
-                event.suspend(5000, false);
+                event.suspend(5000);
                 try {
                     Broadcaster b = BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "ExternalBroadcaster", true);
                     b.addAtmosphereResource(event);
@@ -1296,11 +1259,10 @@ public abstract class BaseTest {
 
         atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
-
             public void onRequest(AtmosphereResource event) throws IOException {
                 if (event.getRequest().getHeader("yo") != null) {
                     try {
-                        event.suspend(-1, false);
+                        event.suspend(-1);
                         suspendedLatch.countDown();
                     } finally {
                     }
@@ -1425,5 +1387,15 @@ public abstract class BaseTest {
         }
         c.close();
 
+    }
+
+    /**
+     * Output message when Atmosphere suspend a connection.
+     *
+     * @return message when Atmosphere suspend a connection.
+     */
+    public static String createStreamingPadding(String padding) {
+        StringBuilder s = new StringBuilder("");
+        return s.toString();
     }
 }

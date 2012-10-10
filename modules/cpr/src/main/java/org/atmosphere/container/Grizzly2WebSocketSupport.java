@@ -17,11 +17,11 @@ package org.atmosphere.container;
 
 import org.atmosphere.container.version.Grizzly2WebSocket;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.server.Request;
@@ -50,7 +50,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
+public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Grizzly2WebSocketSupport.class);
 
@@ -71,7 +71,11 @@ public class Grizzly2WebSocketSupport extends AsynchronousProcessor {
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
-        return suspended(req, res);
+        if (Utils.webSocketEnabled(req)) {
+            return suspended(req, res);
+        } else {
+            return super.service(req, res);
+        }
     }
 
     /**

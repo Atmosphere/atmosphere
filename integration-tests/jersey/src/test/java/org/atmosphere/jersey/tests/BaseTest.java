@@ -90,4 +90,14 @@ public abstract class BaseTest {
         if (atmoServlet != null) atmoServlet.destroy();
         stopServer();
     }
+
+    /**
+     * Output message when Atmosphere suspend a connection.
+     *
+     * @return message when Atmosphere suspend a connection.
+     */
+    public static String createStreamingPadding(String padding) {
+        StringBuilder s = new StringBuilder("");
+        return s.toString();
+    }
 }

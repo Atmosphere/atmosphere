@@ -80,7 +80,7 @@ public abstract class BaseTest {
         atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
             public void onRequest(AtmosphereResource event) throws IOException {
-                event.suspend(5000, false);
+                event.suspend(5000);
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
@@ -291,4 +291,17 @@ public abstract class BaseTest {
         c.close();
     }
 
+    /**
+     * Output message when Atmosphere suspend a connection.
+     *
+     * @return message when Atmosphere suspend a connection.
+     */
+    public static String createStreamingPadding(String padding) {
+        StringBuilder s = new StringBuilder();
+
+        for (int i = 0; i < 4096; i++) {
+            s.append(" ");
+        }
+        return s.toString();
+    }
 }
