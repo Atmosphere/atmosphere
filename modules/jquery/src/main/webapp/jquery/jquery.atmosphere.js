@@ -445,8 +445,7 @@ jQuery.atmosphere = function() {
                                             _execute();
                                         } else {
                                             setTimeout(function() {
-                                                _prepareCallback("", "closed", 200, _request.transport);
-                                                _close();
+                                                _execute();
                                             }, 100);
                                         }
                                     }
