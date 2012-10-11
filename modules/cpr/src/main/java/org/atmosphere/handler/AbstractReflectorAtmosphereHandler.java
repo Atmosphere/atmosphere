@@ -93,7 +93,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
         Object message = event.getMessage();
         AtmosphereResponse r = event.getResource().getResponse();
-        if (message == null || event.isCancelled() || event.getResource().getRequest().destroyed()) return;
+        if (message == null || event.isCancelled() || event.isResuming() || event.getResource().getRequest().destroyed()) return;
 
         if (event.getResource().getSerializer() != null) {
             try {
@@ -142,6 +142,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
+        if (event.isResuming()) return;
+
         Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well

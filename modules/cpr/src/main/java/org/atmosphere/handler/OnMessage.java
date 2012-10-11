@@ -19,6 +19,8 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,7 +38,7 @@ import java.util.List;
 public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     public final static String MESSAGE_DELIMITER = "|";
-
+    private final Logger logger = LoggerFactory.getLogger(OnMessage.class);
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
         if (resource.getRequest().getMethod().equalsIgnoreCase("GET")) {
@@ -48,6 +50,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
         AtmosphereResponse response = event.getResource().getResponse();
 
+        logger.debug("{} with event {}", event.getResource().uuid(), event);
         if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
             List<T> messages = List.class.cast(event.getMessage());
             for (T t: messages) {

@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -264,7 +265,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     if (!b.isDestroyed()) {
                         broadcaster.removeAtmosphereResource(this);
                     }
-                } catch (IllegalStateException ex) {
+                 } catch (IllegalStateException ex) {
                     logger.warn("Unable to resume", this);
                     logger.debug(ex.getMessage(), ex);
                 }
@@ -716,6 +717,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public synchronized void cancel() throws IOException {
         action.type(Action.TYPE.RESUME);
         isCancelled = true;
+        if (asyncSupport instanceof AsynchronousProcessor) {
+            try {
+                AsynchronousProcessor.class.cast(asyncSupport).resumed(req, response);
+            } catch (ServletException e) {
+                logger.trace("", e);
+            }
+        }
         asyncSupport.action(this);
         // We must close the underlying WebSocket as well.
         if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {

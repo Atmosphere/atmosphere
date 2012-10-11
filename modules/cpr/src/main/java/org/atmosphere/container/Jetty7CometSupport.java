@@ -170,21 +170,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return ContinuationSupport.getContinuation(req);
     }
 
-    @Override
-    public Action resumed(AtmosphereRequest req, AtmosphereResponse res)
-            throws IOException, ServletException {
-        AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-        AtmosphereHandler atmosphereHandler =
-                (AtmosphereHandler)
-                        req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-
-        synchronized (r) {
-            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-        }
-        return new Action(Action.TYPE.RESUME);
-    }
-
     /**
      * {@inheritDoc}
      */
