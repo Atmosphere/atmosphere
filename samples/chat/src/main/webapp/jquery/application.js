@@ -17,7 +17,7 @@ $(function () {
         contentType : "application/json",
         logLevel : 'debug',
         shared : true,
-        transport : transport ,
+        transport : 'long-polling' ,
         // Uncomment to track message length trackMessageLength : true,
         fallbackTransport: 'long-polling'};
 
@@ -48,16 +48,6 @@ $(function () {
                 input.removeAttr('disabled').focus();
             }
         }
-    };
-
-    <!-- For demonstration of how you can customize the fallbackTransport using the onTransportFailure function -->
-    request.onTransportFailure = function(errorMsg, request) {
-        jQuery.atmosphere.info(errorMsg);
-        if (window.EventSource) {
-            request.fallbackTransport = "sse";
-            transport = "see";
-        }
-        header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
     };
 
     request.onReconnect = function (request, response) {
