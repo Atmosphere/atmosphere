@@ -65,6 +65,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
@@ -132,7 +133,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
-        String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        String s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        if (s == null) {
+            s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        }
         uuid = s == null ? UUID.randomUUID().toString() : s;
 
         if (config.isSupportSession()) {

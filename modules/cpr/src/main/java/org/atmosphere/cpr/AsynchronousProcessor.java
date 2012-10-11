@@ -331,6 +331,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereResourceImpl r =
                 (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+
+        if (r == null) return Action.CANCELLED; // We are cancelled already
+
         AtmosphereHandler atmosphereHandler =
                 (AtmosphereHandler)
                         request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
@@ -538,7 +541,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         r.cancel();
                     }
                 } catch (Throwable t) {
-                    logger.trace("cancel", t);
+                    logger.debug("cancel", t);
                 } finally {
                     if (r != null) {
                         destroyResource(r);
