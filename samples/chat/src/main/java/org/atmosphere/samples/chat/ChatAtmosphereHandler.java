@@ -18,6 +18,7 @@ package org.atmosphere.samples.chat;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AtmosphereHandlerService;
+import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
@@ -33,17 +34,17 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(
-        path = "/chat",
-        broadcasterCache = HeaderBroadcasterCache.class,
-        interceptors = {AtmosphereResourceLifecycleInterceptor.class,
-                        BroadcastOnPostAtmosphereInterceptor.class,
-                        TrackMessageSizeInterceptor.class,
-                        HeartbeatInterceptor.class})
+@ManagedService(path = "/chat")
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * Echo the JSON Message we receives.
+     * @param response an {@link AtmosphereResponse}
+     * @param message  a message of type T
+     * @throws IOException
+     */
     @Override
     public void onMessage(AtmosphereResponse response, String message) throws IOException {
         response.getWriter().write(mapper.writeValueAsString(mapper.readValue(message, Data.class)));

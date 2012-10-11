@@ -17,6 +17,8 @@ package org.atmosphere.cpr;
 
 import eu.infomas.annotation.AnnotationDetector;
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.cache.HeaderBroadcasterCache;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -27,11 +29,15 @@ import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
+import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -47,6 +53,7 @@ import java.util.List;
 /**
  * An {@link AnnotationProcessor} based on <a href="https://github.com/rmuller/infomas-asl"></a>
  *
+ * TODO: This class needs to refactored.
  * @author Jeanfrancois Arcand
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
@@ -85,7 +92,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AsyncSupportService.class,
                         AsyncSupportListenerService.class,
                         WebSocketProcessorService.class,
-                        BroadcasterCacheInspectorService.class
+                        BroadcasterCacheInspectorService.class,
+                        ManagedService.class
                 };
             }
 
@@ -234,6 +242,31 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 } else if (WebSocketProcessorService.class.equals(annotation)) {
                     try {
                         framework.setWebsocketProcessorClassName(className);
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (ManagedService.class.equals(annotation)) {
+                    try {
+                        AtmosphereHandler handler = (AtmosphereHandler) cl.loadClass(className).newInstance();
+                        ManagedService a = handler.getClass().getAnnotation(ManagedService.class);
+
+                        Class<? extends AtmosphereInterceptor>[] interceptors = new Class[] {
+                                AtmosphereResourceLifecycleInterceptor.class,
+                                BroadcastOnPostAtmosphereInterceptor.class,
+                                TrackMessageSizeInterceptor.class,
+                                HeartbeatInterceptor.class };
+                        List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+                        for (Class i : interceptors) {
+                            try {
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                                ai.configure(framework.getAtmosphereConfig());
+                                l.add(ai);
+                            } catch (Throwable e) {
+                                logger.warn("", e);
+                            }
+                        }
+                        framework.addAtmosphereHandler(a.path(), handler, l);
+                        framework.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
