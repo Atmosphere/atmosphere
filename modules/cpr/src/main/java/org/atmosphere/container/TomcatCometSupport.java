@@ -121,11 +121,12 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                     } else {
                         event.setTimeout(Integer.MAX_VALUE);
                     }
-                    req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
-                    // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
+                    logger.trace("Warning: CometEvent.setTimeout not supported on this Tomcat instance. " +
+                            " [The Tomcat native connector does not support timeouts on asynchronous I/O.]");
                 }
+                req.setAttribute(SUSPENDED, true);
             } else if (action.type() == Action.TYPE.RESUME) {
                 event.close();
             } else {
