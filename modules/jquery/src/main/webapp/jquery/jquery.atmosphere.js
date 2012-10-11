@@ -307,20 +307,32 @@ jQuery.atmosphere = function() {
             function _execute() {
                 // Shared across multiple tabs/windows.
                 if (_request.shared) {
-                    _localStorageService = _local(_request);
-                    if (_localStorageService != null) {
-                        if (_request.logLevel == 'debug') {
-                            jQuery.atmosphere.debug("Storage service available. All communication will be local");
-                        }
 
-                        if (_localStorageService.open(_request)) {
-                            // Local connection.
-                            return;
-                        }
+                    var version  = 0;
+                    if (navigator.appVersion.indexOf("MSIE") != -1) {
+                        version = parseFloat(navigator.appVersion.split("MSIE")[1]);
                     }
 
-                    if (_request.logLevel == 'debug') {
-                        jQuery.atmosphere.debug("No Storage service available.");
+                    // Multi Tab aren't working on IE 8. Tested with atmosphere.js and jquery-socket.js
+                    // both pops up a blank page.
+                    if (version != 8) {
+                        _localStorageService = _local(_request);
+                        if (_localStorageService != null) {
+                            if (_request.logLevel == 'debug') {
+                                jQuery.atmosphere.debug("Storage service available. All communication will be local");
+                            }
+
+                            if (_localStorageService.open(_request)) {
+                                // Local connection.
+                                return;
+                            }
+                        }
+
+                        if (_request.logLevel == 'debug') {
+                            jQuery.atmosphere.debug("No Storage service available.");
+                        }
+                    } else {
+                        jQuery.atmosphere.info("Multi tab not supported on IE 8.");
                     }
                     // Wasn't local or an error occurred
                     _localStorageService = null;
@@ -445,8 +457,7 @@ jQuery.atmosphere = function() {
                                             _execute();
                                         } else {
                                             setTimeout(function() {
-                                                _prepareCallback("", "closed", 200, _request.transport);
-                                                _close();
+                                                _execute();
                                             }, 100);
                                         }
                                     }
