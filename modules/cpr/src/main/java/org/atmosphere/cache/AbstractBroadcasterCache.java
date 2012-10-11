@@ -75,7 +75,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
                     readWriteLock.writeLock().unlock();
                 }
             }
-        }, 0, invalidateCacheInterval, TimeUnit.MINUTES);
+        }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
     @Override
