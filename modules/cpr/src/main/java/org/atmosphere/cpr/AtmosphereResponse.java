@@ -825,19 +825,21 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * Close the associated {@link PrintWriter} or {@link java.io.OutputStream}
      */
     public void closeStreamOrWriter() {
-        try {
-            boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-            if (isUsingStream) {
-                try {
-                    getOutputStream().close();
-                } catch (java.lang.IllegalStateException ex) {
-                    logger.trace("", ex);
+        if (resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+            try {
+                boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+                if (isUsingStream) {
+                    try {
+                        getOutputStream().close();
+                    } catch (java.lang.IllegalStateException ex) {
+                        logger.trace("", ex);
+                    }
+                } else {
+                    getWriter().close();
                 }
-            } else {
-                getWriter().close();
+            } catch (IOException e) {
+                logger.trace("", e);
             }
-        } catch (IOException e) {
-            logger.trace("", e);
         }
     }
 
