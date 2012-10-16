@@ -60,7 +60,10 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
             return Collections.emptyList();
         }
 
-        long cacheHeaderTime = Long.valueOf(cacheHeader);
+        long cacheHeaderTime = 0;
+        if (!cacheHeader.isEmpty()) {
+            cacheHeaderTime = Long.valueOf(cacheHeader);
+        }
         return get(cacheHeaderTime);
     }
 }
