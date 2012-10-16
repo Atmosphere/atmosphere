@@ -1327,10 +1327,15 @@ jQuery.atmosphere = function() {
                             try {
                                 _response.status = XMLHttpRequest.status;
                             } catch(e) {
-                                _response.status = 404;
+                                _response.status = 500;
+                            }
+
+                            if (!_response.status) {
+                                _response.status = 500;
                             }
 
                             _response.state = "error";
+                            _invokeCallback();
                             _reconnect(ajaxRequest, rq, true);
                         };
                     }
