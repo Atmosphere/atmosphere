@@ -113,6 +113,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return destroyed.get();
     }
 
+    public AtmosphereRequest destroyable(boolean destroyable) {
+        b.destroyable = destroyable;
+        return this;
+    }
+
     /**
      * {@inheritDoc}
      */
