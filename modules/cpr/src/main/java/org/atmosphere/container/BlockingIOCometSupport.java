@@ -155,9 +155,10 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         } catch (InterruptedException ex) {
             logger.trace("", ex);
         } finally {
-            AtmosphereResourceImpl.class.cast(req.resource()).cancel();
             if (!ok) {
                 timedout(req, res);
+            } else {
+                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
             }
         }
     }
