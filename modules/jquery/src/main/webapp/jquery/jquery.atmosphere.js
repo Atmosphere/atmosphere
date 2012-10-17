@@ -2023,12 +2023,12 @@ jQuery.atmosphere = function() {
 
                 try {
                     var tempDate = xdr.getResponseHeader('X-Cache-Date');
-                    if (tempDate != null || tempDate != undefined) {
+                    if (tempDate && tempDate != null && tempDate.length > 0 ) {
                         request.lastTimestamp = tempDate.split(" ").pop();
                     }
 
-                    tempUUID = xdr.getResponseHeader('X-Atmosphere-tracking-id');
-                    if (tempUUID != null || tempUUID != undefined) {
+                    var tempUUID = xdr.getResponseHeader('X-Atmosphere-tracking-id');
+                    if (tempUUID && tempUUID != null) {
                         request.uuid = tempUUID.split(" ").pop();
                     }
 
