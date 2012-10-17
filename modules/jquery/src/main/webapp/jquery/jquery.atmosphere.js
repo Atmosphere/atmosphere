@@ -1259,18 +1259,19 @@ jQuery.atmosphere = function() {
             function _buildAjaxRequest() {
                 var ajaxRequest;
                 if (jQuery.browser.msie) {
-                    var activexmodes = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP"];
-                    for (var i = 0; i < activexmodes.length; i++) {
-                        try {
-                            ajaxRequest = new ActiveXObject(activexmodes[i]);
-                        } catch(e) {
-                        }
-                    }
-
-                } else if (window.XMLHttpRequest) {
-                    ajaxRequest = new XMLHttpRequest();
+                    if (typeof XMLHttpRequest == "undefined")
+                      XMLHttpRequest = function () {
+                        try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); }
+                          catch (e) {}
+                        try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); }
+                          catch (e) {}
+                        try { return new ActiveXObject("Microsoft.XMLHTTP"); }
+                          catch (e) {}
+                        //Microsoft.XMLHTTP points to Msxml2.XMLHTTP and is redundant
+                        throw new Error("This browser does not support XMLHttpRequest.");
+                      };
                 }
-                return ajaxRequest;
+                return new XMLHttpRequest();
             }
 
             /**
@@ -1320,10 +1321,8 @@ jQuery.atmosphere = function() {
                         _response.transport = rq.transport;
                     }
 
-                    var error = false;
                     if (!jQuery.browser.msie) {
                         ajaxRequest.onerror = function() {
-                            error = true;
                             try {
                                 _response.status = XMLHttpRequest.status;
                             } catch(e) {
@@ -1379,6 +1378,12 @@ jQuery.atmosphere = function() {
 
                         if (update) {
                             var responseText = jQuery.trim(ajaxRequest.responseText);
+
+                            // MSIE status can be higher than 1000, Chrome can be 0
+                            if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
+                                _onError();
+                                return;
+                            }
 
                             _readHeaders(ajaxRequest, _request);
 
