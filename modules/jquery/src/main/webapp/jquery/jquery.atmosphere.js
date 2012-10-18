@@ -1946,7 +1946,7 @@ jQuery.atmosphere = function() {
                     method: 'POST',
                     url: _request.url,
                     contentType : _request.contentType,
-                    headers: {},
+                    headers: _request.headers,
                     reconnect : true,
                     callback: null,
                     data : msg,
