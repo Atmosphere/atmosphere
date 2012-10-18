@@ -498,6 +498,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             this.servletConfig = scFacade;
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            installAnnotationProcessor(scFacade);
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
             doInitParams(scFacade);
@@ -690,6 +691,13 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         } catch (Exception ex) {
             logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
+        }
+    }
+
+    protected void installAnnotationProcessor(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PROCESSOR);
+        if (s != null) {
+            annotationProcessorClassName = s;
         }
     }
 
