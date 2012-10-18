@@ -73,7 +73,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -114,7 +113,6 @@ import static org.atmosphere.cpr.ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORI
 import static org.atmosphere.cpr.ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.NO_CACHE_HEADERS;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_BROADCAST;
-import static org.atmosphere.cpr.ApplicationConfig.STREAMING_PADDING_MODE;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
@@ -904,7 +902,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
         if (am.isAnnotationPresent(Broadcast.class)) {
             int delay = am.getAnnotation(Broadcast.class).delay();
-            Class[] broadcastFilter = am.getAnnotation(Broadcast.class).value();
+            Class[] broadcastFilter = am.getAnnotation(Broadcast.class).filters();
 
             if (am.getAnnotation(Broadcast.class).resumeOnBroadcast()) {
                 f = new Filter(Action.RESUME_ON_BROADCAST, delay, 0, Suspend.SCOPE.APPLICATION, broadcastFilter, null,
