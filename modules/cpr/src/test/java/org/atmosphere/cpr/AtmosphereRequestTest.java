@@ -99,7 +99,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "application/xml");
         assertEquals(e2.get().toLowerCase(), "long_polling");
@@ -136,7 +136,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -173,7 +173,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -210,7 +210,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
     }

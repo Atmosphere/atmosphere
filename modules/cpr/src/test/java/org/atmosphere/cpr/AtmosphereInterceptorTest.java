@@ -88,7 +88,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
+        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
     }
 
     @Test
@@ -111,7 +111,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
+        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
             public void configure(AtmosphereConfig config) {
@@ -128,7 +128,7 @@ public class AtmosphereInterceptorTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
+        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
     }
 
     @Test
@@ -149,7 +149,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CANCELLED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
+        assertEquals(Action.CANCELLED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
     }
 
     @Test
@@ -170,7 +170,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.create()));
+        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
     }
 
 }

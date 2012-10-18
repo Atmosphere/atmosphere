@@ -23,6 +23,7 @@ import com.sun.grizzly.websockets.WebSocketApplication;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
@@ -43,8 +44,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         this.config = config;
         contextPath = config.getServletContext().getContextPath();
 
-        webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                .getWebSocketProcessor(config.framework());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
     }
 
     public void onConnect(WebSocket w) {
@@ -61,6 +61,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         try {
 
             AtmosphereRequest r = AtmosphereRequest.wrap(dws.getRequest());
+            AtmosphereResponse response = AtmosphereResponse.newInstance(config, r, webSocket);
+            config.framework().configureRequestResponse(r, response);
             try {
                 // GlassFish http://java.net/jira/browse/GLASSFISH-18681
                 if (r.getPathInfo().startsWith(r.getContextPath())) {
@@ -71,7 +73,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
                 // Whatever exception occurs skip it
                 logger.trace("", e);
             }
-            webSocketProcessor.open(webSocket, r);
+            webSocketProcessor.open(webSocket, r, response);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }

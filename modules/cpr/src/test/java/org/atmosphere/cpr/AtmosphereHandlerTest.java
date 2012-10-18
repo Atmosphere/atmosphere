@@ -15,8 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -100,7 +98,7 @@ public class AtmosphereHandlerTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
         r.get().resume();
 
         assertTrue(e.get().isResuming());

@@ -110,16 +110,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-    public final void open(final WebSocket webSocket, final AtmosphereRequest request) throws IOException {
+    public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(),
-                wsr,
+                response,
                 framework.getAsyncSupport());
 
         request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
@@ -130,7 +129,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         // No WebSocketHandler defined.
         if (handlers.size() == 0) {
-            dispatch(webSocket, request, wsr);
+            dispatch(webSocket, request, response);
         } else {
             WebSocketHandler handler = mapper.map(request, handlers);
             if (handler == null) {

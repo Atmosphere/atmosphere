@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 
 /**
  * An Atmosphere's response representation. An AtmosphereResponse can be used to construct bi-directional asynchronous
@@ -1177,8 +1179,24 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      *
      * @return
      */
-    public final static AtmosphereResponse create() {
+    public final static AtmosphereResponse newInstance() {
         return new Builder().build();
+    }
+
+    /**
+     * Create a new instance to use with WebSocket.
+     *
+     * @return
+     */
+    public final static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
+        boolean destroyable;
+        String s = config.getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            destroyable = true;
+        } else {
+            destroyable = false;
+        }
+        return new AtmosphereResponse(webSocket, request, destroyable);
     }
 
     /**

@@ -92,7 +92,7 @@ public class CookieTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());

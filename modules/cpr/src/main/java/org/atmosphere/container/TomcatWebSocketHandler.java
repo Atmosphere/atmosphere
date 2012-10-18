@@ -20,6 +20,7 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.container.version.TomcatWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -33,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 
+import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
@@ -57,7 +59,7 @@ public class TomcatWebSocketHandler extends MessageInbound {
         logger.trace("WebSocket.onOpen.");
         webSocket = new TomcatWebSocket(outbound, framework.getAtmosphereConfig());
         try {
-            webSocketProcessor.open(webSocket, request);
+            webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }

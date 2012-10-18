@@ -25,8 +25,6 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -96,7 +94,7 @@ public class AtmosphereResourceTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), e2.get());
     }

@@ -155,7 +155,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                 AtmosphereRequest r = AtmosphereRequest.wrap(g2WebSocket.getRequest());
                 org.atmosphere.websocket.WebSocket webSocket = new Grizzly2WebSocket(g2WebSocket, config);
                 g2WebSocket.getRequest().setAttribute("grizzly.webSocket", webSocket);
-                webSocketProcessor.open(webSocket, r);
+                webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
             } catch (Exception e) {
                 LOGGER.warn("failed to connect to web socket", e);
             }

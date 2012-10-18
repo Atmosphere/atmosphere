@@ -136,7 +136,7 @@ public class AtmosphereResourceListenerTest {
                 r.resume();
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertTrue(preSuspended.get());
         assertTrue(suspended.get());

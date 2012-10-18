@@ -45,7 +45,7 @@ public interface WebSocketProcessor {
      * @param request
      * @throws IOException
      */
-    void open(WebSocket webSocket, final AtmosphereRequest request) throws IOException;
+    void open(WebSocket webSocket, AtmosphereRequest request, AtmosphereResponse response) throws IOException;
 
     /**
      * Invoked when a WebSocket message gets received from the underlying container
