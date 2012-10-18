@@ -295,5 +295,8 @@ public interface ApplicationConfig {
      * Change the default regex used when mapping AtmosphereHandler. Default is {@link AtmosphereFramework#MAPPING_REGEX}
      */
     String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
-    String ANNOTATION_PROCESSOR = AnnotationProcessor.class.getName();
+    /**
+     * The annotation processor
+     */
+    String ANNOTATION_PROCESSOR =  AnnotationProcessor.class.getName();
 }

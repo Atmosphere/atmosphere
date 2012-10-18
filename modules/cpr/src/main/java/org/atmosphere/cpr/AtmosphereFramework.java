@@ -499,6 +499,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
             installAnnotationProcessor(scFacade);
+
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
             doInitParams(scFacade);
