@@ -58,7 +58,7 @@ import java.util.List;
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
-    private AtmosphereFramework framework;
+    protected AtmosphereFramework framework;
     private org.slf4j.Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
 
     public DefaultAnnotationProcessor() {
