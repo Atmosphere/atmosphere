@@ -107,7 +107,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -146,7 +146,7 @@ public class WebSocketProcessorTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
@@ -186,7 +186,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Disconnect", DISCONNECT, w));
 
@@ -224,7 +224,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
 
