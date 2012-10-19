@@ -911,6 +911,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
+
+        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -952,6 +957,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
+
+        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
