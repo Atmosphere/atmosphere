@@ -53,13 +53,15 @@ public class TomcatWebSocket extends WebSocket {
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
         outbound.writeTextMessage(CharBuffer.wrap(s));
+        return this;
     }
 
     @Override
-    public void write(byte[] b, int offset, int length) throws IOException {
+    public WebSocket write(byte[] b, int offset, int length) throws IOException {
         outbound.writeBinaryMessage(ByteBuffer.wrap(b, offset, length));
+        return this;
     }
 
     @Override

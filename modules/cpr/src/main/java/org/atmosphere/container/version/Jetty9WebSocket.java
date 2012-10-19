@@ -39,13 +39,15 @@ public class Jetty9WebSocket extends WebSocket {
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
         blockingConnection.write(s);
+        return this;
     }
 
     @Override
-    public void write(byte[] b, int offset, int length) throws IOException {
+    public WebSocket write(byte[] b, int offset, int length) throws IOException {
         blockingConnection.write(b, offset, length);
+        return this;
     }
 
     @Override

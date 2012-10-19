@@ -253,9 +253,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     abstract public boolean isOpen();
 
-    abstract public void write(String s) throws IOException;
+    abstract public WebSocket write(String s) throws IOException;
 
-    abstract public void write(byte[] b, int offset, int length) throws IOException;
+    abstract public WebSocket write(byte[] b, int offset, int length) throws IOException;
 
     abstract public void close();
 

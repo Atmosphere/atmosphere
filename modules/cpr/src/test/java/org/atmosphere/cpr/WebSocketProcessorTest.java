@@ -247,13 +247,15 @@ public class WebSocketProcessorTest {
         }
 
         @Override
-        public void write(String s) throws IOException {
+        public WebSocket write(String s) throws IOException {
             outputStream.write(s.getBytes());
+            return this;
         }
 
         @Override
-        public void write(byte[] b, int offset, int length) throws IOException {
+        public WebSocket write(byte[] b, int offset, int length) throws IOException {
             outputStream.write(b, offset, length);
+            return this;
         }
 
         @Override

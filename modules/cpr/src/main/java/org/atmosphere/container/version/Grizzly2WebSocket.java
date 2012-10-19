@@ -41,13 +41,15 @@ public class Grizzly2WebSocket extends WebSocket {
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
         webSocket.send(s);
+        return this;
     }
 
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public WebSocket write(byte[] data, int offset, int length) throws IOException {
         webSocket.send(Arrays.copyOfRange(data, offset, length));
+        return this;
     }
 
     @Override

@@ -51,13 +51,15 @@ public class Jetty8WebSocket extends WebSocket {
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
         connection.sendMessage(s);
+        return this;
     }
 
     @Override
-    public void write(byte[] b, int offset, int length) throws IOException {
+    public WebSocket write(byte[] b, int offset, int length) throws IOException {
        connection.sendMessage(b, offset, length);
+        return this;
     }
 
     @Override
