@@ -82,7 +82,7 @@ public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.UNDEFINED)) {
+        if (r.transport().equals(TRANSPORT.STREAMING)) {
             super.inspect(r);
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
