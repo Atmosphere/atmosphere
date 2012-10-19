@@ -930,7 +930,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    public void initWebSocket() {
+    protected void initWebSocket() {
         if(webSocketProtocolInitialized) return;
         if (webSocketProtocol == null) {
             try {
