@@ -202,6 +202,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
         AtmosphereHandlerWrapper handlerWrapper = mapper.map(req, config.handlers());
+
+        if (handlerWrapper == null) {
+            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getPathInfo(), config.handlers());
+            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getPathInfo());
+        }
+        config.getBroadcasterFactory().add(handlerWrapper.broadcaster,handlerWrapper.broadcaster.getID());
+
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
