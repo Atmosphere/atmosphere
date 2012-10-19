@@ -89,10 +89,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
-    private final EndpointMapper<AtmosphereHandlerWrapper> mapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
+    private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
+        mapper = config.framework().endPointMapper();
     }
 
     @Override

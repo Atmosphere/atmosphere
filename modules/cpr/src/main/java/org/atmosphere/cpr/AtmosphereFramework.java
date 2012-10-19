@@ -35,6 +35,8 @@ import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.StreamingAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
+import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
@@ -167,6 +169,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
     protected boolean webSocketProtocolInitialized = false;
+    protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
 
     @Override
     public ServletContext getServletContext() {
@@ -507,6 +510,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             configureBroadcaster();
             loadConfiguration(scFacade);
             initWebSocket();
+            initEndpointMapper();
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
@@ -944,6 +948,19 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         webSocketProtocolInitialized = true;
         webSocketProtocol.configure(config);
+    }
+
+    public void initEndpointMapper() {
+        String s = servletConfig.getInitParameter(ApplicationConfig.ENDPOINT_MAPPER);
+        if (s != null) {
+            try {
+                endpointMapper = (EndpointMapper) AtmosphereFramework.class.getClassLoader()
+                        .loadClass(s).newInstance();
+                logger.info("Installed EndpointMapper {} ", s);
+            } catch (Exception ex) {
+                logger.error("Cannot load the EndpointMapper {}", s, ex);
+            }
+        }
     }
 
     public AtmosphereFramework destroy() {
@@ -1703,6 +1720,15 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.trace("", e);
             return;
         }
+    }
+
+    public EndpointMapper<AtmosphereHandlerWrapper> endPointMapper() {
+        return endpointMapper;
+    }
+
+    public AtmosphereFramework endPointMapper(EndpointMapper endpointMapper) {
+        this.endpointMapper = endpointMapper;
+        return this;
     }
 
     protected void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {

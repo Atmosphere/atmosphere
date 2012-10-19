@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
@@ -299,4 +300,8 @@ public interface ApplicationConfig {
      * The annotation processor
      */
     String ANNOTATION_PROCESSOR =  AnnotationProcessor.class.getName();
+    /**
+     * Definr an implementation of the {@link EndpointMapper}
+     */
+    String ENDPOINT_MAPPER = EndpointMapper.class.getName();
 }

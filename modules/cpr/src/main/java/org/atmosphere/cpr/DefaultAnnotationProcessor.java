@@ -29,6 +29,7 @@ import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
+import org.atmosphere.config.service.EndpoinMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -38,6 +39,7 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -93,7 +95,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AsyncSupportListenerService.class,
                         WebSocketProcessorService.class,
                         BroadcasterCacheInspectorService.class,
-                        ManagedService.class
+                        ManagedService.class,
+                        EndpoinMapperService.class
                 };
             }
 
@@ -267,6 +270,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         }
                         framework.addAtmosphereHandler(a.path(), handler, l);
                         framework.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
+                    } catch (Throwable e) {
+                        logger.warn("", e);
+                    }
+                } else if (EndpoinMapperService.class.equals(annotation)) {
+                    try {
+                        framework.endPointMapper((EndpointMapper<?>)cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
