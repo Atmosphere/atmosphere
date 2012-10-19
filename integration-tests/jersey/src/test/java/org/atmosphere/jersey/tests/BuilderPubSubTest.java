@@ -180,14 +180,14 @@ public class BuilderPubSubTest {
 
     @POST
     @Path("filter")
-    @Broadcast(resumeOnBroadcast = true, value = {XSSHtmlFilter.class})
+    @Broadcast(resumeOnBroadcast = true, filters = {XSSHtmlFilter.class})
     public Broadcastable filter(@FormParam("message") String message) {
         return broadcast(message);
     }
 
     @POST
     @Path("aggregate")
-    @Broadcast(resumeOnBroadcast = true, value = {StringFilterAggregator.class})
+    @Broadcast(resumeOnBroadcast = true, filters = {StringFilterAggregator.class})
     public Broadcastable aggregate(@FormParam("message") String message) {
         return broadcast(message);
     }
