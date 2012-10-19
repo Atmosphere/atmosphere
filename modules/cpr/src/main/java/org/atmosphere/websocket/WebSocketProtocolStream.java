@@ -15,7 +15,6 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 
 import java.io.InputStream;
@@ -23,22 +22,32 @@ import java.io.Reader;
 import java.util.List;
 
 /**
- * A WebSocket based protocol implementation. Implement this class to process WebSockets messages and dispatch it to
- * Atmosphere or any consumer of WebSocket message.
+ * A streaming API for WebServer that support WebSocket streaming. When a {@link WebSocketProtocol} implements this interface,
+ * bytes/text will ve streamed instead of read in memory.
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketProtocol {
+public interface WebSocketProtocolStream extends WebSocketProtocol{
 
     /**
-     * Allow an implementation to query the AtmosphereConfig of init-param, etc.
+     * Parse the WebSocket stream, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or
+     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} will delegate the request processing
+     * to the {@link org.atmosphere.cpr.AtmosphereHandler} implementation. Returning null means this implementation will
+     * handle itself the processing/dispatching of the WebSocket's request;
+     * <br>
+     * As an example, this is how Websocket messages are delegated to the
+     * Jersey runtime.
+     * <br>
      *
-     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
+     *
+     * @param webSocket The {@link org.atmosphere.websocket.WebSocket} connection
+     * @param r a {@link java.io.Reader}
+     * @return a List of {@link org.atmosphere.cpr.AtmosphereRequest}
      */
-    void configure(AtmosphereConfig config);
+    List<AtmosphereRequest> onTextStream(WebSocket webSocket, Reader r);
 
     /**
-     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or
+     * Parse the WebSocket stream, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or
      * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} will delegate the request processing
      * to the {@link org.atmosphere.cpr.AtmosphereHandler} implementation. Returning null means this implementation will
      * handle itself the processing/dispatching of the WebSocket's request;
@@ -48,45 +57,8 @@ public interface WebSocketProtocol {
      * <br>
      *
      * @param webSocket The {@link WebSocket} connection
-     * @param data      The Websocket message
+     * @param stream a {@link Reader}
      * @return a List of {@link AtmosphereRequest}
      */
-    List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
-
-    /**
-     * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or
-     * to any existing technology. Invoking  {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} will delegate the request processing
-     * to the {@link org.atmosphere.cpr.AtmosphereHandler} implementation. Returning null means this implementation will
-     * handle itself the processing/dispatching of the WebSocket's request;
-     * <br>
-     * As an example, this is how Websocket messages are delegated to the
-     * Jersey runtime.
-     * <br>
-     *
-     * @param webSocket The {@link WebSocket} connection
-     * @param offset    offset message index
-     * @param length    length of the message.
-     * @return a List of {@link AtmosphereRequest}
-     */
-    List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
-
-    /**
-     * Invoked when a WebSocket is opened
-     * @param webSocket {@link WebSocket}
-     */
-    void onOpen(WebSocket webSocket);
-
-    /**
-     * Invoked when a WebSocket is closed
-     * @param webSocket {@link WebSocket}
-     */
-    void onClose(WebSocket webSocket);
-
-    /**
-     * Invoked when an error occurs.
-     * @param webSocket {@link WebSocket}
-     * @param t a {@link org.atmosphere.websocket.WebSocketProcessor.WebSocketException}
-     */
-    void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t);
-
+    List<AtmosphereRequest> onBinaryStream(WebSocket webSocket, InputStream stream);
 }

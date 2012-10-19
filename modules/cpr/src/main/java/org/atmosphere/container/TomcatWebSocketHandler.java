@@ -15,31 +15,24 @@
  */
 package org.atmosphere.container;
 
-import org.apache.catalina.websocket.MessageInbound;
+import org.apache.catalina.websocket.StreamInbound;
 import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.container.version.TomcatWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 
-import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
-
-public class TomcatWebSocketHandler extends MessageInbound {
+public class TomcatWebSocketHandler extends StreamInbound {
 
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketHandler.class);
 
@@ -70,18 +63,24 @@ public class TomcatWebSocketHandler extends MessageInbound {
         request.destroy();
         if (webSocketProcessor == null) return;
 
-        webSocketProcessor.close(webSocket,closeCode);
+        webSocketProcessor.close(webSocket, closeCode);
     }
 
-    @Override
-    protected void onBinaryMessage(ByteBuffer message) throws IOException {
-        logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(webSocket,message.array(), 0, message.limit());
-    }
-
-    @Override
     protected void onTextMessage(CharBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage");
-        webSocketProcessor.invokeWebSocketProtocol(webSocket,message.toString());
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, message.toString());
     }
+
+    @Override
+    protected final void onBinaryData(InputStream is) throws IOException {
+        logger.trace("WebSocket.onBynaryStream");
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, is);
+    }
+
+    @Override
+    protected final void onTextData(Reader r) throws IOException {
+        logger.trace("WebSocket.onTextStream");
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, r);
+    }
+
 }

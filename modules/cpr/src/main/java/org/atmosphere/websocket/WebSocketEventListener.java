@@ -62,23 +62,23 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
     void onConnect(WebSocketEvent event);
 
 
-    public static final class WebSocketEvent {
-        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT}
-        private final String message;
+    public static final class WebSocketEvent<T> {
+        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM}
+        private final T message;
         private final TYPE type;
         private final WebSocket webSocket;
 
-        public WebSocketEvent(String message, TYPE type, WebSocket webSocket) {
+        public WebSocketEvent(T message, TYPE type, WebSocket webSocket) {
             this.message = message;
             this.type = type;
             this.webSocket = webSocket;
         }
 
         /**
-         * The received message
+         * The received message if the message was a String.
          * @return received message
          */
-        public String message(){
+        public T message(){
             return message;
         }
 

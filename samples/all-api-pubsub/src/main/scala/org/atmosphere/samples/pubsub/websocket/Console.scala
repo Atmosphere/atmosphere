@@ -50,27 +50,27 @@ class Console extends WebSocketEventListener {
     logger.warn("onThrowable(): {}", event)
   }
 
-  def onHandshake(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onHandshake(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onHandshake(): {}", event)
   }
 
-  def onMessage(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onMessage(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onMessage(): {}", event)
   }
 
-  def onClose(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onClose(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onClose(): {}", event)
   }
 
-  def onControl(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onControl(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onControl(): {}", event)
   }
 
-  def onDisconnect(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onDisconnect(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onDisconnect(): {}", event)
   }
 
-  def onConnect(event: WebSocketEventListener.WebSocketEvent): Unit = {
+  def onConnect(event: WebSocketEventListener.WebSocketEvent[_]): Unit = {
     logger.info("onConnect(): {}", event)
   }
 }
