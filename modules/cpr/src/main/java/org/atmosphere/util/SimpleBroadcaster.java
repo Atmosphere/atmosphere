@@ -114,15 +114,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, null, f, msg));
         return f;
     }
@@ -135,15 +135,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, r, f, msg));
         return f;
     }
@@ -156,7 +156,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
@@ -164,8 +164,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, subset, f, msg));
         return f;
     }

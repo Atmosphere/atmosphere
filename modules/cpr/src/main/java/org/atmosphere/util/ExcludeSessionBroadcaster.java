@@ -81,7 +81,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(),  this);
         messages.offer(new Entry(newMsg, sub, f, msg));
         return f;
     }
@@ -98,17 +98,17 @@ public class ExcludeSessionBroadcaster
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
-            throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+            return futureDone(msg);
         }
 
         subset.retainAll(resources);
         start();
         Object newMsg = filter(msg);
         if (newMsg == null) {
-            return null;
+            return futureDone(msg);
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(),  this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -123,8 +123,9 @@ public class ExcludeSessionBroadcaster
     public Future<Object> broadcast(Object msg, List<HttpSession> sessions) {
 
         if (destroyed.get()) {
-            throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+            return futureDone(msg);
         }
+
         Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
         subset.addAll(resources);
         for (AtmosphereResource r : resources) {
@@ -136,10 +137,10 @@ public class ExcludeSessionBroadcaster
         start();
         Object newMsg = filter(msg);
         if (newMsg == null) {
-            return null;
+            return futureDone(msg);
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -154,7 +155,7 @@ public class ExcludeSessionBroadcaster
     public Future<Object> broadcast(Object msg, HttpSession s) {
 
         if (destroyed.get()) {
-            throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
+            return futureDone(msg);
         }
 
         Set<AtmosphereResource> subset = new HashSet<AtmosphereResource>();
@@ -170,10 +171,10 @@ public class ExcludeSessionBroadcaster
         start();
         Object newMsg = filter(msg);
         if (newMsg == null) {
-            return null;
+            return futureDone(msg);
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }

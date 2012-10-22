@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -52,7 +52,7 @@ public class MetaBroadcaster {
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
-    private final static CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
+    private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay) {
         if (BroadcasterFactory.getDefault() != null) {
@@ -60,10 +60,10 @@ public class MetaBroadcaster {
 
             final Map<String, String> m = new HashMap<String, String>();
             List<Broadcaster> l = new ArrayList<Broadcaster>();
-            logger.debug("Map {}", path);
+            logger.trace("Map {}", path);
             UriTemplate t = new UriTemplate(path);
             for (Broadcaster b : c) {
-                logger.debug("Trying to map {} to {}", t, b.getID());
+                logger.trace("Trying to map {} to {}", t, b.getID());
                 if (t.match(b.getID(), m)) {
                     l.add(b);
                 }
@@ -166,11 +166,13 @@ public class MetaBroadcaster {
 
         @Override
         public void onComplete(Broadcaster b) {
-            f.countDown();
-            for (BroadcasterListener l : broadcasterListeners) {
-                l.onComplete(b);
-            }
             b.removeBroadcasterListener(this);
+            f.countDown();
+            if (f.isDone()) {
+                for (BroadcasterListener l : broadcasterListeners) {
+                    l.onComplete(b);
+                }
+            }
         }
 
         @Override
