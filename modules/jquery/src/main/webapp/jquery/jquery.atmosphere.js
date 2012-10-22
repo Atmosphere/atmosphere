@@ -1954,6 +1954,7 @@ jQuery.atmosphere = function() {
                     maxRequest : 60,
                     logLevel : 'info',
                     requestCount : 0,
+                    withCredentials : _request.withCredentials,
                     transport: 'polling',
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
