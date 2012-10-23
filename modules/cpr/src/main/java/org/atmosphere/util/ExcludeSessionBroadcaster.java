@@ -37,7 +37,6 @@ import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.util.HashSet;
 import java.util.List;
@@ -82,7 +81,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(), this);
         messages.offer(new Entry(newMsg, sub, f, msg));
         return f;
     }
@@ -110,7 +109,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -142,7 +141,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -177,7 +176,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
         messages.offer(new Entry(newMsg, subset, f, msg));
         return f;
     }

@@ -52,6 +52,7 @@
 package org.atmosphere.cpr;
 
 import java.util.Collection;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -63,7 +64,7 @@ public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
     protected static AtmosphereConfig config;
-    protected final CopyOnWriteArrayList<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<BroadcasterListener>();
+    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     /**
      * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
