@@ -203,6 +203,7 @@ public class DefaultBroadcaster implements Broadcaster {
             messages.clear();
             asyncWriteQueue.clear();
             delayedBroadcast.clear();
+            broadcasterListeners.clear();
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
@@ -1151,8 +1152,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void entryDone(BroadcasterFuture<?> f) {
         if (f != null) {
-            f.done();
             notifyBroadcastListener();
+            f.done();
         }
     }
 

@@ -134,7 +134,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, null, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }
@@ -158,7 +158,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, r, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }
@@ -183,7 +183,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, subset, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }
