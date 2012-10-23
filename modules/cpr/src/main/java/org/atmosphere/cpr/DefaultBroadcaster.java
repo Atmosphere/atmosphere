@@ -53,6 +53,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,13 +239,14 @@ public class DefaultBroadcaster implements Broadcaster {
                     Broadcaster b = BroadcasterFactory.getDefault()
                             .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
-                    /* TODO: This can cause regression?
+                    /**
+                     * REQUEST_SCOPE means one BroadcasterCache per Broadcaster,
+                     */
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
                         BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
                         InjectorProvider.getInjector().inject(cache);
-                        DefaultBroadcaster.class.cast(b).broadcasterCache = cache;
                         b.getBroadcasterConfig().setBroadcasterCache(cache);
-                    }*/
+                    }
 
                     resource.setBroadcaster(b);
                     b.setScope(SCOPE.REQUEST);
