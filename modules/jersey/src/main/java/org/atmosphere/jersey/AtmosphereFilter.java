@@ -741,17 +741,18 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 bc = r.getBroadcaster();
             }
 
-            if (sessionSupported && localScope != Suspend.SCOPE.REQUEST && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
-                AtmosphereResource cached =
-                        (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
-                bc = cached.getBroadcaster();
-                // Just in case something went wrong.
-                try {
-                    bc.removeAtmosphereResource(cached);
-                } catch (IllegalStateException ex) {
-                    logger.trace(ex.getMessage(), ex);
-                }
-            }
+//            TODO: legacy code
+//            if (sessionSupported && localScope != Suspend.SCOPE.REQUEST && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
+//                AtmosphereResource cached =
+//                        (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
+//                bc = cached.getBroadcaster();
+//                // Just in case something went wrong.
+//                try {
+//                    bc.removeAtmosphereResource(cached);
+//                } catch (IllegalStateException ex) {
+//                    logger.trace(ex.getMessage(), ex);
+//                }
+//            }
 
             if (response.getEntity() instanceof Broadcastable) {
                 Broadcastable b = (Broadcastable) response.getEntity();
