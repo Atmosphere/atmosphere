@@ -714,11 +714,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public String getContentType() {
-        if (!delegateToNativeResponse) {
-            return contentType;
-        } else {
-            return _r().getContentType();
-        }
+        return getHeader("content-type");
     }
 
     /**

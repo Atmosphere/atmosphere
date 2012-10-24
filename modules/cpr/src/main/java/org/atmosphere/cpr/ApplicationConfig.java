@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.client.MessageLengthInterceptor;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -273,7 +274,7 @@ public interface ApplicationConfig {
      * The token used to separate broadcasted messages. This value is used by the client to parse several messages
      * received in one chunk. Default is '<||>'
      */
-    String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
+    String MESSAGE_DELIMITER = TrackMessageSizeInterceptor.class.getName() + ".delimiter";
     /**
      * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
      * is used
@@ -304,4 +305,9 @@ public interface ApplicationConfig {
      * Definr an implementation of the {@link EndpointMapper}
      */
     String ENDPOINT_MAPPER = EndpointMapper.class.getName();
+    /**
+     * The list of content-type to exclude when delimiting message.
+     */
+    String EXCLUDED_CONTENT_TYPES = TrackMessageSizeInterceptor.class.getName() + ".excludedContentType";
+
 }

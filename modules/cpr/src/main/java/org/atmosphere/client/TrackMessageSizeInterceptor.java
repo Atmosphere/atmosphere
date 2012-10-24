@@ -17,7 +17,6 @@ package org.atmosphere.client;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -29,17 +28,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.util.Arrays;
+import java.util.HashSet;
+
+import static org.atmosphere.cpr.ApplicationConfig.MESSAGE_DELIMITER;
+import static org.atmosphere.cpr.ApplicationConfig.EXCLUDED_CONTENT_TYPES;
 
 /**
  * An {@link org.atmosphere.cpr.AtmosphereInterceptor} that add a add message size and delimiter.
  * <p/>
- * The special String is configurable using {@link org.atmosphere.cpr.ApplicationConfig#MESSAGE_DELIMITER}
+ * The special String is configurable using {@link org.atmosphere.cpr.ApplicationConfig#MESSAGE_DELIMITER} and
+ * you can configure this class to exclude some response's content-type by using the {@link ApplicationConfig#EXCLUDED_CONTENT_TYPES}
  *
  * @author Jeanfrancois Arcand
  */
@@ -54,16 +57,41 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private String endString = "|";
     private final Charset inCharset = Charset.forName(IN_ENCODING);
     private final Charset outCharset = Charset.forName(OUT_ENCODING);
+    private final HashSet<String> excludedContentTypes = new HashSet<String>();
 
     private final Interceptor interceptor = new Interceptor();
 
     @Override
     public void configure(AtmosphereConfig config) {
-        String s = config.getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
+        String s = config.getInitParameter(MESSAGE_DELIMITER);
         if (s != null) {
-            end = s.getBytes();
-            endString = s;
+            messageDelimiter(s);
         }
+        s = config.getInitParameter(EXCLUDED_CONTENT_TYPES);
+        if (s != null) {
+            excludedContentTypes.addAll(Arrays.asList(s.split(",")));
+        }
+    }
+
+    /**
+     * Set the character delimiter used by this class to separate message.
+     * @param endString
+     * @return this
+     */
+    public TrackMessageSizeInterceptor messageDelimiter(String endString) {
+        this.endString = endString;
+        end = endString.getBytes();
+        return this;
+    }
+
+    /**
+     * Excluse response's content-type from being processed by this class.
+     * @param excludedContentType the value of {@link org.atmosphere.cpr.AtmosphereResponse#getContentType()}
+     * @return this
+     */
+    public TrackMessageSizeInterceptor excludedContentType(String excludedContentType) {
+        excludedContentTypes.add(excludedContentType.toLowerCase());
+        return this;
     }
 
     @Override
@@ -90,19 +118,25 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private final class Interceptor extends AsyncIOInterceptorAdapter {
         @Override
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-            response.setCharacterEncoding(OUT_ENCODING);
 
-            CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
-            int size = cb.length();
-            CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
-            ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
-            CharsetEncoder encoder = outCharset.newEncoder();
-            encoder.encode(cb2, bb, false);
-            encoder.encode(cb, bb, false);
-            bb.flip();
-            byte[] b = new byte[bb.limit()];
-            bb.get(b);
-            return b;
+            if (response.getContentType() == null || !excludedContentTypes.contains(response.getContentType().toLowerCase())) {
+                response.setCharacterEncoding(OUT_ENCODING);
+
+                CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
+                int size = cb.length();
+                CharBuffer cb2 = CharBuffer.wrap(Integer.toString(size) + endString);
+                ByteBuffer bb = ByteBuffer.allocate((cb2.length() + size) * 2);
+                CharsetEncoder encoder = outCharset.newEncoder();
+                encoder.encode(cb2, bb, false);
+                encoder.encode(cb, bb, false);
+                bb.flip();
+                byte[] b = new byte[bb.limit()];
+                bb.get(b);
+                return b;
+            } else {
+                return responseDraft;
+            }
+
         }
     }
 }
