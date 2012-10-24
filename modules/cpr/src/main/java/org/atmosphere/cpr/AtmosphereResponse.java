@@ -236,7 +236,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
             setStatus(sc, msg);
 
             // Prevent StackOverflow
@@ -258,7 +258,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
             setStatus(sc);
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -279,7 +279,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -500,7 +500,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
             return new ServletOutputStream() {
 
                 @Override
@@ -622,7 +622,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public PrintWriter getWriter() throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
             return new PrintWriter(getOutputStream()) {
                 public void write(char[] chars, int offset, int lenght) {
                     try {
@@ -690,6 +690,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setContentLength(int len) {
+        headers.put("Content-Length", String.valueOf(len));
+
         if (!delegateToNativeResponse) {
             contentLength = len;
         } else {
@@ -702,6 +704,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setContentType(String contentType) {
+        headers.put("Content-Type", String.valueOf(contentType));
+
         if (!delegateToNativeResponse) {
             this.contentType = contentType;
         } else {
@@ -714,7 +718,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public String getContentType() {
-        return getHeader("content-type");
+        return getHeader("Content-type");
     }
 
     /**
