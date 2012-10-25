@@ -169,9 +169,10 @@ public class DefaultBroadcaster implements Broadcaster {
      * {@inheritDoc}
      */
     public synchronized void destroy() {
-        if (destroyed.getAndSet(true)) return;
 
-        notifyOnPreDestroy();
+        if (notifyOnPreDestroy()) return;
+
+        if (destroyed.getAndSet(true)) return;
         notifyDestroyListener();
 
         try {
@@ -1421,13 +1422,18 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    void notifyOnPreDestroy() {
+    boolean notifyOnPreDestroy() {
         for (BroadcasterListener l : broadcasterListeners) {
             try {
                 l.onPreDestroy(this);
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
+                if (BroadcasterListener.BroadcastListenerException.class.isAssignableFrom(ex.getClass())) {
+                    logger.trace("onPreDestroy", ex);
+                    return true;
+                }
                 logger.warn("onPreDestroy", ex);
             }
         }
+        return false;
     }
 }
