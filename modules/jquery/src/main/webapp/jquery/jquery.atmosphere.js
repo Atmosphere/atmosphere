@@ -1218,9 +1218,6 @@ jQuery.atmosphere = function() {
                 }
 
                 var url = rq.url;
-                if (rq.dispatchUrl != null) {
-                    url += rq.dispatchUrl;
-                }
 
                 // If not enabled
                 if (!rq.attachHeadersAsQueryString) return url;
