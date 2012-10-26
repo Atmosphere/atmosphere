@@ -1211,13 +1211,15 @@ jQuery.atmosphere = function() {
              *          _request object will be used.
              * @private
              */
-            function _attachHeaders(request) {
+            function _attachHeaders(request, url) {
                 var rq = _request;
                 if ((request != null) && (typeof(request) != 'undefined')) {
                     rq = request;
                 }
 
-                var url = rq.url;
+                if (url == null) {
+                    url = rq.url;
+                }
 
                 // If not enabled
                 if (!rq.attachHeadersAsQueryString) return url;
@@ -1512,7 +1514,11 @@ jQuery.atmosphere = function() {
              */
             function _doRequest(ajaxRequest, request, create) {
                 // Prevent Android to cache request
-                var url = _attachHeaders(request);
+                var url = request.url;
+                if (request.dispatchUrl != null && request.method == 'POST') {
+                    url += request.dispatchUrl;
+                }
+                url = _attachHeaders(request, url);
                 url = jQuery.atmosphere.prepareURL(url);
 
                 if (create) {
@@ -1661,7 +1667,11 @@ jQuery.atmosphere = function() {
 
                 return {
                     open: function() {
-                        var url = _attachHeaders(rq);
+                        var url = rq.url;
+                        if (rq.dispatchUrl != null) {
+                            url += rq.dispatchUrl;
+                        }
+                        url = _attachHeaders(rq, url);
                         // IE may not POST the body when the xdr.send(data) for an unknown reason
                         // when the page reload. Only observed during an unload events, rollback
                         // to the code below in case of issue.
@@ -2225,8 +2235,15 @@ jQuery.atmosphere = function() {
                 return _request.url;
             };
 
-            this.push = function(message) {
-                _push(message);
+            this.push = function(message, dispatchUrl) {
+                if (dispatchUrl != null) {
+                    var originalDispatchUrl = _request.dispatchUrl;
+                    _request.dispatchUrl = dispatchUrl;
+                    _push(message);
+                    _request.dispatchUrl = originalDispatchUrl;
+                } else {
+                    _push(message);
+                }
             };
 
             this.pushLocal = function(message) {
