@@ -2221,6 +2221,8 @@ jQuery.atmosphere = function() {
                 _intraPush(message);
             };
 
+            this.request = _request;
+
             this.response = _response;
         },
 
