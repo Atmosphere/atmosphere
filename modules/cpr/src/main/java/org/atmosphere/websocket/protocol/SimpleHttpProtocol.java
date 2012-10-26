@@ -93,12 +93,14 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             return null;
         }
         String pathInfo = resource.getRequest().getPathInfo();
+        String requestURI = resource.getRequest().getRequestURI();
 
         if (d.startsWith(delimiter)) {
             int delimiterLength = delimiter.length();
             int bodyBeginIndex = d.indexOf(delimiter, delimiterLength);
             if (bodyBeginIndex != -1) {
                 pathInfo = d.substring(delimiterLength, bodyBeginIndex);
+                requestURI += pathInfo;
                 d = d.substring(bodyBeginIndex + delimiterLength);
             }
         }
@@ -118,6 +120,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .body(d)
                 .attributes(m)
                 .pathInfo(pathInfo)
+                .requestURI(requestURI)
                 .destroyable(destroyable)
                 .headers(resource.getRequest().headersMap())
                 .session(resource.session())
