@@ -1561,6 +1561,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
         Builder b;
         HttpServletRequest r;
+
+        Cookie[] cs = request.getCookies();
+        Set<Cookie> hs = new HashSet();
+        for (Cookie c: cs) {
+            hs.add(c);
+        }
+
         boolean isWrapped = false;
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
@@ -1579,6 +1586,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(isDestroyable)
+                .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
@@ -1590,13 +1598,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
             b.request(r);
         }
-
-        Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = new HashSet();
-        for (Cookie c : cs) {
-            hs.add(c);
-        }
-        b.cookies(hs);
 
         return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
