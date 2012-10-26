@@ -73,6 +73,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
+    private boolean cookieComputed = false;
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -309,9 +310,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        Cookie[] c = b.request.getCookies();
-        if (c != null && c.length > 0) {
-            b.cookies.addAll(Arrays.asList(c));
+        if (!cookieComputed) {
+            cookieComputed = true;
+            Cookie[] c = b.request.getCookies();
+            if (c != null && c.length > 0) {
+                b.cookies.addAll(Arrays.asList(c));
+            }
         }
         return b.cookies.toArray(new Cookie[]{});
     }
@@ -1533,6 +1537,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
         Builder b;
         HttpServletRequest r;
+
+        Cookie[] cs = request.getCookies();
+        Set<Cookie> hs = new HashSet();
+        for (Cookie c: cs) {
+            hs.add(c);
+        }
+
         boolean isWrapped = false;
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
@@ -1551,6 +1562,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
                 .destroyable(isDestroyable)
+                .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
@@ -1562,13 +1574,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
             b.request(r);
         }
-
-        Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = new HashSet();
-        for (Cookie c: cs) {
-            hs.add(c);
-        }
-        b.cookies(hs);
 
         return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
@@ -1593,6 +1598,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             b.queryStrings.put(s, request.getParameterValues(s));
         }
         b.queryString = request.getQueryString();
+
     }
 
     @Override
