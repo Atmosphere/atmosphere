@@ -52,6 +52,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private final static byte[] END = "|".getBytes();
     private final static String IN_ENCODING = "UTF-8";
     private final static String OUT_ENCODING = "UTF-8";
+    public final static String SKIP_INTERCEPTOR = TrackMessageSizeInterceptor.class.getName() + ".skip";
 
     private byte[] end = END;
     private String endString = "|";
@@ -119,7 +120,9 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         @Override
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
 
-            if (response.getContentType() == null || !excludedContentTypes.contains(response.getContentType().toLowerCase())) {
+            if (response.request().getAttribute(SKIP_INTERCEPTOR) == null
+                    && (response.getContentType() == null
+                    || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
                 response.setCharacterEncoding(OUT_ENCODING);
 
                 CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
