@@ -59,7 +59,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -76,7 +79,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
-    protected final List<CachedMessage> queue = new CopyOnWriteArrayList<CachedMessage>();
+    protected final List<CachedMessage> queue = Collections.synchronizedList(new LinkedList<CachedMessage>());
 
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 
@@ -100,7 +103,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
                     if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
                         logger.trace("Pruning: {}", message.message());
-                        queue.remove(message);
+                        synchronized (AbstractBroadcasterCache.this) {
+                            queue.remove(message);
+                        }
                     } else {
                         break;
                     }
