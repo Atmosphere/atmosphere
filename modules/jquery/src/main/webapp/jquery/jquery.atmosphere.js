@@ -95,7 +95,7 @@ jQuery.atmosphere = function() {
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
                 webSocketImpl: null,
-                webSocketUrl: null,
+                dispatchUrl: null,
                 webSocketPathDelimiter: "@@",
                 enableXDR : false,
                 rewriteURL : false,
@@ -702,6 +702,10 @@ jQuery.atmosphere = function() {
                 }
 
                 var url = rq.url;
+                if (rq.dispatchUrl != null) {
+                    url += rq.dispatchUrl;
+                }
+
                 var data = rq.data;
                 if (rq.attachHeadersAsQueryString) {
                     url = _attachHeaders(rq);
@@ -771,6 +775,10 @@ jQuery.atmosphere = function() {
                 }
 
                 var url = rq.url;
+                if (rq.dispatchUrl != null) {
+                    url += rq.dispatchUrl;
+                }
+
                 var data = rq.data;
                 if (rq.attachHeadersAsQueryString) {
                     url = _attachHeaders(rq);
@@ -1210,6 +1218,9 @@ jQuery.atmosphere = function() {
                 }
 
                 var url = rq.url;
+                if (rq.dispatchUrl != null) {
+                    url += rq.dispatchUrl;
+                }
 
                 // If not enabled
                 if (!rq.attachHeadersAsQueryString) return url;
@@ -1715,6 +1726,9 @@ jQuery.atmosphere = function() {
                 doc.close();
 
                 var url = rq.url;
+                if (rq.dispatchUrl != null) {
+                    url += rq.dispatchUrl;
+                }
 
                 if (rq.transport != 'polling') {
                     _response.transport = rq.transport;
@@ -1958,7 +1972,8 @@ jQuery.atmosphere = function() {
                     transport: 'polling',
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
-                    uuid : _request.uuid
+                    uuid : _request.uuid,
+                    dispatchUrl: _request.dispatchUrl;
                 };
 
                 if (typeof(message) == 'object') {
