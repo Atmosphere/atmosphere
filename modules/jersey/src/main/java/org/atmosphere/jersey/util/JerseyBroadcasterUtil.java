@@ -129,8 +129,17 @@ public final class JerseyBroadcasterUtil {
                     }
                 }
             } catch (Throwable t) {
+                boolean notifyAndCache = true;
+                for (StackTraceElement element : t.getStackTrace()) {
+                    if (element.getClassName().equals("java.io.BufferedWriter")
+                            && element.getMethodName().equals("flush")) {
+                        logger.trace("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
+                        notifyAndCache = false;
+                    }
+                }
+
                 if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                    DefaultBroadcaster.class.cast(broadcaster).onException(t, r);
+                    DefaultBroadcaster.class.cast(broadcaster).onException(t, r, notifyAndCache);
                 } else {
                     onException(t, r);
                 }

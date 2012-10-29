@@ -902,17 +902,23 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     public void onException(Throwable t, final AtmosphereResource ar) {
-        logger.debug("onException()", t);
+        onException(t, ar, true);
+    }
+
+    public void onException(Throwable t, final AtmosphereResource ar, boolean notifyAndCache) {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
 
-        final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
-        event.setThrowable(t);
+        if (notifyAndCache) {
+            logger.debug("onException()", t);
+            final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
+            event.setThrowable(t);
 
-        r.notifyListeners(event);
-        r.removeEventListeners();
+            r.notifyListeners(event);
+            r.removeEventListeners();
+        }
 
         /**
          * Make sure we resume the connection on every IOException.
@@ -932,7 +938,10 @@ public class DefaultBroadcaster implements Broadcaster {
         } else {
             r.resume();
         }
-        cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
+
+        if (notifyAndCache) {
+            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
+        }
     }
 
     /**
