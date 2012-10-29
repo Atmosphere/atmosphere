@@ -31,7 +31,19 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 [Top](#Top)
 
+### Help this community by testing our next release
+```xml
+     <dependency>
+         <groupId>org.atmosphere</groupId>
+         <artifactId>atmosphere-{atmosphere-module}</artifactId>
+         <version>1.1.0.beta1</version>
+      </dependency>
+```
+[Top](#Top)
+
 #### Latest Publications
+
+[Getting Started with Atmosphere (PDF, needs to sign on)](http://jaxenter.com/jax-magazine)
 
 [Modern JVM/JavaScript framework Atmosphere reaches 1.0, asynchronous future beckons?](http://jaxenter.com/modern-jvm-javascript-framework-atmosphere-reaches-1-0-asynchronous-future-beckons-44330.html)
 
@@ -51,7 +63,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### RoadMap
 
-Atmosphere 1.0.2 is our official release, and our work in progress version is 1.1, targeted for end of End of December 2012
+Atmosphere 1.0.3 is our official release, and our work in progress version is 1.1, targeted for end of End of December 2012
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
@@ -59,7 +71,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 #### Changes logs
 
-1.0 release: [1.0.2](http://goo.gl/RqaS9) [1.0.1](http://goo.gl/UILd3 ) [1.0](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.0&page=1&state=closed)
+1.0 release: [1.0.3](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.3&page=1&state=closed) [1.0.2](http://goo.gl/RqaS9) [1.0.1](http://goo.gl/UILd3 ) [1.0](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.0&page=1&state=closed)
 
 0.9 release: [0.9.7](http://is.gd/ETHPFH) [0.9.5](https://github.com/Atmosphere/atmosphere/issues?labels=0.9.5&page=1&sort=updated&state=closed) [0.9.4](http://is.gd/hZtv2a) [0.9.2/0.9.3](http://goo.gl/rAKQh ) [0.9.1](http://is.gd/LEgGJ7) [0.9.0](https://github.com/Atmosphere/atmosphere/issues?sort=created&labels=0.9.0&direction=desc&state=closed)
 
