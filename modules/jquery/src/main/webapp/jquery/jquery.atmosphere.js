@@ -1980,7 +1980,7 @@ jQuery.atmosphere = function() {
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
                     uuid : _request.uuid,
-                    dispatchUrl: _request.dispatchUrl;
+                    dispatchUrl: _request.dispatchUrl
                 };
 
                 if (typeof(message) == 'object') {
