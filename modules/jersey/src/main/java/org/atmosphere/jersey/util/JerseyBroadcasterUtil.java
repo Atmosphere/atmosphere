@@ -133,7 +133,7 @@ public final class JerseyBroadcasterUtil {
                 for (StackTraceElement element : t.getStackTrace()) {
                     if (element.getClassName().equals("java.io.BufferedWriter")
                             && element.getMethodName().equals("flush")) {
-                        logger.debug("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
+                        logger.trace("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
                         notifyAndCache = false;
                     }
                 }
