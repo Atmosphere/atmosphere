@@ -70,6 +70,11 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                         response.write(padding, true);
                     }
 
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        response.write(padding, true);
+                    }
+
                 });
             } else {
                 logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
