@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -218,5 +220,34 @@ public class BroadcasterTest {
         };
         BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/c1").broadcast("").get();
         assertTrue(complete.get());
+    }
+
+    @Test
+    public void testBroadcasterEmptyDestroy() throws InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Boolean> deleted = new AtomicReference<Boolean>();
+        BroadcasterListener l = new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+                deleted.set(Boolean.TRUE);
+                latch.countDown();
+            }
+        };
+        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/b1")
+                .setBroadcasterLifeCyclePolicy(new BroadcasterLifeCyclePolicy.Builder()
+                        .policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY)
+                .idleTime(5, TimeUnit.SECONDS).build());
+
+        latch.await(10, TimeUnit.SECONDS);
+
+        assertTrue(deleted.get());
     }
 }
