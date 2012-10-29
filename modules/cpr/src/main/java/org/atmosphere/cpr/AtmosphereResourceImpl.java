@@ -302,9 +302,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (req.getAttribute(PRE_SUSPEND) == null) {
                     asyncSupport.action(this);
                 }
-
-                // https://github.com/Atmosphere/atmosphere/issues/651
-                response.closeStreamOrWriter();
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
             }
