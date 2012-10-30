@@ -91,28 +91,32 @@ public class BroadcasterConfig {
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
+    private final String name;
+    private boolean handleExecutors;
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
-        this(list, config, true);
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
+        this(list, config, true, name);
     }
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
-        if (createExecutor) {
+        if (handleExecutors) {
             configExecutors();
-        } else {
-            shared = true;
         }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+        this.name = name;
+        this.handleExecutors = handleExecutors;
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
         this.config = config;
+        this.name = name;
+        this.handleExecutors = true;
     }
 
     private void configureBroadcasterCache() {
@@ -147,8 +151,11 @@ public class BroadcasterConfig {
     protected synchronized void configExecutors() {
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
         if (Boolean.parseBoolean(s)) {
+            shared = true;
+            handleExecutors = false;
             isExecutorShared = true;
             isAsyncExecutorShared = true;
+            logger.info("ExecutorServices will be shared amongts Broadcasters");
         }
 
         if (config.properties().get("executorService") == null) {
@@ -183,7 +190,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-BroadcasterConfig-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -195,7 +202,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-BroadcasterConfig-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -210,7 +217,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-AsyncWrite-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -222,7 +229,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-AsyncWrite-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -356,7 +363,7 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (!force && shared) return;
+        if (!force && !handleExecutors) return;
 
         if (broadcasterCache != null) {
             broadcasterCache.stop();

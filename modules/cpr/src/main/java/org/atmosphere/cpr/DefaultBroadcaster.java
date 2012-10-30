@@ -162,7 +162,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @return an instance of {@link BroadcasterConfig}
      */
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config) {
-        return new BroadcasterConfig(config.framework().broadcasterFilters, config);
+        return new BroadcasterConfig(config.framework().broadcasterFilters, config, getID());
     }
 
     /**
@@ -519,7 +519,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         msg = messages.poll(10, TimeUnit.SECONDS);
                         if (msg == null) {
                             if (!destroyed.get()) {
-                                bc.getAsyncWriteService().submit(this);
+                                notifierFuture = bc.getExecutorService().submit(this);
                                 return;
                             }
                         }
@@ -803,7 +803,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     token = asyncWriteQueue.poll(10, TimeUnit.SECONDS);
                     if (token == null) {
                         if (!destroyed.get()) {
-                            bc.getAsyncWriteService().submit(this);
+                            logger.trace("Poll Async Write for {} for resources of size {}", DefaultBroadcaster.this.getID(), DefaultBroadcaster.this.resources.size());
+                            asyncWriteFuture = bc.getAsyncWriteService().submit(this);
                         }
                         return;
                     }
