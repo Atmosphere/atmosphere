@@ -518,7 +518,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         msg = messages.poll(10, TimeUnit.SECONDS);
                         if (msg == null) {
                             if (!destroyed.get()) {
-                                bc.getAsyncWriteService().submit(this);
+                                notifierFuture = bc.getExecutorService().submit(this);
                                 return;
                             }
                         }
@@ -800,7 +800,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     token = asyncWriteQueue.poll(10, TimeUnit.SECONDS);
                     if (token == null) {
                         if (!destroyed.get()) {
-                            bc.getAsyncWriteService().submit(this);
+                            asyncWriteFuture = bc.getAsyncWriteService().submit(this);
                         }
                         return;
                     }
