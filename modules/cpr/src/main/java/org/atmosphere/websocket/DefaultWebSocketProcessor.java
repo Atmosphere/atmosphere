@@ -320,7 +320,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         try {
             if (webSocketHandler == null) {
-                if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
                     List<AtmosphereRequest> list = WebSocketProtocolStream.class.cast(webSocketProtocol).onTextStream(webSocket, reader);
                     dispatch(webSocket, list);
                 } else {
