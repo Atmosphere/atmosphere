@@ -82,12 +82,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      */
     @Override
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
-        BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
-        if (bc == null) {
-            bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false);
-            config.properties().put(BroadcasterConfig.class.getName(), bc);
-        }
-        return bc;
+        return new BroadcasterConfig(config.framework().broadcasterFilters(), config, false);
     }
 
     protected void start() {
