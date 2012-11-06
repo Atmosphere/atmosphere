@@ -71,6 +71,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import static org.atmosphere.cpr.AtmosphereFramework.logger;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
@@ -207,6 +208,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         if (handlerWrapper == null) {
             logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getPathInfo(), config.handlers());
             throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getPathInfo());
+        }
+        if (config.getBroadcasterFactory() == null) {
+            logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
+            return Action.CANCELLED;
         }
         config.getBroadcasterFactory().add(handlerWrapper.broadcaster,handlerWrapper.broadcaster.getID());
 
