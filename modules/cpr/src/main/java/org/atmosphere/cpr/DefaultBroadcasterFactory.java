@@ -223,7 +223,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+    public synchronized Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
         Broadcaster b = store.get(id);
         if (b != null && !c.isAssignableFrom(b.getClass())) {
             String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
