@@ -83,10 +83,10 @@ public class NettyCometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
-        if (r.isResumed() && r.getRequest().getAttribute(ASYNCHRONOUS_HOOK) != null) {
-            if (r.getRequest().getAttribute(CHANNEL) == null) return;
+        if (r.isResumed() && r.getRequest(false).getAttribute(ASYNCHRONOUS_HOOK) != null) {
+            if (r.getRequest(false).getAttribute(CHANNEL) == null) return;
             try {
-                ((AsyncIOWriter)r.getRequest().getAttribute(CHANNEL)).close(r.getResponse(false));
+                ((AsyncIOWriter)r.getRequest(false).getAttribute(CHANNEL)).close(r.getResponse(false));
             } catch (IOException e) {
                 logger.trace("", e);
             }
