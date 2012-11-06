@@ -21,6 +21,8 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.continuation.Continuation;
 import org.eclipse.jetty.continuation.ContinuationSupport;
 import org.eclipse.jetty.websocket.WebSocketFactory;
@@ -37,12 +39,13 @@ public class JettyAsyncSupport extends Jetty7CometSupport {
 
     public JettyAsyncSupport(AtmosphereConfig config) {
         super(config);
+        final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
         WebSocketFactory wsf;
         try {
             String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
             if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
-                wsf = JettyWebSocketUtil.getFactory(config);
+                wsf = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
             } else {
                 wsf = null;
             }
@@ -52,7 +55,7 @@ public class JettyAsyncSupport extends Jetty7CometSupport {
                 logger.trace("Unable to parse Jetty version {}", config.getServletContext().getServerInfo());
             } catch (Throwable t) {
             }
-            wsf = JettyWebSocketUtil.getFactory(config);
+            wsf = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
         }
         webSocketFactory = wsf;
     }

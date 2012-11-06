@@ -41,6 +41,8 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private final WebSocketProtocol webSocketProtocol;
+    private org.atmosphere.websocket.WebSocket webSocket;
+    
 
     public JettyWebSocketDraft08Handler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
         this.request = request;
@@ -53,9 +55,9 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
 
         logger.debug("WebSocket.onConnect (outbound)");
         try {
-            webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new JettyWebSocket(outbound, framework.getAtmosphereConfig()));
-            webSocketProcessor.open(request);
+            webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+            webSocket = new JettyWebSocket(outbound, framework.getAtmosphereConfig());
+            webSocketProcessor.open(webSocket, request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -64,16 +66,16 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
     @Override
     public void onMessage(byte frame, String data) {
         logger.trace("WebSocket.onMessage (frame/string)");
-        webSocketProcessor.invokeWebSocketProtocol(data);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocketProcessor.webSocket()));
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, data);
+        webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(data, MESSAGE, webSocket));
     }
 
     @Override
     public void onMessage(byte frame, byte[] data, int offset, int length) {
         logger.trace("WebSocket.onMessage (frame)");
-        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, new String(data, offset, length));
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
+            webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -83,9 +85,9 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
     @Override
     public void onFragment(boolean more, byte opcode, byte[] data, int offset, int length) {
         logger.trace("WebSocket.onFragment");
-        webSocketProcessor.invokeWebSocketProtocol(new String(data, offset, length));
+        webSocketProcessor.invokeWebSocketProtocol(webSocket, new String(data, offset, length));
         try {
-            webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocketProcessor.webSocket()));
+            webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
         } catch (UnsupportedEncodingException e) {
             logger.warn("UnsupportedEncodingException", e);
 
@@ -96,8 +98,8 @@ public class JettyWebSocketDraft08Handler implements WebSocket {
     public void onDisconnect() {
         request.destroy();
         logger.trace("WebSocket.onDisconnect");
-        webSocketProcessor.close(1000);
-        webSocketProcessor.notifyListener(new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocketProcessor.webSocket()));
+        webSocketProcessor.close(webSocket, 1000);
+        webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", DISCONNECT, webSocket));
     }
 
 }

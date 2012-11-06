@@ -45,11 +45,10 @@ public class Grizzly2WebSocketSupportTest extends BaseTest {
         ServletRegistration registration = webappContext.addServlet("AtmosphereServlet", atmoServlet);
         registration.addMapping("/");
         registration.setLoadOnStartup(1);
-
-        configureCometSupport();
         webappContext.deploy(ws);
-
+        configureCometSupport();
         ws.start();
+
     }
 
     @Override

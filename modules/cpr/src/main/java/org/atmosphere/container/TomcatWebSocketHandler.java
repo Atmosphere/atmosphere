@@ -21,6 +21,7 @@ import org.atmosphere.container.version.TomcatWebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -40,24 +41,23 @@ public class TomcatWebSocketHandler extends MessageInbound {
 
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketHandler.class);
 
-    private WebSocketProcessor webSocketProcessor;
+    private final WebSocketProcessor webSocketProcessor;
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
-    private final WebSocketProtocol webSocketProtocol;
+    private WebSocket webSocket;
 
-    public TomcatWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProtocol webSocketProtocol) {
+    public TomcatWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.request = request;
         this.framework = framework;
-        this.webSocketProtocol = webSocketProtocol;
+        this.webSocketProcessor = webSocketProcessor;
     }
 
     @Override
     protected void onOpen(WsOutbound outbound) {
         logger.trace("WebSocket.onOpen.");
+        webSocket = new TomcatWebSocket(outbound, framework.getAtmosphereConfig());
         try {
-            webSocketProcessor = WebSocketProcessorFactory.getDefault()
-                    .newWebSocketProcessor(new TomcatWebSocket(outbound, framework.getAtmosphereConfig()));
-            webSocketProcessor.open(request);
+            webSocketProcessor.open(webSocket, request);
         } catch (Exception e) {
             logger.warn("failed to connect to web socket", e);
         }
@@ -68,18 +68,18 @@ public class TomcatWebSocketHandler extends MessageInbound {
         request.destroy();
         if (webSocketProcessor == null) return;
 
-        webSocketProcessor.close(closeCode);
+        webSocketProcessor.close(webSocket,closeCode);
     }
 
     @Override
     protected void onBinaryMessage(ByteBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage (bytes)");
-        webSocketProcessor.invokeWebSocketProtocol(message.array(), 0, message.limit());
+        webSocketProcessor.invokeWebSocketProtocol(webSocket,message.array(), 0, message.limit());
     }
 
     @Override
     protected void onTextMessage(CharBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage");
-        webSocketProcessor.invokeWebSocketProtocol(message.toString());
+        webSocketProcessor.invokeWebSocketProtocol(webSocket,message.toString());
     }
 }

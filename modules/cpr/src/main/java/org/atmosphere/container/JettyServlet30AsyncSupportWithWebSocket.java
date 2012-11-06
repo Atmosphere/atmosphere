@@ -19,6 +19,8 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,11 +41,12 @@ public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSuppo
 
     public JettyServlet30AsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
+        final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
         boolean isJetty = config.getServletContext().getServerInfo().toLowerCase().startsWith("jetty");
         if (isJetty) {
-            webSocketFactory = JettyWebSocketUtil.getFactory(config);
-        }  else {
+            webSocketFactory = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
+        } else {
             webSocketFactory = null;
         }
         //TODO: Add Grizzly support here as well.
@@ -56,8 +59,8 @@ public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSuppo
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
-        Action action = JettyWebSocketUtil.doService(this,req,res,webSocketFactory);
-        return action == null? super.service(req,res) : action;
+        Action action = JettyWebSocketUtil.doService(this, req, res, webSocketFactory);
+        return action == null ? super.service(req, res) : action;
     }
 
     /**

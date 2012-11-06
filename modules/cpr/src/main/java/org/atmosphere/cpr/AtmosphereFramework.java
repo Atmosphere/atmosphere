@@ -497,10 +497,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             configureBroadcaster();
             loadConfiguration(scFacade);
+            initWebSocket();
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(sc);
-            initWebSocket();
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
             configureAtmosphereInterceptor(sc);
@@ -924,6 +924,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             factory.destroy();
             BroadcasterFactory.factory = null;
         }
+        WebSocketProcessorFactory.getDefault().destroy();
         return this;
     }
 
@@ -1469,6 +1470,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public WebSocketProtocol getWebSocketProtocol() {
+        // TODO: Spagetthi code, needs to rework.
+        // Make sure we initialized the WebSocketProtocol
+        initWebSocket();
         return webSocketProtocol;
     }
 

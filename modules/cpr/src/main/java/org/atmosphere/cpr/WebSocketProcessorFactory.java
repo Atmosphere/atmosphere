@@ -27,6 +27,8 @@ import org.atmosphere.websocket.WebSocketProcessor;
 public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
+    private WebSocketProcessor webSocketprocessor;
+    private AtmosphereFramework framework;
 
     public final static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
@@ -35,27 +37,46 @@ public class WebSocketProcessorFactory {
         return factory;
     }
 
-    public WebSocketProcessor newWebSocketProcessor(WebSocket webSocket) {
-        WebSocketProcessor wp = null;
-        String webSocketProcessorName = webSocket.config().framework().getWebSocketProcessorClassName();
-        if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
-            try {
-                wp = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
-                        .loadClass(webSocketProcessorName).newInstance();
-            } catch (Exception ex) {
+    /**
+     * Return the {@link WebSocketProcessor}
+     * @param framework {@link AtmosphereFramework}
+     * @return an instance of {@link WebSocketProcessor}
+     */
+    public synchronized WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
+        if (webSocketprocessor == null) {
+            this.framework = framework;
+            String webSocketProcessorName = framework.getWebSocketProcessorClassName();
+            if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
                 try {
-                    wp = (WebSocketProcessor) getClass().getClassLoader()
+                    webSocketprocessor = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
                             .loadClass(webSocketProcessorName).newInstance();
-                } catch (Exception ex2) {
+                } catch (Exception ex) {
+                    try {
+                        webSocketprocessor = (WebSocketProcessor) getClass().getClassLoader()
+                                .loadClass(webSocketProcessorName).newInstance();
+                    } catch (Exception ex2) {
+                    }
                 }
+            }
+
+            if (webSocketprocessor == null) {
+                webSocketprocessor = new DefaultWebSocketProcessor(framework);
             }
         }
 
-        if (wp == null) {
-            wp = new DefaultWebSocketProcessor(webSocket);
+        // More than one Atmosphere Application on the same JVM
+        if (!this.framework.equals(framework)) {
+            webSocketprocessor = new DefaultWebSocketProcessor(framework);
         }
 
-        return wp;
+        return webSocketprocessor;
+    }
+
+    public synchronized void destroy() {
+        if (webSocketprocessor != null) {
+            webSocketprocessor.destroy();
+            webSocketprocessor = null;
+        }
     }
 
 }

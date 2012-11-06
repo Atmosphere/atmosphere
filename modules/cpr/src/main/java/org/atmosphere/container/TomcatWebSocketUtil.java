@@ -39,6 +39,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +72,8 @@ public class TomcatWebSocketUtil {
 
     public static Action doService(AtmosphereRequest req, AtmosphereResponse res,
                                    Delegate delegate,
-                                   AtmosphereConfig config) throws IOException, ServletException {
+                                   AtmosphereConfig config,
+                                   WebSocketProcessor webSocketProcessor) throws IOException, ServletException {
         // First, handshake
         if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
             // Information required to send the server handshake message
@@ -118,7 +120,7 @@ public class TomcatWebSocketUtil {
                 isDestroyable = true;
             }
             StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, config.isSupportSession(), isDestroyable),
-                    config.framework(), config.framework().getWebSocketProtocol());
+                    config.framework(), webSocketProcessor);
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);
         }

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.testng.annotations.AfterTest;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletConfig;

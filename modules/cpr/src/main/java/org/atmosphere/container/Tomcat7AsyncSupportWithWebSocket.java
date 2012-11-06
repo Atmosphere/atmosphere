@@ -35,6 +35,8 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,14 +47,16 @@ import java.io.IOException;
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
  */
 public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implements TomcatWebSocketUtil.Delegate {
+    private final WebSocketProcessor webSocketProcessor;
 
     public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
         super(config);
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
     }
 
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-        return TomcatWebSocketUtil.doService(req, res, this, config);
+        return TomcatWebSocketUtil.doService(req, res, this, config, webSocketProcessor);
     }
 
     public Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {

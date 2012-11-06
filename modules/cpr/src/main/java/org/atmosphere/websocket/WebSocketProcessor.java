@@ -31,36 +31,55 @@ import java.io.IOException;
  */
 public interface WebSocketProcessor {
     /**
+     * Register a {@link WebSocketHandler}
+     *
+     * @param path             the URI mapping the WebSocketHandler
+     * @param webSockethandler an instance of {@link WebSocketHandler}
+     * @return this
+     */
+    WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler);
+
+    /**
      * Invoked when a WebSocket gets opened by the underlying container
+     *
      * @param request
      * @throws IOException
      */
-    void open(final AtmosphereRequest request) throws IOException;
+    void open(WebSocket webSocket, final AtmosphereRequest request) throws IOException;
+
     /**
      * Invoked when a WebSocket message gets received from the underlying container
+     *
      * @param webSocketMessage
      */
-    void invokeWebSocketProtocol(String webSocketMessage);
+    void invokeWebSocketProtocol(WebSocket webSocket, String webSocketMessage);
+
     /**
      * Invoked when a WebSocket message gets received from the underlying container
+     *
      * @param data
      */
-    void invokeWebSocketProtocol(byte[] data, int offset, int length);
-    /**
-     * Return the underlying WebSocket.
-     * @return
-     */
-    public WebSocket webSocket();
+    void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length);
+
     /**
      * Invked when the WebServer is closing the native WebSocket
+     *
      * @param closeCode
      */
-    public void close(int closeCode);
+    public void close(WebSocket webSocket, int closeCode);
+
     /**
      * Notify all {@link WebSocketEventListener}
+     *
      * @param webSocketEvent
      */
-    void notifyListener(WebSocketEvent webSocketEvent);
+    void notifyListener(WebSocket webSocket, WebSocketEvent webSocketEvent);
+
+    /**
+     * Destroy all resources associated with this class.
+     */
+    void destroy();
+
     /**
      * An exception that can be used to flag problems with the WebSocket processing.
      */
