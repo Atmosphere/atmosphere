@@ -1455,7 +1455,7 @@ jQuery.atmosphere = function() {
                                             if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
                                                 // Close and reopen connection on large data received
                                                 ajaxRequest.abort();
-                                                _doRequest(ajaxRequest, rq, true);
+                                                _doRequest(_buildAjaxRequest(), rq, true);
                                             }
                                         }
                                     }, 0);
@@ -1501,7 +1501,7 @@ jQuery.atmosphere = function() {
                             if ((rq.transport == 'streaming') && (responseText.length > rq.maxStreamingLength)) {
                                 // Close and reopen connection on large data received
                                 ajaxRequest.abort();
-                                _doRequest(ajaxRequest, rq, true);
+                                _doRequest(_buildAjaxRequest(), rq, true);
                             }
                         }
                     };
