@@ -827,7 +827,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * Close the associated {@link PrintWriter} or {@link java.io.OutputStream}
      */
     public void closeStreamOrWriter() {
-        if (resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+        if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
             try {
                 boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
                 if (isUsingStream) {
