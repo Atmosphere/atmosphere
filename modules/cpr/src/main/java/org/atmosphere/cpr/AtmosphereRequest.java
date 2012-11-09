@@ -75,6 +75,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
+    private boolean cookieComputed = false;
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -316,9 +317,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        Cookie[] c = b.request.getCookies();
-        if (c != null && c.length > 0) {
-            b.cookies.addAll(Arrays.asList(c));
+        if (!cookieComputed) {
+            cookieComputed = true;
+            Cookie[] c = b.request.getCookies();
+            if (c != null && c.length > 0) {
+                b.cookies.addAll(Arrays.asList(c));
+            }
         }
         return b.cookies.toArray(new Cookie[]{});
     }
