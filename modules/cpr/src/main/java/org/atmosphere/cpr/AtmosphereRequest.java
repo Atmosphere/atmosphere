@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
-import org.atmosphere.util.QueryStringDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
