@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
+import org.atmosphere.util.QueryStringDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -110,6 +112,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     public boolean destroyed() {
         return destroyed.get();
+    }
+
+    public AtmosphereRequest destroyable(boolean destroyable) {
+        b.destroyable = destroyable;
+        return this;
     }
 
     /**
@@ -474,7 +481,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      *
      * @param name
      * @param value
-     * @return
+     * @return this
      */
     public AtmosphereRequest header(String name, String value) {
         b.headers.put(name, value);
@@ -821,7 +828,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Locale getLocale() {
-        return b.request.getLocale();
+        return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
     }
 
     /**
@@ -839,7 +846,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<Locale> getLocales() {
-        return b.request.getLocales();
+        return  isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
     }
 
     /**
@@ -955,6 +962,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
         private Set<Cookie> cookies = new HashSet<Cookie>();
+        private Set<Locale> locales = new HashSet<Locale>();
+
 
         private String contextPath = "";
         private String serverName = "";
@@ -1116,6 +1125,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             } else {
                 webSocketFakeSession = session;
             }
+            return this;
+        }
+
+        public Builder locale(Locale locale){
+            locales.add(locale);
             return this;
         }
     }
@@ -1599,6 +1613,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
         b.queryString = request.getQueryString();
 
+        Enumeration<Locale> l = request.getLocales();
+        while (l.hasMoreElements()) {
+            b.locale(l.nextElement());
+        }
     }
 
     @Override
