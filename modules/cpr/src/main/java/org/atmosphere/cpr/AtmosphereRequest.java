@@ -845,7 +845,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Locale getLocale() {
-        return b.request.getLocale();
+        return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
     }
 
     /**
@@ -863,7 +863,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<Locale> getLocales() {
-        return b.request.getLocales();
+        return  isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
     }
 
     /**
@@ -979,6 +979,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
         private Set<Cookie> cookies = new HashSet<Cookie>();
+        private Set<Locale> locales = new HashSet<Locale>();
+
 
         private String contextPath = "";
         private String serverName = "";
@@ -1140,6 +1142,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             } else {
                 webSocketFakeSession = session;
             }
+            return this;
+        }
+
+        public Builder locale(Locale locale){
+            locales.add(locale);
             return this;
         }
     }
@@ -1622,6 +1629,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             b.queryStrings.put(s, request.getParameterValues(s));
         }
         b.queryString = request.getQueryString();
+
+        Enumeration<Locale> l = request.getLocales();
+        while (l.hasMoreElements()) {
+            b.locale(l.nextElement());
+        }
     }
 
     @Override
