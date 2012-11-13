@@ -2288,9 +2288,11 @@ jQuery.atmosphere = function() {
 
         unsubscribe : function() {
             if (jQuery.atmosphere.requests.length > 0) {
-                for (var i = 0; i < jQuery.atmosphere.requests.length; i++) {
-                    jQuery.atmosphere.requests[i].close();
-                    clearTimeout(jQuery.atmosphere.requests[i].id);
+              var requestsClone = [].concat(jQuery.atmosphere.requests);
+              for (var i = 0; i < requestsClone.length; i++) {
+                    var rq = requestsClone[i];
+                    rq.close();
+                    clearTimeout(rq.id);
                 }
             }
             jQuery.atmosphere.requests = [];
