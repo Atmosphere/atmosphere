@@ -59,7 +59,7 @@ import java.util.List;
  * a the long polling technique is used and prevent application from loosing event between re-connection.
  * <p/>
  * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
- * defining it in your web/application.xml or by using the {@link BroadcasterCacheService}
+ * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
  *
  */
 public interface BroadcasterCache {
