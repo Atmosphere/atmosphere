@@ -94,9 +94,8 @@ public class JMSFilter implements ClusterBroadcastFilter {
     /**
      * Preapre the cluter.
      */
-    public void init() {
+    public void init(AtmosphereConfig config) {
         try {
-            AtmosphereConfig config = bc.getBroadcasterConfig().getAtmosphereConfig();
             if (config != null) {
 
                 // For backward compatibility.
