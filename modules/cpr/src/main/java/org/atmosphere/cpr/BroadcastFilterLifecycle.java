@@ -61,7 +61,7 @@ public interface BroadcastFilterLifecycle extends BroadcastFilter {
     /**
      * Initialize the {@link BroadcastFilter}
      */
-    void init();
+    void init(AtmosphereConfig config);
 
     /**
      * Destroy this {@link BroadcastFilter} and its internal resources.

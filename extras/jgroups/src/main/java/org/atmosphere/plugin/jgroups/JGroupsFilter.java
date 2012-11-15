@@ -16,6 +16,7 @@
 package org.atmosphere.plugin.jgroups;
 
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.slf4j.Logger;
@@ -93,8 +94,7 @@ public class JGroupsFilter implements ClusterBroadcastFilter {
       * @see org.atmosphere.cpr.BroadcastFilterLifecycle#init()
       */
     @Override
-    public void init() {
-
+    public void init(AtmosphereConfig config) {
     }
 
 

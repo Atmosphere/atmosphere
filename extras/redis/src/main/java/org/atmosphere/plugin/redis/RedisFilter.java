@@ -15,6 +15,7 @@
  */
 package org.atmosphere.plugin.redis;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
@@ -41,49 +42,18 @@ public class RedisFilter implements ClusterBroadcastFilter {
     private Broadcaster bc;
     private final ExecutorService listener = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<String> receivedMessages = new ConcurrentLinkedQueue<String>();
-    private Jedis jedisSubscriber;
-    private Jedis jedisPublisher;
     private URI uri;
-    private String auth = "atmosphere";
+    private RedisUtil redisUtil;
+    private AtmosphereConfig config;
+    private final ConcurrentLinkedQueue<String> localMessages = new  ConcurrentLinkedQueue<String>();
+    private String auth;
 
     public RedisFilter() {
-        this(RedisFilter.class.getSimpleName(), URI.create("http://localhost:6379"));
-    }
-
-    public RedisFilter(String id) {
-        this(id, URI.create("http://localhost:6379"));
+        this(URI.create("http://localhost:6379"));
     }
 
     public RedisFilter(URI uri) {
-        this(RedisFilter.class.getSimpleName(), uri);
-    }
-
-    public RedisFilter(String id, URI uri) {
         this.uri = uri;
-    }
-
-    public RedisFilter(Broadcaster bc, String address) {
-
-        this.bc = bc;
-        uri = URI.create(address);
-
-        if (uri == null) return;
-
-        jedisSubscriber = new Jedis(uri.getHost(), uri.getPort());
-        try {
-            jedisSubscriber.connect();
-            auth(jedisSubscriber);
-        } catch (JedisException e) {
-            logger.error("failed to connect to subscriber: {}", jedisSubscriber, e);
-        }
-
-        jedisPublisher = new Jedis(uri.getHost(), uri.getPort());
-        try {
-            jedisPublisher.connect();
-            auth(jedisPublisher);
-        } catch (JedisException e) {
-            logger.error("failed to connect to publisher: {}", jedisPublisher, e);
-        }
     }
 
     /**
@@ -98,42 +68,8 @@ public class RedisFilter implements ClusterBroadcastFilter {
      * {@inheritDoc}
      */
     @Override
-    public void init() {
-        logger.info("Starting Atmosphere Redis Clustering support");
-
-        final Broadcaster broadcaster = bc;
-        listener.submit(new Runnable() {
-            public void run() {
-                jedisSubscriber.subscribe(new JedisPubSub() {
-                    public void onMessage(String channel, String message) {
-                        receivedMessages.offer(message);
-                        broadcaster.broadcast(message);
-                    }
-
-                    public void onSubscribe(String channel, int subscribedChannels) {
-                        logger.debug("onSubscribe(): channel: {}", channel);
-                    }
-
-                    public void onUnsubscribe(String channel, int subscribedChannels) {
-                        logger.debug("onUnsubscribe(): channel: {}", channel);
-                    }
-
-                    public void onPSubscribe(String pattern, int subscribedChannels) {
-                        logger.debug("onPSubscribe(): pattern: {}", pattern);
-                    }
-
-                    public void onPUnsubscribe(String pattern, int subscribedChannels) {
-                        logger.debug("onPUnsubscribe(): pattern: {}", pattern);
-                    }
-
-                    public void onPMessage(String pattern, String channel, String message) {
-                        logger.debug("onPMessage: pattern: {}, channel: {}, message: {}",
-                                new Object[]{pattern, channel, message});
-
-                    }
-                }, bc.getID());
-            }
-        });
+    public void init(AtmosphereConfig config) {
+        this.config = config;
     }
 
     /**
@@ -142,12 +78,7 @@ public class RedisFilter implements ClusterBroadcastFilter {
     @Override
     public void destroy() {
         listener.shutdownNow();
-        try {
-            jedisPublisher.disconnect();
-            jedisSubscriber.disconnect();
-        } catch (JedisException e) {
-            logger.error("failure encountered during destroy", e);
-        }
+        redisUtil.destroy();
     }
 
     /**
@@ -156,12 +87,12 @@ public class RedisFilter implements ClusterBroadcastFilter {
     @Override
     public BroadcastFilter.BroadcastAction filter(Object originalMessage, Object o) {
         String contents = originalMessage.toString();
-
-        if (!(receivedMessages.remove(contents))) {
-            jedisPublisher.publish(bc.getID(), contents);
+        if (!localMessages.remove(contents)) {
+            redisUtil.outgoingBroadcast(originalMessage.toString());
             return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
+        } else {
+            return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.ABORT, o);
         }
-        return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.ABORT, o);
     }
 
     /**
@@ -172,18 +103,44 @@ public class RedisFilter implements ClusterBroadcastFilter {
         return bc;
     }
 
+    public String getAuth() {
+        return redisUtil.getAuth();
+    }
+
+    public void setAuth(String auth) {
+        if (redisUtil != null) {
+            redisUtil.setAuth(auth);
+        } else {
+            this.auth = auth;
+        }
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setBroadcaster(Broadcaster bc) {
+    public void setBroadcaster(final Broadcaster bc) {
         this.bc = bc;
-    }
 
-    private void auth(Jedis jedis) {
-        if (auth != null) {
-            jedis.auth(auth);
-        }
-        jedis.flushAll();
+        this.redisUtil = new RedisUtil(uri, config, new RedisUtil.Callback() {
+            @Override
+            public String getID() {
+                return bc.getID();
+            }
+
+            @Override
+            public void broadcastReceivedMessage(String message) {
+                localMessages.offer(message);
+                bc.broadcast(message);
+            }
+        });
+        redisUtil.configure();
+        if (auth != null) redisUtil.setAuth(auth);
+
+        listener.submit(new Runnable() {
+            public void run() {
+                redisUtil.incomingBroadcast();
+            }
+        });
     }
 }

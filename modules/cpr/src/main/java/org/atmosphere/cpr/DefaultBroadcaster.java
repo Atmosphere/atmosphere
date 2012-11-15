@@ -53,13 +53,10 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
-import org.atmosphere.cpr.BroadcasterConfig.DefaultBroadcasterCache;
-import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -69,7 +66,6 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -296,6 +292,8 @@ public class DefaultBroadcaster implements Broadcaster {
         BroadcasterFactory.getDefault().remove(this, name);
         this.name = id;
         BroadcasterFactory.getDefault().add(this, name);
+
+        bc.broadcasterID(name);
     }
 
     /**

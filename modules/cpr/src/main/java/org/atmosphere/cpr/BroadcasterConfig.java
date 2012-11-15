@@ -59,12 +59,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -90,6 +92,7 @@ public class BroadcasterConfig {
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
+    private String broadcasterID = "/*";
 
     public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
         this(list, config, true);
@@ -97,6 +100,7 @@ public class BroadcasterConfig {
 
     public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
         this.config = config;
+
         if (createExecutor) {
             configExecutors();
         } else {
@@ -108,10 +112,10 @@ public class BroadcasterConfig {
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
                              ScheduledExecutorService scheduler, AtmosphereConfig config) {
+        this(Collections.<String>emptyList(), config, false);
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
-        this.config = config;
     }
 
     private void configureBroadcasterCache() {
@@ -135,6 +139,29 @@ public class BroadcasterConfig {
             throw new RuntimeException(e);
         }
 
+    }
+
+    protected BroadcasterConfig broadcasterID(String broadcasterID) {
+        this.broadcasterID = broadcasterID;
+        initClusterExtension();
+        return this;
+    }
+
+    protected void initClusterExtension() {
+        for (BroadcastFilter mf : filters) {
+            if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
+                try {
+                    Broadcaster b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+                    if (b != null) {
+                        synchronized (mf) {
+                            ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
+                        }
+                    }
+                } catch (Throwable t) {
+                    logger.error("", t);
+                }
+            }
+        }
     }
 
     protected synchronized void configExecutors() {
@@ -322,11 +349,30 @@ public class BroadcasterConfig {
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
+        return addFilter(e, true);
+    }
+
+    /**
+     * Add a {@link BroadcastFilter}
+     *
+     * @param e {@link BroadcastFilter}
+     * @return true if added.
+     */
+    protected boolean addFilter(BroadcastFilter e, boolean init) {
         logDuplicateFilter(e);
         if (filters.contains(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) e).init();
+            ((BroadcastFilterLifecycle) e).init(config);
+        }
+
+        if (init) {
+            Broadcaster b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+            if (b != null) {
+                synchronized (e) {
+                    ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
+                }
+            }
         }
 
         if (e instanceof PerRequestBroadcastFilter) {
@@ -588,11 +634,11 @@ public class BroadcasterConfig {
                     logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
                 }
             }
+
             if (bf != null) {
                 InjectorProvider.getInjector().inject(bf);
-                addFilter(bf);
+                addFilter(bf, false);
             }
-
         }
     }
 
