@@ -366,7 +366,7 @@ public class BroadcasterConfig {
             ((BroadcastFilterLifecycle) e).init(config);
         }
 
-        if (init) {
+        if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
             Broadcaster b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
             if (b != null) {
                 synchronized (e) {
