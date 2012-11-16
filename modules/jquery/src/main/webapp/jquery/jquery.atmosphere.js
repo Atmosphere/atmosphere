@@ -65,7 +65,7 @@ jQuery.atmosphere = function() {
         },
         onMessagePublished : function(response) {
         },
-        onTransportFailure : function(response) {
+        onTransportFailure : function (reason, request) {
         },
         onLocalMessage : function (response) {
         },
