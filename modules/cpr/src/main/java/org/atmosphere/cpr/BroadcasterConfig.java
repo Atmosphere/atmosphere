@@ -91,7 +91,7 @@ public class BroadcasterConfig {
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
-    private final String name;
+    private String name;
     private boolean handleExecutors;
 
     public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
@@ -145,7 +145,29 @@ public class BroadcasterConfig {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
+    }
 
+    protected BroadcasterConfig broadcasterID(String name) {
+        this.name = name;
+        initClusterExtension();
+        return this;
+    }
+
+    protected void initClusterExtension() {
+        for (BroadcastFilter mf : filters) {
+            if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
+                try {
+                    Broadcaster b = BroadcasterFactory.getDefault().lookup(name, false);
+                    if (b != null) {
+                        synchronized (mf) {
+                            ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
+                        }
+                    }
+                } catch (Throwable t) {
+                    logger.error("", t);
+                }
+            }
+        }
     }
 
     protected synchronized void configExecutors() {
@@ -336,11 +358,30 @@ public class BroadcasterConfig {
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
+        return addFilter(e, true);
+    }
+
+    /**
+     * Add a {@link BroadcastFilter}
+     *
+     * @param e {@link BroadcastFilter}
+     * @return true if added.
+     */
+    protected boolean addFilter(BroadcastFilter e, boolean init) {
         logDuplicateFilter(e);
         if (filters.contains(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) e).init();
+            ((BroadcastFilterLifecycle) e).init(config);
+        }
+
+        if (init) {
+            Broadcaster b = BroadcasterFactory.getDefault().lookup(name, false);
+            if (b != null) {
+                synchronized (e) {
+                    ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
+                }
+            }
         }
 
         if (e instanceof PerRequestBroadcastFilter) {
