@@ -94,6 +94,7 @@ jQuery.atmosphere = function() {
                 fallbackMethod: 'GET',
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
+                webSocketCreator: null,
                 webSocketImpl: null,
                 webSocketUrl: null,
                 webSocketPathDelimiter: "@@",
@@ -837,7 +838,9 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _getWebSocket(location) {
-                if (_request.webSocketImpl != null) {
+                if (_request.webSocketCreator != null) {
+                    return _request.webSocketCreator(location);
+                } else if (_request.webSocketImpl != null) {
                     return _request.webSocketImpl;
                 } else {
                     if (window.WebSocket) {
