@@ -61,6 +61,8 @@ import javax.servlet.http.HttpSession;
 /**
  * Simple {@link javax.servlet.http.HttpSession} based {@link org.atmosphere.cpr.BroadcasterCache}
  *
+ * By default, message will be cached for 5 minutes. You can change the value by calling {@link #setMaxCachedinMs(int)}
+ *
  * @author Jeanfrancois Arcand
  */
 public class SessionBroadcasterCache extends AbstractBroadcasterCache {

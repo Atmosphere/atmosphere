@@ -61,6 +61,8 @@ import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
  * Simple header based {@link org.atmosphere.cpr.BroadcasterCache}. The returned header is "X-Cache-Date" and
  * containg the time, in milliseconds, of the last broadcasted message.
  *
+ * By default, message will be cached for 5 minutes. You can change the value by calling {@link #setMaxCachedinMs(int)}
+ *
  * @author Jeanfrancois Arcand
  */
 public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
