@@ -184,10 +184,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getNodeValue();
+                            param = n2.getFirstChild().getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
                             if (n2 != null) {
-                                value = n2.getNodeValue();
+                                value = n2.getFirstChild().getNodeValue();
                             }
                         }
 
@@ -205,10 +205,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getNodeValue();
+                            param = n2.getFirstChild().getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
                             if (n2 != null) {
-                                value = n2.getNodeValue();
+                                value = n2.getFirstChild().getNodeValue();
                             }
                         }
 
