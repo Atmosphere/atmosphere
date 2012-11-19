@@ -105,7 +105,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             }
         }
 
-        Map<String,Object> m = new HashMap<String, Object>();
+        Map<String, Object> m = new HashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
         // Propagate the original attribute to WebSocket message.
         m.putAll(resource.getRequest().attributes());
@@ -134,7 +134,39 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
-        return onMessage(webSocket, new String(d, offset, length));
+
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        if (resource == null) {
+            logger.trace("The WebSocket has been closed before the message was processed.");
+            return null;
+        }
+        String pathInfo = resource.getRequest().getPathInfo();
+        String requestURI = resource.getRequest().getRequestURI();
+
+
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+        // Propagate the original attribute to WebSocket message.
+        m.putAll(resource.getRequest().attributes());
+
+        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+
+        // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
+        list.add(new AtmosphereRequest.Builder()
+                .request(resource.getRequest())
+                .method(methodType)
+                .contentType(contentType)
+                .body(d, offset, length)
+                .attributes(m)
+                .pathInfo(pathInfo)
+                .requestURI(requestURI)
+                .destroyable(destroyable)
+                .headers(resource.getRequest().headersMap())
+                .session(resource.session())
+                .build());
+
+        return list;
     }
 
     /**
