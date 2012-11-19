@@ -187,7 +187,7 @@ public class AtmosphereConfigReader {
                             param = n2.getFirstChild().getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
                             if (n2 != null) {
-                                value = n2.getFirstChild().getNodeValue();;
+                                value = n2.getFirstChild().getNodeValue();
                             }
                         }
 
