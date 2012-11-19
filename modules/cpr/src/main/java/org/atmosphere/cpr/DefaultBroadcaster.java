@@ -704,28 +704,26 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object finalMsg = msg.message;
 
-        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-            synchronized (r) {
-                if (isAtmosphereResourceValid(r)) {
-                    if (bc.hasPerRequestFilters()) {
-                        BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
-                        if (a.action() == BroadcastAction.ACTION.ABORT) {
-                            return null;
-                        }
-                        if (a.message() != msg.originalMessage) {
-                            finalMsg = a.message();
-                        }
+        if (isAtmosphereResourceValid(r)) {
+            if (bc.hasPerRequestFilters()) {
+                synchronized (r) {
+                    BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
+                    if (a.action() == BroadcastAction.ACTION.ABORT) {
+                        return null;
                     }
-                } else {
-                    // The resource is no longer valid.
-                    removeAtmosphereResource(r);
-                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
-                }
-
-                if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                    trackBroadcastMessage(r, finalMsg);
+                    if (a.message() != msg.originalMessage) {
+                        finalMsg = a.message();
+                    }
                 }
             }
+        } else {
+            // The resource is no longer valid.
+            removeAtmosphereResource(r);
+            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+        }
+
+        if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+            trackBroadcastMessage(r, finalMsg);
         }
         return finalMsg;
     }
