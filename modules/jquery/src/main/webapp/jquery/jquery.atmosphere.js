@@ -2034,6 +2034,7 @@ jQuery.atmosphere = function() {
                 _response.transport = transport;
                 _response.status = errorCode;
                 _response.state = state;
+                _response.responseBody = messageBody;
 
                 _invokeCallback();
             }
