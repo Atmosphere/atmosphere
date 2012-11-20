@@ -2114,10 +2114,6 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                if (_localStorageService == null && _localSocketF != null) {
-                    _localSocketF(_response.responseBody);
-                }
-
                 var messages = typeof(_response.responseBody) == 'string' ? _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
 
@@ -2125,6 +2121,10 @@ jQuery.atmosphere = function() {
                         continue;
                     }
                     _response.responseBody = jQuery.trim(messages[i]);
+
+                    if (_localStorageService == null && _localSocketF != null) {
+                        _localSocketF(_response.responseBody);
+                    }
 
                     // Ugly see issue 400.
                     if (_response.responseBody.length == 0 && _response.transport == 'streaming' && _response.state == "messageReceived") {
