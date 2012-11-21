@@ -87,12 +87,19 @@ public class RedisFilter implements ClusterBroadcastFilter {
     @Override
     public BroadcastFilter.BroadcastAction filter(Object originalMessage, Object o) {
         String contents = originalMessage.toString();
-        if (!localMessages.remove(contents)) {
-            redisUtil.outgoingBroadcast(originalMessage.toString());
+        boolean local = localMessages.remove(contents);
+        boolean received = receivedMessages.remove(contents);
+        
+        if (!local) {
+            if (!received) {
+                localMessages.offer(contents);
+                redisUtil.outgoingBroadcast(originalMessage.toString());
+            }
+            
             return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.CONTINUE, o);
-        } else {
-            return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.ABORT, o);
         }
+        
+        return new BroadcastFilter.BroadcastAction(BroadcastAction.ACTION.ABORT, o);
     }
 
     /**
@@ -130,12 +137,14 @@ public class RedisFilter implements ClusterBroadcastFilter {
 
             @Override
             public void broadcastReceivedMessage(String message) {
-                localMessages.offer(message);
+                receivedMessages.offer(message);
                 bc.broadcast(message);
             }
         });
-        redisUtil.configure();
+        
         if (auth != null) redisUtil.setAuth(auth);
+        redisUtil.configure();
+        
 
         listener.submit(new Runnable() {
             public void run() {
