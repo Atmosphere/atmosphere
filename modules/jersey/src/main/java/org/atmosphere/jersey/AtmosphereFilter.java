@@ -355,7 +355,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
                         boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
-                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
+                        final boolean resumeOnBroadcast = transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT);
 
                         if (listeners != null) {
                             for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
