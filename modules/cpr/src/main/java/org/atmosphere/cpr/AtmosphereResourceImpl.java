@@ -377,7 +377,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
 
-        if (req.getAttribute(DefaultBroadcaster.CACHED) != null) {
+        if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && (
+                transport().equals(TRANSPORT.LONG_POLLING) || transport().equals(TRANSPORT.JSONP))) {
             // Do nothing because we have found cached message which was written already, and the handler resumed.
             req.removeAttribute(DefaultBroadcaster.CACHED);
             return this;
