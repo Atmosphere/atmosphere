@@ -110,7 +110,7 @@ jQuery.atmosphere = function() {
                 connectTimeout : -1,
                 reconnectInterval : 0,
                 dropAtmosphereHeaders : true,
-                uuid : 0,
+                uuid : jQuery.atmosphere.guid(),
                 shared : false,
                 readResponsesHeaders : true,
                 onError : function(response) {
