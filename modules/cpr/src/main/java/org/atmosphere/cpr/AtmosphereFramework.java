@@ -1318,7 +1318,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                  key = e.nextElement();
                  name = key.toLowerCase().trim();
                  if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date") ) {
-                     queryStrings.append(name).append("=").append(req.getParameter(key));
+                     queryStrings.append(key).append("=").append(req.getParameter(key));
                  }
              }
 
