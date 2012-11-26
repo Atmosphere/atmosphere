@@ -1313,11 +1313,12 @@ public class AtmosphereFramework implements ServletContextProvider {
              // interceptor re-inject the request because the wrong body will be passed.
              StringBuilder queryStrings = new StringBuilder("");
              Enumeration<String> e = req.getParameterNames();
-             String name;
+             String name, key;
              while (e.hasMoreElements()) {
-                 name = e.nextElement().toLowerCase().trim();
+                 key = e.nextElement();
+                 name = key.toLowerCase().trim();
                  if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date") ) {
-                     queryStrings.append(name).append("=").append(req.getParameter(name));
+                     queryStrings.append(name).append("=").append(req.getParameter(key));
                  }
              }
 
