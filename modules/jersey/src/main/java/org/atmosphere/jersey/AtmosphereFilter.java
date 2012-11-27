@@ -325,6 +325,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     if (transport == null) {
                         transport = HeaderConfig.LONG_POLLING_TRANSPORT;
+                        servletReq.setAttribute(X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
                     }
 
                     if (broadcasterName == null) {
