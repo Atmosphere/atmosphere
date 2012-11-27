@@ -170,6 +170,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
     protected boolean webSocketProtocolInitialized = false;
     protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
+    protected String libPath = DEFAULT_LIB_PATH;
 
     @Override
     public ServletContext getServletContext() {
@@ -1589,6 +1590,24 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
+    /**
+     * Return the location of the jars containing the application classes. Default is WEB-INF/lib
+     * @return the location of the jars containing the application classes. Default is WEB-INF/lib
+     */
+    public String getLibPath() {
+        return libPath;
+    }
+
+    /**
+     * Set the location of the jars containing the application.
+     * @param libPath the location of the jars containing the application.
+     * @return this
+     */
+    public AtmosphereFramework setLibPath(String libPath) {
+        this.libPath = libPath;
+        return this;
+    }
+
     public String getWebSocketProcessorClassName() {
         return webSocketProcessorClassName;
     }
@@ -1691,7 +1710,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void autoConfigureService(ServletContext sc) throws IOException {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-        String path = sc.getRealPath(handlersPath);
+        String path = libPath != DEFAULT_LIB_PATH ? libPath : sc.getRealPath(handlersPath);
         try {
             AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
