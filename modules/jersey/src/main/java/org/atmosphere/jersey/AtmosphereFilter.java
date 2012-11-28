@@ -78,6 +78,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterLifeCyclePolicy;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
@@ -350,6 +351,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     // See issue https://github.com/Atmosphere/atmosphere/issues/676
                     synchronized (broadcasterName.intern()) {
                         newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                        newBroadcaster.setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy.EMPTY_DESTROY);
                     }
                     final Broadcaster bcaster = newBroadcaster;
                     logger.debug("Broadcaster {} was created {}", broadcasterName, bcaster);
