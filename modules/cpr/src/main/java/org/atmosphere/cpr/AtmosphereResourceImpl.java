@@ -785,9 +785,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     void onThrowable(AtmosphereResourceEvent e) {
-        AtmosphereHandler atmosphereHandler =
-                (AtmosphereHandler)
-                        req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
         }
