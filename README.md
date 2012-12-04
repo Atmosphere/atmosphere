@@ -83,9 +83,8 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 Powered by [Cloudbees](https://jfarcabd.ci.cloudbees.com/)
 
 ## License
-"
 YourKit is kindly supporting open source projects with its full-featured Java Profiler.
 YourKit, LLC is the creator of innovative and intelligent tools for profiling
 Java and .NET applications. Take a look at YourKit's leading software products:
 [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp) and [YourKit .NET Profiler](http://www.yourkit.com/java/profiler/index.jsp)
-"
+
