@@ -87,7 +87,7 @@ jQuery.atmosphere = function() {
                 suspend : true,
                 maxRequest : 60,
                 reconnect : true,
-                maxStreamingLength : 10000000,
+                maxStreamingLength : 10,
                 lastIndex : 0,
                 logLevel : 'info',
                 requestCount : 0,
@@ -1827,6 +1827,7 @@ jQuery.atmosphere = function() {
                                     }
 
                                     if (cdoc.readyState === "complete") {
+                                        _prepareCallback("", "closed", 200, rq.transport);
                                         _prepareCallback("", "re-opening", 200, rq.transport);
                                         _ieStreaming(rq);
                                         return false;
@@ -1835,6 +1836,7 @@ jQuery.atmosphere = function() {
 
                                 return false;
                             } catch (err) {
+                                _onError();
                                 jQuery.atmosphere.error(err);
                             }
                         });
