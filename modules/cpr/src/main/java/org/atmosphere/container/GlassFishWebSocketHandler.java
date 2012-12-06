@@ -63,13 +63,13 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
             AtmosphereRequest r = AtmosphereRequest.wrap(dws.getRequest());
             try {
                 // GlassFish http://java.net/jira/browse/GLASSFISH-18681
-                if (r.getPathInfo().startsWith(r.getContextPath())) {
+                if (r.getPathInfo() != null && r.getPathInfo().startsWith(r.getContextPath())) {
                     r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
                     r.pathInfo(null);
                 }
             } catch (Exception e) {
                 // Whatever exception occurs skip it
-                logger.trace("", e);
+                logger.error("", e);
             }
             webSocketProcessor.open(webSocket, r);
         } catch (Exception e) {
