@@ -85,9 +85,9 @@ jQuery.atmosphere = function() {
                 url : '',
                 data : '',
                 suspend : true,
-                maxRequest : 60,
+                maxRequest : -1,
                 reconnect : true,
-                maxStreamingLength : 10,
+                maxStreamingLength : 10000000,
                 lastIndex : 0,
                 logLevel : 'info',
                 requestCount : 0,
@@ -728,7 +728,7 @@ jQuery.atmosphere = function() {
                     type : rq.method,
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
-                        if (jqXHR.status < 300 && rq.requestCount++ < rq.maxRequest) {
+                        if (jqXHR.status < 300 && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
@@ -737,7 +737,7 @@ jQuery.atmosphere = function() {
                     jsonp : "jsonpTransport",
                     success: function(json) {
 
-                        if (rq.requestCount++ < rq.maxRequest) {
+                        if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
                             _readHeaders(_jqxhr, rq);
 
                             if (!rq.executeCallbackBeforeReconnect) {
@@ -798,7 +798,7 @@ jQuery.atmosphere = function() {
                     url : url,
                     type : rq.method,
                     error : function(jqXHR, textStatus, errorThrown) {
-                        if (jqXHR.status < 300 && rq.requestCount++ < rq.maxRequest) {
+                        if (jqXHR.status < 300 && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
@@ -806,7 +806,7 @@ jQuery.atmosphere = function() {
                     },
                     success: function(data, textStatus, jqXHR) {
 
-                        if (rq.requestCount++ < rq.maxRequest) {
+                        if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
                             if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(_jqxhr, rq);
                             }
@@ -962,7 +962,7 @@ jQuery.atmosphere = function() {
                         _reconnectWithFallbackTransport("SSE failed. Downgrading to fallback transport and resending");
                     } else if (_request.reconnect && (_response.transport == 'sse')) {
                         _request.requestCount = _requestCount;
-                        if (_requestCount++ < _request.maxRequest) {
+                        if (_request.maxRequest == -1 || _requestCount++ < _request.maxRequest) {
                             _request.id = setTimeout(function() {
                                 _executeSSE(true);
                             }, _request.reconnectInterval);
@@ -1114,7 +1114,7 @@ jQuery.atmosphere = function() {
                         _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending");
 
                     } else if (_request.reconnect && _response.transport == 'websocket') {
-                        if (_request.reconnect && _requestCount++ < _request.maxRequest) {
+                        if (_request.reconnect && (_request.maxRequest == -1 || _requestCount++ < _request.maxRequest)) {
                             _request.requestCount = _requestCount;
                             _response.responseBody = "";
                             _executeWebSocket(true);
@@ -1323,7 +1323,7 @@ jQuery.atmosphere = function() {
                     return;
                 }
 
-                if (rq.reconnect && rq.requestCount++ < rq.maxRequest) {
+                if (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                     var ajaxRequest = _buildAjaxRequest();
                     _doRequest(ajaxRequest, rq, true);
 
@@ -1673,7 +1673,7 @@ jQuery.atmosphere = function() {
                     // and X-Cache-Date won't work.
                     // _readHeaders()
 
-                    if (rq.transport == "long-polling" && rq.requestCount++ < rq.maxRequest) {
+                    if (rq.transport == "long-polling" && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                         xdr.status = 200;
                         _reconnect(xdr, rq, false);
                     }
@@ -1968,7 +1968,7 @@ jQuery.atmosphere = function() {
                     callback: null,
                     data : msg,
                     suspend : false,
-                    maxRequest : 60,
+                    maxRequest : -1,
                     logLevel : 'info',
                     requestCount : 0,
                     withCredentials : _request.withCredentials,
