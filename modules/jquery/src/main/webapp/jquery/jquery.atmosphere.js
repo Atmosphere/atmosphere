@@ -1672,6 +1672,10 @@ jQuery.atmosphere = function() {
                     // window.XDomainRequest() cannot read response headers, hence X-Atmosphere-Tracking-ID
                     // and X-Cache-Date won't work.
                     // _readHeaders()
+                    // Approximate X-Cache-Date as we can't read it. The workaround is to rest that value in the
+                    // callback.
+                    rq.lastTimestamp = jQuery.now();
+
 
                     if (rq.transport == "long-polling" && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                         xdr.status = 200;
