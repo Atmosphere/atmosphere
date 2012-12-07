@@ -47,6 +47,7 @@ public interface WebSocketProtocol {
      *
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
+     * @return A list of {@link org.atmosphere.cpr.AtmosphereResource}, or null if the request won't be dispatched.
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
@@ -63,6 +64,7 @@ public interface WebSocketProtocol {
      * @param webSocket The {@link WebSocket} connection
      * @param offset    offset message index
      * @param length    length of the message.
+     * @return A list of {@link org.atmosphere.cpr.AtmosphereResource}, or null if the request won't be dispatched.
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 

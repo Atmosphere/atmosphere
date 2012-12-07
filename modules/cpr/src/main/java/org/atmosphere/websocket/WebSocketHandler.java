@@ -17,7 +17,6 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +28,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocketHandler {
+public abstract class WebSocketHandler implements WebSocketProtocol {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
 
@@ -51,6 +50,18 @@ public abstract class WebSocketHandler {
      * @param data
      */
     public void onTextMessage(WebSocket webSocket, String data) {
+    }
+
+    public final void configure(AtmosphereConfig config){}
+
+    public final List<AtmosphereRequest> onMessage(WebSocket webSocket, String data){
+        onTextMessage(webSocket, data);
+        return null;
+    }
+
+    public final List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+        onByteMessage(webSocket,data,offset, length);
+        return null;
     }
 
     /**
