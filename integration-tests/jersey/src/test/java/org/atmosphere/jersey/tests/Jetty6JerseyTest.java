@@ -21,6 +21,7 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
+import org.testng.annotations.Test;
 
 
 public class Jetty6JerseyTest extends BlockingIOJerseyTest {
@@ -45,4 +46,7 @@ public class Jetty6JerseyTest extends BlockingIOJerseyTest {
         atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
+    @Test(timeOut = 60000, enabled = false)
+     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+     }
 }
