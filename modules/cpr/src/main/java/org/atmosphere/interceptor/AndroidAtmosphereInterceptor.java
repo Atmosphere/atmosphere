@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null &&
                 (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
             super.inspect(r);
-            r.padding("whitespace");
+            r.padding(FrameworkConfig.WHITESPACE_PADDING);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {

@@ -165,8 +165,10 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
-    public synchronized void destroy() {
+    public void destroy() {
         if (destroyed.getAndSet(true)) return;
+
+
 
         notifyOnPreDestroy();
         notifyDestroyListener();

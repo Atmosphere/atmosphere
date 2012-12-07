@@ -109,5 +109,14 @@ public interface FrameworkConfig {
      *  Callback hook for Framework implementing Atmosphere support.
      */
     String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
+    /**
+     * The whitespace padding key
+     */
+    String WHITESPACE_PADDING  = "whithespace";
+    /**
+     * Tha Atmosphere padding key
+     */
+    String ATMOSPHERE_PADDING  = "atmosphere";
+
 
 }

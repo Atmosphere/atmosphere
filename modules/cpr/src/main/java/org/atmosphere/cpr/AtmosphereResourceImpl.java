@@ -676,7 +676,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static String createStreamingPadding(String padding) {
         StringBuilder s = new StringBuilder();
 
-        if (padding == null || padding.equalsIgnoreCase("atmosphere")) {
+        if (padding == null || padding.equalsIgnoreCase(FrameworkConfig.ATMOSPHERE_PADDING)) {
             s.append("<!-- ----------------------------------------------------------" +
                     "------ http://github.com/Atmosphere ----------------------------" +
                     "-------------------------------------------- -->\n");
@@ -689,10 +689,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                         "-------------------------------------------- -->\n");
             }
             s.append("<!-- EOD -->");
-        } else {
+        } else if (padding.equalsIgnoreCase(FrameworkConfig.WHITESPACE_PADDING)) {
             for (int i = 0; i < 4096; i++) {
                 s.append(" ");
             }
+        } else {
+            return padding;
         }
         return s.toString();
     }
