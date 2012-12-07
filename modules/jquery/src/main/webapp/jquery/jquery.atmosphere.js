@@ -1648,9 +1648,9 @@ jQuery.atmosphere = function() {
 
                 // Handles open and message event
                 xdr.onprogress = function() {
-                    xdrCallback(xdr);
-                    rq.lastMessage = xdr.responseText;
+                    handle(xdr);
                 };
+
                 // Handles error event
                 xdr.onerror = function() {
                     // If the server doesn't send anything back to XDR will fail with polling
@@ -1659,7 +1659,11 @@ jQuery.atmosphere = function() {
                     }
                 };
                 // Handles close event
-                xdr.onload = function () {
+                xdr.onload = function() {
+                    handle(xdr);
+                };
+
+               var handle = function (xdr) {
                     // XDomain loop forever on itself without this.
                     // TODO: Clearly I need to come with something better than that solution
                     if (rq.lastMessage == xdr.responseText) return;
