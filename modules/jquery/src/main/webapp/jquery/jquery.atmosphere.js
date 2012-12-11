@@ -729,7 +729,7 @@ jQuery.atmosphere = function() {
                     type : rq.method,
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
-                        if (jqXHR.status < 300 && (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose)) {
+                        if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
@@ -799,7 +799,7 @@ jQuery.atmosphere = function() {
                     url : url,
                     type : rq.method,
                     error : function(jqXHR, textStatus, errorThrown) {
-                        if (jqXHR.status < 300 && (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose)) {
+                        if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
@@ -1198,12 +1198,15 @@ jQuery.atmosphere = function() {
                 }
 
                 _request.transport = _request.fallbackTransport;
-                if (_request.reconnect && _request.transport != 'none' || _request.transport == null) {
+                var reconnect = _request.reconnect && _requestCount++ < _request.maxReconnectOnClose;
+                if (reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
                     _request.id = setTimeout(function() {
                         _execute();
                     }, _request.reconnectInterval);
+                } else if (!reconnect) {
+                    _onError();
                 }
             }
 
@@ -1350,7 +1353,7 @@ jQuery.atmosphere = function() {
 
                             _response.state = "error";
                             _invokeCallback();
-                            if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
+                            if (rq.reconnect) {
                                 _reconnect(ajaxRequest, rq, true);
                             } else {
                                 _onError();
@@ -1588,13 +1591,17 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-                if (force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
+                var reconnect = request.reconnect && _requestCount++ < request.maxReconnectOnClose;
+
+                if (reconnect && force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
                         _open('re-opening', request.transport, request);
                         request.id = setTimeout(function() {
                             _executeRequest();
                         }, request.reconnectInterval);
                     }
+                } else if (!reconnect) {
+                    _onError();
                 }
             }
 
@@ -1660,9 +1667,7 @@ jQuery.atmosphere = function() {
                         _prepareCallback(xdr.responseText, "error", 500, transport);
                     }
 
-                    if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
-                        _reconnect(xdr, rq, false);
-                    }
+                    _reconnect(xdr, rq, false);
                 };
 
                 // Handles close event
@@ -2056,7 +2061,10 @@ jQuery.atmosphere = function() {
             }
 
             function _readHeaders(xdr, request) {
-                if (!request.readResponsesHeaders) return;
+                if (!request.readResponsesHeaders) {
+                    request.lastTimestamp = jQuery.now();
+                    return;
+                }
 
                 try {
                     var tempDate = xdr.getResponseHeader('X-Cache-Date');
@@ -2091,6 +2099,7 @@ jQuery.atmosphere = function() {
             function _f(response, f) {
                 switch (response.state) {
                     case "messageReceived" :
+                        _requestCount = 0;
                         if (typeof(f.onMessage) != 'undefined') f.onMessage(response);
                         break;
                     case "error" :
