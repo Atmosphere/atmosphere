@@ -74,7 +74,9 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
                     }
                 }
             }
-            r.getBroadcaster().broadcast(stringBuilder.toString());
+            for (int i=0; i < 10; i++) {
+                r.getBroadcaster().broadcast(stringBuilder.toString());
+            }
         }
     }
 

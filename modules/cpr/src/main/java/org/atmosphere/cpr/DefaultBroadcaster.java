@@ -74,6 +74,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -514,26 +515,22 @@ public class DefaultBroadcaster implements Broadcaster {
         return new Runnable() {
             public void run() {
                 Entry msg = null;
-                while (started.get()) {
-                    try {
-                        msg = messages.poll(10, TimeUnit.SECONDS);
-                        if (msg == null) {
-                            if (!destroyed.get()) {
-                                notifierFuture = bc.getExecutorService().submit(this);
-                                return;
-                            }
-                        }
+                try {
+                    msg = messages.poll(5, TimeUnit.SECONDS);
+                    if (!destroyed.get()) notifierFuture = bc.getExecutorService().submit(this);
+
+                    if (msg != null) {
                         push(msg);
-                    } catch (InterruptedException ex) {
+                    }
+                } catch (InterruptedException ex) {
+                    return;
+                } catch (Throwable ex) {
+                    if (!started.get() || destroyed.get()) {
+                        logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
                         return;
-                    } catch (Throwable ex) {
-                        if (!started.get() || destroyed.get()) {
-                            logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
-                            return;
-                        } else {
-                            logger.warn("This message {} will be lost", msg);
-                            logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
-                        }
+                    } else {
+                        logger.warn("This message {} will be lost", msg);
+                        logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
                     }
                 }
             }
@@ -800,18 +797,15 @@ public class DefaultBroadcaster implements Broadcaster {
             public void run() {
                 AsyncWriteToken token = null;
                 try {
-                    token = asyncWriteQueue.poll(10, TimeUnit.SECONDS);
+                    token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
                     if (token == null) {
-                        if (!destroyed.get()) {
-                            logger.trace("Poll Async Write for {} for resources of size {}", DefaultBroadcaster.this.getID(), DefaultBroadcaster.this.resources.size());
-                            asyncWriteFuture = bc.getAsyncWriteService().submit(this);
-                        }
+                        if (!destroyed.get()) asyncWriteFuture = bc.getAsyncWriteService().submit(this);
                         return;
                     }
 
                     synchronized (token.resource) {
                         // We want this thread to wait for the write operation to happens to kept the order
-                        bc.getAsyncWriteService().submit(this);
+                        asyncWriteFuture = bc.getAsyncWriteService().submit(this);
                         executeAsyncWrite(token);
                     }
                 } catch (InterruptedException ex) {
