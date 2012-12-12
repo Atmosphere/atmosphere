@@ -74,7 +74,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -602,16 +601,26 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        Object finalMsg = translate(entry.message);
-
+        Object finalMsg = callable(entry.message);
         if (finalMsg == null) {
-            logger.trace("Broascast message was null {}", finalMsg);
+            logger.error("Callable exception. Please catch all exception from you callable. Message {} will be lost and all AtmosphereResource " +
+                    "associated with this Broadcaster resumed.", entry.message);
             entryDone(entry.future);
+            synchronized (resources) {
+                for (AtmosphereResource r : resources) {
+                    if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
+                        try {
+                            r.resume();
+                        } catch (Throwable t) {
+                            logger.trace("resumeAll", t);
+                        }
+                }
+            }
             return;
         }
 
         Object prevM = entry.originalMessage;
-        entry.originalMessage = (entry.originalMessage != entry.message ? translate(entry.originalMessage) : finalMsg);
+        entry.originalMessage = (entry.originalMessage != entry.message ? callable(entry.originalMessage) : finalMsg);
 
         if (entry.originalMessage == null) {
             logger.debug("Broascast message was null {}", prevM);
@@ -730,7 +739,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return finalMsg;
     }
 
-    private Object translate(Object msg) {
+    private Object callable(Object msg) {
         if (Callable.class.isAssignableFrom(msg.getClass())) {
             try {
                 return Callable.class.cast(msg).call();

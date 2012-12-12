@@ -1596,6 +1596,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .method(request.getMethod())
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
+                .remoteAddr(request.getRemoteAddr())
+                .remoteHost(request.getRemoteHost())
+                .remotePort(request.getRemotePort())
                 .destroyable(isDestroyable)
                 .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);

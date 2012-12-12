@@ -77,6 +77,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterLifeCyclePolicy;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
@@ -322,11 +323,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     String subProtocol = (String) servletReq.getAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL);
 
                     final boolean waitForResource = waitFor == -1 ? true : false;
-                    final Broadcaster bcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                    Broadcaster newBroadcaster;
+                    // See issue https://github.com/Atmosphere/atmosphere/issues/676
+                    synchronized (broadcasterName.intern()) {
+                        newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                        newBroadcaster.setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy.EMPTY_DESTROY);
+                    }
+                    final Broadcaster bcaster = newBroadcaster;
 
                     if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
                         boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
-                        final boolean resumeOnBroadcast = resumeOnBroadcast(false);
+                        final boolean resumeOnBroadcast = transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT);
 
                         if (listeners != null) {
                             for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {

@@ -65,9 +65,13 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
             config.framework().configureRequestResponse(r, response);
             try {
                 // GlassFish http://java.net/jira/browse/GLASSFISH-18681
-                if (r.getPathInfo().startsWith(r.getContextPath())) {
+                if (r.getPathInfo() != null && r.getPathInfo().startsWith(r.getContextPath())) {
                     r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
                     r.pathInfo(null);
+                }  else if (r.getPathInfo() == null) {
+                    String uri = r.getRequestURI();
+                    String pathInfo = uri.substring(uri.indexOf(r.getServletPath()) + r.getServletPath().length());
+                    r.pathInfo(pathInfo);
                 }
             } catch (Exception e) {
                 // Whatever exception occurs skip it
