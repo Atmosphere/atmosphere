@@ -412,19 +412,19 @@
 				
 				xhr.open("POST", url);
 				setHeaders(xhr, options.atrequest);
-				xhr.setRequestHeader("Content-Type", "text/plain; charset=UTF-8");
+				//xhr.setRequestHeader("Content-Type", "text/plain; charset=UTF-8");
 				if (portal.support.corsable) {
 					xhr.withCredentials = options.credentials;
 				}
 				
-				xhr.send("data=" + data);
+				xhr.send(data);
 			} : window.XDomainRequest && options.xdrURL && options.xdrURL.call(socket, "t") ? 
 			function(url, data) {
 				var xdr = new window.XDomainRequest();
 				
 				xdr.onload = xdr.onerror = post;
 				xdr.open("POST", options.xdrURL.call(socket, url));
-				xdr.send("data=" + data);
+				xdr.send(data);
 			} : 
 			function(url, data) {
 				var iframe,
