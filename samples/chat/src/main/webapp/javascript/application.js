@@ -58,10 +58,6 @@ $(function () {
         header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
     };
 
-    request.onReconnect = function (request, response) {
-        socket.info("Reconnecting")
-    };
-
     request.onMessage = function (response) {
 
         var message = response.responseBody;
