@@ -264,6 +264,7 @@
     </profiles>
     <modules>
         <module>modules</module>
+        <module>assembly</module>
         <module>extras</module>
         <module>samples</module>
         <module>integration-tests</module>
