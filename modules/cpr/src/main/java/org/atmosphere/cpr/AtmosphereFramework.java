@@ -1306,60 +1306,63 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(ATMOSPHERE_CONFIG, config);
 
         boolean skip = true;
-         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
-         if (s != null) {
-             skip = Boolean.valueOf(s);
-         }
-         if (!skip || req.getAttribute(WEBSOCKET_SUSPEND) == null) {
-             Map<String, String> headers = configureQueryStringAsRequest(req);
-             String body = headers.remove(ATMOSPHERE_POST_BODY);
-             if (body != null && body.isEmpty()) {
-                 body = null;
-             }
+        String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
+        if (s != null) {
+            skip = Boolean.valueOf(s);
+        }
+        if (!skip || req.getAttribute(WEBSOCKET_SUSPEND) == null) {
+            Map<String, String> headers = configureQueryStringAsRequest(req);
+            String body = headers.remove(ATMOSPHERE_POST_BODY);
+            if (body != null && body.isEmpty()) {
+                body = null;
+            }
 
-             // We need to strip Atmosphere's own query string from the request in case an
-             // interceptor re-inject the request because the wrong body will be passed.
-             StringBuilder queryStrings = new StringBuilder("");
-             Enumeration<String> e = req.getParameterNames();
-             String name, key;
-             while (e.hasMoreElements()) {
-                 key = e.nextElement();
-                 name = key.toLowerCase().trim();
-                 if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date") ) {
-                     queryStrings.append(key).append("=").append(req.getParameter(key));
-                 }
-             }
+            // We need to strip Atmosphere's own query string from the request in case an
+            // interceptor re-inject the request because the wrong body will be passed.
+            StringBuilder queryStrings = new StringBuilder("");
+            Enumeration<String> e = req.getParameterNames();
+            String name, key;
+            while (e.hasMoreElements()) {
+                key = e.nextElement();
+                name = key.toLowerCase().trim();
+                if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date")) {
+                    queryStrings.append(key).append("=").append(req.getParameter(key));
+                }
+                if (e.hasMoreElements()) {
+                    queryStrings.append("&");
+                }
+            }
 
-             // Reconfigure the request. Clear the Atmosphere queryString
-             req.headers(headers)
-                .queryString(queryStrings.toString())
-                .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+            // Reconfigure the request. Clear the Atmosphere queryString
+            req.headers(headers)
+                    .queryString(queryStrings.toString())
+                    .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
 
-             if (body != null) {
-                 req.body( URLDecoder.decode(body, req.getCharacterEncoding() == null ? "UTF-8" : req.getCharacterEncoding() ) );
-             }
-         }
+            if (body != null) {
+                req.body(URLDecoder.decode(body, req.getCharacterEncoding() == null ? "UTF-8" : req.getCharacterEncoding()));
+            }
+        }
 
-         s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
-         if (s == null || s.equals("0")) {
-             s = UUID.randomUUID().toString();
-             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-         } else {
-             // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
-             // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
-             // Null means it is not an HTTP request.
-             if (req.resource() == null) {
-                 res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-             } else if (req.getAttribute(WebSocket.WEBSOCKET_INITIATED) == null){
-                 // WebSocket reconnect, in case an application manually set the header
-                 // (impossible to retrieve the headers normally with WebSocket or SSE)
-                 res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-             }
-         }
+        s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
+        if (s == null || s.equals("0")) {
+            s = UUID.randomUUID().toString();
+            res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+        } else {
+            // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
+            // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
+            // Null means it is not an HTTP request.
+            if (req.resource() == null) {
+                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+            } else if (req.getAttribute(WebSocket.WEBSOCKET_INITIATED) == null) {
+                // WebSocket reconnect, in case an application manually set the header
+                // (impossible to retrieve the headers normally with WebSocket or SSE)
+                res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
+            }
+        }
 
-         if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
-             req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
-         }
+        if (req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) == null) {
+            req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
+        }
         return this;
     }
 
