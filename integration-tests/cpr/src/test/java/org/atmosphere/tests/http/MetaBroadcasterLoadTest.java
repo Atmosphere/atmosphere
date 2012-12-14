@@ -61,7 +61,7 @@ public class MetaBroadcasterLoadTest {
     @Test
     public void loadTest() throws InterruptedException {
         TestBroadcaster a = (TestBroadcaster) factory.get("/a");
-        final int run = 10000;
+        final int run = 1000;
 
         Thread[] threads = new Thread[10];
         final CountDownLatch latch = new CountDownLatch(run);
