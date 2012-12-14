@@ -23,8 +23,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * An interceptor that create a the {@link HttpSession} on the fist received request so transport like long-polling
- * can have the share the session with request coming after the suspend operation. Without this and because
+ * An interceptor that create an {@link javax.servlet.http.HttpSession} on the fist received request so transport like long-polling
+ * can share the session with request coming after the suspend operation. Without this and because
  * with long-polling cookies aren't read by the browser until the response is resumed, the session id will not
  * be the same so session couldn't be used.
  *
