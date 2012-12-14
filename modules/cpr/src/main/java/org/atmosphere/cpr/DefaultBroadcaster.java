@@ -78,6 +78,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
+import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
@@ -134,6 +135,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
     private final Object[] concurrentSuspendBroadcast = new Object[0];
+    private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -148,6 +150,10 @@ public class DefaultBroadcaster implements Broadcaster {
             } else if (s.equalsIgnoreCase("beforeFilter")) {
                 cacheStrategy = BroadcasterCache.STRATEGY.BEFORE_FILTER;
             }
+        }
+        s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
+        if (s != null) {
+            outOfOrderBroadcastSupported.set(Boolean.valueOf(s));
         }
     }
 
@@ -516,10 +522,18 @@ public class DefaultBroadcaster implements Broadcaster {
                 Entry msg = null;
                 try {
                     msg = messages.poll(5, TimeUnit.SECONDS);
-                    if (!destroyed.get()) notifierFuture = bc.getExecutorService().submit(this);
+                    if (destroyed.get()) return;
+
+                    if (outOfOrderBroadcastSupported.get()) {
+                        notifierFuture = bc.getExecutorService().submit(this);
+                    }
 
                     if (msg != null) {
                         push(msg);
+                    }
+
+                    if (!outOfOrderBroadcastSupported.get()) {
+                        notifierFuture = bc.getExecutorService().submit(this);
                     }
                 } catch (InterruptedException ex) {
                     return;

@@ -313,4 +313,8 @@ public interface ApplicationConfig {
      * Use a unique uuid for all WebSocket message delivered on the same connection.
      */
     String UNIQUE_UUID_WEBSOCKET = AtmosphereResource.class.getName() + ".uniqueUUID";
+    /**
+     * Set to true if order of message delivered to the client is not important
+     */
+    String OUT_OF_ORDER_BROADCAST = Broadcaster.class.getName() + ".supportOutOfOrderBroadcast";
 }
