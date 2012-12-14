@@ -132,9 +132,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                    r.getWriter().flush();
                 }
             }
-
-            postStateChange(event);
         }
+        postStateChange(event);
     }
 
     /**
