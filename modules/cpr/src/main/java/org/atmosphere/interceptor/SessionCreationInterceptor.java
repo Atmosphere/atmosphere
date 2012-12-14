@@ -19,7 +19,9 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -32,6 +34,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class SessionCreationInterceptor implements AtmosphereInterceptor {
 
+    // This can cause memory leak.
     private ConcurrentLinkedQueue<String> ids = new ConcurrentLinkedQueue<String>();
 
     @Override
@@ -40,8 +43,9 @@ public class SessionCreationInterceptor implements AtmosphereInterceptor {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-
-        if (!ids.remove(r.uuid()) && r.getRequest().getMethod().equalsIgnoreCase("GET")) {
+        if (r.session(false) == null
+                && !ids.remove(r.uuid())
+                && r.getRequest().getMethod().equalsIgnoreCase("GET")) {
             r.session(true);
             ids.offer(r.uuid());
             return Action.CANCELLED;
