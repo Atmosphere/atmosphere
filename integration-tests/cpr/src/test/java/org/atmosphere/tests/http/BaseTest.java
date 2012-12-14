@@ -1315,6 +1315,7 @@ public abstract class BaseTest {
             logger.error("test failed", e);
             fail(e.getMessage());
         } finally {
+            BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "suspend").destroy();
             c.close();
         }
     }
