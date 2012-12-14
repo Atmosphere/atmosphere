@@ -8,7 +8,7 @@ $(function () {
     var myName = false;
     var author = null;
     var logged = false;
-    var socket = atmosphere;
+    var socket = $.atmosphere;
     var subSocket;
     var transport = 'websocket';
 
@@ -35,7 +35,7 @@ $(function () {
 
     <!-- You can share messages between window/tabs.   -->
     request.onLocalMessage = function(message) {
-        if (transport != 'session') {
+        if (transport != 'local') {
             header.append($('<h4>', { text: 'A new tab/window has been opened'}).css('color', 'green'));
             if (myName) {
                 subSocket.pushLocal(myName);
@@ -52,10 +52,15 @@ $(function () {
 
     <!-- For demonstration of how you can customize the fallbackTransport using the onTransportFailure function -->
     request.onTransportFailure = function(errorMsg, request) {
+        jQuery.atmosphere.info(errorMsg);
         if (window.EventSource) {
             request.fallbackTransport = "sse";
         }
         header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
+    };
+
+    request.onReconnect = function (request, response) {
+        socket.info("Reconnecting")
     };
 
     request.onMessage = function (response) {
@@ -102,7 +107,7 @@ $(function () {
                 author = msg;
             }
 
-            subSocket.push(stringifyJSON({ author: author, message: msg }));
+            subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');
