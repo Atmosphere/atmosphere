@@ -109,7 +109,7 @@ jQuery.atmosphere = function() {
                 connectTimeout : -1,
                 reconnectInterval : 0,
                 dropAtmosphereHeaders : true,
-                uuid : jQuery.atmosphere.guid(),
+                uuid : 0,
                 shared : false,
                 readResponsesHeaders : true,
                 maxReconnectOnClose: 5,
@@ -2055,7 +2055,11 @@ jQuery.atmosphere = function() {
             }
 
             function _readHeaders(xdr, request) {
-                if (!request.readResponsesHeaders) return;
+                if (!request.readResponsesHeaders) {
+                    request.lastTimestamp = jQuery.now();
+                    request.uuid = jQuery.atmosphere.guid();
+                    return;
+                }
 
                 try {
                     var tempDate = xdr.getResponseHeader('X-Cache-Date');

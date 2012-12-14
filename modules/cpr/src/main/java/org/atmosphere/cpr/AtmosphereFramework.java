@@ -1344,6 +1344,15 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         s = req.getHeader(X_ATMOSPHERE_TRACKING_ID);
+
+        // Lookup for websocket
+        if (s == null || s.equals("0")) {
+            String unique = config.getInitParameter(ApplicationConfig.UNIQUE_UUID_WEBSOCKET);
+            if (unique != null && Boolean.valueOf(unique)) {
+                s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            }
+        }
+
         if (s == null || s.equals("0")) {
             s = UUID.randomUUID().toString();
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);

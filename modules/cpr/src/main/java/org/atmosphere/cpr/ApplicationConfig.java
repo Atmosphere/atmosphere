@@ -309,5 +309,8 @@ public interface ApplicationConfig {
      * The list of content-type to exclude when delimiting message.
      */
     String EXCLUDED_CONTENT_TYPES = TrackMessageSizeInterceptor.class.getName() + ".excludedContentType";
-
+    /**
+     * Use a unique uuid for all WebSocket message delivered on the same connection.
+     */
+    String UNIQUE_UUID_WEBSOCKET = AtmosphereResource.class.getName() + ".uniqueUUID";
 }
