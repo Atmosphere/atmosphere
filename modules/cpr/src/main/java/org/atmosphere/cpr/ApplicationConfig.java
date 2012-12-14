@@ -291,4 +291,10 @@ public interface ApplicationConfig {
      * but available to all transport.
      */
     String SUSPENDED_ATMOSPHERE_RESOURCE_UUID = AtmosphereResource.class.getName() + "suspended.uuid";
+    /**
+     * Use a unique uuid for all WebSocket message delivered on the same connection.
+     */
+    String UNIQUE_UUID_WEBSOCKET = AtmosphereResource.class.getName() + ".uniqueUUID";
+
 }
+
