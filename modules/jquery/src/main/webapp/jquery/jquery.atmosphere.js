@@ -2063,6 +2063,7 @@ jQuery.atmosphere = function() {
             function _readHeaders(xdr, request) {
                 if (!request.readResponsesHeaders) {
                     request.lastTimestamp = jQuery.now();
+                    request.uuid = jQuery.atmosphere.guid();
                     return;
                 }
 
