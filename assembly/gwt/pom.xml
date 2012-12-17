@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-gwt-libs</artifactId>
-    <name>atmosphere-gqt-libs</name>
+    <name>atmosphere-gwt-libs</name>
     <version>1.0.6-SNAPSHOT</version>
     <packaging>pom</packaging>
 
