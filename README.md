@@ -17,7 +17,7 @@ The Atmosphere's Framework ships with many examples describing how to implements
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.0.5</version>
+         <version>1.0.6</version>
       </dependency>
 ```
       
@@ -36,7 +36,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.1.0.beta1</version>
+         <version>1.1.0.beta2</version>
       </dependency>
 ```
 [Top](#Top)
