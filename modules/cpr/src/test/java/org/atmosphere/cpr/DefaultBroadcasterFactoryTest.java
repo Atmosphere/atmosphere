@@ -16,8 +16,11 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.SimpleBroadcaster;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.HashSet;
 
 /**
  * Unit tests for the {@link org.atmosphere.cpr.DefaultBroadcasterFactory}.
@@ -33,6 +36,11 @@ public class DefaultBroadcasterFactoryTest {
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+    }
+
+    @AfterMethod
+    public void unSetUp() throws Exception {
+        factory.destroy();
     }
 
     @Test
