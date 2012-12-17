@@ -22,6 +22,7 @@ import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.MetaBroadcaster;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -63,10 +64,9 @@ public class MetaBroadcasterLoadTest {
         final int run = 10000;
 
         Thread[] threads = new Thread[10];
-
         final CountDownLatch latch = new CountDownLatch(run);
 
-        BroadcasterListener l = new BroadcasterListener() {
+        final BroadcasterListener l = new BroadcasterListener() {
 
             @Override
             public void onPostCreate(Broadcaster b) {
@@ -103,7 +103,9 @@ public class MetaBroadcasterLoadTest {
         latch.await();
 
         while (a.messages().size() != 0) {
-            Thread.sleep(1000);
+            LoggerFactory.getLogger(MetaBroadcasterLoadTest.class).info("Number of messages to crunch before completed {}", a.messages().size());
+            // My favorite
+            Thread.sleep(2000);
         }
 
         assertEquals(a.messages().size(), 0);
