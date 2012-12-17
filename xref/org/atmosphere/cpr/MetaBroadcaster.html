@@ -35,7 +35,7 @@
 <a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
 <a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.util.List;
 <a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CopyOnWriteArrayList;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentLinkedQueue;
 <a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.CountDownLatch;
 <a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ExecutionException;
 <a class="jxr_linenumber" name="31" href="#31">31</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.Future;
@@ -62,7 +62,7 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>  
 <a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> Logger logger = LoggerFactory.getLogger(MetaBroadcaster.<strong class="jxr_keyword">class</strong>);
 <a class="jxr_linenumber" name="54" href="#54">54</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> metaBroadcaster = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a>();
-<a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> CopyOnWriteArrayList&lt;BroadcasterListener&gt; broadcasterListeners = <strong class="jxr_keyword">new</strong> CopyOnWriteArrayList&lt;BroadcasterListener&gt;();
+<a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> ConcurrentLinkedQueue&lt;BroadcasterListener&gt; broadcasterListeners = <strong class="jxr_keyword">new</strong> ConcurrentLinkedQueue&lt;BroadcasterListener&gt;();
 <a class="jxr_linenumber" name="56" href="#56">56</a>  
 <a class="jxr_linenumber" name="57" href="#57">57</a>      <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a> broadcast(<strong class="jxr_keyword">final</strong> String path, Object message, <strong class="jxr_keyword">int</strong> time, TimeUnit unit, <strong class="jxr_keyword">boolean</strong> delay) {
 <a class="jxr_linenumber" name="58" href="#58">58</a>          <strong class="jxr_keyword">if</strong> (BroadcasterFactory.getDefault() != <strong class="jxr_keyword">null</strong>) {
@@ -70,10 +70,10 @@
 <a class="jxr_linenumber" name="60" href="#60">60</a>  
 <a class="jxr_linenumber" name="61" href="#61">61</a>              <strong class="jxr_keyword">final</strong> Map&lt;String, String&gt; m = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
 <a class="jxr_linenumber" name="62" href="#62">62</a>              List&lt;Broadcaster&gt; l = <strong class="jxr_keyword">new</strong> ArrayList&lt;Broadcaster&gt;();
-<a class="jxr_linenumber" name="63" href="#63">63</a>              logger.debug(<span class="jxr_string">"Map {}"</span>, path);
+<a class="jxr_linenumber" name="63" href="#63">63</a>              logger.trace(<span class="jxr_string">"Map {}"</span>, path);
 <a class="jxr_linenumber" name="64" href="#64">64</a>              <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a> t = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/uri/UriTemplate.html">UriTemplate</a>(path);
 <a class="jxr_linenumber" name="65" href="#65">65</a>              <strong class="jxr_keyword">for</strong> (Broadcaster b : c) {
-<a class="jxr_linenumber" name="66" href="#66">66</a>                  logger.debug(<span class="jxr_string">"Trying to map {} to {}"</span>, t, b.getID());
+<a class="jxr_linenumber" name="66" href="#66">66</a>                  logger.trace(<span class="jxr_string">"Trying to map {} to {}"</span>, t, b.getID());
 <a class="jxr_linenumber" name="67" href="#67">67</a>                  <strong class="jxr_keyword">if</strong> (t.match(b.getID(), m)) {
 <a class="jxr_linenumber" name="68" href="#68">68</a>                      l.add(b);
 <a class="jxr_linenumber" name="69" href="#69">69</a>                  }
@@ -176,97 +176,99 @@
 <a class="jxr_linenumber" name="166" href="#166">166</a> 
 <a class="jxr_linenumber" name="167" href="#167">167</a>         @Override
 <a class="jxr_linenumber" name="168" href="#168">168</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onComplete(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
-<a class="jxr_linenumber" name="169" href="#169">169</a>             f.countDown();
-<a class="jxr_linenumber" name="170" href="#170">170</a>             <strong class="jxr_keyword">for</strong> (BroadcasterListener l : broadcasterListeners) {
-<a class="jxr_linenumber" name="171" href="#171">171</a>                 l.onComplete(b);
-<a class="jxr_linenumber" name="172" href="#172">172</a>             }
-<a class="jxr_linenumber" name="173" href="#173">173</a>             b.removeBroadcasterListener(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="174" href="#174">174</a>         }
-<a class="jxr_linenumber" name="175" href="#175">175</a> 
-<a class="jxr_linenumber" name="176" href="#176">176</a>         @Override
-<a class="jxr_linenumber" name="177" href="#177">177</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onPreDestroy(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
-<a class="jxr_linenumber" name="178" href="#178">178</a>         }
-<a class="jxr_linenumber" name="179" href="#179">179</a>     }
-<a class="jxr_linenumber" name="180" href="#180">180</a> 
-<a class="jxr_linenumber" name="181" href="#181">181</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a> <strong class="jxr_keyword">implements</strong> Future&lt;List&lt;Broadcaster&gt;&gt; {
+<a class="jxr_linenumber" name="169" href="#169">169</a>             b.removeBroadcasterListener(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="170" href="#170">170</a>             f.countDown();
+<a class="jxr_linenumber" name="171" href="#171">171</a>             <strong class="jxr_keyword">if</strong> (f.isDone()) {
+<a class="jxr_linenumber" name="172" href="#172">172</a>                 <strong class="jxr_keyword">for</strong> (BroadcasterListener l : broadcasterListeners) {
+<a class="jxr_linenumber" name="173" href="#173">173</a>                     l.onComplete(b);
+<a class="jxr_linenumber" name="174" href="#174">174</a>                 }
+<a class="jxr_linenumber" name="175" href="#175">175</a>             }
+<a class="jxr_linenumber" name="176" href="#176">176</a>         }
+<a class="jxr_linenumber" name="177" href="#177">177</a> 
+<a class="jxr_linenumber" name="178" href="#178">178</a>         @Override
+<a class="jxr_linenumber" name="179" href="#179">179</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onPreDestroy(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
+<a class="jxr_linenumber" name="180" href="#180">180</a>         }
+<a class="jxr_linenumber" name="181" href="#181">181</a>     }
 <a class="jxr_linenumber" name="182" href="#182">182</a> 
-<a class="jxr_linenumber" name="183" href="#183">183</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> CountDownLatch latch;
-<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Broadcaster&gt; l;
-<a class="jxr_linenumber" name="185" href="#185">185</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isCancelled = false;
-<a class="jxr_linenumber" name="186" href="#186">186</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Future&lt;?&gt;&gt; outerFuture = <strong class="jxr_keyword">new</strong> ArrayList&lt;Future&lt;?&gt;&gt;();
-<a class="jxr_linenumber" name="187" href="#187">187</a> 
-<a class="jxr_linenumber" name="188" href="#188">188</a>         <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a>(List&lt;Broadcaster&gt; l) {
-<a class="jxr_linenumber" name="189" href="#189">189</a>             <strong class="jxr_keyword">this</strong>.latch = <strong class="jxr_keyword">new</strong> CountDownLatch(l.size());
-<a class="jxr_linenumber" name="190" href="#190">190</a>             <strong class="jxr_keyword">this</strong>.l = l;
-<a class="jxr_linenumber" name="191" href="#191">191</a>         }
-<a class="jxr_linenumber" name="192" href="#192">192</a> 
-<a class="jxr_linenumber" name="193" href="#193">193</a>         <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a> outerFuture(Future&lt;?&gt; f) {
-<a class="jxr_linenumber" name="194" href="#194">194</a>             outerFuture.add(f);
-<a class="jxr_linenumber" name="195" href="#195">195</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="196" href="#196">196</a>         }
-<a class="jxr_linenumber" name="197" href="#197">197</a> 
-<a class="jxr_linenumber" name="198" href="#198">198</a>         @Override
-<a class="jxr_linenumber" name="199" href="#199">199</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> cancel(<strong class="jxr_keyword">boolean</strong> b) {
-<a class="jxr_linenumber" name="200" href="#200">200</a>             <strong class="jxr_keyword">for</strong> (Future&lt;?&gt; f : outerFuture) {
-<a class="jxr_linenumber" name="201" href="#201">201</a>                 f.cancel(b);
-<a class="jxr_linenumber" name="202" href="#202">202</a>             }
-<a class="jxr_linenumber" name="203" href="#203">203</a> 
-<a class="jxr_linenumber" name="204" href="#204">204</a>             <strong class="jxr_keyword">while</strong> (latch.getCount() &gt; 0) {
-<a class="jxr_linenumber" name="205" href="#205">205</a>                 latch.countDown();
-<a class="jxr_linenumber" name="206" href="#206">206</a>             }
-<a class="jxr_linenumber" name="207" href="#207">207</a>             isCancelled = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="208" href="#208">208</a>             <strong class="jxr_keyword">return</strong> isCancelled;
-<a class="jxr_linenumber" name="209" href="#209">209</a>         }
-<a class="jxr_linenumber" name="210" href="#210">210</a> 
-<a class="jxr_linenumber" name="211" href="#211">211</a>         @Override
-<a class="jxr_linenumber" name="212" href="#212">212</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isCancelled() {
-<a class="jxr_linenumber" name="213" href="#213">213</a>             <strong class="jxr_keyword">return</strong> isCancelled;
-<a class="jxr_linenumber" name="214" href="#214">214</a>         }
-<a class="jxr_linenumber" name="215" href="#215">215</a> 
-<a class="jxr_linenumber" name="216" href="#216">216</a>         @Override
-<a class="jxr_linenumber" name="217" href="#217">217</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isDone() {
-<a class="jxr_linenumber" name="218" href="#218">218</a>             <strong class="jxr_keyword">return</strong> latch.getCount() == 0;
-<a class="jxr_linenumber" name="219" href="#219">219</a>         }
-<a class="jxr_linenumber" name="220" href="#220">220</a> 
-<a class="jxr_linenumber" name="221" href="#221">221</a>         @Override
-<a class="jxr_linenumber" name="222" href="#222">222</a>         <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; get() <strong class="jxr_keyword">throws</strong> InterruptedException, ExecutionException {
-<a class="jxr_linenumber" name="223" href="#223">223</a>             latch.await();
-<a class="jxr_linenumber" name="224" href="#224">224</a>             <strong class="jxr_keyword">return</strong> l;
-<a class="jxr_linenumber" name="225" href="#225">225</a>         }
-<a class="jxr_linenumber" name="226" href="#226">226</a> 
-<a class="jxr_linenumber" name="227" href="#227">227</a>         @Override
-<a class="jxr_linenumber" name="228" href="#228">228</a>         <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; get(<strong class="jxr_keyword">long</strong> t, TimeUnit timeUnit) <strong class="jxr_keyword">throws</strong> InterruptedException, ExecutionException, TimeoutException {
-<a class="jxr_linenumber" name="229" href="#229">229</a>             latch.await(t, timeUnit);
-<a class="jxr_linenumber" name="230" href="#230">230</a>             <strong class="jxr_keyword">return</strong> l;
-<a class="jxr_linenumber" name="231" href="#231">231</a>         }
-<a class="jxr_linenumber" name="232" href="#232">232</a> 
-<a class="jxr_linenumber" name="233" href="#233">233</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> countDown() {
-<a class="jxr_linenumber" name="234" href="#234">234</a>             latch.countDown();
-<a class="jxr_linenumber" name="235" href="#235">235</a>         }
-<a class="jxr_linenumber" name="236" href="#236">236</a>     }
-<a class="jxr_linenumber" name="237" href="#237">237</a> 
-<a class="jxr_linenumber" name="238" href="#238">238</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="239" href="#239">239</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}. T</em>
-<a class="jxr_linenumber" name="240" href="#240">240</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="241" href="#241">241</a> <em class="jxr_javadoccomment">     * @param b {@link BroadcasterListener}</em>
-<a class="jxr_linenumber" name="242" href="#242">242</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="243" href="#243">243</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="244" href="#244">244</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
-<a class="jxr_linenumber" name="245" href="#245">245</a>         broadcasterListeners.add(b);
-<a class="jxr_linenumber" name="246" href="#246">246</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="247" href="#247">247</a>     }
-<a class="jxr_linenumber" name="248" href="#248">248</a> 
-<a class="jxr_linenumber" name="249" href="#249">249</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="250" href="#250">250</a> <em class="jxr_javadoccomment">     * Remove the {@link BroadcasterListener}.</em>
-<a class="jxr_linenumber" name="251" href="#251">251</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     * @param b {@link BroadcasterListener}</em>
-<a class="jxr_linenumber" name="253" href="#253">253</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="254" href="#254">254</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="255" href="#255">255</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
-<a class="jxr_linenumber" name="256" href="#256">256</a>         broadcasterListeners.remove(b);
-<a class="jxr_linenumber" name="257" href="#257">257</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="258" href="#258">258</a>     }
-<a class="jxr_linenumber" name="259" href="#259">259</a> }
+<a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a> <strong class="jxr_keyword">implements</strong> Future&lt;List&lt;Broadcaster&gt;&gt; {
+<a class="jxr_linenumber" name="184" href="#184">184</a> 
+<a class="jxr_linenumber" name="185" href="#185">185</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> CountDownLatch latch;
+<a class="jxr_linenumber" name="186" href="#186">186</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Broadcaster&gt; l;
+<a class="jxr_linenumber" name="187" href="#187">187</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isCancelled = false;
+<a class="jxr_linenumber" name="188" href="#188">188</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Future&lt;?&gt;&gt; outerFuture = <strong class="jxr_keyword">new</strong> ArrayList&lt;Future&lt;?&gt;&gt;();
+<a class="jxr_linenumber" name="189" href="#189">189</a> 
+<a class="jxr_linenumber" name="190" href="#190">190</a>         <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a>(List&lt;Broadcaster&gt; l) {
+<a class="jxr_linenumber" name="191" href="#191">191</a>             <strong class="jxr_keyword">this</strong>.latch = <strong class="jxr_keyword">new</strong> CountDownLatch(l.size());
+<a class="jxr_linenumber" name="192" href="#192">192</a>             <strong class="jxr_keyword">this</strong>.l = l;
+<a class="jxr_linenumber" name="193" href="#193">193</a>         }
+<a class="jxr_linenumber" name="194" href="#194">194</a> 
+<a class="jxr_linenumber" name="195" href="#195">195</a>         <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcasterFuture</a> outerFuture(Future&lt;?&gt; f) {
+<a class="jxr_linenumber" name="196" href="#196">196</a>             outerFuture.add(f);
+<a class="jxr_linenumber" name="197" href="#197">197</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="198" href="#198">198</a>         }
+<a class="jxr_linenumber" name="199" href="#199">199</a> 
+<a class="jxr_linenumber" name="200" href="#200">200</a>         @Override
+<a class="jxr_linenumber" name="201" href="#201">201</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> cancel(<strong class="jxr_keyword">boolean</strong> b) {
+<a class="jxr_linenumber" name="202" href="#202">202</a>             <strong class="jxr_keyword">for</strong> (Future&lt;?&gt; f : outerFuture) {
+<a class="jxr_linenumber" name="203" href="#203">203</a>                 f.cancel(b);
+<a class="jxr_linenumber" name="204" href="#204">204</a>             }
+<a class="jxr_linenumber" name="205" href="#205">205</a> 
+<a class="jxr_linenumber" name="206" href="#206">206</a>             <strong class="jxr_keyword">while</strong> (latch.getCount() &gt; 0) {
+<a class="jxr_linenumber" name="207" href="#207">207</a>                 latch.countDown();
+<a class="jxr_linenumber" name="208" href="#208">208</a>             }
+<a class="jxr_linenumber" name="209" href="#209">209</a>             isCancelled = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="210" href="#210">210</a>             <strong class="jxr_keyword">return</strong> isCancelled;
+<a class="jxr_linenumber" name="211" href="#211">211</a>         }
+<a class="jxr_linenumber" name="212" href="#212">212</a> 
+<a class="jxr_linenumber" name="213" href="#213">213</a>         @Override
+<a class="jxr_linenumber" name="214" href="#214">214</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isCancelled() {
+<a class="jxr_linenumber" name="215" href="#215">215</a>             <strong class="jxr_keyword">return</strong> isCancelled;
+<a class="jxr_linenumber" name="216" href="#216">216</a>         }
+<a class="jxr_linenumber" name="217" href="#217">217</a> 
+<a class="jxr_linenumber" name="218" href="#218">218</a>         @Override
+<a class="jxr_linenumber" name="219" href="#219">219</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> isDone() {
+<a class="jxr_linenumber" name="220" href="#220">220</a>             <strong class="jxr_keyword">return</strong> latch.getCount() == 0;
+<a class="jxr_linenumber" name="221" href="#221">221</a>         }
+<a class="jxr_linenumber" name="222" href="#222">222</a> 
+<a class="jxr_linenumber" name="223" href="#223">223</a>         @Override
+<a class="jxr_linenumber" name="224" href="#224">224</a>         <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; get() <strong class="jxr_keyword">throws</strong> InterruptedException, ExecutionException {
+<a class="jxr_linenumber" name="225" href="#225">225</a>             latch.await();
+<a class="jxr_linenumber" name="226" href="#226">226</a>             <strong class="jxr_keyword">return</strong> l;
+<a class="jxr_linenumber" name="227" href="#227">227</a>         }
+<a class="jxr_linenumber" name="228" href="#228">228</a> 
+<a class="jxr_linenumber" name="229" href="#229">229</a>         @Override
+<a class="jxr_linenumber" name="230" href="#230">230</a>         <strong class="jxr_keyword">public</strong> List&lt;Broadcaster&gt; get(<strong class="jxr_keyword">long</strong> t, TimeUnit timeUnit) <strong class="jxr_keyword">throws</strong> InterruptedException, ExecutionException, TimeoutException {
+<a class="jxr_linenumber" name="231" href="#231">231</a>             latch.await(t, timeUnit);
+<a class="jxr_linenumber" name="232" href="#232">232</a>             <strong class="jxr_keyword">return</strong> l;
+<a class="jxr_linenumber" name="233" href="#233">233</a>         }
+<a class="jxr_linenumber" name="234" href="#234">234</a> 
+<a class="jxr_linenumber" name="235" href="#235">235</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> countDown() {
+<a class="jxr_linenumber" name="236" href="#236">236</a>             latch.countDown();
+<a class="jxr_linenumber" name="237" href="#237">237</a>         }
+<a class="jxr_linenumber" name="238" href="#238">238</a>     }
+<a class="jxr_linenumber" name="239" href="#239">239</a> 
+<a class="jxr_linenumber" name="240" href="#240">240</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="241" href="#241">241</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}. T</em>
+<a class="jxr_linenumber" name="242" href="#242">242</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="243" href="#243">243</a> <em class="jxr_javadoccomment">     * @param b {@link BroadcasterListener}</em>
+<a class="jxr_linenumber" name="244" href="#244">244</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="245" href="#245">245</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="246" href="#246">246</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
+<a class="jxr_linenumber" name="247" href="#247">247</a>         broadcasterListeners.add(b);
+<a class="jxr_linenumber" name="248" href="#248">248</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="249" href="#249">249</a>     }
+<a class="jxr_linenumber" name="250" href="#250">250</a> 
+<a class="jxr_linenumber" name="251" href="#251">251</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     * Remove the {@link BroadcasterListener}.</em>
+<a class="jxr_linenumber" name="253" href="#253">253</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="254" href="#254">254</a> <em class="jxr_javadoccomment">     * @param b {@link BroadcasterListener}</em>
+<a class="jxr_linenumber" name="255" href="#255">255</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="256" href="#256">256</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="257" href="#257">257</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/MetaBroadcaster.html">MetaBroadcaster</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
+<a class="jxr_linenumber" name="258" href="#258">258</a>         broadcasterListeners.remove(b);
+<a class="jxr_linenumber" name="259" href="#259">259</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="260" href="#260">260</a>     }
+<a class="jxr_linenumber" name="261" href="#261">261</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

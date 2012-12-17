@@ -6,6 +6,7 @@ org.atmosphere.client
 org.atmosphere.cometd
 org.atmosphere.commons.util
 org.atmosphere.config
+org.atmosphere.config.runtime
 org.atmosphere.config.service
 org.atmosphere.container
 org.atmosphere.container.version
