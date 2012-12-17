@@ -120,8 +120,8 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener>();
 
-    protected Future<?> notifierFuture;
-    protected Future<?> asyncWriteFuture;
+    protected Future<?>[] notifierFuture;
+    protected Future<?>[] asyncWriteFuture;
 
     private POLICY policy = POLICY.FIFO;
     private final AtomicLong maxSuspendResource = new AtomicLong(-1);
@@ -194,13 +194,7 @@ public class DefaultBroadcaster implements Broadcaster {
             started.set(false);
 
             releaseExternalResources();
-            if (notifierFuture != null) {
-                notifierFuture.cancel(false);
-            }
-
-            if (asyncWriteFuture != null) {
-                asyncWriteFuture.cancel(false);
-            }
+            killReactiveThreads();
 
             if (bc != null) {
                 bc.destroy();
@@ -525,7 +519,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (destroyed.get()) return;
 
                     if (outOfOrderBroadcastSupported.get()) {
-                        notifierFuture = bc.getExecutorService().submit(this);
+                        bc.getExecutorService().submit(this);
                     }
 
                     if (msg != null) {
@@ -533,7 +527,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     if (!outOfOrderBroadcastSupported.get()) {
-                        notifierFuture = bc.getExecutorService().submit(this);
+                       bc.getExecutorService().submit(this);
                     }
                 } catch (InterruptedException ex) {
                     return;
@@ -544,6 +538,47 @@ public class DefaultBroadcaster implements Broadcaster {
                     } else {
                         logger.warn("This message {} will be lost", msg);
                         logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
+                    }
+                }
+            }
+        };
+    }
+
+    protected Runnable getAsyncWriteHandler() {
+        return new Runnable() {
+            public void run() {
+                AsyncWriteToken token = null;
+                try {
+                    token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
+                    if (token == null) {
+                        if (!destroyed.get()) bc.getAsyncWriteService().submit(this);
+                        return;
+                    }
+
+                    if (outOfOrderBroadcastSupported.get()) {
+                        bc.getAsyncWriteService().submit(this);
+                    }
+
+                    synchronized (token.resource) {
+                        if (!outOfOrderBroadcastSupported.get()) {
+                            // We want this thread to wait for the write operation to happens to kept the order
+                            bc.getAsyncWriteService().submit(this);
+                        }
+                        executeAsyncWrite(token);
+                    }
+                } catch (InterruptedException ex) {
+                    return;
+                } catch (Throwable ex) {
+                    if (!started.get() || destroyed.get()) {
+                        logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                        return;
+                    } else {
+                        if (token != null) {
+                            logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
+                            cacheLostMessage(token.resource, token);
+                        }
+
+                        logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                     }
                 }
             }
@@ -563,16 +598,44 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void spawnReactor() {
+        killReactiveThreads();
+
+        int threads = outOfOrderBroadcastSupported.get() ? reactiveThreadsCount() : 1;
+        notifierFuture = new Future<?>[threads];
+        asyncWriteFuture = new Future<?>[threads];
+
+        if (outOfOrderBroadcastSupported.get()){
+            for (int i = 0; i < threads; i++) {
+                notifierFuture[i] = bc.getExecutorService().submit(getBroadcastHandler());
+                asyncWriteFuture[i] = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+            }
+        } else {
+            notifierFuture[0] = bc.getExecutorService().submit(getBroadcastHandler());
+            asyncWriteFuture[0] = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+        }
+    }
+
+    protected void killReactiveThreads() {
         if (notifierFuture != null) {
-            notifierFuture.cancel(true);
+            for (Future<?> f : notifierFuture) {
+                f.cancel(false);
+            }
         }
 
         if (asyncWriteFuture != null) {
-            asyncWriteFuture.cancel(true);
+            for (Future<?> f : asyncWriteFuture) {
+                f.cancel(false);
+            }
         }
+    }
 
-        notifierFuture = bc.getExecutorService().submit(getBroadcastHandler());
-        asyncWriteFuture = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
+    /**
+     * Return the default number of reactive threads that will be waiting for work when a broadcast operation
+     * is executed.
+     * @return the default number of reactive threads
+     */
+    protected int reactiveThreadsCount() {
+        return Runtime.getRuntime().availableProcessors() * 2;
     }
 
     protected void push(Entry entry) {
@@ -813,41 +876,6 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             token.destroy();
         }
-    }
-
-    protected Runnable getAsyncWriteHandler() {
-        return new Runnable() {
-            public void run() {
-                AsyncWriteToken token = null;
-                try {
-                    token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
-                    if (token == null) {
-                        if (!destroyed.get()) asyncWriteFuture = bc.getAsyncWriteService().submit(this);
-                        return;
-                    }
-
-                    synchronized (token.resource) {
-                        // We want this thread to wait for the write operation to happens to kept the order
-                        asyncWriteFuture = bc.getAsyncWriteService().submit(this);
-                        executeAsyncWrite(token);
-                    }
-                } catch (InterruptedException ex) {
-                    return;
-                } catch (Throwable ex) {
-                    if (!started.get() || destroyed.get()) {
-                        logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
-                        return;
-                    } else {
-                        if (token != null) {
-                            logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
-                            cacheLostMessage(token.resource, token);
-                        }
-
-                        logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
-                    }
-                }
-            }
-        };
     }
 
     protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
@@ -1180,10 +1208,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 && AtmosphereResourceImpl.class.cast(r).isInScope();
     }
 
-    protected void entryDone(BroadcasterFuture<?> f) {
+    protected void entryDone(final BroadcasterFuture<?> f) {
         if (f != null) {
-            notifyBroadcastListener();
-            f.done();
+            bc.getExecutorService().submit(new Runnable() {
+                @Override
+                public void run() {
+                    notifyBroadcastListener();
+                    f.done();
+                }
+            });
         }
     }
 
