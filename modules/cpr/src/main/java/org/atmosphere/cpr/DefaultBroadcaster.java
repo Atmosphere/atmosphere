@@ -913,7 +913,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             bc.getBroadcasterCache().addToCache(getID(), r, msg);
         } catch (Throwable t) {
-            logger.warn("Unable to track messages {}", msg, t);
+            logger.warn("Unable to track messages {} {}", msg, t);
         }
     }
 
