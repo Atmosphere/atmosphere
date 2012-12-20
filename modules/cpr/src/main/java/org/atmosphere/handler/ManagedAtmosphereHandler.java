@@ -16,10 +16,10 @@
 package org.atmosphere.handler;
 
 import org.atmosphere.config.service.Delete;
+import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
-import org.atmosphere.config.service.OnDisconnect;
-import org.atmosphere.config.service.OnMessage;
-import org.atmosphere.config.service.OnTimeout;
+import org.atmosphere.config.service.Message;
+import org.atmosphere.config.service.Resume;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -49,9 +49,9 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
 
     public ManagedAtmosphereHandler(Object c) {
         this.object = c;
-        this.onMessageMethod = populate(c, OnMessage.class);
-        this.onDisconnectMethod = populate(c, OnDisconnect.class);
-        this.onTimeoutMethod = populate(c, OnTimeout.class);
+        this.onMessageMethod = populate(c, Message.class);
+        this.onDisconnectMethod = populate(c, Disconnect.class);
+        this.onTimeoutMethod = populate(c, Resume.class);
         this.onGetMethod = populate(c, Get.class);
         this.onPostMethod = populate(c, Post.class);
         this.onPutMethod = populate(c, Put.class);

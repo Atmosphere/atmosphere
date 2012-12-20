@@ -30,11 +30,13 @@ import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpoinMapperService;
+import org.atmosphere.config.service.ManagedAtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
+import org.atmosphere.handler.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
@@ -96,7 +98,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         WebSocketProcessorService.class,
                         BroadcasterCacheInspectorService.class,
                         ManagedService.class,
-                        EndpoinMapperService.class
+                        EndpoinMapperService.class,
+                        ManagedAtmosphereHandlerService.class
                 };
             }
 
@@ -279,6 +282,21 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
+                } else if (ManagedAtmosphereHandlerService.class.equals(annotation)) {
+                    try {
+                        Object handler = cl.loadClass(className).newInstance();
+                        ManagedAtmosphereHandlerService a = handler.getClass()
+                                    .getAnnotation(ManagedAtmosphereHandlerService.class);
+
+                        Object c = cl.loadClass(className).newInstance();
+                        ManagedAtmosphereHandler w = new ManagedAtmosphereHandler(c);
+                        List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+
+                        framework.addAtmosphereHandler(a.path(), w, l);
+                    } catch (Throwable t) {
+                        logger.warn("", t);
+                    }
+
                 }
             }
         };
