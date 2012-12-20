@@ -95,19 +95,19 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         reaper.scheduleAtFixedRate(new Runnable() {
 
             public void run() {
-                Iterator<CachedMessage> i = queue.iterator();
-                CachedMessage message;
-                while (i.hasNext()) {
-                    message = i.next();
-                    logger.trace("Message: {}", message.message());
+                synchronized (AbstractBroadcasterCache.this) {
+                    Iterator<CachedMessage> i = queue.iterator();
+                    CachedMessage message;
+                    while (i.hasNext()) {
+                        message = i.next();
+                        logger.trace("Message: {}", message.message());
 
-                    if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
-                        logger.trace("Pruning: {}", message.message());
-                        synchronized (AbstractBroadcasterCache.this) {
-                            queue.remove(message);
+                        if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
+                            logger.trace("Pruning: {}", message.message());
+                            i.remove();
+                        } else {
+                            break;
                         }
-                    } else {
-                        break;
                     }
                 }
             }
