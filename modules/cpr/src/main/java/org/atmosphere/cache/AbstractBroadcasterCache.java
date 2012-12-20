@@ -218,6 +218,15 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
         return l;
     }
+    
+    /**
+     * Get the number of messages which are currently in the cache.
+     * 
+     * @return the number of messages which are currently in the cache
+     */
+    public int getQueueDepth() {
+        return queue.size();
+    }
 
     /**
      * Get the maximum time a broadcasted message can stay cached.
