@@ -104,7 +104,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
                     if (System.currentTimeMillis() - message.currentTime() > maxCachedinMs) {
                         logger.trace("Pruning: {}", message.message());
                         synchronized (AbstractBroadcasterCache.this) {
-                            queue.remove(message);
+                            i.remove();
                         }
                     } else {
                         break;
