@@ -444,7 +444,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (!delegateToNativeResponse) {
             this.charSet = charSet;
         } else {
-            response.setCharacterEncoding(charSet);
+            _r().setCharacterEncoding(charSet);
         }
     }
 
