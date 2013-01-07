@@ -101,7 +101,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         this.statusMessage = b.statusMessage;
         this.writeStatusAndHeader.set(b.writeStatusAndHeader.get());
         this.headers = b.headers;
-        this.delegateToNativeResponse = b.delegateToNativeResponse;
+        this.delegateToNativeResponse = asyncIOWriter == null;
         this.destroyable = b.destroyable;
     }
 
@@ -113,8 +113,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
-        private boolean destroyable = true;
-        private boolean delegateToNativeResponse = false;
+        public boolean destroyable = true;
 
         public Builder() {
         }
@@ -141,11 +140,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
         public Builder request(AtmosphereRequest atmosphereRequest) {
             this.atmosphereRequest = atmosphereRequest;
-            return this;
-        }
-
-        public Builder delegateToNativeResponse(boolean delegateToNativeResponse) {
-            this.delegateToNativeResponse = delegateToNativeResponse;
             return this;
         }
 
@@ -235,6 +229,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public String encodeRedirectUrl(String url) {
         return response.encodeRedirectURL(url);
+    }
+
+    public AtmosphereResponse delegateToNativeResponse(boolean delegateToNativeResponse) {
+        this.delegateToNativeResponse = delegateToNativeResponse;
+        return this;
     }
 
     /**
@@ -1193,25 +1192,16 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     /**
      * Create an instance not associated with any response parent.
      *
-     * @return this
-     */
-    public final static AtmosphereResponse newInstance() {
-        return new Builder().delegateToNativeResponse(true).build();
-    }
-
-    /**
-     * Create an instance not associated with any response parent.
-     *
      * @return
      */
-    public final static AtmosphereResponse newInstance(boolean delegateToNativeResponse) {
-        return new Builder().delegateToNativeResponse(delegateToNativeResponse).build();
+    public final static AtmosphereResponse newInstance() {
+        return new Builder().build();
     }
 
     /**
      * Create a new instance to use with WebSocket.
      *
-     * @return this
+     * @return
      */
     public final static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
         boolean destroyable;

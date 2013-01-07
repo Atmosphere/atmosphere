@@ -22,7 +22,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
+public class AsyncIOWriterAdapter implements AsyncIOWriter {
 
     public AsyncIOWriterAdapter() {
     }

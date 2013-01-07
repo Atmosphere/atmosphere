@@ -237,7 +237,7 @@ public class AtmosphereRequestTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance(false));
+        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
 
         assertEquals(e.get().getCharacterEncoding(), "utf-8");
     }
