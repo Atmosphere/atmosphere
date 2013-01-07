@@ -10,7 +10,7 @@ $(function () {
     var logged = false;
     var socket = $.atmosphere;
     var subSocket;
-    var transport = 'long-polling';
+    var transport = 'websocket';
 
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
