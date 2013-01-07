@@ -302,7 +302,7 @@ public interface ApplicationConfig {
      */
     String ANNOTATION_PROCESSOR =  AnnotationProcessor.class.getName();
     /**
-     * Definr an implementation of the {@link EndpointMapper}
+     * Define an implementation of the {@link EndpointMapper}
      */
     String ENDPOINT_MAPPER = EndpointMapper.class.getName();
     /**
