@@ -48,7 +48,7 @@ public class ManagedAtmosphereHandlerTest {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
         String name = new File(".").getAbsolutePath();
-        framework.setLibPath(name.substring(0, name.length() - 1) + "/modules/cpr/target/");
+        framework.setLibPath(name.substring(0, name.length() - 1) + "/target/");
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
             @Override
