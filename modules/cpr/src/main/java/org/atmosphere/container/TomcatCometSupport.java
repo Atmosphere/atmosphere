@@ -125,10 +125,12 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                             " [The Tomcat native connector does not support timeouts on asynchronous I/O.]");
                 }
                 req.setAttribute(SUSPENDED, true);
-            } else if (action.type() == Action.TYPE.RESUME) {
-                event.close();
             } else {
-                event.close();
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
+                }
             }
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
@@ -139,13 +141,24 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 action = cancelled(req, res);
             }
 
-            event.close();
-        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
 
             action = timedout(req, res);
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         } else if (event.getEventType() == EventType.ERROR) {
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         } else if (event.getEventType() == EventType.END) {
             if (req.resource() != null && req.resource().isResumed()) {
                 AtmosphereResourceImpl.class.cast(req.resource()).cancel();
@@ -153,7 +166,11 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                event.close();
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
+                }
             }
         }
         return action;
@@ -173,7 +190,11 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
-                    event.close();
+                    try {
+                        event.close();
+                    } catch (IllegalStateException ex) {
+                        logger.trace("event.close", ex);
+                    }
                 }
             } catch (IOException ex) {
                 logger.debug("action failed", ex);
@@ -189,7 +210,11 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         }
         return action;
     }

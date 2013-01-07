@@ -94,8 +94,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                             " [The Tomcat native connector does not support timeouts on asynchronous I/O.]");
                 }
                 req.setAttribute(SUSPENDED, true);
-            } else if (action.type() == Action.TYPE.RESUME) {
-                bz51881(event);
             } else {
                 bz51881(event);
             }
@@ -172,7 +170,11 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 logger.trace("Was unable to recycle internal Tomcat object");
             }
         } else {
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         }
     }
 
