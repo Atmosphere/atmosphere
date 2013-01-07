@@ -949,7 +949,7 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
-                    _sse.close();
+                    _clearState();
 
                     if (_abordingConnection) {
                         jQuery.atmosphere.log(_request.logLevel, ["SSE closed normally"]);
@@ -1107,6 +1107,7 @@ jQuery.atmosphere = function() {
                     } else if (!webSocketOpened) {
                         _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending");
                     } else if (_request.reconnect && _response.transport == 'websocket') {
+                        _clearState();
                         if (_requestCount++ < _request.maxReconnectOnClose) {
                             _request.requestCount = _requestCount;
                             _response.responseBody = "";
@@ -1436,7 +1437,7 @@ jQuery.atmosphere = function() {
                                             _invokeCallback();
                                             if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
                                                 // Close and reopen connection on large data received
-                                                ajaxRequest.abort();
+                                                _clearState();
                                                 _doRequest(ajaxRequest, rq, true);
                                             }
                                         }
@@ -1482,7 +1483,7 @@ jQuery.atmosphere = function() {
 
                             if ((rq.transport == 'streaming') && (responseText.length > rq.maxStreamingLength)) {
                                 // Close and reopen connection on large data received
-                                ajaxRequest.abort();
+                                _clearState();
                                 _doRequest(ajaxRequest, rq, true);
                             }
                         }
@@ -1530,7 +1531,7 @@ jQuery.atmosphere = function() {
                     if (request.connectTimeout > -1) {
                         request.id = setTimeout(function() {
                             if (request.requestCount == 0) {
-                                ajaxRequest.abort();
+                                _clearState();
                                 _prepareCallback("Connect timeout", "closed", 200, request.transport);
                             }
                         }, request.connectTimeout);
@@ -1712,14 +1713,14 @@ jQuery.atmosphere = function() {
                         if (rq.connectTimeout > -1) {
                             rq.id = setTimeout(function() {
                                 if (rq.requestCount == 0) {
-                                    xdr.abort();
+                                    _clearState();
                                     _prepareCallback("Connect timeout", "closed", 200, rq.transport);
                                 }
                             }, rq.connectTimeout);
                         }
                     },
                     close: function() {
-                        xdr.abort();
+                        _clearState();
                         _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
