@@ -55,6 +55,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
@@ -121,6 +122,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
                 servlet = (Servlet) Thread.currentThread().getContextClassLoader()
                         .loadClass(servletClassName).newInstance();
             }
+            InjectorProvider.getInjector().inject(servlet);
         }
 
         logger.info("Installing Servlet {}", servletClassName);
@@ -137,6 +139,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             }
             FilterConfigImpl fc = new FilterConfigImpl(sc);
             fc.setFilter(f);
+            InjectorProvider.getInjector().inject(f);
 
             if (filterName == null) {
                 if (sc.getInitParameter(APPLICATION_NAME) != null) {
