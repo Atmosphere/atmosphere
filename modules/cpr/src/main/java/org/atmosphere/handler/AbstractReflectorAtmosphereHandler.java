@@ -55,6 +55,7 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
@@ -141,17 +142,18 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
-            Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
                 resumeOnBroadcast = Boolean.class.cast(o);
             }
         }
 
         if (resumeOnBroadcast != null && resumeOnBroadcast) {
-            event.getResource().resume();
+            r.resume();
         }
     }
 }
