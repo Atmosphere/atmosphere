@@ -142,6 +142,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
+        if (event.isResuming()) return;
+
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
         Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
