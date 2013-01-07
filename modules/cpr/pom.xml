@@ -45,6 +45,7 @@
                             org.jboss.servlet*;resolution:=optional,
 							eu.infomas.annotation*;resolution:=optional,
 							org.apache.coyote*;resolution:=optional,
+                            org.mortbay.util.ajax*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
