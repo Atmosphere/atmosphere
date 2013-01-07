@@ -1000,7 +1000,7 @@ jQuery.atmosphere = function() {
 
                 if (!_request.reconnect) {
                     if (_websocket != null) {
-                        _websocket.close();
+                        _clearState();
                     }
                     return;
                 }
@@ -1018,7 +1018,7 @@ jQuery.atmosphere = function() {
                             _websocket.onclose(_message);
                             // Close it anyway
                             try {
-                                _websocket.close();
+                                _clearState();
                             } catch (e) {
                             }
                         }
@@ -1104,7 +1104,7 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !webSocketOpened ? 501 : 200;
                     _invokeCallback();
-                    clearTimeout(_request.id)
+                    clearTimeout(_request.id);
 
                     closed = true;
 
@@ -1130,6 +1130,8 @@ jQuery.atmosphere = function() {
             }
 
             function _onError() {
+                _clearState();
+
                 _response.state = 'error';
                 _response.responseBody = "";
                 _response.status = 500;
@@ -1351,6 +1353,7 @@ jQuery.atmosphere = function() {
                             if (!_response.status) {
                                 _response.status = 500;
                             }
+                            _clearState();
 
                             _response.state = "error";
                             _invokeCallback();
@@ -2032,7 +2035,7 @@ jQuery.atmosphere = function() {
                 } catch (e) {
                     _websocket.onclose = function(message) {
                     };
-                    _websocket.close();
+                    _clearState();
 
                     _reconnectWithFallbackTransport("Websocket failed. Downgrading to Comet and resending " + data);
                     _pushAjaxMessage(message);
