@@ -1122,6 +1122,8 @@ jQuery.atmosphere = function() {
             }
 
             function _onError() {
+                _clearState();
+
                 _response.state = 'error';
                 _response.responseBody = "";
                 _response.status = 500;
@@ -1642,6 +1644,7 @@ jQuery.atmosphere = function() {
                 };
                 // Handles error event
                 xdr.onerror = function() {
+                    _clearState();
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
                         _prepareCallback(xdr.responseText, "error", 500, transport);
@@ -1720,6 +1723,7 @@ jQuery.atmosphere = function() {
                         }
                     },
                     close: function() {
+                        xdr.abort();
                         _clearState();
                         _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
