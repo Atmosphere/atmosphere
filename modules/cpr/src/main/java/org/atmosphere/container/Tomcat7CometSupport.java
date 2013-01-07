@@ -172,7 +172,11 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 logger.trace("Was unable to recycle internal Tomcat object");
             }
         } else {
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         }
     }
 
