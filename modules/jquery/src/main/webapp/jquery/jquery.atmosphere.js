@@ -1993,7 +1993,8 @@ jQuery.atmosphere = function() {
                     transport: 'polling',
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
-                    uuid : _request.uuid
+                    uuid : _request.uuid,
+                    maxReconnectOnClose : _request.maxReconnectOnClose
                 };
 
                 if (typeof(message) == 'object') {
