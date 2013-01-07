@@ -113,7 +113,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
-        public boolean destroyable = true;
+        private boolean destroyable = true;
 
         public Builder() {
         }
