@@ -896,7 +896,7 @@ jQuery.atmosphere = function() {
 
                 if (!_request.reconnect) {
                     if (_sse != null) {
-                        _sse.close();
+                        _clearState();
                     }
                     return;
                 }
@@ -905,7 +905,7 @@ jQuery.atmosphere = function() {
                 if (_request.connectTimeout > 0) {
                     _request.id = setTimeout(function() {
                         if (!sseOpened) {
-                            _sse.close();
+                            _clearState();
                         }
                     }, _request.connectTimeout);
                 }
