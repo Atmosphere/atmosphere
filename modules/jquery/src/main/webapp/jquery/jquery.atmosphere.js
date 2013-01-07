@@ -1494,7 +1494,9 @@ jQuery.atmosphere = function() {
                             if (_subscribed) {
                                 ajaxRequest.abort();
                                 _subscribe(rq);
-                                _execute();
+                                setTimeout(function () {
+                                    _execute();
+                                }, rq.reconnectInterval)
                             }
                         }, rq.timeout);
                     }
