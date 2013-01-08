@@ -77,7 +77,7 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
     protected final List<CachedMessage> queue = Collections.synchronizedList(new LinkedList<CachedMessage>());
 

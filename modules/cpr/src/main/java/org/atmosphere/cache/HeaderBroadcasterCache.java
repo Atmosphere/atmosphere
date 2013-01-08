@@ -95,7 +95,14 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
 
         if (dateString == null) return null;
 
-        long currentTime = Long.valueOf(dateString);
+        long currentTime = 0;
+        try {
+            currentTime = Long.valueOf(dateString);
+        } catch (NumberFormatException ex) {
+            logger.trace("", ex);
+            return null;
+        }
+
         CachedMessage prev = null;
         for (CachedMessage cm : queue) {
             if (cm.currentTime() > currentTime) {
