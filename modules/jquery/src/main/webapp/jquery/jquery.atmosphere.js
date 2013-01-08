@@ -1698,7 +1698,6 @@ jQuery.atmosphere = function() {
                     // callback.
                     rq.lastTimestamp = jQuery.now();
 
-
                     if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
                         xdr.status = 200;
                         _reconnect(xdr, rq, false);
@@ -1732,7 +1731,7 @@ jQuery.atmosphere = function() {
                     },
                     close: function() {
                         xdr.abort();
-                        _clearState();
+                        _clearStorage();
                         _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
@@ -2231,7 +2230,10 @@ jQuery.atmosphere = function() {
                     _sse.close();
                     _sse = null;
                 }
+                _clearStorage();
+            }
 
+            function _clearStorage() {
                 // Stop sharing a connection
                 if (_storageService != null) {
                     // Clears trace timer
