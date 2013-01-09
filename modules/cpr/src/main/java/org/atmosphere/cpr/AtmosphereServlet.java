@@ -56,6 +56,7 @@ package org.atmosphere.cpr;
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.di.ServletContextProvider;
@@ -379,7 +380,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
             synchronized (framework.asyncSupport) {
-                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)) {
+                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)
+                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
                     AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
@@ -390,7 +392,13 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                 }
             }
         }
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        if (framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
+            logger.trace("Dispatching websocket event: " + httpEvent);
+            ((JBossWebSocketSupport) framework.asyncSupport).dispatch(httpEvent);
+        } else {
+            logger.trace("Dispatching comet event: " + httpEvent);
+            framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        }
     }
 
 }

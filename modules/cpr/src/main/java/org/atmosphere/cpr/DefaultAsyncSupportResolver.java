@@ -60,6 +60,7 @@ import org.atmosphere.container.Grizzly2CometSupport;
 import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
@@ -102,6 +103,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
     public final static String GRIZZLY2_WEBSOCKET = "org.glassfish.grizzly.websockets.WebSocketEngine";
     public final static String NETTY = "org.jboss.netty.channel.Channel";
+    public final static String JBOSS_AS7_WEBSOCKET = "org.atmosphere.jboss.as.websockets.servlet.WebSocketServlet";
 
     private final AtmosphereConfig config;
 
@@ -169,6 +171,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);
+
+                if (testClassExists(JBOSS_AS7_WEBSOCKET))
+                    add(JBossWebSocketSupport.class);
             }
         };
     }

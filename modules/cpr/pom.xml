@@ -157,6 +157,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.atmosphere.jboss.as</groupId>
+            <artifactId>jboss-as-websockets</artifactId>
+            <version>${jbossaswebsockets-version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>
             <version>${project.version}</version>

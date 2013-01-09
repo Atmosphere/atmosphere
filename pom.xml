@@ -511,5 +511,6 @@
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.6.1</slf4j-version>
         <logback-version>0.9.30</logback-version>
+        <jbossaswebsockets-version>0.2</jbossaswebsockets-version>
     </properties>
 </project>
