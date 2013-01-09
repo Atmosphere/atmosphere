@@ -502,7 +502,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             Map<String, List<String>> m = decoder.getParameters();
             Map<String, String[]> newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
-                newM.put(q.getKey(), q.getValue().toArray(new String[m.size()]));
+                newM.put(q.getKey(), q.getValue().toArray(new String[q.getValue().size()]));
             }
             b.queryStrings(newM);
         }
