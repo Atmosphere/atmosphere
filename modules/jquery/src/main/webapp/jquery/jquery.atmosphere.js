@@ -1644,7 +1644,6 @@ jQuery.atmosphere = function() {
                 };
                 // Handles error event
                 xdr.onerror = function() {
-                    _clearState();
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
                         _prepareCallback(xdr.responseText, "error", 500, transport);
