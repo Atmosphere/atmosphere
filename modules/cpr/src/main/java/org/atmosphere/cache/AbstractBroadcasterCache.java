@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -80,10 +81,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
     protected final List<CachedMessage> queue = Collections.synchronizedList(new LinkedList<CachedMessage>());
-
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
-
     protected int maxCachedinMs = 1000 * 5 * 60;
+    protected ScheduledFuture scheduledFuture;
 
     public AbstractBroadcasterCache() {
     }
@@ -92,7 +92,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      * {@inheritDoc}
      */
     public final void start() {
-        reaper.scheduleAtFixedRate(new Runnable() {
+        scheduledFuture = reaper.scheduleAtFixedRate(new Runnable() {
 
             public void run() {
                 synchronized (AbstractBroadcasterCache.this) {
@@ -115,6 +115,11 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     public void setExecutorService(ScheduledExecutorService reaper){
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
+            scheduledFuture = null;
+        }
+
         if (reaper != null) {
             stop();
         }
@@ -218,10 +223,10 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
         return l;
     }
-    
+
     /**
      * Get the number of messages which are currently in the cache.
-     * 
+     *
      * @return the number of messages which are currently in the cache
      */
     public int getQueueDepth() {
