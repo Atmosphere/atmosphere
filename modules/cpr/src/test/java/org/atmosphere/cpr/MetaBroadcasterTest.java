@@ -95,4 +95,13 @@ public class MetaBroadcasterTest {
         assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/*", "yo").get().size(), 3);
 
     }
+
+    @Test
+    public void underscoreMatching() throws ExecutionException, InterruptedException {
+        factory.get("/a/_b");
+        factory.get("/b");
+        factory.get("/c");
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/_b", "yo").get().size(), 1);
+
+    }
 }
