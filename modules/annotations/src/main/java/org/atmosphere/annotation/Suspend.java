@@ -122,7 +122,7 @@ public @interface Suspend {
     public boolean resumeOnBroadcast() default false;
 
     /**
-     * Add {@link AtmosphereResourceEventListener} to the broadcast operation.
+     * Add {@link AtmosphereResourceEventListener} to track internal events.
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
