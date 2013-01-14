@@ -15,6 +15,8 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -53,4 +55,8 @@ public @interface ManagedService {
      * @return mapping path, or context-root used to map this AtmosphereHandler
      */
     String path() default "/";
+    /**
+     * Add {@link AtmosphereResourceEventListener} to track internal events.
+     */
+    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 }
