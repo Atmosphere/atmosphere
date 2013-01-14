@@ -33,7 +33,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onPreSuspend(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -41,7 +41,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onHandshake(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -49,7 +49,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onMessage(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -57,7 +57,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onClose(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -65,17 +65,17 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onControl(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     @Override
     public void onDisconnect(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     @Override
     public void onConnect(WebSocketEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -83,7 +83,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onSuspend(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -91,7 +91,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onResume(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -99,7 +99,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -107,7 +107,7 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onBroadcast(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -115,6 +115,6 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
      */
     @Override
     public void onThrowable(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 }
