@@ -18,6 +18,7 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        AtmosphereResponse response = event.getResource().getResponse();
+        AtmosphereResponse response = ((AtmosphereResourceImpl)event.getResource()).getResponse(false);
 
         logger.debug("{} with event {}", event.getResource().uuid(), event);
         if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
