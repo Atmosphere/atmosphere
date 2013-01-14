@@ -139,38 +139,47 @@
 <a class="jxr_linenumber" name="129" href="#129">129</a>                     }
 <a class="jxr_linenumber" name="130" href="#130">130</a>                 }
 <a class="jxr_linenumber" name="131" href="#131">131</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="132" href="#132">132</a>                 <strong class="jxr_keyword">if</strong> (DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.isAssignableFrom(broadcaster.getClass())) {
-<a class="jxr_linenumber" name="133" href="#133">133</a>                     DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(broadcaster).onException(t, r);
-<a class="jxr_linenumber" name="134" href="#134">134</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="135" href="#135">135</a>                     onException(t, r);
-<a class="jxr_linenumber" name="136" href="#136">136</a>                 }
-<a class="jxr_linenumber" name="137" href="#137">137</a>             } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="138" href="#138">138</a>                 <strong class="jxr_keyword">if</strong> (cr != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="139" href="#139">139</a>                     cr.setEntity(<strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="140" href="#140">140</a>                 }
-<a class="jxr_linenumber" name="141" href="#141">141</a> 
-<a class="jxr_linenumber" name="142" href="#142">142</a>                 Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-<a class="jxr_linenumber" name="143" href="#143">143</a>                 <strong class="jxr_keyword">if</strong> (resumeOnBroadcast != <strong class="jxr_keyword">null</strong> &amp;&amp; resumeOnBroadcast) {
-<a class="jxr_linenumber" name="144" href="#144">144</a> 
-<a class="jxr_linenumber" name="145" href="#145">145</a>                     String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
-<a class="jxr_linenumber" name="146" href="#146">146</a>                     <strong class="jxr_keyword">if</strong> (uuid != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="147" href="#147">147</a>                         <strong class="jxr_keyword">if</strong> (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="148" href="#148">148</a>                             ((ConcurrentHashMap&lt;String, AtmosphereResource&gt;) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
-<a class="jxr_linenumber" name="149" href="#149">149</a>                         }
-<a class="jxr_linenumber" name="150" href="#150">150</a>                     }
-<a class="jxr_linenumber" name="151" href="#151">151</a>                     r.resume();
-<a class="jxr_linenumber" name="152" href="#152">152</a>                 }
+<a class="jxr_linenumber" name="132" href="#132">132</a>                 <strong class="jxr_keyword">boolean</strong> notifyAndCache = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="133" href="#133">133</a>                 <strong class="jxr_keyword">for</strong> (StackTraceElement element : t.getStackTrace()) {
+<a class="jxr_linenumber" name="134" href="#134">134</a>                     <strong class="jxr_keyword">if</strong> (element.getClassName().equals(<span class="jxr_string">"java.io.BufferedWriter"</span>)
+<a class="jxr_linenumber" name="135" href="#135">135</a>                             &amp;&amp; element.getMethodName().equals(<span class="jxr_string">"flush"</span>)) {
+<a class="jxr_linenumber" name="136" href="#136">136</a>                         logger.trace(<span class="jxr_string">"Workaround issue https://github.com/Atmosphere/atmosphere/issues/710"</span>);
+<a class="jxr_linenumber" name="137" href="#137">137</a>                         notifyAndCache = false;
+<a class="jxr_linenumber" name="138" href="#138">138</a>                     }
+<a class="jxr_linenumber" name="139" href="#139">139</a>                 }
+<a class="jxr_linenumber" name="140" href="#140">140</a> 
+<a class="jxr_linenumber" name="141" href="#141">141</a>                 <strong class="jxr_keyword">if</strong> (DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.isAssignableFrom(broadcaster.getClass())) {
+<a class="jxr_linenumber" name="142" href="#142">142</a>                     DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(broadcaster).onException(t, r, notifyAndCache);
+<a class="jxr_linenumber" name="143" href="#143">143</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="144" href="#144">144</a>                     onException(t, r);
+<a class="jxr_linenumber" name="145" href="#145">145</a>                 }
+<a class="jxr_linenumber" name="146" href="#146">146</a>             } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="147" href="#147">147</a>                 <strong class="jxr_keyword">if</strong> (cr != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="148" href="#148">148</a>                     cr.setEntity(<strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="149" href="#149">149</a>                 }
+<a class="jxr_linenumber" name="150" href="#150">150</a> 
+<a class="jxr_linenumber" name="151" href="#151">151</a>                 Boolean resumeOnBroadcast = (Boolean) request.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+<a class="jxr_linenumber" name="152" href="#152">152</a>                 <strong class="jxr_keyword">if</strong> (resumeOnBroadcast != <strong class="jxr_keyword">null</strong> &amp;&amp; resumeOnBroadcast) {
 <a class="jxr_linenumber" name="153" href="#153">153</a> 
-<a class="jxr_linenumber" name="154" href="#154">154</a>             }
-<a class="jxr_linenumber" name="155" href="#155">155</a>         }
-<a class="jxr_linenumber" name="156" href="#156">156</a>     }
-<a class="jxr_linenumber" name="157" href="#157">157</a> 
-<a class="jxr_linenumber" name="158" href="#158">158</a>     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> onException(Throwable t, <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="159" href="#159">159</a>         logger.trace(<span class="jxr_string">"onException()"</span>, t);
-<a class="jxr_linenumber" name="160" href="#160">160</a>         r.notifyListeners(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a>((AtmosphereResourceImpl) r, <strong class="jxr_keyword">true</strong>, false));
-<a class="jxr_linenumber" name="161" href="#161">161</a>         AsynchronousProcessor.destroyResource(r);
-<a class="jxr_linenumber" name="162" href="#162">162</a>     }
-<a class="jxr_linenumber" name="163" href="#163">163</a> }
+<a class="jxr_linenumber" name="154" href="#154">154</a>                     String uuid = (String) request.getAttribute(AtmosphereFilter.RESUME_UUID);
+<a class="jxr_linenumber" name="155" href="#155">155</a>                     <strong class="jxr_keyword">if</strong> (uuid != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="156" href="#156">156</a>                         <strong class="jxr_keyword">if</strong> (request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="157" href="#157">157</a>                             ((ConcurrentHashMap&lt;String, AtmosphereResource&gt;) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+<a class="jxr_linenumber" name="158" href="#158">158</a>                         }
+<a class="jxr_linenumber" name="159" href="#159">159</a>                     }
+<a class="jxr_linenumber" name="160" href="#160">160</a>                     r.resume();
+<a class="jxr_linenumber" name="161" href="#161">161</a>                 }
+<a class="jxr_linenumber" name="162" href="#162">162</a> 
+<a class="jxr_linenumber" name="163" href="#163">163</a>             }
+<a class="jxr_linenumber" name="164" href="#164">164</a>         }
+<a class="jxr_linenumber" name="165" href="#165">165</a>     }
+<a class="jxr_linenumber" name="166" href="#166">166</a> 
+<a class="jxr_linenumber" name="167" href="#167">167</a>     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> onException(Throwable t, <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="168" href="#168">168</a>         logger.trace(<span class="jxr_string">"onException()"</span>, t);
+<a class="jxr_linenumber" name="169" href="#169">169</a>         r.notifyListeners(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a>((AtmosphereResourceImpl) r, <strong class="jxr_keyword">true</strong>, false));
+<a class="jxr_linenumber" name="170" href="#170">170</a>         AsynchronousProcessor.destroyResource(r);
+<a class="jxr_linenumber" name="171" href="#171">171</a>     }
+<a class="jxr_linenumber" name="172" href="#172">172</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
