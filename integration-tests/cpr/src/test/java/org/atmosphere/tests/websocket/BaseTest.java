@@ -35,6 +35,8 @@ import org.testng.annotations.Test;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -406,5 +408,101 @@ public abstract class BaseTest {
             logger.error("test failed", e);
             fail(e.getMessage());
         }
+    }
+
+    @Test(timeOut = 60000, enabled = true)
+    public void onResumeWithTimerTest() {
+        logger.info("{}: running test: onResumeWithTimerTest", getClass().getSimpleName());
+
+        final AtomicBoolean onResume = new AtomicBoolean();
+        final CountDownLatch eventReceived = new CountDownLatch(1);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            boolean isSuspended = false;
+
+            public void onRequest(final AtmosphereResource r) throws IOException {
+                r.addEventListener(new WebSocketEventListenerAdapter() {
+
+                    @Override
+                    public void onResume(AtmosphereResourceEvent event) {
+                        onResume.set(true);
+                        eventReceived.countDown();
+                    }
+                });
+
+                if (!isSuspended) {
+                    r.suspend();
+                    isSuspended = true;
+                } else {
+                    String message = r.getRequest().getReader().readLine();
+                    r.getBroadcaster().broadcast(message);
+                    new Timer().schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            r.resume();
+                        }
+                    }, 2000);
+                }
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isSuspended()) {
+                    event.write(event.getMessage().toString().getBytes());
+                }
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<String> response = new AtomicReference<String>(null);
+            WebSocket w = c.prepareGet(urlTarget).execute(new WebSocketUpgradeHandler.Builder().build())
+                    .get();
+            w.addWebSocketListener(new WebSocketTextListener() {
+
+                @Override
+                public void onMessage(String message) {
+                    response.set(message);
+                    latch.countDown();
+                }
+
+                @Override
+                public void onFragment(String fragment, boolean last) {
+                    fail();
+                }
+
+                @Override
+                public void onOpen(WebSocket websocket) {
+                }
+
+                @Override
+                public void onClose(WebSocket websocket) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    t.printStackTrace();
+                    fail(t.getMessage());
+                }
+            }).sendTextMessage("echo");
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            eventReceived.await(10, TimeUnit.SECONDS);
+            assertNotNull(response.get());
+            assertEquals(response.get(), "echo");
+            assertTrue(onResume.get());
+
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+        c.close();
     }
 }
