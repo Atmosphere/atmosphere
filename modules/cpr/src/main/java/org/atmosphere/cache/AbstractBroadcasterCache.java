@@ -53,7 +53,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void start() {
-        reaper.scheduleAtFixedRate(new Runnable() {
+        scheduledFuture = reaper.scheduleAtFixedRate(new Runnable() {
 
             public void run() {
                 readWriteLock.writeLock().lock();
