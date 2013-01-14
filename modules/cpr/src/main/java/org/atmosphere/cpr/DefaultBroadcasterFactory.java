@@ -62,6 +62,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
@@ -83,9 +85,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
-
     private final Class<? extends Broadcaster> clazz;
-
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
 
@@ -149,11 +149,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new NullPointerException("Class is null");
         }
 
-        if (store.containsKey(id)) {
-            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
-        }
-
-        return lookup(c, id, true);
+        return lookup(c, id, true, true);
     }
 
     private Broadcaster createBroadcaster(Class<? extends Broadcaster> c, Object id) throws BroadcasterCreationException {
@@ -223,29 +219,43 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      * {@inheritDoc}
      */
     @Override
-    public synchronized Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
-        Broadcaster b = store.get(id);
-        if (b != null && !c.isAssignableFrom(b.getClass())) {
-            String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
-            logger.debug(msg);
-            throw new IllegalStateException(msg);
-        }
+    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+        return lookup(c, id, createIfNull, false);
+    }
 
-        if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
-            if (b != null) {
-                logger.debug("Removing destroyed Broadcaster {}", b.getID());
-                store.remove(b.getID(), b);
+    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull, boolean unique) {
+        synchronized(id) {
+            if (unique && store.get(id) != null) {
+                throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
             }
 
-            b = store.get(id);
-            if (b == null) {
-                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
-                b = createBroadcaster(c, id);
-                store.put(id, b);
+            Broadcaster b = store.get(id);
+            if (b != null && !c.isAssignableFrom(b.getClass())) {
+                String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
+                logger.debug(msg);
+                throw new IllegalStateException(msg);
             }
-        }
 
-        return b;
+            if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
+                if (b != null) {
+                    logger.debug("Removing destroyed Broadcaster {}", b.getID());
+                    store.remove(b.getID(), b);
+                }
+
+                Broadcaster nb = store.get(id);
+                if (nb == null) {
+                    nb = createBroadcaster(c, id);
+                    store.put(id, nb);
+                }
+
+                if (nb == null) {
+                    logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+                }
+
+                b = nb;
+            }
+            return b;
+        }
     }
 
     /**
