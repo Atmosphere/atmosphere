@@ -56,8 +56,9 @@ import java.util.List;
 
 /**
  * An {@link AnnotationProcessor} based on <a href="https://github.com/rmuller/infomas-asl"></a>
- *
+ * <p/>
  * TODO: This class needs to refactored.
+ *
  * @author Jeanfrancois Arcand
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
@@ -256,11 +257,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AtmosphereHandler handler = (AtmosphereHandler) cl.loadClass(className).newInstance();
                         ManagedService a = handler.getClass().getAnnotation(ManagedService.class);
 
-                        Class<? extends AtmosphereInterceptor>[] interceptors = new Class[] {
+                        Class<? extends AtmosphereInterceptor>[] interceptors = new Class[]{
                                 AtmosphereResourceLifecycleInterceptor.class,
                                 BroadcastOnPostAtmosphereInterceptor.class,
                                 TrackMessageSizeInterceptor.class,
-                                HeartbeatInterceptor.class };
+                                HeartbeatInterceptor.class};
                         List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
                         for (Class i : interceptors) {
                             try {
@@ -271,6 +272,38 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                                 logger.warn("", e);
                             }
                         }
+
+                        final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
+                        try {
+                            AtmosphereInterceptor ai = new AtmosphereInterceptor() {
+
+                                @Override
+                                public void configure(AtmosphereConfig config) {
+                                }
+
+                                @Override
+                                public Action inspect(AtmosphereResource r) {
+                                    for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
+                                        try {
+                                            r.addEventListener(l.newInstance());
+                                        } catch (Throwable e) {
+                                            logger.warn("", e);
+                                        }
+                                    }
+                                    return Action.CONTINUE;
+                                }
+
+                                @Override
+                                public void postInspect(AtmosphereResource r) {
+
+                                }
+                            };
+                            ai.configure(framework.getAtmosphereConfig());
+                            l.add(ai);
+                        } catch (Throwable e) {
+                            logger.warn("", e);
+                        }
+
                         framework.addAtmosphereHandler(a.path(), handler, l);
                         framework.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
                     } catch (Throwable e) {
@@ -278,7 +311,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     }
                 } else if (EndpoinMapperService.class.equals(annotation)) {
                     try {
-                        framework.endPointMapper((EndpointMapper<?>)cl.loadClass(className).newInstance());
+                        framework.endPointMapper((EndpointMapper<?>) cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
@@ -286,7 +319,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     try {
                         Object handler = cl.loadClass(className).newInstance();
                         ManagedAtmosphereHandlerService a = handler.getClass()
-                                    .getAnnotation(ManagedAtmosphereHandlerService.class);
+                                .getAnnotation(ManagedAtmosphereHandlerService.class);
 
                         Object c = cl.loadClass(className).newInstance();
                         ManagedAtmosphereHandler w = new ManagedAtmosphereHandler(c);
