@@ -2143,7 +2143,7 @@ jQuery.atmosphere = function() {
                     _localSocketF(_response.responseBody);
                 }
 
-                var messages = typeof((_response.responseBody) == 'string' && _request.trackMessageLength) ?
+                var messages = (typeof(_response.responseBody) == 'string' && _request.trackMessageLength) ?
                     _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
 
