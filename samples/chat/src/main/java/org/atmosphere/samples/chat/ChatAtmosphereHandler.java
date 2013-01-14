@@ -15,15 +15,9 @@
  */
 package org.atmosphere.samples.chat;
 
-import org.atmosphere.cache.HeaderBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeInterceptor;
-import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
-import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
-import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
@@ -37,7 +31,9 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@ManagedService(path = "/chat", listeners = {ChatAtmosphereHandler.WebSocketEventListener.class})
+@ManagedService(path = "/chat"
+   /* Uncomment to receive connect/disconnect events for WebSocket */
+   /*, listeners = {ChatAtmosphereHandler.WebSocketEventListener.class} */)
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private final static Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
