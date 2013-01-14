@@ -24,7 +24,10 @@ import org.atmosphere.handler.OnMessage;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Date;
@@ -34,9 +37,10 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@ManagedService(path = "/chat")
+@ManagedService(path = "/chat", listeners = {ChatAtmosphereHandler.WebSocketEventListener.class})
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
+    private final static Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
@@ -48,6 +52,18 @@ public class ChatAtmosphereHandler extends OnMessage<String> {
     @Override
     public void onMessage(AtmosphereResponse response, String message) throws IOException {
         response.getWriter().write(mapper.writeValueAsString(mapper.readValue(message, Data.class)));
+    }
+
+    public final static class WebSocketEventListener extends WebSocketEventListenerAdapter {
+        @Override
+        public void onClose(WebSocketEvent event) {
+            logger.debug("", event);
+        }
+
+        @Override
+        public void onDisconnect(WebSocketEvent event) {
+            logger.debug("", event);
+        }
     }
 
     public final static class Data {
