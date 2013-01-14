@@ -54,5 +54,4 @@ public class JettyWebSocketSupportTest extends BaseTest {
         server.stop();
         server = null;
     }
-
 }
