@@ -54,15 +54,18 @@ public class ChatAtmosphereHandler extends OnMessage<String> {
         response.getWriter().write(mapper.writeValueAsString(mapper.readValue(message, Data.class)));
     }
 
+    /**
+     * Simple listener for events.
+     */
     public final static class WebSocketEventListener extends WebSocketEventListenerAdapter {
         @Override
-        public void onClose(WebSocketEvent event) {
-            logger.debug("", event);
+        public void onConnect(WebSocketEvent event) {
+            logger.debug("{}", event);
         }
 
         @Override
         public void onDisconnect(WebSocketEvent event) {
-            logger.debug("", event);
+            logger.debug("{}", event);
         }
     }
 
