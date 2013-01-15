@@ -58,7 +58,7 @@ public class Jetty8WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
-       connection.sendMessage(b, offset, length);
+        connection.sendMessage(b, offset, length);
         return this;
     }
 

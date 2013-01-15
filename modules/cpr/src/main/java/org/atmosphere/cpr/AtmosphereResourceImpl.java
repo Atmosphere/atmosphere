@@ -99,7 +99,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
     private boolean isResumed = false;
-    private boolean isCancelled = false;
+    private AtomicBoolean isCancelled = new AtomicBoolean();
     private boolean resumeOnBroadcast = false;
     private Object writeOnTimeout = null;
     private boolean disableSuspend = false;
@@ -548,7 +548,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public boolean isCancelled() {
-        return isCancelled;
+        return isCancelled.get();
     }
 
     /**
@@ -715,7 +715,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public synchronized void cancel() throws IOException {
         action.type(Action.TYPE.RESUME);
-        isCancelled = true;
+        if (isCancelled.getAndSet(true)) return;
+
         if (asyncSupport instanceof AsynchronousProcessor) {
             try {
                 AsynchronousProcessor.class.cast(asyncSupport).resumed(req, response);
@@ -773,6 +774,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             session = req.getSession(create);
         }
         return session;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void close() throws IOException {
+        cancel();
     }
 
     /**

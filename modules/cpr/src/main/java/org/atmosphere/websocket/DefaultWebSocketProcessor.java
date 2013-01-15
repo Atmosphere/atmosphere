@@ -399,14 +399,17 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (resource != null && resource.isInScope()) {
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (h != null) {
-                        if (closeCode == 1000) {
-                            h.timedOut();
-                        } else {
-                            h.closed();
+
+                    if (!resource.isCancelled()) {
+                        if (h != null) {
+                            if (closeCode == 1000) {
+                                h.timedOut();
+                            } else {
+                                h.closed();
+                            }
+                        } else if (webSocketHandler == null) {
+                            logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
-                    } else if (webSocketHandler == null) {
-                        logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                     }
 
                     if (webSocketHandler != null) {

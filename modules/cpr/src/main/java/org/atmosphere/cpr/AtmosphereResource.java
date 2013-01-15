@@ -306,4 +306,10 @@ public interface AtmosphereResource {
      */
     HttpSession session(boolean create);
 
+    /**
+     * Close the underlying connection. Invoking this method will close the underlying connection and resume the
+     * {@link AtmosphereResource}}
+     */
+    void close() throws IOException;
+
 }
