@@ -1395,6 +1395,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                     logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
                 }
+                logger.error("If you have more than one Connector enabled, make sure they both use the same protocol, " +
+                        "e.g NIO/APR or HTTP for all. If not, {} will be used and cannot be changed.", BlockingIOCometSupport.class.getName());
+
                 logger.trace(ex.getMessage(), ex);
 
                 AsyncSupport current = asyncSupport;
