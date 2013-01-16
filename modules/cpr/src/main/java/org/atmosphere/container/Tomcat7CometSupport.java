@@ -114,7 +114,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
             bz51881(event);
         } else if (event.getEventType() == EventType.END) {
 
-            if (req.resource().isResumed()) {
+            if (req.resource() != null && req.resource().isResumed()) {
                 AtmosphereResourceImpl.class.cast(req.resource()).cancel();
             } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
