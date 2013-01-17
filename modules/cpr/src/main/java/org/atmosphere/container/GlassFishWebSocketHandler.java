@@ -28,6 +28,8 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Glassfish 3.2.x WebSocket support.
  */
@@ -37,7 +39,9 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     private final AtmosphereConfig config;
     private final String contextPath;
     private final WebSocketProcessor webSocketProcessor;
-    private org.atmosphere.websocket.WebSocket webSocket;
+    // This is so bad, but Glassfish clear the attribute of the webSocket request
+    private final ConcurrentHashMap<WebSocket, org.atmosphere.websocket.WebSocket>
+            wMap = new ConcurrentHashMap<WebSocket, org.atmosphere.websocket.WebSocket>();
 
     public GlassFishWebSocketHandler(AtmosphereConfig config) {
         this.config = config;
@@ -50,7 +54,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onConnect(WebSocket w) {
         super.onConnect(w);
 
-        webSocket = new GrizzlyWebSocket(w, config);
+        org.atmosphere.websocket.WebSocket webSocket = new GrizzlyWebSocket(w, config);
 
         //logger.debug("onOpen");
         if (!DefaultWebSocket.class.isAssignableFrom(w.getClass())) {
@@ -58,6 +62,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         }
 
         DefaultWebSocket dws = DefaultWebSocket.class.cast(w);
+        wMap.put(w,webSocket);
+
         try {
 
             AtmosphereRequest r = AtmosphereRequest.wrap(dws.getRequest());
@@ -91,7 +97,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         super.onClose(w, df);
         logger.trace("onClose {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.close(webSocket, 1000);
+            webSocketProcessor.close(wMap.remove(w), 1000);
         }
     }
 
@@ -99,7 +105,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, String text) {
         logger.trace("onMessage {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
+            webSocketProcessor.invokeWebSocketProtocol(w(w), text);
         }
     }
 
@@ -107,7 +113,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, byte[] bytes) {
         logger.trace("onMessage (bytes) {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);
+            webSocketProcessor.invokeWebSocketProtocol(w(w), bytes, 0, bytes.length);
         }
     }
 
@@ -131,4 +137,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         logger.trace("onFragment (string) {} ", w);
     }
 
+    org.atmosphere.websocket.WebSocket w(WebSocket w) {
+        return wMap.get(w);
+    }
 }
