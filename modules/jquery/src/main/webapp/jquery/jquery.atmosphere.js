@@ -340,7 +340,10 @@ jQuery.atmosphere = function() {
                 }
 
                 if (_request.transport != 'websocket' && _request.transport != 'sse') {
-                    _open('opening', _request.transport, _request);
+                    // Gives a chance to the connection to be established before calling the callback
+                    setTimeout(function() {
+                        _open('opening', _request.transport, _request);
+                    }, 500);
                     _executeRequest();
 
                 } else if (_request.transport == 'websocket') {
