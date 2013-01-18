@@ -56,7 +56,9 @@ import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -737,7 +739,7 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource r : resources) {
-                    finalMsg = perRequestFilter(r, entry);
+                    finalMsg = perRequestFilter(r, entry, true);
 
                     if (finalMsg == null) {
                         logger.debug("Skipping broadcast delivery resource {} ", r);
@@ -749,7 +751,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
-                finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry);
+                finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry, true);
 
                 if (finalMsg == null) {
                     logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
@@ -764,7 +766,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 if (sub.size() != 0) {
                     for (AtmosphereResource r : sub) {
-                        finalMsg = perRequestFilter(r, entry);
+                        finalMsg = perRequestFilter(r, entry, true);
 
                         if (finalMsg == null) {
                             logger.debug("Skipping broadcast delivery resource {} ", r);
@@ -792,7 +794,7 @@ public class DefaultBroadcaster implements Broadcaster {
         asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
     }
 
-    protected Object perRequestFilter(AtmosphereResource r, Entry msg) {
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
 
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
@@ -802,26 +804,29 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object finalMsg = msg.message;
 
-        if (isAtmosphereResourceValid(r)) {
-            if (bc.hasPerRequestFilters()) {
-                synchronized (r) {
-                    BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
-                    if (a.action() == BroadcastAction.ACTION.ABORT) {
-                        return null;
-                    }
-                    if (a.message() != msg.originalMessage) {
-                        finalMsg = a.message();
+        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
+            if (isAtmosphereResourceValid(r)) {
+                if (bc.hasPerRequestFilters()) {
+                    synchronized (r) {
+                        BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
+                        if (a.action() == BroadcastAction.ACTION.ABORT) {
+                            return null;
+                        }
+                        if (a.message() != msg.originalMessage) {
+                            finalMsg = a.message();
+                        }
                     }
                 }
+            } else {
+                // The resource is no longer valid.
+                removeAtmosphereResource(r);
+                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
             }
-        } else {
-            // The resource is no longer valid.
-            removeAtmosphereResource(r);
-            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
-        }
 
-        if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-            trackBroadcastMessage(r, finalMsg);
+            if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                msg.message = finalMsg;
+                trackBroadcastMessage(r, msg);
+            }
         }
         return finalMsg;
     }
@@ -873,7 +878,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
-            broadcast(r, event);
+            invokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {
                 r.notifyListeners();
@@ -890,11 +895,42 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
+
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
+
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
+
+            List<Object> filteredMessage = new ArrayList<Object>();
+            for (Object o : ((List) e.getMessage())) {
+                filteredMessage.add(perRequestFilter(r, new Entry(o, r, f, o), false));
+            }
+
+            e.setMessage(filteredMessage);
+
             r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
-                broadcast(r, e);
+                invokeOnStateChange(r, e);
+                // TODO: CAST is dangerous
+                for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+                    l.onBroadcast(e);
+                }
+
+                switch (r.transport()) {
+                    case JSONP:
+                    case AJAX:
+                    case LONG_POLLING:
+                    case SSE:
+                        break;
+                    default:
+                        try {
+                            r.getResponse().flushBuffer();
+                        } catch (IOException ioe) {
+                            logger.trace("", ioe);
+                            AsynchronousProcessor.destroyResource(r);
+                        }
+                        break;
+                }
             }
         }
     }
@@ -917,7 +953,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         try {
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
