@@ -15,16 +15,12 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.HeaderConfig;
 
 import java.util.Collections;
 import java.util.List;
-
-import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 
 /**
  * Same as the {@link HeaderBroadcasterCache}, but will not send anything if the user connect for the first time.
