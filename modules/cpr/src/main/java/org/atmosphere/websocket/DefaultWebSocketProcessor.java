@@ -304,6 +304,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     @Override
     public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent event) {
+        // Glassfish is throwing a null.
+        if (webSocket == null) return;
         AtmosphereResource resource = webSocket.resource();
         if (resource == null) return;
 
