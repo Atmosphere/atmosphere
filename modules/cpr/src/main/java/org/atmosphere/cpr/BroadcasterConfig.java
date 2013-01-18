@@ -512,20 +512,25 @@ public class BroadcasterConfig {
      *
      * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.
-     * @param message the broadcasted object.
+     * @param originalMessage the original message, the one that wasn't filtered by any BroadcastFilter
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-        BroadcastAction transformed = new BroadcastAction(originalMessage);
-        for (PerRequestBroadcastFilter mf : perRequestFilters) {
-            synchronized (mf) {
-                transformed = mf.filter(r, message, transformed.message());
-                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
-                    return transformed;
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
+        try {
+            BroadcastAction transformed = new BroadcastAction(originalMessage);
+            for (PerRequestBroadcastFilter mf : perRequestFilters) {
+                synchronized (mf) {
+                    transformed = mf.filter(r, message, transformed.message());
+                    if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                        return transformed;
+                    }
                 }
             }
+            return transformed;
+        } catch (Throwable t) {
+            logger.error("BroadcasterFilter Unexpected Exception", t);
+            throw new RuntimeException(t);
         }
-        return transformed;
     }
 
     /**
