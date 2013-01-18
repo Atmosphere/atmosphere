@@ -824,8 +824,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                msg.message = finalMsg;
-                trackBroadcastMessage(r, msg);
+                trackBroadcastMessage(r, finalMsg);
             }
         }
         return finalMsg;
