@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
@@ -209,6 +210,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;
         try {
+            request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             framework.doCometSupport(request, r);
         } catch (Throwable e) {
             logger.warn("Failed invoking AtmosphereFramework.doCometSupport()", e);
