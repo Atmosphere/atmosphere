@@ -125,7 +125,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         super.onClose(w, df);
         logger.trace("onClose {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.close(wMap.remove(w), 1000);
+            webSocketProcessor.close(wMap.remove(w), 1005);
         }
     }
 
