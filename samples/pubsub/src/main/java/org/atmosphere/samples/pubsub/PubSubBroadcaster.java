@@ -86,6 +86,6 @@ public class PubSubBroadcaster extends JerseyBroadcaster {
                     "defining it inside web.xml");
         }
 
-        super.broadcast(r, e);
+        super.invokeOnStateChange(r, e);
     }
 }
