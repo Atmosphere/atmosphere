@@ -171,6 +171,16 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
+     * Set the {@link BroadcasterCache.STRATEGY}
+     * @param cacheStrategy the {@link BroadcasterCache.STRATEGY}
+     * @return this
+     */
+    public Broadcaster setBroadcasterCacheStrategy(BroadcasterCache.STRATEGY cacheStrategy) {
+        this.cacheStrategy = cacheStrategy;
+        return this;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public void destroy() {
