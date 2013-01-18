@@ -125,7 +125,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocketProtocol.onOpen(webSocket);
 
         // Since 1.0.10
-        if (request.getQueryString().contains(HeaderConfig.ATMOSPHERE_UUID_WEBSOCKET)) {
+        if (request.getQueryString() != null && request.getQueryString().contains(HeaderConfig.ATMOSPHERE_UUID_WEBSOCKET)) {
             webSocket.write(r.uuid());
         }
 
