@@ -267,7 +267,7 @@ public interface AtmosphereResource {
     /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
      * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
-     * will be directly written using the {
+     * will be directly written using the {@link AtmosphereResponse} writer.
      *
      * @param os {@link OutputStream}
      * @param o  {@link Object}
