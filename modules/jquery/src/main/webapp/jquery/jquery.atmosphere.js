@@ -1358,6 +1358,11 @@ jQuery.atmosphere = function() {
                         if (_abordingConnection) {
                             return;
                         }
+                        
+                        if(ajaxRequest.readyState == 4 && ajaxRequest.status == 200) {
+                            if(rq.onSuccess != null)
+                                rq.onSuccess();
+                        }                        
 
                         var skipCallbackInvocation = false;
                         var update = false;
@@ -1883,18 +1888,18 @@ jQuery.atmosphere = function() {
                 *            string} Message to send.
              * @private
              */
-            function _push(message) {
+            function _push(message, config) {
 
                 if (_localStorageService != null) {
                     _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
-                    _pushAjaxMessage(message);
+                    _pushAjaxMessage(message, config);
                 } else if (_ieStream != null) {
                     _pushIE(message);
                 } else if (_jqxhr != null) {
                     _pushJsonp(message);
                 } else if (_websocket != null) {
-                    _pushWebSocket(message);
+                    _pushWebSocket(message, config);
                 }
             }
 
@@ -1925,8 +1930,8 @@ jQuery.atmosphere = function() {
              *            message is saved in data member.
              * @private
              */
-            function _pushAjaxMessage(message) {
-                var rq = _getPushRequest(message);
+            function _pushAjaxMessage(message, config) {
+                var rq = _getPushRequest(message, config);
                 _executeRequest(rq);
             }
 
@@ -1975,7 +1980,7 @@ jQuery.atmosphere = function() {
              * @return {Object} Request object use to push message.
              * @private
              */
-            function _getPushRequest(message) {
+            function _getPushRequest(message, config) {
                 var msg = _getStringMessage(message);
 
                 var rq = {
@@ -1987,6 +1992,7 @@ jQuery.atmosphere = function() {
                     headers: _request.headers,
                     reconnect : true,
                     callback: null,
+                    onSuccess: config.onSuccess,
                     data : msg,
                     suspend : false,
                     maxRequest : -1,
@@ -2015,7 +2021,7 @@ jQuery.atmosphere = function() {
                 *            Message to send. This is an object, string message is
              *            saved in data member.
              */
-            function _pushWebSocket(message) {
+            function _pushWebSocket(message, config) {
                 var msg = _getStringMessage(message);
                 var data;
                 try {
@@ -2029,6 +2035,8 @@ jQuery.atmosphere = function() {
                     }
 
                     _websocket.send(data);
+                    if(config.onSuccess != null)
+                        config.onSuccess();
 
                 } catch (e) {
                     _websocket.onclose = function(message) {
@@ -2259,14 +2267,18 @@ jQuery.atmosphere = function() {
                 return _request.url;
             };
 
-            this.push = function(message, dispatchUrl) {
+            this.push = function(message, dispatchUrl, config) {
+                var config;
+                if(!(config)){config = {};}
+                if(!(config.onSuccess)){config.onSuccess = function(){}}                
+                
                 if (dispatchUrl != null) {
                     var originalDispatchUrl = _request.dispatchUrl;
                     _request.dispatchUrl = dispatchUrl;
-                    _push(message);
+                    _push(message, config);
                     _request.dispatchUrl = originalDispatchUrl;
                 } else {
-                    _push(message);
+                    _push(message, config);
                 }
             };
 
