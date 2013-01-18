@@ -16,6 +16,7 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -122,6 +123,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
+
+        // Since 1.0.10
+        if (request.getQueryString().contains(HeaderConfig.ATMOSPHERE_UUID_WEBSOCKET)) {
+            webSocket.write(r.uuid());
+        }
 
         dispatch(webSocket, request, wsr);
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);

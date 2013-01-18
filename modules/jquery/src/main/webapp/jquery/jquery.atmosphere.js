@@ -858,6 +858,10 @@ jQuery.atmosphere = function() {
              */
             function _buildWebSocketUrl() {
                 var url = _attachHeaders(_request);
+
+                // Since 1.0.10
+                url += "&X-Message-uuid=true";
+
                 return decodeURI(jQuery('<a href="' + url + '"/>')[0].href.replace(/^http/, "ws"));
             }
 
@@ -996,6 +1000,8 @@ jQuery.atmosphere = function() {
 
                 if (webSocketOpened) {
                     _open('re-opening', "websocket", _request);
+                }  else {
+                    _request.firstMessage = true;
                 }
 
                 if (!_request.reconnect) {
@@ -1045,6 +1051,13 @@ jQuery.atmosphere = function() {
                 _websocket.onmessage = function(message) {
                     if (message.data.indexOf("parent.callback") != -1) {
                         jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
+                    }
+
+                    // The first messages is always the uuid.
+                    if (_request.firstMessage) {
+                        _request.firstMessage  = false;
+                        _request.uuid = message;
+                        return;
                     }
 
                     _response.state = 'messageReceived';

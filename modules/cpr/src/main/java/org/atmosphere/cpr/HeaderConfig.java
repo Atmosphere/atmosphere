@@ -80,4 +80,6 @@ public interface HeaderConfig {
     String WEBSOCKET_UPGRADE = "Upgrade";
 
     String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
+
+    String ATMOSPHERE_UUID_WEBSOCKET = "X-Message-uuid";
 }
