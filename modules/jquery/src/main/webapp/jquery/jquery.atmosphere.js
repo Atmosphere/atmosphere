@@ -2019,9 +2019,9 @@ jQuery.atmosphere = function() {
                 var msg = _getStringMessage(message);
                 var data;
                 try {
-                    if (_request.webSocketUrl != null) {
+                    if (_request.dispatchUrl != null) {
                         data = _request.webSocketPathDelimiter
-                            + _request.webSocketUrl
+                            + _request.dispatchUrl
                             + _request.webSocketPathDelimiter
                             + msg;
                     } else {
