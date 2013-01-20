@@ -35,7 +35,8 @@ $(function () {
 
     <!-- You can share messages between window/tabs.   -->
     request.onLocalMessage = function(message) {
-        if (transport != 'local') {
+        if (transport != 'local') {                                       Broadcaster
+
             header.append($('<h4>', { text: 'A new tab/window has been opened'}).css('color', 'green'));
             if (myName) {
                 subSocket.pushLocal(myName);
