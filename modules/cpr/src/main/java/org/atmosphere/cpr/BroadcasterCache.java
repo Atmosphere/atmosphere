@@ -99,7 +99,7 @@ public interface BroadcasterCache {
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.
      * @param interceptor
-     * @return
+     * @return  this
      */
     BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
 
