@@ -48,7 +48,7 @@ import java.util.concurrent.TimeoutException;
  * @author Jeanfrancois Arcand
  */
 public class MetaBroadcaster {
-    public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=_;\\?]+";
+    public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=@_;\\?]+";
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();

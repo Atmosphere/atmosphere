@@ -104,4 +104,13 @@ public class MetaBroadcasterTest {
         assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/_b", "yo").get().size(), 1);
 
     }
+
+    @Test
+    public void issue836Test() throws ExecutionException, InterruptedException {
+        factory.get("/a/@b");
+        factory.get("/b");
+        factory.get("/c");
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/@b", "yo").get().size(), 1);
+
+    }
 }
