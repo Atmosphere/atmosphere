@@ -993,6 +993,11 @@ jQuery.atmosphere = function() {
 
                 _response.transport = "websocket";
 
+                if (webSocketOpened) {
+                    var time = jQuery.now() - _request.ctime;
+                    _request.lastTimestamp = Number(_request.stime) + Number(time);
+                }
+
                 var location = _buildWebSocketUrl(_request.url);
                 var closed = false;
 
@@ -1001,10 +1006,12 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.debug("Using URL: " + location);
                 }
 
+                _request.firstMessage = true;
                 if (webSocketOpened) {
                     _open('re-opening', "websocket", _request);
                 }  else {
-                    _request.firstMessage = true;
+                    // The clock on the server may not be the same as the client.
+                    _request.ctime = jQuery.now();
                 }
 
                 if (!_request.reconnect) {
@@ -1059,7 +1066,9 @@ jQuery.atmosphere = function() {
                     // The first messages is always the uuid.
                     if (_request.firstMessage) {
                         _request.firstMessage  = false;
-                        _request.uuid = message;
+                        var messages =  message.data.split(_request.messageDelimiter);
+                        _request.uuid = messages[0];
+                        _request.stime = messages[1];
                         return;
                     }
 
