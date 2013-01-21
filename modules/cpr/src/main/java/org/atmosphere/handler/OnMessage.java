@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Simple {@link AtmosphereHandler} that can be used with the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
@@ -36,8 +37,16 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        if (event.isSuspended()) {
-            onMessage(event.getResource().getResponse(), (T) event.getMessage());
+        if (event.isSuspended() && event.getMessage() != null) {
+
+            if (List.class.isAssignableFrom(event.getMessage().getClass())){
+                List<String> l = (List<String>) event.getMessage();
+                for (String t : l) {
+                    onMessage(event.getResource().getResponse(),(T) t);
+                }
+            }  else {
+                onMessage(event.getResource().getResponse(), (T) event.getMessage());
+            }
         }
         postStateChange(event);
     }
