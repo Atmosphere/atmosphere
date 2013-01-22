@@ -524,11 +524,11 @@ public class BroadcasterConfig {
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-        BroadcastAction transformed = new BroadcastAction(originalMessage);
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
+        BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
-                transformed = mf.filter(r, message, transformed.message());
+                transformed = mf.filter(r, originalMessage, transformed.message());
                 if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                     return transformed;
                 }
