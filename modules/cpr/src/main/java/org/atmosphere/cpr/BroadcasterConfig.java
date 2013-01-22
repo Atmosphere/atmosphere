@@ -517,10 +517,10 @@ public class BroadcasterConfig {
      */
     protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
         try {
-            BroadcastAction transformed = new BroadcastAction(originalMessage);
+            BroadcastAction transformed = new BroadcastAction(message);
             for (PerRequestBroadcastFilter mf : perRequestFilters) {
                 synchronized (mf) {
-                    transformed = mf.filter(r, message, transformed.message());
+                    transformed = mf.filter(r, originalMessage, transformed.message());
                     if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                         return transformed;
                     }
