@@ -643,9 +643,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             boolean isWebFragment = false ;
-
             if (BroadcasterFactory.getDefault() != null) {
-                MultipleServletBroadcasterFactory.class.isAssignableFrom(BroadcasterFactory.getDefault().getClass());
+                isWebFragment = MultipleServletBroadcasterFactory.class.isAssignableFrom(BroadcasterFactory.getDefault().getClass());
             }
 
             if (broadcasterFactory == null && !isWebFragment) {
