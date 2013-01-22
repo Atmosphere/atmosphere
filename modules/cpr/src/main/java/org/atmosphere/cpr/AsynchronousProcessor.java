@@ -558,12 +558,19 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             AtmosphereResourceImpl r = null;
             try {
                 if (trackActiveRequest) {
-                    long l = (Long) req.getAttribute(MAX_INACTIVE);
-                    if (l == -1) {
-                        // The closedDetector closed the connection.
-                        return timedoutAction;
+                    try {
+                        long l = (Long) req.getAttribute(MAX_INACTIVE);
+                        if (l == -1) {
+                            // The closedDetector closed the connection.
+                            return timedoutAction;
+                        }
+                        req.setAttribute(MAX_INACTIVE, (long) -1);
+                        // GlassFish
+                    } catch (NullPointerException ex) {
+                        // Request is no longer active, return
+                        return cancelledAction;
+
                     }
-                    req.setAttribute(MAX_INACTIVE, (long) -1);
                 }
 
                 logger.debug("Cancelling the connection for request {}", req);
