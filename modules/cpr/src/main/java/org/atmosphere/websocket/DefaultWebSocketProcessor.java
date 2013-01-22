@@ -298,9 +298,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
-        asyncExecutor.shutdown();
-        voidExecutor.shutdown();
-        scheduler.shutdown();
     }
 
     /**
