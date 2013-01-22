@@ -159,6 +159,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
+    // Don't get crazy: https://github.com/Atmosphere/atmosphere/issues/841
+    protected static final ThreadLocal<String> __uuid = new ThreadLocal<String>();
+    protected String uuid = UUID.randomUUID().toString();
 
     @Override
     public ServletContext getServletContext() {
@@ -235,6 +238,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param isFilter true if this instance is used as an {@link AtmosphereFilter}
      */
     public AtmosphereFramework(boolean isFilter, boolean autoDetectHandlers) {
+        __uuid.set(uuid);
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         readSystemProperties();
@@ -455,6 +459,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
+        __uuid.set(uuid);
         try {
             ServletContextHolder.register(this);
 
@@ -630,11 +635,25 @@ public class AtmosphereFramework implements ServletContextProvider {
                         .loadClass(broadcasterFactoryClassName).newInstance();
             }
 
-            if (broadcasterFactory == null) {
+            boolean isWebFragment = false ;
+
+            if (BroadcasterFactory.getDefault() != null) {
+                WebFragmentBroadcasterFactory.class.isAssignableFrom(BroadcasterFactory.getDefault().getClass());
+            }
+
+            if (broadcasterFactory == null && !isWebFragment) {
                 Class<? extends Broadcaster> bc =
                         (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                                 .loadClass(broadcasterClassName);
                 broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            } else {
+                if (isWebFragment) {
+                    Class<? extends Broadcaster> bc =
+                            (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                                    .loadClass(broadcasterClassName);
+                    WebFragmentBroadcasterFactory.class.cast(BroadcasterFactory.getDefault()).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
+                    broadcasterFactory = BroadcasterFactory.getDefault();
+                }
             }
 
             for (BroadcasterListener b: broadcasterListeners) {
@@ -827,15 +846,26 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
-        broadcasterFactory.destroy();
+        if (WebFragmentBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
+            WebFragmentBroadcasterFactory.class.cast(broadcasterFactory).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
+        } else {
+            broadcasterFactory.destroy();
+            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+        }
 
-        broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         for (BroadcasterListener b: broadcasterListeners) {
             broadcasterFactory.addBroadcasterListener(b);
         }
 
-        Broadcaster b = BroadcasterFactory.getDefault().get(bc, mapping);
+        Broadcaster b;
+
+        try {
+            b = BroadcasterFactory.getDefault().get(bc, mapping);
+        } catch (IllegalStateException ex) {
+            logger.warn("Two Broadcaster's named {}. Renaming the second one to {}", mapping, sc.getServletName() + mapping);
+            b = BroadcasterFactory.getDefault().get(bc, sc.getServletName() + mapping);
+        }
 
         addAtmosphereHandler(mapping, rsp, b);
         return true;
@@ -930,6 +960,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             BroadcasterFactory.factory = null;
         }
         WebSocketProcessorFactory.getDefault().destroy();
+        __uuid.set(null);
         return this;
     }
 
@@ -1304,6 +1335,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 req.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, s);
             }
 
+            __uuid.set(uuid);
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {

@@ -53,7 +53,6 @@ package org.atmosphere.cpr;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
