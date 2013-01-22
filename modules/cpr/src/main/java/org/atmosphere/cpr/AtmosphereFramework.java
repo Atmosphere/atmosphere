@@ -847,11 +847,18 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
+        // FIX THIS MESS: https://github.com/Atmosphere/atmosphere/issues/841
         if (broadcasterFactory != null && MultipleServletBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
             MultipleServletBroadcasterFactory.class.cast(broadcasterFactory).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
         } else {
-            broadcasterFactory.destroy();
-            broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            if (MultipleServletBroadcasterFactory.class.getName().equals(broadcasterFactoryClassName)) {
+                broadcasterFactory = new MultipleServletBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            } else {
+                if (broadcasterFactory != null) {
+                    broadcasterFactory.destroy();
+                }
+                broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+            }
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         }
 
