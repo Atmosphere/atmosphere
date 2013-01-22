@@ -39,7 +39,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 
     @Override
-    public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
+    public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
 
         AtmosphereRequest request = r.getRequest();
         if ("true".equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
