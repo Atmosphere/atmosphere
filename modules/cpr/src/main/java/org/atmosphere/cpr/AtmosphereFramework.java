@@ -847,7 +847,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
-        if (MultipleServletBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
+        if (broadcasterFactory != null && MultipleServletBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
             MultipleServletBroadcasterFactory.class.cast(broadcasterFactory).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
         } else {
             broadcasterFactory.destroy();
