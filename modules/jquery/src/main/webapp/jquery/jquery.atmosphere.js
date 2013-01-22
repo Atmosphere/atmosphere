@@ -1380,8 +1380,6 @@ jQuery.atmosphere = function() {
                             }
                             _clearState();
 
-                            _response.state = "error";
-                            _invokeCallback();
                             if (rq.reconnect) {
                                 _reconnect(ajaxRequest, rq, true);
                             } else {
@@ -1432,7 +1430,11 @@ jQuery.atmosphere = function() {
 
                             // MSIE status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
-                                _onError();
+                                if (rq.reconnect) {
+                                    _reconnect(ajaxRequest, rq, true);
+                                } else {
+                                    _onError();
+                                }
                                 return;
                             }
 
