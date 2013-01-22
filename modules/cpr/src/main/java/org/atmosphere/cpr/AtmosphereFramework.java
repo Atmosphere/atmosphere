@@ -630,9 +630,16 @@ public class AtmosphereFramework implements ServletContextProvider {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
+            Class<? extends Broadcaster> bc =
+                    (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                            .loadClass(broadcasterClassName);
             if (broadcasterFactoryClassName != null) {
-                broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
-                        .loadClass(broadcasterFactoryClassName).newInstance();
+                if( MultipleServletBroadcasterFactory.class.getName().equals(broadcasterFactoryClassName)) {
+                    broadcasterFactory = new MultipleServletBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+                }  else {
+                    broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
+                            .loadClass(broadcasterFactoryClassName).newInstance();
+                }
             }
 
             boolean isWebFragment = false ;
@@ -642,15 +649,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             if (broadcasterFactory == null && !isWebFragment) {
-                Class<? extends Broadcaster> bc =
-                        (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
-                                .loadClass(broadcasterClassName);
                 broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
             } else {
                 if (isWebFragment) {
-                    Class<? extends Broadcaster> bc =
-                            (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
-                                    .loadClass(broadcasterClassName);
                     MultipleServletBroadcasterFactory.class.cast(BroadcasterFactory.getDefault()).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
                     broadcasterFactory = BroadcasterFactory.getDefault();
                 }
