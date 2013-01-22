@@ -35,7 +35,7 @@ $(function () {
 
     <!-- You can share messages between window/tabs.   -->
     request.onLocalMessage = function(message) {
-        if (transport != 'local') {                                       Broadcaster
+        if (transport != 'local') {
 
             header.append($('<h4>', { text: 'A new tab/window has been opened'}).css('color', 'green'));
             if (myName) {
