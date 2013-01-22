@@ -35,18 +35,18 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 
 /**
  * This class is responsible for creating {@link Broadcaster} instance. Use it when your application is
- * used as WebFragment. This class is a hack and will be removed in 1.1.0 for a better fix for
+ * used as WebFragment or when more than one Servlet is defined inside the same application. This class is a hack and will be removed in 1.1.0 for a better fix for
  * https://github.com/Atmosphere/atmosphere/issues/841
  *
  * @author Jeanfrancois Arcand
  */
-public class WebFragmentBroadcasterFactory extends BroadcasterFactory {
+public class MultipleServletBroadcasterFactory extends BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
     protected final ConcurrentHashMap<String, PerApplicationFactory> instances = new ConcurrentHashMap<String, PerApplicationFactory>();
     private final PerApplicationFactory perApplicationFactory;
 
-    protected WebFragmentBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+    protected MultipleServletBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         if (factory == null) {
             this.factory = this;
         }

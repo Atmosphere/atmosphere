@@ -638,7 +638,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             boolean isWebFragment = false ;
 
             if (BroadcasterFactory.getDefault() != null) {
-                WebFragmentBroadcasterFactory.class.isAssignableFrom(BroadcasterFactory.getDefault().getClass());
+                MultipleServletBroadcasterFactory.class.isAssignableFrom(BroadcasterFactory.getDefault().getClass());
             }
 
             if (broadcasterFactory == null && !isWebFragment) {
@@ -651,7 +651,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     Class<? extends Broadcaster> bc =
                             (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
                                     .loadClass(broadcasterClassName);
-                    WebFragmentBroadcasterFactory.class.cast(BroadcasterFactory.getDefault()).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
+                    MultipleServletBroadcasterFactory.class.cast(BroadcasterFactory.getDefault()).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
                     broadcasterFactory = BroadcasterFactory.getDefault();
                 }
             }
@@ -846,8 +846,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
-        if (WebFragmentBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
-            WebFragmentBroadcasterFactory.class.cast(broadcasterFactory).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
+        if (MultipleServletBroadcasterFactory.class.isAssignableFrom(broadcasterFactory.getClass())) {
+            MultipleServletBroadcasterFactory.class.cast(broadcasterFactory).addF(uuid, bc, broadcasterLifeCyclePolicy, config);
         } else {
             broadcasterFactory.destroy();
             broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);

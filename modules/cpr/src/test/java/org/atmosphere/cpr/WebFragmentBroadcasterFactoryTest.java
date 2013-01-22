@@ -30,19 +30,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit tests for the {@link WebFragmentBroadcasterFactory}.
+ * Unit tests for the {@link MultipleServletBroadcasterFactory}.
  *
  * @author Jason Burgess
  */
 public class WebFragmentBroadcasterFactoryTest {
 
     private AtmosphereConfig config;
-    private WebFragmentBroadcasterFactory factory;
+    private MultipleServletBroadcasterFactory factory;
 
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        factory = new WebFragmentBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory = new MultipleServletBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
     }
 
     @AfterMethod
@@ -142,7 +142,7 @@ public class WebFragmentBroadcasterFactoryTest {
     @Test
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
-        final WebFragmentBroadcasterFactory f = new WebFragmentBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        final MultipleServletBroadcasterFactory f = new MultipleServletBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
@@ -189,7 +189,7 @@ public class WebFragmentBroadcasterFactoryTest {
 
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
-        final WebFragmentBroadcasterFactory f = new WebFragmentBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        final MultipleServletBroadcasterFactory f = new MultipleServletBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
         f.addBroadcasterListener(new BroadcasterListener() {
