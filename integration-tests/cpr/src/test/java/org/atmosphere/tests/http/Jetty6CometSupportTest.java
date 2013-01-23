@@ -74,4 +74,9 @@ public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
     @Test(timeOut = 60000, enabled = false)
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
     }
+
+    @Test(timeOut = 60000, enabled = false)
+    public void testHeaderBroadcasterCacheWithFilter() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    }
+
 }
