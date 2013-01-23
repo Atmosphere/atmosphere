@@ -65,6 +65,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
@@ -84,6 +85,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1802,4 +1804,136 @@ public abstract class BaseTest {
         c.close();
     }
 
+    @Test(timeOut = 60000, enabled = true, /*invocationCount = 100*/)
+    public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+        logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
+
+        atmoServlet.framework().setBroadcasterCacheClassName(EventCacheBroadcasterCache.class.getName());
+        final CountDownLatch suspendLatch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch missedBroadcastCount = new CountDownLatch(101);
+
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            public AtomicInteger count = new AtomicInteger();
+
+            public void onRequest(AtmosphereResource event) throws IOException {
+                if (event.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null) {
+                    event.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                        @Override
+                        public void onSuspend(AtmosphereResourceEvent event) {
+                            suspendLatch.countDown();
+                        }
+                    }).suspend(-1, false);
+                    return;
+                }
+                event.getBroadcaster().broadcast("message-" + count.getAndIncrement());
+
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isResuming() || event.isCancelled()) {
+                    return;
+                }
+
+                if (List.class.isAssignableFrom(event.getMessage().getClass())) {
+                    StringBuffer sb = new StringBuffer();
+                    for (String m : (List<String>) event.getMessage()) {
+                        sb.append(m);
+                    }
+                    event.getResource().getResponse().write(sb.toString().getBytes()).flushBuffer();
+                } else {
+                    event.getResource().getResponse().write(event.getMessage().toString().getBytes()).flushBuffer();
+                }
+                event.getResource().resume();
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend").addBroadcasterListener(new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                System.out.println("missedBroadcastCount=>" + missedBroadcastCount.getCount());
+                missedBroadcastCount.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        }));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<Response> response = new AtomicReference<Response>();
+            //Suspend , that will register the uuid of this client
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, String.valueOf(0)).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    response.set(r);
+                    return r;
+                }
+            });
+
+            try {
+                suspendLatch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            // This will resume the connection
+            c.prepareGet(urlTarget).execute().get();
+
+            // Generate Cached messages
+            for (int i = 0; i < 100; i++) {
+                c.prepareGet(urlTarget).execute();
+            }
+
+            final AtomicReference<StringBuffer> messages = new AtomicReference<StringBuffer>(new StringBuffer());
+
+//          Cache will be returned with some messages in it as the above request is completely asynchronous
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, response.get().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
+                    .addHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    messages.get().append(r.getResponseBody());
+                    return r;
+                }
+            }).get();
+
+            missedBroadcastCount.await(10, TimeUnit.SECONDS);
+
+            // Cache will be returned with 2 messages in it.
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, response.get().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
+                    .addHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        messages.get().append(r.getResponseBody());
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+            try {
+                latch.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            System.out.println("=====>" + messages.get().toString());
+            //assertEquals(messages.toString(),"message-1message-2message-3message-4message-5message-6message-7message-8message-9message-10message-11message-12message-13message-14message-15message-16message-17message-18message-19message-20message-21message-22message-23message-24message-25message-26message-27message-28message-29message-30message-31message-32message-33message-34message-35message-36message-37message-38message-39message-40message-41message-42message-43message-44message-45message-46message-47message-48message-49message-50message-51message-52message-53message-54message-55message-56message-57message-58message-59message-60message-61message-62message-63message-64message-65message-66message-67message-68message-69message-70message-71message-72message-73message-74message-75message-76message-77message-78message-79message-80message-81message-82message-83message-84message-85message-86message-87message-88message-89message-90message-91message-92message-93message-94message-95message-96message-97message-98message-99message-100");
+            assertEquals(messages.toString().length(), 992);
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+
+        c.close();
+    }
 }
