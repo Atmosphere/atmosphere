@@ -91,10 +91,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
+        this.factory = this;
         config = c;
-        if (factory == null) {
-            this.factory = this;
-        }
         configure(broadcasterLifeCyclePolicy);
     }
 
