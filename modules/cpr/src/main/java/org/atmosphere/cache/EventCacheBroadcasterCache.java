@@ -21,6 +21,8 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +44,8 @@ import java.util.concurrent.TimeUnit;
  * @author Jeanfrancois Arcand
  */
 public class EventCacheBroadcasterCache implements BroadcasterCache {
+
+    private final static Logger logger = LoggerFactory.getLogger(EventCacheBroadcasterCache.class);
 
     private final Map<String, ClientQueue> messages = new HashMap<String, ClientQueue>();
 
@@ -97,7 +101,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         this.clientIdleTime = clientIdleTime;
     }
 
-    public void setExecutorService(ScheduledExecutorService reaper){
+    public void setExecutorService(ScheduledExecutorService reaper) {
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
@@ -150,6 +154,8 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Object e) {
+        logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "", e);
+
         long now = System.nanoTime();
         String messageId = UUID.randomUUID().toString();
         CacheMessage cacheMessage = new CacheMessage(messageId, e);
@@ -161,7 +167,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
                 }
             } else {
                 String clientId = r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                        ? (String)r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
+                        ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
 
                 activeClients.put(clientId, now);
                 if (isAtmosphereResourceValid(r)) {//todo better to have cacheLost flag
@@ -213,7 +219,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         return broadcaster;
     }
 
-    private void  addMessageIfNotExists(String clientId, CacheMessage message) {
+    private void addMessageIfNotExists(String clientId, CacheMessage message) {
         if (!hasMessage(clientId, message.getId())) {
             addMessage(clientId, message);
         }
@@ -256,14 +262,20 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         for (CacheMessage cacheMessage : clientMessages) {
             result.add(cacheMessage.getMessage());
         }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+            logger.debug("Retrieved for AtmosphereResource {} cached size {}", r.uuid(), result.size());
+        }
+
         return result;
     }
 
-    public Map<String, ClientQueue> messages(){
+    public Map<String, ClientQueue> messages() {
         return messages;
     }
 
-    public  Map<String, Long> activeClients(){
+    public Map<String, Long> activeClients() {
         return activeClients;
     }
 
