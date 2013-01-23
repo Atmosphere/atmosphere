@@ -1317,7 +1317,7 @@ public abstract class BaseTest {
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                if (event.isResuming()) {
+                if (event.isResuming() || event.isCancelled()) {
                     return;
                 }
                 PrintWriter writer = event.getResource().getResponse().getWriter();
