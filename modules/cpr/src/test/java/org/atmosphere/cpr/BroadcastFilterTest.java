@@ -144,7 +144,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new PerRequestFilter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "01234");
+        assertEquals(atmosphereHandler.value.get().toString(), "012341234");
     }
 
     @Test
@@ -158,7 +158,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new Filter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "0abc");
+        assertEquals(atmosphereHandler.value.get().toString(), "01234abc");
     }
 
     @Test
@@ -185,7 +185,7 @@ public class BroadcastFilterTest {
 
         @Override
         public BroadcastAction filter(Object originalMessage, Object message) {
-            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
 
         @Override
