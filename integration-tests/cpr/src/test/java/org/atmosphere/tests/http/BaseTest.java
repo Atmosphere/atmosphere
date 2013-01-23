@@ -54,10 +54,12 @@ package org.atmosphere.tests.http;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.atmosphere.cache.EventCacheBroadcasterCache;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.cache.OnReconnectBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
@@ -1582,6 +1584,111 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             assertEquals(r.getResponseBody(), "");
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+
+        c.close();
+    }
+
+    @Test(timeOut = 60000, enabled = true)
+    public void testEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+        logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
+
+        atmoServlet.framework().setBroadcasterCacheClassName(EventCacheBroadcasterCache.class.getName());
+        final CountDownLatch suspendLatch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+
+            public int count;
+
+            public void onRequest(AtmosphereResource event) throws IOException {
+                try {
+                    if (event.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null) {
+                        event.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                            @Override
+                            public void onSuspend(AtmosphereResourceEvent event) {
+                                suspendLatch.countDown();
+                            }
+                        }).suspend(-1, false);
+                        return;
+                    }
+                    event.getBroadcaster().broadcast("message-" + count++).get();
+                } catch (InterruptedException e) {
+                    logger.error("", e);
+                } catch (ExecutionException e) {
+                    logger.error("", e);
+                }
+                event.getResponse().flushBuffer();
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isResuming() || event.isCancelled()) {
+                    return;
+                }
+
+                if (List.class.isAssignableFrom(event.getMessage().getClass())) {
+                    for (String m : (List<String>) event.getMessage()) {
+                        event.getResource().getResponse().getOutputStream().write(m.getBytes());
+                    }
+                }
+                event.getResource().resume();
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<Response> response = new AtomicReference<Response>();
+            //Suspend
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, String.valueOf(0)).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    response.set(r);
+                    return r;
+                }
+            });
+
+            try {
+                suspendLatch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            // This will resume the connection
+            c.prepareGet(urlTarget).execute().get();
+
+            // Generate Cached messages
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+
+            // Cache will be returned with 2 messages in it.
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, response.get().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
+                    .addHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT).execute(new AsyncCompletionHandler<Response>() {
+
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        response.set(r);
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            assertNotNull(response.get());
+            assertEquals(response.get().getStatusCode(), 200);
+            assertEquals(response.get().getResponseBody(), "message-1message-2");
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
