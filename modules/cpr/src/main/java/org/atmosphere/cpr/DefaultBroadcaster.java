@@ -783,7 +783,11 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
-        asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+        if (r.isResumed() || r.isCancelled()) {
+            trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
+        }  else {
+            asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+        }
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
