@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,11 +61,11 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     public static class ClientQueue {
 
-        private List<CacheMessage> queue = new ArrayList<CacheMessage>();
+        private LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
 
         private Set<String> ids = new HashSet<String>();
 
-        public List<CacheMessage> getQueue() {
+        public LinkedList<CacheMessage> getQueue() {
             return queue;
         }
 
@@ -154,9 +155,8 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Object e) {
-
         if (logger.isDebugEnabled()) {
-            logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "", e);
+            logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
         }
 
         long now = System.nanoTime();
@@ -234,7 +234,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
             clientQueue = new ClientQueue();
             messages.put(clientId, clientQueue);
         }
-        clientQueue.getQueue().add(message);
+        clientQueue.getQueue().addLast(message);
         clientQueue.getIds().add(message.getId());
     }
 
