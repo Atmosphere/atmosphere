@@ -122,7 +122,7 @@ public abstract class BaseTest {
         }
     }
 
-    protected int findFreePort() throws IOException {
+    public final static int findFreePort() throws IOException {
         ServerSocket socket = null;
 
         try {
