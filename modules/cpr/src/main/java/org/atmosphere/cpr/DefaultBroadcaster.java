@@ -62,6 +62,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -553,7 +554,6 @@ public class DefaultBroadcaster implements Broadcaster {
         };
     }
 
-
     protected Runnable getAsyncWriteHandler() {
         return new Runnable() {
             public void run() {
@@ -568,29 +568,35 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (outOfOrderBroadcastSupported.get()) {
                         bc.getAsyncWriteService().submit(this);
                     }
-
-                    synchronized (token.resource) {
-                        executeAsyncWrite(token);
-                        if (!outOfOrderBroadcastSupported.get()) {
-                            // We want this thread to wait for the write operation to happens to kept the order
-                            bc.getAsyncWriteService().submit(this);
-                        }
-                    }
                 } catch (InterruptedException ex) {
                     return;
-                } catch (Throwable ex) {
-                    if (!started.get() || destroyed.get()) {
-                        logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
-                        return;
-                    } else {
-                        if (token != null) {
-                            logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
-                            cacheLostMessage(token.resource, token);
-                        }
+                }
 
-                        logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
+                synchronized (token.resource) {
+                    try {
+                        try {
+                            executeAsyncWrite(token);
+                        } finally {
+                            if (!outOfOrderBroadcastSupported.get()) {
+                                // We want this thread to wait for the write operation to happens to kept the order
+                                bc.getAsyncWriteService().submit(this);
+                            }
+                        }
+                    } catch (Throwable ex) {
+                        if (!started.get() || destroyed.get()) {
+                            logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                            return;
+                        } else {
+                            if (token != null) {
+                                logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
+                                cacheLostMessage(token.resource, token);
+                            }
+
+                            logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
+                        }
                     }
                 }
+
             }
         };
     }
