@@ -336,7 +336,7 @@ public class EventCacheBroadcasterCacheTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true, /*invocationCount = 100*/)
+    @Test(timeOut = 60000, enabled = true /*invocationCount = 100*/)
     public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
