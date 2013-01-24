@@ -18,6 +18,7 @@ package org.atmosphere.tests.http;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -108,7 +109,7 @@ public class ConcurrentBroadcastTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)
