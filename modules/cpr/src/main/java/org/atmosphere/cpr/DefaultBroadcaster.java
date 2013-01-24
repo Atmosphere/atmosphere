@@ -892,9 +892,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
 
-            List<Object> filteredMessage = new ArrayList<Object>();
+            LinkedList<Object> filteredMessage = new LinkedList<Object>();
             for (Object o : ((List) e.getMessage())) {
-                filteredMessage.add(perRequestFilter(r, new Entry(o, r, f, o), false));
+                filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
             }
 
             e.setMessage(filteredMessage);
