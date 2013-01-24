@@ -570,11 +570,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     synchronized (token.resource) {
+                        executeAsyncWrite(token);
                         if (!outOfOrderBroadcastSupported.get()) {
                             // We want this thread to wait for the write operation to happens to kept the order
                             bc.getAsyncWriteService().submit(this);
                         }
-                        executeAsyncWrite(token);
                     }
                 } catch (InterruptedException ex) {
                     return;
