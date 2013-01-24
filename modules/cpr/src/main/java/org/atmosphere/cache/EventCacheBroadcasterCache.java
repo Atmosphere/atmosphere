@@ -154,7 +154,10 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Object e) {
-        logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "", e);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "", e);
+        }
 
         long now = System.nanoTime();
         String messageId = UUID.randomUUID().toString();
