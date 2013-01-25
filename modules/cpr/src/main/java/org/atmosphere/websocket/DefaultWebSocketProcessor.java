@@ -81,6 +81,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService asyncExecutor;
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+<<<<<<< HEAD
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
@@ -90,6 +91,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private ByteBuffer bb = ByteBuffer.allocate(8192);
     private CharBuffer cb = CharBuffer.allocate(8192);
+=======
+>>>>>>> 74de41a... Fix for #680
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -108,6 +111,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             executeAsync = false;
         }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 74de41a... Fix for #680
         asyncExecutor = Executors.newCachedThreadPool();
         voidExecutor = VoidExecutorService.VOID;
     }
@@ -139,6 +146,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
+<<<<<<< HEAD
         // No WebSocketHandler defined.
         if (handlers.size() == 0) {
             dispatch(webSocket, request, response);
@@ -152,6 +160,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             // Force suspend.
             webSocket.webSocketHandler(handler).resource().suspend(-1);
         }
+=======
+        dispatch(webSocket, request, wsr);
+>>>>>>> 74de41a... Fix for #680
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
