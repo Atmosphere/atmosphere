@@ -1049,11 +1049,17 @@ jQuery.atmosphere = function() {
                     _response.status = 200;
 
                     var message = message.data;
-                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
-
-                    if (!skipCallbackInvocation) {
-                        _invokeCallback();
-                        _response.responseBody = '';
+                    var isString =  typeof(message) == 'string';
+                    if(isString){
+                        var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
+                       if (!skipCallbackInvocation) {
+                           _invokeCallback();
+                           _response.responseBody = '';
+                       }
+                    }else{
+                       _response.responseBody = message;
+                       _invokeCallback();
+                       _response.responseBody = null;
                     }
                 };
 
