@@ -95,7 +95,7 @@ jQuery.atmosphere = function() {
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
                 webSocketImpl: null,
-                webSocketBynaryType: 'arraybuffer',
+                webSocketBinaryType: null,
                 dispatchUrl: null,
                 webSocketPathDelimiter: "@@",
                 enableXDR : false,
@@ -1001,8 +1001,8 @@ jQuery.atmosphere = function() {
                 }
 
                 _websocket = _getWebSocket(location);
-                if(_request.webSocketBynaryType != null){
-                    _websocket.binaryType = _request.webSocketBynaryType;
+                if(_request.webSocketBinaryType != null){
+                    _websocket.binaryType = _request.webSocketBinaryType;
                 }
 
                 if (_request.connectTimeout > 0) {
@@ -1041,17 +1041,16 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onmessage = function(message) {
-//                    if (message.data.indexOf("parent.callback") != -1) {
-//                        jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
-//                    }
-
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
                     var message = message.data;
                     var isString =  typeof(message) == 'string';
                     if(isString){
-                        var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
+                       if (message.indexOf("parent.callback") != -1) {
+                           jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
+                       }
+                       var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
                        if (!skipCallbackInvocation) {
                            _invokeCallback();
                            _response.responseBody = '';
