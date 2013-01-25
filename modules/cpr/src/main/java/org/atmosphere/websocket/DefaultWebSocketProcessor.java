@@ -82,6 +82,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
 <<<<<<< HEAD
+<<<<<<< HEAD
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
@@ -91,6 +92,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private ByteBuffer bb = ByteBuffer.allocate(8192);
     private CharBuffer cb = CharBuffer.allocate(8192);
+=======
+>>>>>>> 74de41a... Fix for #680
 =======
 >>>>>>> 74de41a... Fix for #680
 
@@ -114,6 +117,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 <<<<<<< HEAD
 =======
 
+<<<<<<< HEAD
+>>>>>>> 74de41a... Fix for #680
+=======
 >>>>>>> 74de41a... Fix for #680
         asyncExecutor = Executors.newCachedThreadPool();
         voidExecutor = VoidExecutorService.VOID;
@@ -147,6 +153,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocketProtocol.onOpen(webSocket);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         // No WebSocketHandler defined.
         if (handlers.size() == 0) {
             dispatch(webSocket, request, response);
@@ -161,6 +168,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             webSocket.webSocketHandler(handler).resource().suspend(-1);
         }
 =======
+=======
+>>>>>>> 74de41a... Fix for #680
         dispatch(webSocket, request, wsr);
 >>>>>>> 74de41a... Fix for #680
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);

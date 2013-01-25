@@ -84,5 +84,8 @@ public interface HeaderConfig {
 =======
 
     String X_ATMO_PROTOCOL = "X-atmo-protocol";
+<<<<<<< HEAD
+>>>>>>> 74de41a... Fix for #680
+=======
 >>>>>>> 74de41a... Fix for #680
 }

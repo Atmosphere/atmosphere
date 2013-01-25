@@ -31,9 +31,15 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
+<<<<<<< HEAD
 @ManagedService(path = "/chat"
    /* Uncomment to receive connect/disconnect events for WebSocket */
    /*, listeners = {ChatAtmosphereHandler.WebSocketEventListener.class} */)
+=======
+@AtmosphereHandlerService(path="/chat",
+        interceptors = {AtmosphereResourceLifecycleInterceptor.class,
+                        BroadcastOnPostAtmosphereInterceptor.class})
+>>>>>>> 74de41a... Fix for #680
 public class ChatAtmosphereHandler extends OnMessage<String> {
 
     private final static Logger logger = LoggerFactory.getLogger(ChatAtmosphereHandler.class);
