@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class EventCacheBroadcasterCacheTest {
@@ -131,7 +132,7 @@ public class EventCacheBroadcasterCacheTest {
                 }
                 event.getResource().resume();
             }
-        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend"));
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "cache"));
 
         AsyncHttpClient c = new AsyncHttpClient();
         try {
@@ -192,7 +193,7 @@ public class EventCacheBroadcasterCacheTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true, invocationCount = 1)
+    @Test(timeOut = 60000, enabled = true, invocationCount = 100)
     public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
@@ -235,7 +236,7 @@ public class EventCacheBroadcasterCacheTest {
                 }
                 event.getResource().resume();
             }
-        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "suspend").addBroadcasterListener(new BroadcasterListener() {
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "cache").addBroadcasterListener(new BroadcasterListener() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -314,9 +315,11 @@ public class EventCacheBroadcasterCacheTest {
                 fail(e.getMessage());
             }
 
-            System.out.println("=====>" + messages.get().toString());
+            //System.out.println("=====>" + messages.get().toString());
             //assertEquals(messages.toString(),"message-1message-2message-3message-4message-5message-6message-7message-8message-9message-10message-11message-12message-13message-14message-15message-16message-17message-18message-19message-20message-21message-22message-23message-24message-25message-26message-27message-28message-29message-30message-31message-32message-33message-34message-35message-36message-37message-38message-39message-40message-41message-42message-43message-44message-45message-46message-47message-48message-49message-50message-51message-52message-53message-54message-55message-56message-57message-58message-59message-60message-61message-62message-63message-64message-65message-66message-67message-68message-69message-70message-71message-72message-73message-74message-75message-76message-77message-78message-79message-80message-81message-82message-83message-84message-85message-86message-87message-88message-89message-90message-91message-92message-93message-94message-95message-96message-97message-98message-99message-100");
-            assertEquals(messages.toString().length(), 992);
+            assertTrue(messages.toString().length() >= 992);
+            //assertEquals(messages.toString().length(),  992);
+
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
