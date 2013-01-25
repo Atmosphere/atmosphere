@@ -783,9 +783,18 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
-        if (r.isResumed() || r.isCancelled()) {
-            trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
-        }  else {
+        // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
+        // the switch to garantee the Entry will be cached in the order it was broadcasted.
+        // Without synchronizing we may end up with a out of order BroadcasterCache queue.
+        if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
+            synchronized(r) {
+                if (r.isResumed() || r.isCancelled()) {
+                    trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
+                }  else {
+                    asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+                }
+            }
+        } else {
             asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
         }
     }
