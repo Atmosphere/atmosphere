@@ -81,5 +81,5 @@ public interface HeaderConfig {
 
     String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
 
-    String ATMOSPHERE_UUID_WEBSOCKET = "X-Message-uuid";
+    String X_ATMO_PROTOCOL = "X-atmo-protocol";
 }

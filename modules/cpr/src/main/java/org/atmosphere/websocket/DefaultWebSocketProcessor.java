@@ -75,7 +75,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final ExecutorService asyncExecutor;
     private final ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
-    private String wsDelimiter = "|";
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -95,10 +94,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             executeAsync = false;
         }
 
-        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
-        if (s != null) {
-            wsDelimiter = s;
-        }
         asyncExecutor = Executors.newCachedThreadPool();
         voidExecutor = VoidExecutorService.VOID;
     }
@@ -129,11 +124,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
-
-        // Since 1.0.10
-        if (request.getQueryString() != null && request.getQueryString().contains(HeaderConfig.ATMOSPHERE_UUID_WEBSOCKET)) {
-            webSocket.write(r.uuid() + wsDelimiter + System.currentTimeMillis());
-        }
 
         dispatch(webSocket, request, wsr);
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
