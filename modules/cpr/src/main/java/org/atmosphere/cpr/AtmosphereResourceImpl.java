@@ -860,6 +860,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public String toString() {
         return "AtmosphereResourceImpl{" +
                 "\n uuid=" + uuid +
+                ",\n transport=" + transport() +
                 ",\n action=" + action +
                 ",\n isResumed=" + isResumed() +
                 ",\n isCancelled=" + isCancelled() +
