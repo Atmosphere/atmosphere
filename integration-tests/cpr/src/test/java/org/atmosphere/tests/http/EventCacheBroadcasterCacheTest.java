@@ -38,6 +38,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -62,7 +63,7 @@ public class EventCacheBroadcasterCacheTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = BaseTest.findFreePort();
+        int port = findFreePort();
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new org.eclipse.jetty.server.Server(port);
@@ -75,6 +76,20 @@ public class EventCacheBroadcasterCacheTest {
         configureCometSupport();
         context.addServlet(new org.eclipse.jetty.servlet.ServletHolder(atmoServlet), "/");
         server.start();
+    }
+
+    public final static int findFreePort() throws IOException {
+        ServerSocket socket = null;
+
+        try {
+            socket = new ServerSocket(0);
+
+            return socket.getLocalPort();
+        } finally {
+            if (socket != null) {
+                socket.close();
+            }
+        }
     }
 
     public void configureCometSupport() {
@@ -193,7 +208,7 @@ public class EventCacheBroadcasterCacheTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true, invocationCount = 100)
+    @Test(timeOut = 60000, enabled = true, invocationCount = 5)
     public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
