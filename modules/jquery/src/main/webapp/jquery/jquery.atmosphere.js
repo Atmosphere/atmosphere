@@ -1723,7 +1723,6 @@ jQuery.atmosphere = function() {
                     },
                     close: function() {
                         xdr.abort();
-                        _clearState();
                         _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
