@@ -859,11 +859,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
-                "\n hasCode" + hashCode() +
+                "\n uuid=" + uuid +
                 ",\n action=" + action +
-                ",\n broadcaster=" + broadcaster.getClass().getName() +
-                ",\n asyncSupport=" + asyncSupport +
-                ",\n serializer=" + serializer +
+                ",\n isResumed=" + isResumed() +
+                ",\n isCancelled=" + isCancelled() +
+                ",\n isSuspended=" + isSuspended() +
+                ",\n broadcaster=" + broadcaster.getID() +
                 ",\n isInScope=" + isInScope +
                 ",\n useWriter=" + useWriter +
                 ",\n listeners=" + listeners +
