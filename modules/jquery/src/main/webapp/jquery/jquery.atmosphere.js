@@ -1488,6 +1488,10 @@ jQuery.atmosphere = function() {
                                     }
                                 } else {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
+                                    if (!_handleProtocol( _request, message)) {
+                                        _reconnect(ajaxRequest, rq, false);
+                                        return;
+                                    }
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                 }
                                 rq.lastIndex = responseText.length;
@@ -1508,6 +1512,10 @@ jQuery.atmosphere = function() {
                                             _response.responseBody = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
+                                            if (!_handleProtocol( _request, _response.responseBody)) {
+                                                _reconnect(ajaxRequest, rq, false);
+                                                return;
+                                            }
                                             _invokeCallback();
                                             if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
                                                 // Close and reopen connection on large data received
@@ -1522,6 +1530,11 @@ jQuery.atmosphere = function() {
                                     return;
                                 }
                             } else {
+                                if (!_handleProtocol( _request, responseText)) {
+                                    _reconnect(ajaxRequest, rq, false);
+                                    return;
+                                }
+
                                 _trackMessageSize(responseText, rq, _response);
                                 rq.lastIndex = responseText.length;
                             }
@@ -1550,9 +1563,7 @@ jQuery.atmosphere = function() {
                                 jQuery.atmosphere.log(rq.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                             }
 
-                            if (_handleProtocol( _request,_response.responseBody)) {
-                                _invokeCallback();
-                            }
+                            _invokeCallback();
 
                             if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
