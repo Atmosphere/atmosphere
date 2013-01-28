@@ -110,7 +110,7 @@ public class JettyWebSocketUtil {
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE) != null) {
             bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
         }
-        logger.debug("WebSocket Buffer side {}", bufferSize);
+        logger.debug("WebSocket Buffer size {}", bufferSize);
         webSocketFactory.setBufferSize(bufferSize);
 
         int timeOut = 5 * 60000;
