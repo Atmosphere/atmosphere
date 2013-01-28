@@ -618,8 +618,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(StreamingAtmosphereInterceptor.class));
             // Default Interceptor
             interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
+            logger.info("Installed Default AtmosphereInterceptor {}. " +
+                    "Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
         }
-        logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.");
     }
 
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
