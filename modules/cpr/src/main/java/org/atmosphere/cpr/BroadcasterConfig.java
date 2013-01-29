@@ -157,11 +157,7 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
                 try {
-<<<<<<< HEAD
-                    Broadcaster b = BroadcasterFactory.getDefault().lookup(name, false);
-=======
-                    Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
->>>>>>> b964c4d... One more fix for #841 : make sure the factory is used from the AtmosphereFramework class
+                    Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
                     if (b != null) {
                         synchronized (mf) {
                             ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
@@ -380,11 +376,7 @@ public class BroadcasterConfig {
         }
 
         if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
-<<<<<<< HEAD
-            Broadcaster b = BroadcasterFactory.getDefault().lookup(name, false);
-=======
-            Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
->>>>>>> b964c4d... One more fix for #841 : make sure the factory is used from the AtmosphereFramework class
+            Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
             if (b != null) {
                 synchronized (e) {
                     ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
