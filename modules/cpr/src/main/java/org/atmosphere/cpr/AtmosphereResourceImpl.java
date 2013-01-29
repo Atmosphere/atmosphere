@@ -386,6 +386,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && (
                 transport().equals(TRANSPORT.LONG_POLLING) || transport().equals(TRANSPORT.JSONP))) {
             // Do nothing because we have found cached message which was written already, and the handler resumed.
+            logger.debug("Not suspendeding {}", uuid());
             req.removeAttribute(DefaultBroadcaster.CACHED);
             return this;
         }
