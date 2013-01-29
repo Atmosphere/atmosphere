@@ -1131,7 +1131,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(), "broadcast(Object msg, AtmosphereResource<?, ?> r");
+            logger.debug(DESTROYED, getID(), "broadcast(T msg, AtmosphereResource r");
             return futureDone(msg);
         }
 
@@ -1184,7 +1184,7 @@ public class DefaultBroadcaster implements Broadcaster {
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
-            logger.debug(DESTROYED, getID(), "broadcast(Object msg, Set<AtmosphereResource<?, ?>> subset)");
+            logger.debug(DESTROYED, getID(), "broadcast(T msg, Set<AtmosphereResource> subset)");
             return futureDone(msg);
         }
 
@@ -1205,7 +1205,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         try {
             if (destroyed.get()) {
-                logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource<?, ?> r");
+                logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource r");
                 return this;
             }
 
@@ -1233,6 +1233,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (resources.contains(r)) {
+                logger.debug("Duplicate resource {}", r.uuid());
                 return this;
             }
 
