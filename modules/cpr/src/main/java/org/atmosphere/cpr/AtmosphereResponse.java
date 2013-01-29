@@ -1204,7 +1204,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 ", locale=" + locale +
                 ", headerHandled=" + headerHandled +
                 ", atmosphereRequest=" + atmosphereRequest +
-                ", AtmosphereResource UUID=" + resource() != null ? resource().uuid() : "" +
                 ", writeStatusAndHeader=" + writeStatusAndHeader +
                 ", delegateToNativeResponse=" + delegateToNativeResponse +
                 ", destroyable=" + destroyable +
