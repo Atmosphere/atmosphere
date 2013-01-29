@@ -533,7 +533,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     }
                 }
 
-                logger.debug("Cancelling the connection for request {}", req);
+                logger.debug("Cancelling the connection for AtmosphereResource {}", r);
 
                 r = (AtmosphereResourceImpl) req.resource();
                 if (r != null) {
@@ -551,7 +551,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             } catch (Throwable ex) {
                 // Something wrong happenned, ignore the exception
-                logger.debug("failed to cancel resource: " + r, ex);
+                logger.debug("failed to cancel resource: {}", r, ex);
             } finally {
                 config.framework().notify(Action.TYPE.CANCELLED, req, res);
                 try {
