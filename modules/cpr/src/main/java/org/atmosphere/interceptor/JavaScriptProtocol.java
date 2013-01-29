@@ -51,16 +51,6 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
         String handshakeUUID = r.getRequest().getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
             r.getRequest().header(HeaderConfig.X_ATMO_PROTOCOL, null);
-            // Since 1.0.10
-
-            if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                try {
-                    r.getResponse().write(AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.ATMOSPHERE_PADDING)).flushBuffer();
-                } catch (IOException e) {
-                    //
-                }
-                r.padding("none");
-            }
             r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
 
             // We don't need to reconnect here

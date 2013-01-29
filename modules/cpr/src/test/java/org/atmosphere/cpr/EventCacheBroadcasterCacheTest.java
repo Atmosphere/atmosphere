@@ -52,7 +52,7 @@ public class EventCacheBroadcasterCacheTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         broadcaster.addAtmosphereResource(ar);

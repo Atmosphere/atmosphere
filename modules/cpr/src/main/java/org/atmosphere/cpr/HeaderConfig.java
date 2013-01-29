@@ -80,12 +80,6 @@ public interface HeaderConfig {
     String WEBSOCKET_UPGRADE = "Upgrade";
 
     String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
-<<<<<<< HEAD
-=======
 
     String X_ATMO_PROTOCOL = "X-atmo-protocol";
-<<<<<<< HEAD
->>>>>>> 74de41a... Fix for #680
-=======
->>>>>>> 74de41a... Fix for #680
 }

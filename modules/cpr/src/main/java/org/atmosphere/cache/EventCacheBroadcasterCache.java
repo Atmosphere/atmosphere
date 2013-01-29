@@ -52,7 +52,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     private final Map<String, ClientQueue> messages = new HashMap<String, ClientQueue>();
 
     private final Map<String, Long> activeClients = new HashMap<String, Long>();
-
+    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
     protected ScheduledExecutorService taskScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -159,8 +159,9 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void addToCache(String broadcasterId, AtmosphereResource r, Object e) {
-        addCacheCandidate(broadcasterId, r, e);
+    public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
+        if (!inspect(e)) return;
+        addCacheCandidate(broadcasterId, r, e.message);
     }
 
     /**
@@ -319,4 +320,16 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         return activeClients;
     }
 
+    @Override
+    public BroadcasterCache inspector(BroadcasterCacheInspector b) {
+        inspectors.add(b);
+        return this;
+    }
+
+    protected boolean inspect(Message m) {
+        for (BroadcasterCacheInspector b : inspectors) {
+              if (!b.inspect(m)) return false;
+        }
+        return true;
+    }
 }
