@@ -105,14 +105,9 @@ public class PubSub {
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @GET
-    @Suspend(writeEntity = false, listeners = {YourListener.class})
-    public Broadcastable subscribe(@Context BroadcasterFactory broadcasterFactory ) {
-
-
-
-
-
-        return new Broadcastable(broadcaster);
+    @Suspend(listeners = {EventsLogger.class})
+    public Broadcastable subscribe() {
+        return new Broadcastable(topic);
     }
 
     /**
