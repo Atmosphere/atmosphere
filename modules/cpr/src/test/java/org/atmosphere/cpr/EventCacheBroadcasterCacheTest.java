@@ -44,6 +44,8 @@ public class EventCacheBroadcasterCacheTest {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
+        config.framework().setBroadcasterFactory(factory);
+
         eventCacheBroadcasterCache = new EventCacheBroadcasterCache();
         broadcaster.getBroadcasterConfig().setBroadcasterCache(eventCacheBroadcasterCache);
         atmosphereHandler = new AR();

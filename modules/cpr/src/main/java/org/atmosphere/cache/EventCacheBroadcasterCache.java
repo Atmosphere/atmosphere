@@ -16,6 +16,7 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
@@ -198,7 +199,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
                      * Cache the message only once for the clients
                      * which are not currently connected to the server
                      */
-                    Broadcaster broadcaster = getBroadCaster(broadcasterId);
+                    Broadcaster broadcaster = getBroadCaster(r.getAtmosphereConfig(), broadcasterId);
                     List<AtmosphereResource> resources = new ArrayList<AtmosphereResource>(broadcaster.getAtmosphereResources());
                     Set<String> disconnectedClients = getDisconnectedClients(resources);
                     for (String disconnectedId : disconnectedClients) {
@@ -237,8 +238,8 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         return ids;
     }
 
-    private Broadcaster getBroadCaster(String broadcasterId) {
-        BroadcasterFactory factory = BroadcasterFactory.getDefault();
+    private Broadcaster getBroadCaster(AtmosphereConfig config, String broadcasterId) {
+        BroadcasterFactory factory = config.getBroadcasterFactory();
         Broadcaster broadcaster = factory.lookup(broadcasterId, false);
         return broadcaster;
     }

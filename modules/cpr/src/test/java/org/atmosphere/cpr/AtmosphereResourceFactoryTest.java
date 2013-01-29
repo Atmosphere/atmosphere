@@ -96,7 +96,7 @@ public class AtmosphereResourceFactoryTest {
             BroadcasterFactory.getDefault().get(String.valueOf(i));
         }
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.create().request(AtmosphereRequest.create()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.create().request(AtmosphereRequest.create()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         b2.addAtmosphereResource(r);

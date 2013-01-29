@@ -195,8 +195,8 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             logger.trace("Broadcaster {} is being destroyed and cannot be re-used", getID());
 
-            if (BroadcasterFactory.getDefault() != null) {
-                BroadcasterFactory.getDefault().remove(this, this.getID());
+            if (config.getBroadcasterFactory() != null) {
+                config.getBroadcasterFactory().remove(this, this.getID());
             }
 
             if (currentLifecycleTask != null) {
@@ -248,7 +248,7 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 // Next, we need to create a new broadcaster per resource.
                 for (AtmosphereResource resource : resources) {
-                    Broadcaster b = BroadcasterFactory.getDefault()
+                    Broadcaster b = config.getBroadcasterFactory()
                             .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
 
                     /*
@@ -294,19 +294,19 @@ public class DefaultBroadcaster implements Broadcaster {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
         }
 
-        if (BroadcasterFactory.getDefault() == null)
+        if (config.getBroadcasterFactory() == null)
             return; // we are shutdown or destroyed, but someone still reference
 
-        Broadcaster b = BroadcasterFactory.getDefault().lookup(this.getClass(), id);
+        Broadcaster b = config.getBroadcasterFactory().lookup(this.getClass(), id);
         if (b != null && b.getScope() == SCOPE.REQUEST) {
             throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
         } else if (b != null) {
             return;
         }
 
-        BroadcasterFactory.getDefault().remove(this, name);
+        config.getBroadcasterFactory().remove(this, name);
         this.name = id;
-        BroadcasterFactory.getDefault().add(this, name);
+        config.getBroadcasterFactory().add(this, name);
 
         bc.broadcasterID(name);
     }
@@ -870,7 +870,7 @@ public class DefaultBroadcaster implements Broadcaster {
             } else {
                 // The resource is no longer valid.
                 removeAtmosphereResource(r);
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+                config.getBroadcasterFactory().removeAllAtmosphereResource(r);
             }
         }
         return finalMsg;
@@ -921,7 +921,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("", t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+                config.getBroadcasterFactory().removeAllAtmosphereResource(r);
                 event.setCancelled(true);
                 event.setThrowable(t);
                 r.setIsInScope(false);
@@ -1268,7 +1268,7 @@ public class DefaultBroadcaster implements Broadcaster {
             synchronized (concurrentSuspendBroadcast) {
                 // Re-add yourself
                 if (resources.isEmpty()) {
-                    BroadcasterFactory.getDefault().add(this, name);
+                    config.getBroadcasterFactory().add(this, name);
                 }
 
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
@@ -1355,7 +1355,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
                 releaseExternalResources();
             } else if (scope == SCOPE.REQUEST || lifeCyclePolicy.getLifeCyclePolicy() == EMPTY_DESTROY) {
-                BroadcasterFactory.getDefault().remove(this, name);
+                config.getBroadcasterFactory().remove(this, name);
                 destroy();
             }
         }

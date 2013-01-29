@@ -44,6 +44,7 @@ public class BroadcasterTest {
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,

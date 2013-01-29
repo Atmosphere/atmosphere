@@ -184,11 +184,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         public String mapping;
         public List<AtmosphereInterceptor> interceptors = Collections.<AtmosphereInterceptor>emptyList();
 
-        public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, String mapping) {
+        public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;
             try {
-                if (BroadcasterFactory.getDefault() != null) {
-                    this.broadcaster = BroadcasterFactory.getDefault().lookup(mapping, true);
+                if (broadcasterFactory != null) {
+                    this.broadcaster = broadcasterFactory.lookup(mapping, true);
                 } else {
                     this.mapping = mapping;
                 }
@@ -271,7 +271,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             mapping = "/" + mapping;
         }
 
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
         w.interceptors = l;
         addMapping(mapping, w);
 
@@ -323,7 +323,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             mapping = "/" + mapping;
         }
 
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, mapping);
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
         w.broadcaster.setID(broadcasterId);
         w.interceptors = l;
         addMapping(mapping, w);
@@ -540,7 +540,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             logger.info("HttpSession supported: {}", config.isSupportSession());
-            logger.info("Using BroadcasterFactory: {}", BroadcasterFactory.getDefault().getClass().getName());
+            logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
             logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
             logger.info("Using Broadcaster: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
@@ -871,10 +871,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         Broadcaster b;
 
         try {
-            b = BroadcasterFactory.getDefault().get(bc, mapping);
+            b = broadcasterFactory.get(bc, mapping);
         } catch (IllegalStateException ex) {
             logger.warn("Two Broadcaster's named {}. Renaming the second one to {}", mapping, sc.getServletName() + mapping);
-            b = BroadcasterFactory.getDefault().get(bc, sc.getServletName() + mapping);
+            b = broadcasterFactory.get(bc, sc.getServletName() + mapping);
         }
 
         addAtmosphereHandler(mapping, rsp, b);
@@ -964,7 +964,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             handlerWrapper.atmosphereHandler.destroy();
         }
 
-        BroadcasterFactory factory = BroadcasterFactory.getDefault();
+        BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
             factory.destroy();
             BroadcasterFactory.factory = null;
@@ -1039,7 +1039,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                 }
 
-                b = BroadcasterFactory.getDefault().lookup(atmoHandler.getContextRoot(), true);
+                b = broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);
 
                 AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
                 addMapping(atmoHandler.getContextRoot(), wrapper);
@@ -1193,7 +1193,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         AtmosphereHandler handler = (AtmosphereHandler) clazz.newInstance();
                         InjectorProvider.getInjector().inject(handler);
                         addMapping("/" + handler.getClass().getSimpleName(),
-                                new AtmosphereHandlerWrapper(handler, "/" + handler.getClass().getSimpleName()));
+                                new AtmosphereHandlerWrapper(broadcasterFactory, handler, "/" + handler.getClass().getSimpleName()));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
                     }
                 } catch (Throwable t) {
@@ -1288,7 +1288,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws ServletException
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-        req.setAttribute(BROADCASTER_FACTORY, BroadcasterFactory.getDefault());
+        req.setAttribute(BROADCASTER_FACTORY, broadcasterFactory);
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);

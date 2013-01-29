@@ -109,7 +109,7 @@ public class MeteorServlet extends AtmosphereServlet {
 
             if (mapping == null) {
                 mapping = "/*";
-                BroadcasterFactory.getDefault().remove("/*");
+                framework.getBroadcasterFactory().remove("/*");
             }
             framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
         }

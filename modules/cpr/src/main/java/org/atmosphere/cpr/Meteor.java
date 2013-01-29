@@ -173,7 +173,8 @@ public class Meteor {
 
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
-                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
+                BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
+                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }

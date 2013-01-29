@@ -350,7 +350,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     Broadcaster newBroadcaster;
                     // See issue https://github.com/Atmosphere/atmosphere/issues/676
                     synchronized (broadcasterName.intern()) {
-                        newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, true);
+                        newBroadcaster = config.getBroadcasterFactory().lookup(broadcasterName, true);
                         newBroadcaster.setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy.EMPTY_DESTROY);
                     }
                     final Broadcaster bcaster = newBroadcaster;
@@ -475,7 +475,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
-                        broadcaster = BroadcasterFactory.getDefault().lookup(c, topic, true);
+                        broadcaster = config.getBroadcasterFactory().lookup(c, topic, true);
                     }
 
                     suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
@@ -526,7 +526,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         } catch (Throwable e) {
                             throw new IllegalStateException(e.getMessage());
                         }
-                        r.setBroadcaster(BroadcasterFactory.getDefault().lookup(c, topic, true));
+                        r.setBroadcaster(config.getBroadcasterFactory().lookup(c, topic, true));
                     }
 
                     broadcast(response, r, timeout);

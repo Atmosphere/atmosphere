@@ -115,7 +115,7 @@ public final class AtmosphereResourceFactory {
     public final AtmosphereResource remove(String uuid) {
         AtmosphereResource r = find(uuid);
         if (r != null) {
-            BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+            r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
         }
         return r;
     }

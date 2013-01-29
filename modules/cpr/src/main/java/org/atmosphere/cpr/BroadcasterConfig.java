@@ -151,7 +151,7 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
                 try {
-                    Broadcaster b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+                    Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
                     if (b != null) {
                         synchronized (mf) {
                             ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
@@ -367,7 +367,7 @@ public class BroadcasterConfig {
         }
 
         if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
-            Broadcaster b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+            Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
             if (b != null) {
                 synchronized (e) {
                     ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
