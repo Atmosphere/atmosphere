@@ -964,6 +964,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+        logger.debug("Checking cached message for {}", r.uuid());
         List<?> missedMsg = bc.getBroadcasterCache().retrieveFromCache(getID(), r);
         if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
