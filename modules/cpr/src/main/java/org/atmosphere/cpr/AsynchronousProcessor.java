@@ -114,7 +114,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         long l = (Long) req.getAttribute(MAX_INACTIVE);
                         if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
                             try {
-                                logger.debug("Close detector disconnecting {}. Current size {}", req, aliveRequests.size());
+                                logger.debug("Close detector disconnecting {}. Current size {}", req.resource(), aliveRequests.size());
                                 AtmosphereResourceImpl r = (AtmosphereResourceImpl) aliveRequests.remove(req);
                                 cancelled(req, r.getResponse(false));
                             } catch (Throwable e) {
