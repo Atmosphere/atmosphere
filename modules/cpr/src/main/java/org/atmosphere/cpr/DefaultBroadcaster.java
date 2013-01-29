@@ -537,12 +537,14 @@ public class DefaultBroadcaster implements Broadcaster {
                         bc.getExecutorService().submit(this);
                     }
 
-                    if (msg != null) {
-                        push(msg);
-                    }
-
-                    if (!outOfOrderBroadcastSupported.get()) {
-                        bc.getExecutorService().submit(this);
+                    try {
+                        if (msg != null) {
+                            push(msg);
+                        }
+                    } finally {
+                        if (!outOfOrderBroadcastSupported.get()) {
+                            bc.getExecutorService().submit(this);
+                        }
                     }
                 } catch (InterruptedException ex) {
                     return;
