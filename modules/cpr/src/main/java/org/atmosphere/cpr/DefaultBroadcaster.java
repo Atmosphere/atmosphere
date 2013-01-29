@@ -543,6 +543,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 try {
                     if (msg != null) {
+                        logger.trace("{} is about to broadcast {}", getID(), msg);
                         push(msg);
                     }
                 } catch (Throwable ex) {
