@@ -155,8 +155,20 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void addToCache(String broadcasterId, AtmosphereResource r, Object e) {
+        addCacheCandidate(broadcasterId, r, e);
+    }
+
+    /**
+     * For backward compatibility with 1.0.9 and lower, use the method above.
+     * @param broadcasterId
+     * @param r
+     * @param e
+     * @return
+     */
+    public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
         if (logger.isDebugEnabled()) {
             logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+            logger.debug("Active clients {}", activeClients());
         }
 
         long now = System.nanoTime();
@@ -200,6 +212,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
                 }
             }
         }
+        return cacheMessage;
     }
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
@@ -272,6 +285,18 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         }
 
         return result;
+    }
+
+    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
+        String clientId = r.uuid();
+        ClientQueue clientQueue;
+        synchronized (messages) {
+            clientQueue = messages.get(clientId);
+            if (clientQueue != null) {
+                logger.debug("Removing for AtmosphereResource {} cached message {}", r.uuid(), message);
+                clientQueue.getQueue().remove(message);
+            }
+        }
     }
 
     public Map<String, ClientQueue> messages() {

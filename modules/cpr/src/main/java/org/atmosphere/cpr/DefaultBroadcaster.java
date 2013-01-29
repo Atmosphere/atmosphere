@@ -52,6 +52,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.EventCacheBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
@@ -78,6 +79,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cache.EventCacheBroadcasterCache.*;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
@@ -485,6 +487,9 @@ public class DefaultBroadcaster implements Broadcaster {
         public boolean writeLocally;
         public Object originalMessage;
 
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        public CacheMessage cache;
+
         public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, Object originalMessage) {
             this.message = message;
             this.multipleAtmoResources = multipleAtmoResources;
@@ -727,6 +732,16 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        // Cache the message before executing any operation.
+        // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
+        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+        if (EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+            entry.cache = EventCacheBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
+
+        }
+        // We cache first, and if the broadcast succeed, we will remove it.
+
         try {
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource r : resources) {
@@ -789,13 +804,13 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
             synchronized(r) {
                 if (r.isResumed() || r.isCancelled()) {
-                    trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
+                    trackBroadcastMessage(r, entry);
                 }  else {
-                    asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+                    asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
                 }
             }
         } else {
-            asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+            asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
         }
     }
 
@@ -827,11 +842,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 removeAtmosphereResource(r);
                 BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
             }
-
-            if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                msg.message = finalMsg;
-                trackBroadcastMessage(r, msg);
-            }
         }
         return finalMsg;
     }
@@ -857,6 +867,13 @@ public class DefaultBroadcaster implements Broadcaster {
         r.getRequest().setAttribute(getID(), token.future);
         try {
             event.setMessage(token.msg);
+
+            // https://github.com/Atmosphere/atmosphere/issues/864
+            // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
+            BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+            if (EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+                EventCacheBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), r, token.cache);
+            }
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
@@ -892,7 +909,7 @@ public class DefaultBroadcaster implements Broadcaster {
             entryDone(token.future);
 
             if (lostCandidate) {
-                cacheLostMessage(r, token);
+                cacheLostMessage(r, token, true);
             }
             token.destroy();
         }
@@ -1021,13 +1038,29 @@ public class DefaultBroadcaster implements Broadcaster {
                 AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN));
     }
 
+    /**
+     * Cache the message because an unexpected exception occurred.
+     *
+     * @param r {@link AtmosphereResource}
+     */
+    public void cacheLostMessage(AtmosphereResource r, AsyncWriteToken token) {
+        cacheLostMessage(r, token, false);
+    }
 
     /**
      * Cache the message because an unexpected exception occurred.
      *
-     * @param r
+     * @param r {@link AtmosphereResource}
      */
-    public void cacheLostMessage(AtmosphereResource r, AsyncWriteToken token) {
+    public void cacheLostMessage(AtmosphereResource r, AsyncWriteToken token, boolean force) {
+
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
+        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+        if (force || EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+            return;
+        }
+
         try {
             if (token != null && token.originalMessage != null) {
                 Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
@@ -1450,12 +1483,21 @@ public class DefaultBroadcaster implements Broadcaster {
         Object msg;
         BroadcasterFuture future;
         Object originalMessage;
+        CacheMessage cache;
 
         public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
             this.originalMessage = originalMessage;
+        }
+
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, CacheMessage cache) {
+            this.resource = resource;
+            this.msg = msg;
+            this.future = future;
+            this.originalMessage = originalMessage;
+            this.cache = cache;
         }
 
         public void destroy() {
