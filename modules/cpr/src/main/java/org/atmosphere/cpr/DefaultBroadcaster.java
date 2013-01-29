@@ -536,19 +536,15 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (outOfOrderBroadcastSupported.get()) {
                         bc.getExecutorService().submit(this);
                     }
-
-                    try {
-                        if (msg != null) {
-                            push(msg);
-                        }
-                    } finally {
-                        if (!outOfOrderBroadcastSupported.get()) {
-                            bc.getExecutorService().submit(this);
-                        }
-                    }
                 } catch (InterruptedException ex) {
                     logger.trace("{} got interrupted", Thread.currentThread().getName());
                     return;
+                }
+
+                try {
+                    if (msg != null) {
+                        push(msg);
+                    }
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
                         logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
@@ -556,6 +552,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     } else {
                         logger.warn("This message {} will be lost", msg);
                         logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
+                    }
+                } finally {
+                    if (!outOfOrderBroadcastSupported.get()) {
+                        bc.getExecutorService().submit(this);
                     }
                 }
             }
