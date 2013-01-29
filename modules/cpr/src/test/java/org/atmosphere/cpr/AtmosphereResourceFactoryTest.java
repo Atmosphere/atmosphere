@@ -96,7 +96,11 @@ public class AtmosphereResourceFactoryTest {
             BroadcasterFactory.getDefault().get(String.valueOf(i));
         }
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
+<<<<<<< HEAD
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.create()),
+=======
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.create().request(AtmosphereRequest.create()),
+>>>>>>> b964c4d... One more fix for #841 : make sure the factory is used from the AtmosphereFramework class
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         b2.addAtmosphereResource(r);

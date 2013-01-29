@@ -218,7 +218,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
-            BroadcasterFactory f = BroadcasterFactory.getDefault();
+            BroadcasterFactory f = config.getBroadcasterFactory();
             synchronized (f) {
                 f.remove(b, b.getID());
                 try {

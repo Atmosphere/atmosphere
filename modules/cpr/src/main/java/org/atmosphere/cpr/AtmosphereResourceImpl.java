@@ -280,8 +280,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 // Resuming here means we need to pull away from all other Broadcaster, if they exists.
-                if (BroadcasterFactory.getDefault() != null) {
-                    BroadcasterFactory.getDefault().removeAllAtmosphereResource(this);
+                if (config.getBroadcasterFactory() != null) {
+                    config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 }
 
                 try {
@@ -396,9 +396,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String id = broadcaster != null ? broadcaster.getID() : getClass().getName();
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
-                broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id, false);
+                broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
                 if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
-                    broadcaster = BroadcasterFactory.getDefault().lookup(clazz, id + "/" + UUID.randomUUID(), true);
+                    broadcaster = config.getBroadcasterFactory().lookup(clazz, id + "/" + UUID.randomUUID(), true);
                 }
             }
 
@@ -463,7 +463,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             autoCreate = Boolean.parseBoolean(s);
         }
 
-        if (autoCreate && broadcaster.isDestroyed() && BroadcasterFactory.getDefault() != null) {
+        if (autoCreate && broadcaster.isDestroyed() && config.getBroadcasterFactory() != null) {
             logger.debug("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
                     " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
 
@@ -472,7 +472,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 String id = scope != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
 
                 // Another Thread may have added the Broadcaster.
-                broadcaster = BroadcasterFactory.getDefault().lookup(id, true);
+                broadcaster = config.getBroadcasterFactory().lookup(id, true);
                 broadcaster.setScope(scope);
                 broadcaster.addAtmosphereResource(this);
             }
