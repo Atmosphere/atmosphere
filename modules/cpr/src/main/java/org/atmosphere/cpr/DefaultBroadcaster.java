@@ -547,6 +547,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                 } catch (InterruptedException ex) {
+                    logger.trace("{} got interrupted", Thread.currentThread().getName());
                     return;
                 } catch (Throwable ex) {
                     if (!started.get() || destroyed.get()) {
