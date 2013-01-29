@@ -246,10 +246,13 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     private void addMessageIfNotExists(String clientId, CacheMessage message) {
         if (!hasMessage(clientId, message.getId())) {
             addMessage(clientId, message);
+        } else {
+            logger.debug("Duplicate message {} for client {}", clientId, message);
         }
     }
 
     private void addMessage(String clientId, CacheMessage message) {
+        logger.debug("Adding message {} for client {}", clientId, message);
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
