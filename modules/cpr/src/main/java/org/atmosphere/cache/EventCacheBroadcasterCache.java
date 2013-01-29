@@ -92,6 +92,10 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         public String getId() {
             return id;
         }
+
+        public String toString(){
+            return message.toString();
+        }
     }
 
     public void setInvalidateCacheInterval(long invalidateCacheInterval) {
@@ -285,7 +289,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
         if (logger.isDebugEnabled()) {
             logger.debug("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-            logger.debug("Retrieved for AtmosphereResource {} cached size {}", r.uuid(), result.size());
+            logger.debug("Available cached message {}", messages);
         }
 
         return result;
