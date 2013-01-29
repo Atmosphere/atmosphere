@@ -16,6 +16,8 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.annotation.Broadcast;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.Broadcastable;
 import org.atmosphere.jersey.SuspendResponse;
@@ -42,10 +44,37 @@ public class JQueryPubSub {
 
     @GET
     public SuspendResponse<String> subscribe() {
+        final String broadcastKey = new BroadcasterKey(playerType, gameType).asString();
+        final Broadcaster broadcaster = broadcasterFactory.lookup(broadcastKey, false);
         return new SuspendResponse.SuspendResponseBuilder<String>()
-                .broadcaster(topic)
-                .outputComments(true)
-                .addListener(new EventsLogger())
+                .broadcaster(broadcaster)
+                .entity("")
+                .addListener(new AtmosphereResourceEventListener() {
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+
+                    }
+
+                    @Override
+                    public void onResume(AtmosphereResourceEvent event) {
+
+                    }
+
+                    @Override
+                    public void onDisconnect(AtmosphereResourceEvent event) {
+
+                    }
+
+                    @Override
+                    public void onBroadcast(AtmosphereResourceEvent event) {
+
+                    }
+
+                    @Override
+                    public void onThrowable(AtmosphereResourceEvent event) {
+
+                    }
+                })
                 .build();
     }
 

@@ -1248,7 +1248,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // TODO handle null return from poll()
                     AtmosphereResource resource = resources.poll();
                     try {
-                        logger.warn("Too many resource. Forcing resume of {} ", resource);
+                        logger.warn("Too many resource. Forcing resume of {} ", resource.uuid());
                         resource.resume();
                     } catch (Throwable t) {
                         logger.warn("failed to resume resource {} ", resource, t);
@@ -1273,6 +1273,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
                 if (isAtmosphereResourceValid(r)) {
+                    logger.debug("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
                     resources.add(r);
                 } else {
                     logger.debug("Unable to add AtmosphereResource {}", r.uuid());
