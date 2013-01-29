@@ -123,7 +123,7 @@ public class EventCacheBroadcasterCacheTest {
                             public void onSuspend(AtmosphereResourceEvent event) {
                                 suspendLatch.countDown();
                             }
-                        }).suspend(-1, false);
+                        }).suspend();
                         return;
                     }
                     event.getBroadcaster().broadcast("message-" + count.getAndIncrement()).get();
@@ -228,7 +228,7 @@ public class EventCacheBroadcasterCacheTest {
                         public void onSuspend(AtmosphereResourceEvent event) {
                             suspendLatch.countDown();
                         }
-                    }).suspend(-1, false);
+                    }).suspend();
                     return;
                 }
                 event.getBroadcaster().broadcast("message-" + count.getAndIncrement());
