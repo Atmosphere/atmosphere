@@ -804,7 +804,12 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
             synchronized(r) {
                 if (r.isResumed() || r.isCancelled()) {
-                    trackBroadcastMessage(r, entry);
+                    // https://github.com/Atmosphere/atmosphere/issues/864
+                    // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
+                    BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+                    if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+                        trackBroadcastMessage(r, entry);
+                    }
                 }  else {
                     asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
                 }
@@ -864,7 +869,6 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
-        r.getRequest().setAttribute(getID(), token.future);
         try {
             event.setMessage(token.msg);
 
@@ -874,6 +878,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
                 EventCacheBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), r, token.cache);
             }
+            r.getRequest().setAttribute(getID(), token.future);
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
