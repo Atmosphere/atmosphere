@@ -720,7 +720,8 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
-            logger.debug("Broadcaster {} doesn't have any associated resource. Message will be cached in the configured BroadcasterCache", getID());
+            logger.debug("Broadcaster {} doesn't have any associated resource. " +
+                    "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
 
             AtmosphereResource r = null;
             if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
