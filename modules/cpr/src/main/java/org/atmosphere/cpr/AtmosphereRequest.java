@@ -1652,6 +1652,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     " pathInfo=" + getPathInfo() +
                     " requestURI=" + getRequestURI() +
                     " requestURL=" + getRequestURL() +
+                    " AtmosphereResource UUID=" + resource() != null ? resource().uuid() : "" +
                     " destroyable=" + b.destroyable +
                     '}';
         } catch (Exception e) {

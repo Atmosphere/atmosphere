@@ -297,7 +297,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
         synchronized (messages) {
             clientQueue = messages.get(clientId);
             if (clientQueue != null) {
-                logger.debug("Removing for AtmosphereResource {} cached message {}", r.uuid(), message);
+                logger.debug("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
                 clientQueue.getQueue().remove(message);
             }
         }
