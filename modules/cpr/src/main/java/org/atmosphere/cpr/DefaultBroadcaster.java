@@ -923,11 +923,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
-
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
-
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
-
+            logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
+            BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
             LinkedList<Object> filteredMessage = new LinkedList<Object>();
             for (Object o : ((List) e.getMessage())) {
                 filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
@@ -1249,6 +1247,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
                 if (isAtmosphereResourceValid(r)) {
                     resources.add(r);
+                } else {
+                    logger.debug("Unable to add AtmosphereResource {}", r.uuid());
                 }
             }
         } finally {
