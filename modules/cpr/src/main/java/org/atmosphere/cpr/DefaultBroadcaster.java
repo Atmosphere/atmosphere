@@ -299,13 +299,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         config.getBroadcasterFactory().remove(this, name);
         this.name = id;
-<<<<<<< HEAD
-        BroadcasterFactory.getDefault().add(this, name);
-=======
         config.getBroadcasterFactory().add(this, name);
 
         bc.broadcasterID(name);
->>>>>>> b964c4d... One more fix for #841 : make sure the factory is used from the AtmosphereFramework class
     }
 
     /**
