@@ -117,7 +117,8 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         if (!request.requestURI().startsWith(config.getServletContext().getContextPath())) return false;
 
         String path = request.requestURI().toString().substring(config.getServletContext().getContextPath().length());
-        return mapper.map(path, paths);
+        Boolean b = mapper.map(path, paths);
+        return b == null? false: b;
     }
 
     @Override
