@@ -181,8 +181,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
                     addMessageIfNotExists(entry.getKey(), cacheMessage);
                 }
             } else {
-                String clientId = r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                        ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
+                String clientId = uuid(r);
 
                 activeClients.put(clientId, now);
                 if (isAtmosphereResourceValid(r)) {//todo better to have cacheLost flag
@@ -213,6 +212,11 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
             }
         }
         return cacheMessage;
+    }
+
+    private String uuid(AtmosphereResource r) {
+        return r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
+                                ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
     }
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
@@ -288,7 +292,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     }
 
     public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
-        String clientId = r.uuid();
+        String clientId =  uuid(r);
         ClientQueue clientQueue;
         synchronized (messages) {
             clientQueue = messages.get(clientId);
