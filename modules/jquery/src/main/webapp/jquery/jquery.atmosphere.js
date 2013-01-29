@@ -95,6 +95,7 @@ jQuery.atmosphere = function() {
                 fallbackTransport : 'streaming',
                 transport : 'long-polling',
                 webSocketImpl: null,
+                webSocketBinaryType: null,
                 dispatchUrl: null,
                 webSocketPathDelimiter: "@@",
                 enableXDR : false,
@@ -1000,6 +1001,9 @@ jQuery.atmosphere = function() {
                 }
 
                 _websocket = _getWebSocket(location);
+                if(_request.webSocketBinaryType != null){
+                    _websocket.binaryType = _request.webSocketBinaryType;
+                }
 
                 if (_request.connectTimeout > 0) {
                     _request.id = setTimeout(function() {
@@ -1037,19 +1041,24 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onmessage = function(message) {
-                    if (message.data.indexOf("parent.callback") != -1) {
-                        jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
-                    }
-
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
                     var message = message.data;
-                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
-
-                    if (!skipCallbackInvocation) {
-                        _invokeCallback();
-                        _response.responseBody = '';
+                    var isString =  typeof(message) == 'string';
+                    if(isString){
+                       if (message.indexOf("parent.callback") != -1) {
+                           jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
+                       }
+                       var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
+                       if (!skipCallbackInvocation) {
+                           _invokeCallback();
+                           _response.responseBody = '';
+                       }
+                    }else{
+                       _response.responseBody = message;
+                       _invokeCallback();
+                       _response.responseBody = null;
                     }
                 };
 
@@ -2135,14 +2144,15 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                var messages = (typeof(_response.responseBody) == 'string' && _request.trackMessageLength) ?
+                var isString =  typeof(_response.responseBody) == 'string';   
+                var messages = ( isString && _request.trackMessageLength) ?
                     _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
                         continue;
                     }
-                    _response.responseBody = jQuery.trim(messages[i]);
+                    _response.responseBody = (isString)?jQuery.trim(messages[i]):messages[i];
 
                     if (_localStorageService == null && _localSocketF != null) {
                         _localSocketF(_response.responseBody);
