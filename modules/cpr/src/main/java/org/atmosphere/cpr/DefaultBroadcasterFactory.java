@@ -355,6 +355,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throws InstantiationException, IllegalAccessException {
 
         factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);
+         c.framework().setBroadcasterFactory(factory);
         return factory;
     }
 
