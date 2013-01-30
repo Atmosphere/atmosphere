@@ -855,6 +855,16 @@ public class DefaultBroadcaster implements Broadcaster {
                 config.getBroadcasterFactory().removeAllAtmosphereResource(r);
             }
         }
+
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
+        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+        if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+            if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                msg.message = finalMsg;
+                trackBroadcastMessage(r, msg);
+            }
+        }
         return finalMsg;
     }
 
