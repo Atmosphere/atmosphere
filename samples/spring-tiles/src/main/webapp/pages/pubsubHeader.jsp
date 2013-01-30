@@ -1,4 +1,4 @@
-	<script type="text/javascript" src="../jquery/jquery-1.6.4.js"></script>
+	<script type="text/javascript" src="../jquery/jquery-1.7.2.js"></script>
     <script type="text/javascript" src="../jquery/jquery.form.js"></script>
     <script type="text/javascript" src="../jquery/jquery.atmosphere.js"></script>
 
