@@ -35,7 +35,7 @@ import java.io.IOException;
   */
 public class AtmosphereWebLogicServlet extends AbstractAsyncServlet {
 
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereWebLogicServlet.class);
     protected AtmosphereFramework framework;
 
     /**
