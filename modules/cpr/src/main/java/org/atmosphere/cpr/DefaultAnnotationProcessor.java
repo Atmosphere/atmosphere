@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import eu.infomas.annotation.AnnotationDetector;
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.cache.EventCacheBroadcasterCache;
 import org.atmosphere.cache.HeaderBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
@@ -305,7 +306,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         }
 
                         framework.addAtmosphereHandler(a.path(), handler, l);
-                        framework.setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
+                        framework.setBroadcasterCacheClassName(EventCacheBroadcasterCache.class.getName());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
