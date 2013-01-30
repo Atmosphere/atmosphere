@@ -145,16 +145,23 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         CountDownLatch latch = new CountDownLatch(1);
         req.setAttribute(LATCH, latch);
 
+        boolean ok = true;
         try {
             if (action.timeout() != -1) {
-                latch.await(action.timeout(), TimeUnit.MILLISECONDS);
+                ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
             } else {
                 latch.await();
             }
         } catch (InterruptedException ex) {
             logger.trace("", ex);
         } finally {
-            timedout(req, res);
+            if (!ok) {
+                timedout(req, res);
+            } else {
+                if (req.resource() != null) {
+                    AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+                }
+            }
         }
     }
 
