@@ -63,7 +63,7 @@ public final class JerseyBroadcasterUtil {
             }
 
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r);
+                DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r, true);
             }
             AsynchronousProcessor.destroyResource(r);
             return;
