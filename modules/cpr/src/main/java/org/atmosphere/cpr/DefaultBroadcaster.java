@@ -978,7 +978,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        logger.debug("Checking cached message for {}", r.uuid());
+        logger.trace("Checking cached message for {}", r.uuid());
         List<?> missedMsg = bc.getBroadcasterCache().retrieveFromCache(getID(), r);
         if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
@@ -1263,7 +1263,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 checkCachedAndPush(r, r.getAtmosphereResourceEvent());
                 if (isAtmosphereResourceValid(r)) {
-                    logger.debug("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
+                    logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
                     resources.add(r);
                 } else {
                     logger.debug("Unable to add AtmosphereResource {}", r.uuid());
