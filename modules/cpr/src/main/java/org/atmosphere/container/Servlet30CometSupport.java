@@ -172,7 +172,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
             if (asyncContext != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                     || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-                asyncContext.complete();
+                try {
+                    asyncContext.complete();
+                } catch (IllegalStateException ex) {
+                    // Alresady completed.
+                    logger.trace("Already resumed!", ex);
+                }
             }
         } else {
             if (!actionEvent.isInScope()) {
