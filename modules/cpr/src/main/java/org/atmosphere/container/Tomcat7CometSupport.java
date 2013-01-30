@@ -51,6 +51,9 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     private final static String SUSPENDED = Tomcat7CometSupport.class.getName() + ".suspended";
     private final Boolean closeConnectionOnInputStream;
 
+    private static final IllegalStateException unableToDetectComet
+            = new IllegalStateException(unableToDetectComet());
+
     public Tomcat7CometSupport(AtmosphereConfig config) {
         super(config);
         Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
@@ -73,7 +76,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
-            throw new IllegalStateException(unableToDetectComet());
+            throw unableToDetectComet;
         }
 
         Action action = null;
@@ -113,7 +116,6 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventType() == EventType.ERROR) {
             bz51881(event);
         } else if (event.getEventType() == EventType.END) {
-
             if (req.resource() != null && req.resource().isResumed()) {
                 AtmosphereResourceImpl.class.cast(req.resource()).cancel();
             } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
@@ -128,52 +130,61 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
     private void bz51881(CometEvent event) throws IOException {
         String[] tomcatVersion =  config.getServletContext().getServerInfo().substring(14).split("\\.");
-        String minorVersion = tomcatVersion[2];
-        if (minorVersion.indexOf("-") != -1) {
-            minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
-            if (Integer.valueOf(minorVersion) == 22) {
-                minorVersion = "23";
-            }
-        }
-
-        if (Integer.valueOf(tomcatVersion[0]) == 7 && Integer.valueOf(minorVersion) < 23) {
-            logger.info("Patching Tomcat 7.0.22 and lower bz51881. Expect NPE inside CoyoteAdapter, just ignore them. Upgrade to 7.0.23");
-            try {
-                RequestFacade request = RequestFacade.class.cast(event.getHttpServletRequest());
-                Field coyoteRequest = RequestFacade.class.getDeclaredField("request");
-                coyoteRequest.setAccessible(true);
-                Request r = (Request) coyoteRequest.get(request);
-                r.recycle();
-
-                Field mappingData = Request.class.getDeclaredField("mappingData");
-                mappingData.setAccessible(true);
-                MappingData m = new MappingData();
-                m.context = null;
-                mappingData.set(r, m);
-            } catch (Throwable t) {
-                logger.trace("Was unable to recycle internal Tomcat object");
-            } finally {
-                try {
-                    event.close();
-                } catch (IllegalStateException e) {
-                    logger.trace("", e);
+        try {
+            String minorVersion = tomcatVersion[2];
+            if (minorVersion.indexOf("-") != -1) {
+                minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
+                if (Integer.valueOf(minorVersion) == 22) {
+                    minorVersion = "23";
                 }
             }
 
-            try {
-                ResponseFacade response = ResponseFacade.class.cast(event.getHttpServletResponse());
-                Field coyoteResponse = ResponseFacade.class.getDeclaredField("response");
-                coyoteResponse.setAccessible(true);
-                Response r = (Response) coyoteResponse.get(response);
-                r.recycle();
-            } catch (Throwable t) {
-                logger.trace("Was unable to recycle internal Tomcat object");
+            if (Integer.valueOf(tomcatVersion[0]) == 7 && Integer.valueOf(minorVersion) < 23) {
+                logger.info("Patching Tomcat 7.0.22 and lower bz51881. Expect NPE inside CoyoteAdapter, just ignore them. Upgrade to 7.0.23");
+                try {
+                    RequestFacade request = RequestFacade.class.cast(event.getHttpServletRequest());
+                    Field coyoteRequest = RequestFacade.class.getDeclaredField("request");
+                    coyoteRequest.setAccessible(true);
+                    Request r = (Request) coyoteRequest.get(request);
+                    r.recycle();
+
+                    Field mappingData = Request.class.getDeclaredField("mappingData");
+                    mappingData.setAccessible(true);
+                    MappingData m = new MappingData();
+                    m.context = null;
+                    mappingData.set(r, m);
+                } catch (Throwable t) {
+                    logger.trace("Was unable to recycle internal Tomcat object");
+                } finally {
+                    try {
+                        event.close();
+                    } catch (IllegalStateException e) {
+                        logger.trace("", e);
+                    }
+                }
+
+                try {
+                    ResponseFacade response = ResponseFacade.class.cast(event.getHttpServletResponse());
+                    Field coyoteResponse = ResponseFacade.class.getDeclaredField("response");
+                    coyoteResponse.setAccessible(true);
+                    Response r = (Response) coyoteResponse.get(response);
+                    r.recycle();
+                } catch (Throwable t) {
+                    logger.trace("Was unable to recycle internal Tomcat object");
+                }
+            } else {
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
+                }
             }
-        } else {
+        } catch (NumberFormatException ex) {
+            logger.trace("This is a mofified version of Tomcat {}", config.getServletContext().getServerInfo().substring(14).split("\\."));
             try {
                 event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
+            } catch (IllegalStateException e) {
+                logger.trace("event.close", e);
             }
         }
     }
