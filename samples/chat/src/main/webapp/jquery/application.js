@@ -18,7 +18,6 @@ $(function () {
         logLevel : 'debug',
         transport : transport ,
         enableProtocol : true,
-        enableXDR : true,
         fallbackTransport: 'long-polling'};
 
 
