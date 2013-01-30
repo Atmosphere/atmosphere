@@ -22,12 +22,21 @@ import com.sun.grizzly.websockets.WebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletRegistration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Glassfish 3.2.x WebSocket support.
@@ -36,21 +45,44 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     private static final Logger logger = LoggerFactory.getLogger(GlassFishWebSocketSupport.class);
 
     private final AtmosphereConfig config;
-    private final String contextPath;
+    private final HashMap<String, Boolean> paths = new HashMap<String, Boolean>();
     private final WebSocketProcessor webSocketProcessor;
-    private org.atmosphere.websocket.WebSocket webSocket;
+    // This is so bad, but Glassfish clear the attribute of the webSocket request
+    private final ConcurrentHashMap<WebSocket, org.atmosphere.websocket.WebSocket>
+            wMap = new ConcurrentHashMap<WebSocket, org.atmosphere.websocket.WebSocket>();
+    private final EndpointMapper<Boolean> mapper = new DefaultEndpointMapper<Boolean>();
 
     public GlassFishWebSocketHandler(AtmosphereConfig config) {
         this.config = config;
-        contextPath = config.getServletContext().getContextPath();
 
-        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
+        paths(config.getServletContext());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(config.framework());
+    }
+
+    void paths(ServletContext sc) {
+        Map<String, ? extends ServletRegistration> m = config.getServletContext().getServletRegistrations();
+
+        ServletRegistration sr =  m.get(config.getServletConfig().getServletName());
+
+        if (sr != null) {
+            for(String mapping : sr.getMappings()) {
+                if (mapping.contains("*")) {
+                    mapping = mapping.replace("*", AtmosphereFramework.MAPPING_REGEX);
+                }
+
+                if (mapping.endsWith("/")) {
+                    mapping = mapping + AtmosphereFramework.MAPPING_REGEX;
+                }
+                paths.put(mapping, Boolean.TRUE);
+            }
+        }
     }
 
     public void onConnect(WebSocket w) {
         super.onConnect(w);
 
-        webSocket = new GrizzlyWebSocket(w, config);
+        org.atmosphere.websocket.WebSocket webSocket = new GrizzlyWebSocket(w, config);
 
         //logger.debug("onOpen");
         if (!DefaultWebSocket.class.isAssignableFrom(w.getClass())) {
@@ -58,17 +90,16 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         }
 
         DefaultWebSocket dws = DefaultWebSocket.class.cast(w);
+        wMap.put(w,webSocket);
+
         try {
 
             AtmosphereRequest r = AtmosphereRequest.wrap(dws.getRequest());
             AtmosphereResponse response = AtmosphereResponse.newInstance(config, r, webSocket);
             config.framework().configureRequestResponse(r, response);
             try {
-                // GlassFish http://java.net/jira/browse/GLASSFISH-18681
-                if (r.getPathInfo() != null && r.getPathInfo().startsWith(r.getContextPath())) {
-                    r.servletPath(r.getPathInfo().substring(r.getContextPath().length()));
-                    r.pathInfo(null);
-                }  else if (r.getPathInfo() == null) {
+                // Stupid Stupid Stupid
+               if (r.getPathInfo() == null) {
                     String uri = r.getRequestURI();
                     String pathInfo = uri.substring(uri.indexOf(r.getServletPath()) + r.getServletPath().length());
                     r.pathInfo(pathInfo);
@@ -85,7 +116,12 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
 
     @Override
     public boolean isApplicationRequest(Request request) {
-        return request.requestURI().startsWith(contextPath);
+
+        if (!request.requestURI().startsWith(config.getServletContext().getContextPath())) return false;
+
+        String path = request.requestURI().toString().substring(config.getServletContext().getContextPath().length());
+        Boolean b = mapper.map(path, paths);
+        return b == null? false: b;
     }
 
     @Override
@@ -93,7 +129,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         super.onClose(w, df);
         logger.trace("onClose {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.close(webSocket, 1000);
+            webSocketProcessor.close(wMap.remove(w), 1005);
         }
     }
 
@@ -101,7 +137,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, String text) {
         logger.trace("onMessage {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
+            webSocketProcessor.invokeWebSocketProtocol(w(w), text);
         }
     }
 
@@ -109,7 +145,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     public void onMessage(WebSocket w, byte[] bytes) {
         logger.trace("onMessage (bytes) {} ", w);
         if (webSocketProcessor != null) {
-            webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);
+            webSocketProcessor.invokeWebSocketProtocol(w(w), bytes, 0, bytes.length);
         }
     }
 
@@ -133,4 +169,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         logger.trace("onFragment (string) {} ", w);
     }
 
+    org.atmosphere.websocket.WebSocket w(WebSocket w) {
+        return wMap.get(w);
+    }
 }

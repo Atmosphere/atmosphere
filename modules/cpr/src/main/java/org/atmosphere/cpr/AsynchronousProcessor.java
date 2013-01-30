@@ -71,7 +71,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import static org.atmosphere.cpr.AtmosphereFramework.logger;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
