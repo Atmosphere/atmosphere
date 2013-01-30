@@ -8,6 +8,7 @@
         $(document).ready(function() {
             var socket = $.atmosphere;
             var subSocket;
+            var incompleteMessage = "";
 
             function getKeyCode(ev) {
                 if (window.event) return window.event.keyCode;
@@ -44,14 +45,14 @@
 
                         try {
                             var result = $.parseJSON(data);
-
+                            incompleteMessage = "";
                             var i = 0;
                             for (i = result.results.length - 1; i > -1; i--) {
                                 $('#result').prepend($('<li>').append($('<a>').append(result.results[i].text))).highlight(getElementById('topic').value);
                                 $('#result').prepend($('<li>').append($('<h3>').append(result.results[i].from_user).append('</h3>')));
                             }
                         } catch (err) {
-                            alert("Exception: " + err)
+                            incompleteMessage += data;
                         }
                     }
                 };
