@@ -598,9 +598,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         } else {
                             if (token != null) {
                                 logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
-                                cacheLostMessage(token.resource, token);
+                                cacheLostMessage(token.resource, token, true);
                             }
-
                             logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                         }
                     }
@@ -1075,12 +1074,23 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * Cache the message because an unexpected exception occurred.
      *
-     * @param r
+     * @param r {@link AtmosphereResource}
      */
     public void cacheLostMessage(AtmosphereResource r) {
         // Quite ugly cast that need to be fixed all over the place
         cacheLostMessage(r, (AsyncWriteToken)
                 AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN));
+    }
+
+    /**
+     * Cache the message because an unexpected exception occurred.
+     *
+     * @param r {@link AtmosphereResource}
+     */
+    public void cacheLostMessage(AtmosphereResource r, boolean force) {
+        // Quite ugly cast that need to be fixed all over the place
+        cacheLostMessage(r, (AsyncWriteToken)
+                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN), force);
     }
 
     /**
@@ -1113,7 +1123,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {
-            logger.trace("Unable to cache message", t2);
+            logger.error("Unable to cache message {} for AtmosphereResource {}", token.originalMessage, r != null ? r.uuid() : "");
+            logger.error("Unable to cache message", t2);
         }
     }
 
