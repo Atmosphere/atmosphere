@@ -25,17 +25,22 @@ import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.eclipse.jetty.websocket.core.api.UpgradeRequest;
-import org.eclipse.jetty.websocket.core.api.UpgradeResponse;
-import org.eclipse.jetty.websocket.core.api.WebSocketBehavior;
-import org.eclipse.jetty.websocket.core.api.WebSocketPolicy;
+import org.eclipse.jetty.websocket.api.UpgradeRequest;
+import org.eclipse.jetty.websocket.api.UpgradeResponse;
+import org.eclipse.jetty.websocket.api.WebSocketBehavior;
+import org.eclipse.jetty.websocket.api.WebSocketPolicy;
+import org.eclipse.jetty.websocket.common.events.EventDriver;
 import org.eclipse.jetty.websocket.server.ServletWebSocketRequest;
-import org.eclipse.jetty.websocket.server.WebSocketCreator;
+import org.eclipse.jetty.websocket.server.ServletWebSocketResponse;
+import org.eclipse.jetty.websocket.server.UpgradeContext;
 import org.eclipse.jetty.websocket.server.WebSocketServerFactory;
+import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -55,7 +60,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
         String bs = config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
         WebSocketPolicy policy = new WebSocketPolicy(WebSocketBehavior.SERVER);
         if (bs != null) {
-            policy.setBufferSize(Integer.parseInt(bs));
+            policy.setInputBufferSize(Integer.parseInt(bs));
         }
 
         String max = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
@@ -65,28 +70,33 @@ public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
 
         max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
         if (max != null) {
-            policy.setMaxTextMessageSize(Integer.parseInt(max));
+            policy.setMaxMessageSize(Integer.parseInt(max));
         }
 
         max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
         if (max != null) {
-            policy.setMaxBinaryMessageSize(Integer.parseInt(max));
+            policy.setMaxMessageSize(Integer.parseInt(max));
         }
         final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
-        webSocketFactory = new WebSocketServerFactory(policy);
-        webSocketFactory.setCreator(new WebSocketCreator() {
-
+        webSocketFactory = new WebSocketServerFactory(policy) {
             @Override
-            public Object createWebSocket(UpgradeRequest upgradeRequest, UpgradeResponse upgradeResponse) {
-                // Workaround https://bugs.eclipse.org/bugs/show_bug.cgi?id=390263
-                // TODO: Remove me.
-                ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
-                r.getExtensions().clear();
+            public boolean acceptWebSocket(final HttpServletRequest request, HttpServletResponse response) throws IOException {
+                setCreator(new WebSocketCreator() {
 
-                return new Jetty9WebSocketHandler(upgradeRequest, config.framework(), webSocketProcessor);
+                    @Override
+                    public Object createWebSocket(UpgradeRequest upgradeRequest, UpgradeResponse upgradeResponse) {
+
+                        ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
+                        r.getExtensions().clear();
+
+                        return new Jetty9WebSocketHandler(request, config.framework(), webSocketProcessor);
+                    }
+                });
+
+                return super.acceptWebSocket(request, response);
             }
-        });
+        };
 
         try {
             webSocketFactory.start();

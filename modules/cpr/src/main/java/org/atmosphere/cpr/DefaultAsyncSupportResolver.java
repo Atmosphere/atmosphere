@@ -96,7 +96,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY = "org.mortbay.util.ajax.Continuation";
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
-    public final static String JETTY_9 = "org.eclipse.jetty.websocket.server.WebSocketServerFactory";
+    public final static String JETTY_9 = "org.eclipse.jetty.websocket.api.WebSocketPolicy";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
     public final static String GRIZZLY2 = "org.glassfish.grizzly.http.servlet.ServletHandler";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";

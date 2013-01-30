@@ -63,7 +63,7 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
 
 
     public static final class WebSocketEvent<T> {
-        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM}
+        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM, EXCEPTION}
         private final T message;
         private final TYPE type;
         private final WebSocket webSocket;

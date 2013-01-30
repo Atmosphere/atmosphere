@@ -17,8 +17,8 @@ package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
-import org.eclipse.jetty.websocket.core.api.WebSocketConnection;
-import org.eclipse.jetty.websocket.core.api.io.WebSocketBlockingConnection;
+import org.eclipse.jetty.websocket.api.WebSocketConnection;
+import org.eclipse.jetty.websocket.api.io.WebSocketBlockingConnection;
 
 import java.io.IOException;
 
@@ -52,6 +52,10 @@ public class Jetty9WebSocket extends WebSocket {
 
     @Override
     public void close() {
-        webSocketConnection.close();
+        try {
+            webSocketConnection.close();
+        } catch (IOException e) {
+            logger.trace("Close error", e);
+        }
     }
 }
