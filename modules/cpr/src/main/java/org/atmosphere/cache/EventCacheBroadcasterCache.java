@@ -130,7 +130,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     }
 
     protected void invalidateExpiredEntries() {
-        long now = System.nanoTime();
+        long now = System.currentTimeMillis();
         synchronized (messages) {
 
             Set<String> inactiveClients = new HashSet<String>();
@@ -176,7 +176,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
             logger.debug("Active clients {}", activeClients());
         }
 
-        long now = System.nanoTime();
+        long now = System.currentTimeMillis();
         String messageId = UUID.randomUUID().toString();
         CacheMessage cacheMessage = new CacheMessage(messageId, e);
         synchronized (messages) {
@@ -271,7 +271,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         String clientId = r.uuid();
-        long now = System.nanoTime();
+        long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
 
