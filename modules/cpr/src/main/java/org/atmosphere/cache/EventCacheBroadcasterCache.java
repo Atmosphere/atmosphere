@@ -62,9 +62,9 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     public static class ClientQueue {
 
-        private LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
+        private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
 
-        private Set<String> ids = new HashSet<String>();
+        private final Set<String> ids = new HashSet<String>();
 
         public LinkedList<CacheMessage> getQueue() {
             return queue;
@@ -72,6 +72,11 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
         public Set<String> getIds() {
             return ids;
+        }
+
+        @Override
+        public String toString(){
+            return queue.toString();
         }
     }
 
