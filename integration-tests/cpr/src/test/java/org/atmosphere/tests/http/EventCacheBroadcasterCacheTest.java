@@ -342,23 +342,4 @@ public class EventCacheBroadcasterCacheTest {
 
         c.close();
     }
-
-    @Test
-    public void runLoadTest() throws IOException, ExecutionException, InterruptedException {
-        for (int i=0; i < 100; i++) {
-        AsyncHttpClient c = new AsyncHttpClient();
-            //Suspend , that will register the uuid of this client
-            c.preparePost("http://127.0.0.1:8080/chat")
-                    .addHeader(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true")
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("{\"author\":\"AHC\",\"message\":\"" +i+ "\"}").execute(new AsyncCompletionHandler<Response>() {
-
-                @Override
-                public Response onCompleted(Response r) throws Exception {
-                    System.out.println("===> " + r.getResponseBody());
-                    return r;
-                }
-            }).get();
-        }
-    }
 }
