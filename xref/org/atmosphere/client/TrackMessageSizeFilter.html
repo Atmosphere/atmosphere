@@ -48,7 +48,7 @@
 <a class="jxr_linenumber" name="38" href="#38">38</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/client/TrackMessageSizeFilter.html">TrackMessageSizeFilter</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/cpr/PerRequestBroadcastFilter.html">PerRequestBroadcastFilter</a> {
 <a class="jxr_linenumber" name="39" href="#39">39</a>  
 <a class="jxr_linenumber" name="40" href="#40">40</a>      @Override
-<a class="jxr_linenumber" name="41" href="#41">41</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> filter(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object message, Object originalMessage) {
+<a class="jxr_linenumber" name="41" href="#41">41</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> filter(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object originalMessage, Object message) {
 <a class="jxr_linenumber" name="42" href="#42">42</a>  
 <a class="jxr_linenumber" name="43" href="#43">43</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = r.getRequest();
 <a class="jxr_linenumber" name="44" href="#44">44</a>          <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"true"</span>.equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))

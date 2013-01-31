@@ -161,7 +161,7 @@
 <a class="jxr_linenumber" name="151" href="#151">151</a>         <strong class="jxr_keyword">for</strong> (BroadcastFilter mf : filters) {
 <a class="jxr_linenumber" name="152" href="#152">152</a>             <strong class="jxr_keyword">if</strong> (ClusterBroadcastFilter.<strong class="jxr_keyword">class</strong>.isAssignableFrom(mf.getClass())) {
 <a class="jxr_linenumber" name="153" href="#153">153</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="154" href="#154">154</a>                     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+<a class="jxr_linenumber" name="154" href="#154">154</a>                     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = config.getBroadcasterFactory().lookup(broadcasterID, false);
 <a class="jxr_linenumber" name="155" href="#155">155</a>                     <strong class="jxr_keyword">if</strong> (b != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="156" href="#156">156</a>                         <strong class="jxr_keyword">synchronized</strong> (mf) {
 <a class="jxr_linenumber" name="157" href="#157">157</a>                             ClusterBroadcastFilter.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(mf).setBroadcaster(b);
@@ -377,7 +377,7 @@
 <a class="jxr_linenumber" name="367" href="#367">367</a>         }
 <a class="jxr_linenumber" name="368" href="#368">368</a> 
 <a class="jxr_linenumber" name="369" href="#369">369</a>         <strong class="jxr_keyword">if</strong> (init &amp;&amp; ClusterBroadcastFilter.<strong class="jxr_keyword">class</strong>.isAssignableFrom(e.getClass())) {
-<a class="jxr_linenumber" name="370" href="#370">370</a>             <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = BroadcasterFactory.getDefault().lookup(broadcasterID, false);
+<a class="jxr_linenumber" name="370" href="#370">370</a>             <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = config.getBroadcasterFactory().lookup(broadcasterID, false);
 <a class="jxr_linenumber" name="371" href="#371">371</a>             <strong class="jxr_keyword">if</strong> (b != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="372" href="#372">372</a>                 <strong class="jxr_keyword">synchronized</strong> (e) {
 <a class="jxr_linenumber" name="373" href="#373">373</a>                     ClusterBroadcastFilter.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(e).setBroadcaster(b);
@@ -522,155 +522,160 @@
 <a class="jxr_linenumber" name="512" href="#512">512</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="513" href="#513">513</a> <em class="jxr_javadoccomment">     * @param r       {@link AtmosphereResource}</em>
 <a class="jxr_linenumber" name="514" href="#514">514</a> <em class="jxr_javadoccomment">     * @param message the broadcasted object.</em>
-<a class="jxr_linenumber" name="515" href="#515">515</a> <em class="jxr_javadoccomment">     * @param message the broadcasted object.</em>
+<a class="jxr_linenumber" name="515" href="#515">515</a> <em class="jxr_javadoccomment">     * @param originalMessage the original message, the one that wasn't filtered by any BroadcastFilter</em>
 <a class="jxr_linenumber" name="516" href="#516">516</a> <em class="jxr_javadoccomment">     * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.</em>
 <a class="jxr_linenumber" name="517" href="#517">517</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="518" href="#518">518</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> filter(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object message, Object originalMessage) {
-<a class="jxr_linenumber" name="519" href="#519">519</a>         <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> transformed = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a>(originalMessage);
-<a class="jxr_linenumber" name="520" href="#520">520</a>         <strong class="jxr_keyword">for</strong> (PerRequestBroadcastFilter mf : perRequestFilters) {
-<a class="jxr_linenumber" name="521" href="#521">521</a>             <strong class="jxr_keyword">synchronized</strong> (mf) {
-<a class="jxr_linenumber" name="522" href="#522">522</a>                 transformed = mf.filter(r, message, transformed.message());
-<a class="jxr_linenumber" name="523" href="#523">523</a>                 <strong class="jxr_keyword">if</strong> (transformed == <strong class="jxr_keyword">null</strong> || transformed.action() == BroadcastAction.ACTION.ABORT) {
-<a class="jxr_linenumber" name="524" href="#524">524</a>                     <strong class="jxr_keyword">return</strong> transformed;
-<a class="jxr_linenumber" name="525" href="#525">525</a>                 }
-<a class="jxr_linenumber" name="526" href="#526">526</a>             }
-<a class="jxr_linenumber" name="527" href="#527">527</a>         }
-<a class="jxr_linenumber" name="528" href="#528">528</a>         <strong class="jxr_keyword">return</strong> transformed;
-<a class="jxr_linenumber" name="529" href="#529">529</a>     }
-<a class="jxr_linenumber" name="530" href="#530">530</a> 
-<a class="jxr_linenumber" name="531" href="#531">531</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="532" href="#532">532</a> <em class="jxr_javadoccomment">     * Return the default {@link ExecutorService}.</em>
-<a class="jxr_linenumber" name="533" href="#533">533</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="534" href="#534">534</a> <em class="jxr_javadoccomment">     * @return the defaultExecutorService</em>
-<a class="jxr_linenumber" name="535" href="#535">535</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="536" href="#536">536</a>     <strong class="jxr_keyword">public</strong> ExecutorService getDefaultExecutorService() {
-<a class="jxr_linenumber" name="537" href="#537">537</a>         <strong class="jxr_keyword">return</strong> defaultExecutorService;
-<a class="jxr_linenumber" name="538" href="#538">538</a>     }
-<a class="jxr_linenumber" name="539" href="#539">539</a> 
-<a class="jxr_linenumber" name="540" href="#540">540</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="541" href="#541">541</a> <em class="jxr_javadoccomment">     * Set an {@link ExecutorService} which can be used to dispatch</em>
-<a class="jxr_linenumber" name="542" href="#542">542</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEvent}. By default, an {@link java.util.concurrent.ScheduledExecutorService}</em>
-<a class="jxr_linenumber" name="543" href="#543">543</a> <em class="jxr_javadoccomment">     * is used if that method is not invoked.</em>
-<a class="jxr_linenumber" name="544" href="#544">544</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="545" href="#545">545</a> <em class="jxr_javadoccomment">     * @param scheduler to be used when broadcasting.</em>
-<a class="jxr_linenumber" name="546" href="#546">546</a> <em class="jxr_javadoccomment">     * @return this.</em>
-<a class="jxr_linenumber" name="547" href="#547">547</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="548" href="#548">548</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> setScheduledExecutorService(ScheduledExecutorService scheduler) {
-<a class="jxr_linenumber" name="549" href="#549">549</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.scheduler != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="550" href="#550">550</a>             <strong class="jxr_keyword">this</strong>.scheduler.shutdown();
-<a class="jxr_linenumber" name="551" href="#551">551</a>         }
-<a class="jxr_linenumber" name="552" href="#552">552</a>         <strong class="jxr_keyword">this</strong>.scheduler = scheduler;
-<a class="jxr_linenumber" name="553" href="#553">553</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="554" href="#554">554</a>     }
-<a class="jxr_linenumber" name="555" href="#555">555</a> 
-<a class="jxr_linenumber" name="556" href="#556">556</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="557" href="#557">557</a> <em class="jxr_javadoccomment">     * Return the {@link ScheduledExecutorService} this {@link Broadcaster} support.</em>
-<a class="jxr_linenumber" name="558" href="#558">558</a> <em class="jxr_javadoccomment">     * By default it returns {@link Executors#newScheduledThreadPool} and will use</em>
-<a class="jxr_linenumber" name="559" href="#559">559</a> <em class="jxr_javadoccomment">     * the underlying number of core/protocol as an indication of the thread number.</em>
-<a class="jxr_linenumber" name="560" href="#560">560</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="561" href="#561">561</a> <em class="jxr_javadoccomment">     * @return An ExecutorService.</em>
-<a class="jxr_linenumber" name="562" href="#562">562</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="563" href="#563">563</a>     <strong class="jxr_keyword">public</strong> ScheduledExecutorService getScheduledExecutorService() {
-<a class="jxr_linenumber" name="564" href="#564">564</a>         <strong class="jxr_keyword">synchronized</strong> (lock) {
-<a class="jxr_linenumber" name="565" href="#565">565</a>             <strong class="jxr_keyword">if</strong> (scheduler == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="566" href="#566">566</a>                 scheduler = Executors.newSingleThreadScheduledExecutor();
-<a class="jxr_linenumber" name="567" href="#567">567</a>             }
-<a class="jxr_linenumber" name="568" href="#568">568</a>         }
-<a class="jxr_linenumber" name="569" href="#569">569</a>         <strong class="jxr_keyword">return</strong> scheduler;
-<a class="jxr_linenumber" name="570" href="#570">570</a>     }
-<a class="jxr_linenumber" name="571" href="#571">571</a> 
-<a class="jxr_linenumber" name="572" href="#572">572</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="573" href="#573">573</a> <em class="jxr_javadoccomment">     * Set a {@link BroadcasterCache}</em>
-<a class="jxr_linenumber" name="574" href="#574">574</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="575" href="#575">575</a> <em class="jxr_javadoccomment">     * @param broadcasterCache a {@link BroadcasterCache}</em>
-<a class="jxr_linenumber" name="576" href="#576">576</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="577" href="#577">577</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="578" href="#578">578</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> setBroadcasterCache(<a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> broadcasterCache) {
-<a class="jxr_linenumber" name="579" href="#579">579</a>         <strong class="jxr_keyword">this</strong>.broadcasterCache = broadcasterCache;
-<a class="jxr_linenumber" name="580" href="#580">580</a>         <strong class="jxr_keyword">if</strong> (BroadcasterCacheBase.<strong class="jxr_keyword">class</strong>.isAssignableFrom(broadcasterCache.getClass())) {
-<a class="jxr_linenumber" name="581" href="#581">581</a>             BroadcasterCacheBase.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(broadcasterCache).setExecutorService(getScheduledExecutorService());
-<a class="jxr_linenumber" name="582" href="#582">582</a>         }
-<a class="jxr_linenumber" name="583" href="#583">583</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="584" href="#584">584</a>     }
-<a class="jxr_linenumber" name="585" href="#585">585</a> 
-<a class="jxr_linenumber" name="586" href="#586">586</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="587" href="#587">587</a> <em class="jxr_javadoccomment">     * Get a {@link BroadcasterCache}</em>
-<a class="jxr_linenumber" name="588" href="#588">588</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="589" href="#589">589</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="590" href="#590">590</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="591" href="#591">591</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> getBroadcasterCache() {
-<a class="jxr_linenumber" name="592" href="#592">592</a>         <strong class="jxr_keyword">if</strong> (broadcasterCache == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="593" href="#593">593</a>             broadcasterCache = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">DefaultBroadcasterCache</a>();
-<a class="jxr_linenumber" name="594" href="#594">594</a>         }
-<a class="jxr_linenumber" name="595" href="#595">595</a>         <strong class="jxr_keyword">return</strong> broadcasterCache;
-<a class="jxr_linenumber" name="596" href="#596">596</a>     }
-<a class="jxr_linenumber" name="597" href="#597">597</a> 
-<a class="jxr_linenumber" name="598" href="#598">598</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">DefaultBroadcasterCache</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> {
-<a class="jxr_linenumber" name="599" href="#599">599</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Object&gt; list = <strong class="jxr_keyword">new</strong> ArrayList&lt;Object&gt;();
-<a class="jxr_linenumber" name="600" href="#600">600</a> 
-<a class="jxr_linenumber" name="601" href="#601">601</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> start() {
-<a class="jxr_linenumber" name="602" href="#602">602</a>         }
-<a class="jxr_linenumber" name="603" href="#603">603</a> 
-<a class="jxr_linenumber" name="604" href="#604">604</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> stop() {
-<a class="jxr_linenumber" name="605" href="#605">605</a>         }
-<a class="jxr_linenumber" name="606" href="#606">606</a> 
-<a class="jxr_linenumber" name="607" href="#607">607</a>         @Override
-<a class="jxr_linenumber" name="608" href="#608">608</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addToCache(String id, <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object e) {
-<a class="jxr_linenumber" name="609" href="#609">609</a>         }
-<a class="jxr_linenumber" name="610" href="#610">610</a> 
-<a class="jxr_linenumber" name="611" href="#611">611</a>         @Override
-<a class="jxr_linenumber" name="612" href="#612">612</a>         <strong class="jxr_keyword">public</strong> List&lt;Object&gt; retrieveFromCache(String id, <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="613" href="#613">613</a>             <strong class="jxr_keyword">return</strong> list;
+<a class="jxr_linenumber" name="518" href="#518">518</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> filter(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object message, Object originalMessage)  {
+<a class="jxr_linenumber" name="519" href="#519">519</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="520" href="#520">520</a>             <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> transformed = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a>(message);
+<a class="jxr_linenumber" name="521" href="#521">521</a>             <strong class="jxr_keyword">for</strong> (PerRequestBroadcastFilter mf : perRequestFilters) {
+<a class="jxr_linenumber" name="522" href="#522">522</a>                 <strong class="jxr_keyword">synchronized</strong> (mf) {
+<a class="jxr_linenumber" name="523" href="#523">523</a>                     transformed = mf.filter(r, originalMessage, transformed.message());
+<a class="jxr_linenumber" name="524" href="#524">524</a>                     <strong class="jxr_keyword">if</strong> (transformed == <strong class="jxr_keyword">null</strong> || transformed.action() == BroadcastAction.ACTION.ABORT) {
+<a class="jxr_linenumber" name="525" href="#525">525</a>                         <strong class="jxr_keyword">return</strong> transformed;
+<a class="jxr_linenumber" name="526" href="#526">526</a>                     }
+<a class="jxr_linenumber" name="527" href="#527">527</a>                 }
+<a class="jxr_linenumber" name="528" href="#528">528</a>             }
+<a class="jxr_linenumber" name="529" href="#529">529</a>             <strong class="jxr_keyword">return</strong> transformed;
+<a class="jxr_linenumber" name="530" href="#530">530</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="531" href="#531">531</a>             logger.error(<span class="jxr_string">"BroadcasterFilter Unexpected Exception"</span>, t);
+<a class="jxr_linenumber" name="532" href="#532">532</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(t);
+<a class="jxr_linenumber" name="533" href="#533">533</a>         }
+<a class="jxr_linenumber" name="534" href="#534">534</a>     }
+<a class="jxr_linenumber" name="535" href="#535">535</a> 
+<a class="jxr_linenumber" name="536" href="#536">536</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="537" href="#537">537</a> <em class="jxr_javadoccomment">     * Return the default {@link ExecutorService}.</em>
+<a class="jxr_linenumber" name="538" href="#538">538</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="539" href="#539">539</a> <em class="jxr_javadoccomment">     * @return the defaultExecutorService</em>
+<a class="jxr_linenumber" name="540" href="#540">540</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="541" href="#541">541</a>     <strong class="jxr_keyword">public</strong> ExecutorService getDefaultExecutorService() {
+<a class="jxr_linenumber" name="542" href="#542">542</a>         <strong class="jxr_keyword">return</strong> defaultExecutorService;
+<a class="jxr_linenumber" name="543" href="#543">543</a>     }
+<a class="jxr_linenumber" name="544" href="#544">544</a> 
+<a class="jxr_linenumber" name="545" href="#545">545</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="546" href="#546">546</a> <em class="jxr_javadoccomment">     * Set an {@link ExecutorService} which can be used to dispatch</em>
+<a class="jxr_linenumber" name="547" href="#547">547</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEvent}. By default, an {@link java.util.concurrent.ScheduledExecutorService}</em>
+<a class="jxr_linenumber" name="548" href="#548">548</a> <em class="jxr_javadoccomment">     * is used if that method is not invoked.</em>
+<a class="jxr_linenumber" name="549" href="#549">549</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="550" href="#550">550</a> <em class="jxr_javadoccomment">     * @param scheduler to be used when broadcasting.</em>
+<a class="jxr_linenumber" name="551" href="#551">551</a> <em class="jxr_javadoccomment">     * @return this.</em>
+<a class="jxr_linenumber" name="552" href="#552">552</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="553" href="#553">553</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> setScheduledExecutorService(ScheduledExecutorService scheduler) {
+<a class="jxr_linenumber" name="554" href="#554">554</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong>.scheduler != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="555" href="#555">555</a>             <strong class="jxr_keyword">this</strong>.scheduler.shutdown();
+<a class="jxr_linenumber" name="556" href="#556">556</a>         }
+<a class="jxr_linenumber" name="557" href="#557">557</a>         <strong class="jxr_keyword">this</strong>.scheduler = scheduler;
+<a class="jxr_linenumber" name="558" href="#558">558</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="559" href="#559">559</a>     }
+<a class="jxr_linenumber" name="560" href="#560">560</a> 
+<a class="jxr_linenumber" name="561" href="#561">561</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="562" href="#562">562</a> <em class="jxr_javadoccomment">     * Return the {@link ScheduledExecutorService} this {@link Broadcaster} support.</em>
+<a class="jxr_linenumber" name="563" href="#563">563</a> <em class="jxr_javadoccomment">     * By default it returns {@link Executors#newScheduledThreadPool} and will use</em>
+<a class="jxr_linenumber" name="564" href="#564">564</a> <em class="jxr_javadoccomment">     * the underlying number of core/protocol as an indication of the thread number.</em>
+<a class="jxr_linenumber" name="565" href="#565">565</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="566" href="#566">566</a> <em class="jxr_javadoccomment">     * @return An ExecutorService.</em>
+<a class="jxr_linenumber" name="567" href="#567">567</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="568" href="#568">568</a>     <strong class="jxr_keyword">public</strong> ScheduledExecutorService getScheduledExecutorService() {
+<a class="jxr_linenumber" name="569" href="#569">569</a>         <strong class="jxr_keyword">synchronized</strong> (lock) {
+<a class="jxr_linenumber" name="570" href="#570">570</a>             <strong class="jxr_keyword">if</strong> (scheduler == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="571" href="#571">571</a>                 scheduler = Executors.newSingleThreadScheduledExecutor();
+<a class="jxr_linenumber" name="572" href="#572">572</a>             }
+<a class="jxr_linenumber" name="573" href="#573">573</a>         }
+<a class="jxr_linenumber" name="574" href="#574">574</a>         <strong class="jxr_keyword">return</strong> scheduler;
+<a class="jxr_linenumber" name="575" href="#575">575</a>     }
+<a class="jxr_linenumber" name="576" href="#576">576</a> 
+<a class="jxr_linenumber" name="577" href="#577">577</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="578" href="#578">578</a> <em class="jxr_javadoccomment">     * Set a {@link BroadcasterCache}</em>
+<a class="jxr_linenumber" name="579" href="#579">579</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="580" href="#580">580</a> <em class="jxr_javadoccomment">     * @param broadcasterCache a {@link BroadcasterCache}</em>
+<a class="jxr_linenumber" name="581" href="#581">581</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="582" href="#582">582</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="583" href="#583">583</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> setBroadcasterCache(<a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> broadcasterCache) {
+<a class="jxr_linenumber" name="584" href="#584">584</a>         <strong class="jxr_keyword">this</strong>.broadcasterCache = broadcasterCache;
+<a class="jxr_linenumber" name="585" href="#585">585</a>         <strong class="jxr_keyword">if</strong> (BroadcasterCacheBase.<strong class="jxr_keyword">class</strong>.isAssignableFrom(broadcasterCache.getClass())) {
+<a class="jxr_linenumber" name="586" href="#586">586</a>             BroadcasterCacheBase.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(broadcasterCache).setExecutorService(getScheduledExecutorService());
+<a class="jxr_linenumber" name="587" href="#587">587</a>         }
+<a class="jxr_linenumber" name="588" href="#588">588</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="589" href="#589">589</a>     }
+<a class="jxr_linenumber" name="590" href="#590">590</a> 
+<a class="jxr_linenumber" name="591" href="#591">591</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="592" href="#592">592</a> <em class="jxr_javadoccomment">     * Get a {@link BroadcasterCache}</em>
+<a class="jxr_linenumber" name="593" href="#593">593</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="594" href="#594">594</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="595" href="#595">595</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="596" href="#596">596</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> getBroadcasterCache() {
+<a class="jxr_linenumber" name="597" href="#597">597</a>         <strong class="jxr_keyword">if</strong> (broadcasterCache == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="598" href="#598">598</a>             broadcasterCache = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">DefaultBroadcasterCache</a>();
+<a class="jxr_linenumber" name="599" href="#599">599</a>         }
+<a class="jxr_linenumber" name="600" href="#600">600</a>         <strong class="jxr_keyword">return</strong> broadcasterCache;
+<a class="jxr_linenumber" name="601" href="#601">601</a>     }
+<a class="jxr_linenumber" name="602" href="#602">602</a> 
+<a class="jxr_linenumber" name="603" href="#603">603</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">DefaultBroadcasterCache</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/cpr/BroadcasterCache.html">BroadcasterCache</a> {
+<a class="jxr_linenumber" name="604" href="#604">604</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> List&lt;Object&gt; list = <strong class="jxr_keyword">new</strong> ArrayList&lt;Object&gt;();
+<a class="jxr_linenumber" name="605" href="#605">605</a> 
+<a class="jxr_linenumber" name="606" href="#606">606</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> start() {
+<a class="jxr_linenumber" name="607" href="#607">607</a>         }
+<a class="jxr_linenumber" name="608" href="#608">608</a> 
+<a class="jxr_linenumber" name="609" href="#609">609</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> stop() {
+<a class="jxr_linenumber" name="610" href="#610">610</a>         }
+<a class="jxr_linenumber" name="611" href="#611">611</a> 
+<a class="jxr_linenumber" name="612" href="#612">612</a>         @Override
+<a class="jxr_linenumber" name="613" href="#613">613</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> addToCache(String id, <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object e) {
 <a class="jxr_linenumber" name="614" href="#614">614</a>         }
-<a class="jxr_linenumber" name="615" href="#615">615</a>     }
-<a class="jxr_linenumber" name="616" href="#616">616</a> 
-<a class="jxr_linenumber" name="617" href="#617">617</a>     <strong class="jxr_keyword">void</strong> configureBroadcasterFilter(List&lt;String&gt; list) {
-<a class="jxr_linenumber" name="618" href="#618">618</a>         <strong class="jxr_keyword">for</strong> (String broadcastFilter : list) {
-<a class="jxr_linenumber" name="619" href="#619">619</a>             <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a> bf = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="620" href="#620">620</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="621" href="#621">621</a>                 bf = BroadcastFilter.<strong class="jxr_keyword">class</strong>
-<a class="jxr_linenumber" name="622" href="#622">622</a>                         .<strong class="jxr_keyword">cast</strong>(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
-<a class="jxr_linenumber" name="623" href="#623">623</a>             } <strong class="jxr_keyword">catch</strong> (InstantiationException e) {
-<a class="jxr_linenumber" name="624" href="#624">624</a>                 logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
-<a class="jxr_linenumber" name="625" href="#625">625</a>             } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e) {
-<a class="jxr_linenumber" name="626" href="#626">626</a>                 logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
-<a class="jxr_linenumber" name="627" href="#627">627</a>             } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e) {
-<a class="jxr_linenumber" name="628" href="#628">628</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="629" href="#629">629</a>                     bf = BroadcastFilter.<strong class="jxr_keyword">class</strong>
-<a class="jxr_linenumber" name="630" href="#630">630</a>                             .<strong class="jxr_keyword">cast</strong>(BroadcastFilter.<strong class="jxr_keyword">class</strong>.getClassLoader().loadClass(broadcastFilter).newInstance());
-<a class="jxr_linenumber" name="631" href="#631">631</a>                 } <strong class="jxr_keyword">catch</strong> (InstantiationException e1) {
-<a class="jxr_linenumber" name="632" href="#632">632</a>                 } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e1) {
-<a class="jxr_linenumber" name="633" href="#633">633</a>                 } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e1) {
-<a class="jxr_linenumber" name="634" href="#634">634</a>                     logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
-<a class="jxr_linenumber" name="635" href="#635">635</a>                 }
-<a class="jxr_linenumber" name="636" href="#636">636</a>             }
-<a class="jxr_linenumber" name="637" href="#637">637</a> 
-<a class="jxr_linenumber" name="638" href="#638">638</a>             <strong class="jxr_keyword">if</strong> (bf != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="639" href="#639">639</a>                 InjectorProvider.getInjector().inject(bf);
-<a class="jxr_linenumber" name="640" href="#640">640</a>                 addFilter(bf, false);
+<a class="jxr_linenumber" name="615" href="#615">615</a> 
+<a class="jxr_linenumber" name="616" href="#616">616</a>         @Override
+<a class="jxr_linenumber" name="617" href="#617">617</a>         <strong class="jxr_keyword">public</strong> List&lt;Object&gt; retrieveFromCache(String id, <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="618" href="#618">618</a>             <strong class="jxr_keyword">return</strong> list;
+<a class="jxr_linenumber" name="619" href="#619">619</a>         }
+<a class="jxr_linenumber" name="620" href="#620">620</a>     }
+<a class="jxr_linenumber" name="621" href="#621">621</a> 
+<a class="jxr_linenumber" name="622" href="#622">622</a>     <strong class="jxr_keyword">void</strong> configureBroadcasterFilter(List&lt;String&gt; list) {
+<a class="jxr_linenumber" name="623" href="#623">623</a>         <strong class="jxr_keyword">for</strong> (String broadcastFilter : list) {
+<a class="jxr_linenumber" name="624" href="#624">624</a>             <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a> bf = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="625" href="#625">625</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="626" href="#626">626</a>                 bf = BroadcastFilter.<strong class="jxr_keyword">class</strong>
+<a class="jxr_linenumber" name="627" href="#627">627</a>                         .<strong class="jxr_keyword">cast</strong>(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
+<a class="jxr_linenumber" name="628" href="#628">628</a>             } <strong class="jxr_keyword">catch</strong> (InstantiationException e) {
+<a class="jxr_linenumber" name="629" href="#629">629</a>                 logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
+<a class="jxr_linenumber" name="630" href="#630">630</a>             } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e) {
+<a class="jxr_linenumber" name="631" href="#631">631</a>                 logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
+<a class="jxr_linenumber" name="632" href="#632">632</a>             } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e) {
+<a class="jxr_linenumber" name="633" href="#633">633</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="634" href="#634">634</a>                     bf = BroadcastFilter.<strong class="jxr_keyword">class</strong>
+<a class="jxr_linenumber" name="635" href="#635">635</a>                             .<strong class="jxr_keyword">cast</strong>(BroadcastFilter.<strong class="jxr_keyword">class</strong>.getClassLoader().loadClass(broadcastFilter).newInstance());
+<a class="jxr_linenumber" name="636" href="#636">636</a>                 } <strong class="jxr_keyword">catch</strong> (InstantiationException e1) {
+<a class="jxr_linenumber" name="637" href="#637">637</a>                 } <strong class="jxr_keyword">catch</strong> (IllegalAccessException e1) {
+<a class="jxr_linenumber" name="638" href="#638">638</a>                 } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e1) {
+<a class="jxr_linenumber" name="639" href="#639">639</a>                     logger.warn(<span class="jxr_string">"Error trying to instantiate BroadcastFilter: "</span> + broadcastFilter, e);
+<a class="jxr_linenumber" name="640" href="#640">640</a>                 }
 <a class="jxr_linenumber" name="641" href="#641">641</a>             }
-<a class="jxr_linenumber" name="642" href="#642">642</a>         }
-<a class="jxr_linenumber" name="643" href="#643">643</a>     }
-<a class="jxr_linenumber" name="644" href="#644">644</a> 
-<a class="jxr_linenumber" name="645" href="#645">645</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="646" href="#646">646</a> <em class="jxr_javadoccomment">     * Return the {@link AtmosphereConfig} value. This value might be null</em>
-<a class="jxr_linenumber" name="647" href="#647">647</a> <em class="jxr_javadoccomment">     * if the associated {@link Broadcaster} has been created manually.</em>
-<a class="jxr_linenumber" name="648" href="#648">648</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="649" href="#649">649</a> <em class="jxr_javadoccomment">     * @return {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="650" href="#650">650</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="651" href="#651">651</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
-<a class="jxr_linenumber" name="652" href="#652">652</a>         <strong class="jxr_keyword">return</strong> config;
-<a class="jxr_linenumber" name="653" href="#653">653</a>     }
-<a class="jxr_linenumber" name="654" href="#654">654</a> 
-<a class="jxr_linenumber" name="655" href="#655">655</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="656" href="#656">656</a> <em class="jxr_javadoccomment">     * Set the {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="657" href="#657">657</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="658" href="#658">658</a> <em class="jxr_javadoccomment">     * @param config {@link AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="659" href="#659">659</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="660" href="#660">660</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setAtmosphereConfig(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
-<a class="jxr_linenumber" name="661" href="#661">661</a>         <strong class="jxr_keyword">this</strong>.config = config;
-<a class="jxr_linenumber" name="662" href="#662">662</a>     }
-<a class="jxr_linenumber" name="663" href="#663">663</a> }
+<a class="jxr_linenumber" name="642" href="#642">642</a> 
+<a class="jxr_linenumber" name="643" href="#643">643</a>             <strong class="jxr_keyword">if</strong> (bf != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="644" href="#644">644</a>                 InjectorProvider.getInjector().inject(bf);
+<a class="jxr_linenumber" name="645" href="#645">645</a>                 addFilter(bf, false);
+<a class="jxr_linenumber" name="646" href="#646">646</a>             }
+<a class="jxr_linenumber" name="647" href="#647">647</a>         }
+<a class="jxr_linenumber" name="648" href="#648">648</a>     }
+<a class="jxr_linenumber" name="649" href="#649">649</a> 
+<a class="jxr_linenumber" name="650" href="#650">650</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="651" href="#651">651</a> <em class="jxr_javadoccomment">     * Return the {@link AtmosphereConfig} value. This value might be null</em>
+<a class="jxr_linenumber" name="652" href="#652">652</a> <em class="jxr_javadoccomment">     * if the associated {@link Broadcaster} has been created manually.</em>
+<a class="jxr_linenumber" name="653" href="#653">653</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="654" href="#654">654</a> <em class="jxr_javadoccomment">     * @return {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="655" href="#655">655</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="656" href="#656">656</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
+<a class="jxr_linenumber" name="657" href="#657">657</a>         <strong class="jxr_keyword">return</strong> config;
+<a class="jxr_linenumber" name="658" href="#658">658</a>     }
+<a class="jxr_linenumber" name="659" href="#659">659</a> 
+<a class="jxr_linenumber" name="660" href="#660">660</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="661" href="#661">661</a> <em class="jxr_javadoccomment">     * Set the {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="662" href="#662">662</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="663" href="#663">663</a> <em class="jxr_javadoccomment">     * @param config {@link AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="664" href="#664">664</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="665" href="#665">665</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setAtmosphereConfig(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
+<a class="jxr_linenumber" name="666" href="#666">666</a>         <strong class="jxr_keyword">this</strong>.config = config;
+<a class="jxr_linenumber" name="667" href="#667">667</a>     }
+<a class="jxr_linenumber" name="668" href="#668">668</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

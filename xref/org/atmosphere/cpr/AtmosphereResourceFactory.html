@@ -125,7 +125,7 @@
 <a class="jxr_linenumber" name="115" href="#115">115</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> remove(String uuid) {
 <a class="jxr_linenumber" name="116" href="#116">116</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r = find(uuid);
 <a class="jxr_linenumber" name="117" href="#117">117</a>         <strong class="jxr_keyword">if</strong> (r != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="118" href="#118">118</a>             BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
+<a class="jxr_linenumber" name="118" href="#118">118</a>             r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
 <a class="jxr_linenumber" name="119" href="#119">119</a>         }
 <a class="jxr_linenumber" name="120" href="#120">120</a>         <strong class="jxr_keyword">return</strong> r;
 <a class="jxr_linenumber" name="121" href="#121">121</a>     }

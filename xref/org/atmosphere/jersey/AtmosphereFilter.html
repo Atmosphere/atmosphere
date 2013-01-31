@@ -360,7 +360,7 @@
 <a class="jxr_linenumber" name="350" href="#350">350</a>                     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> newBroadcaster;
 <a class="jxr_linenumber" name="351" href="#351">351</a>                     <em class="jxr_comment">// See issue https://github.com/Atmosphere/atmosphere/issues/676</em>
 <a class="jxr_linenumber" name="352" href="#352">352</a>                     <strong class="jxr_keyword">synchronized</strong> (broadcasterName.intern()) {
-<a class="jxr_linenumber" name="353" href="#353">353</a>                         newBroadcaster = BroadcasterFactory.getDefault().lookup(broadcasterName, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="353" href="#353">353</a>                         newBroadcaster = config.getBroadcasterFactory().lookup(broadcasterName, <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="354" href="#354">354</a>                         newBroadcaster.setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy.EMPTY_DESTROY);
 <a class="jxr_linenumber" name="355" href="#355">355</a>                     }
 <a class="jxr_linenumber" name="356" href="#356">356</a>                     <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> bcaster = newBroadcaster;
@@ -485,7 +485,7 @@
 <a class="jxr_linenumber" name="475" href="#475">475</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
 <a class="jxr_linenumber" name="476" href="#476">476</a>                             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(e.getMessage());
 <a class="jxr_linenumber" name="477" href="#477">477</a>                         }
-<a class="jxr_linenumber" name="478" href="#478">478</a>                         broadcaster = BroadcasterFactory.getDefault().lookup(c, topic, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="478" href="#478">478</a>                         broadcaster = config.getBroadcasterFactory().lookup(c, topic, <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="479" href="#479">479</a>                     }
 <a class="jxr_linenumber" name="480" href="#480">480</a> 
 <a class="jxr_linenumber" name="481" href="#481">481</a>                     suspend(resumeOnBroadcast, outputJunk, timeout, request, response,
@@ -536,7 +536,7 @@
 <a class="jxr_linenumber" name="526" href="#526">526</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
 <a class="jxr_linenumber" name="527" href="#527">527</a>                             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(e.getMessage());
 <a class="jxr_linenumber" name="528" href="#528">528</a>                         }
-<a class="jxr_linenumber" name="529" href="#529">529</a>                         r.setBroadcaster(BroadcasterFactory.getDefault().lookup(c, topic, <strong class="jxr_keyword">true</strong>));
+<a class="jxr_linenumber" name="529" href="#529">529</a>                         r.setBroadcaster(config.getBroadcasterFactory().lookup(c, topic, <strong class="jxr_keyword">true</strong>));
 <a class="jxr_linenumber" name="530" href="#530">530</a>                     }
 <a class="jxr_linenumber" name="531" href="#531">531</a> 
 <a class="jxr_linenumber" name="532" href="#532">532</a>                     broadcast(response, r, timeout);
