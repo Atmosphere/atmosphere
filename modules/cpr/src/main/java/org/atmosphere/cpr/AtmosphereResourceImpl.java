@@ -304,6 +304,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             } else {
                 logger.debug("Cannot resume an already resumed/cancelled request {}", this);
+                return this;
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
