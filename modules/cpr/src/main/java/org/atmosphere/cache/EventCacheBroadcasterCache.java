@@ -126,7 +126,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
             public void run() {
                 invalidateExpiredEntries();
             }
-        }, 0, invalidateCacheInterval, TimeUnit.MINUTES);
+        }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
     protected void invalidateExpiredEntries() {
