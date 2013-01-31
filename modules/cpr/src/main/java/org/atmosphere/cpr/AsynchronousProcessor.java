@@ -266,7 +266,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             aliveRequests.put(req, resource);
         }
-        return resource.action();
+
+        Action action = resource.action();
+        logger.trace("Action for {} was {}", req.resource() != null ? req.resource().uuid() : "null", action);
+        return action;
     }
 
     private Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
