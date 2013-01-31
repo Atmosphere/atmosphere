@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -105,6 +106,13 @@ public class TomcatWebSocketUtil {
             res.setHeader("Connection", "upgrade");
             res.setHeader("Sec-WebSocket-Accept", getWebSocketAccept(key));
 
+
+            String origin = req.getHeader("Origin");
+            if (!verifyOrigin(origin)) {
+                res.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return Action.CANCELLED;
+            }
+
             if (subProtocol != null) {
                 res.setHeader("Sec-WebSocket-Protocol", subProtocol);
             }
@@ -130,6 +138,21 @@ public class TomcatWebSocketUtil {
             req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
         }
         return action;
+    }
+
+    /**
+     * Intended to be overridden by sub-classes that wish to verify the origin
+     * of a WebSocket request before processing it.
+     *
+     * @param origin    The value of the origin header from the request which
+     *                  may be <code>null</code>
+     *
+     * @return  <code>true</code> to accept the request. <code>false</code> to
+     *          reject it. This default implementation always returns
+     *          <code>true</code>.
+     */
+    protected static boolean verifyOrigin(String origin) {
+        return true;
     }
 
     /*
