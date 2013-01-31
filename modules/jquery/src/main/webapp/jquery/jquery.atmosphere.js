@@ -1563,9 +1563,8 @@ jQuery.atmosphere = function() {
                     if (rq.suspend) {
                         rq.id = setTimeout(function() {
                             if (_subscribed) {
-                                _clearState();
-                                _subscribe(rq);
                                 setTimeout(function () {
+                                    _clearState();
                                     _execute();
                                 }, rq.reconnectInterval)
                             }
