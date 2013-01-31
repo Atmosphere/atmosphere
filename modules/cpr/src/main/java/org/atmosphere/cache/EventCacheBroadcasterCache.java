@@ -298,7 +298,7 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
         if (logger.isDebugEnabled()) {
             logger.debug("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-            logger.debug("Available cached message {}", messages);
+            logger.trace("Available cached message {}", messages);
         }
 
         return result;
