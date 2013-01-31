@@ -1051,24 +1051,26 @@ public class DefaultBroadcaster implements Broadcaster {
         /**
          * Make sure we resume the connection on every IOException.
          */
-        if (bc != null && bc.getAsyncWriteService() != null) {
-            bc.getAsyncWriteService().execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        r.resume();
-                    } catch (Throwable t) {
-                        logger.trace("Was unable to resume a corrupted AtmosphereResource {}", r);
-                        logger.trace("Cause", t);
+        if (!r.isResumed() && !r.isCancelled()) {
+            if (bc != null && bc.getAsyncWriteService() != null) {
+                bc.getAsyncWriteService().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            r.resume();
+                        } catch (Throwable t) {
+                            logger.trace("Was unable to resume a corrupted AtmosphereResource {}", r);
+                            logger.trace("Cause", t);
+                        }
                     }
-                }
-            });
-        } else {
-            r.resume();
+                });
+            } else {
+                r.resume();
+            }
         }
 
         if (notifyAndCache) {
-            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
+            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN), notifyAndCache);
         }
     }
 
