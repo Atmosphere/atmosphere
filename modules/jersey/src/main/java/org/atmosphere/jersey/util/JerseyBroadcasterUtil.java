@@ -157,6 +157,7 @@ public final class JerseyBroadcasterUtil {
                             ((ConcurrentHashMap<String, AtmosphereResource>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                         }
                     }
+                    r.getRequest().setAttribute(FrameworkConfig.CONTAINER_RESPONSE, null);
                     r.resume();
                 }
 
