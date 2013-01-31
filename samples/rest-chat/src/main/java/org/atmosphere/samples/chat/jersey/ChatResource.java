@@ -46,11 +46,11 @@ public class ChatResource {
      * @param message a {@link Message}
      * @return a {@link Response}
      */
-    @Broadcast(value = { org.atmosphere.client.TrackMessageSizeFilter.class} , writeEntity = false)
+    @Broadcast(writeEntity = false)
     @POST
-    //@Produces("application/json")
-    public String broadcast(Message message) {
-        return "{\"text\":\"" + message.author + "\",\"author\":\"" + message.message + "\",\"time\":\"1359643109651\"}";
+    @Produces("application/json")
+    public Response broadcast(Message message) {
+        return new Response(message.author, message.message);
     }
 
 }

@@ -590,8 +590,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             return;
                         } else {
                             if (token != null) {
-                                logger.warn("This message {} will be lost for AtmosphereResource {}, adding it to the BroadcasterCache",
-                                        token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
+                                logger.warn("This message {} will be lost, adding it to the BroadcasterCache", token.msg);
                                 cacheLostMessage(token.resource, token, true);
                             }
                             logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);

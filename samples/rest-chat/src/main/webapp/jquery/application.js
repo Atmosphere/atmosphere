@@ -12,7 +12,6 @@ $(function () {
                     contentType : "application/json",
                     logLevel : 'debug',
                     transport : 'websocket' ,
-                    trackMessageLength : true,
                     fallbackTransport: 'long-polling'};
 
 
@@ -21,8 +20,6 @@ $(function () {
         input.removeAttr('disabled').focus();
         status.text('Choose name:');
     };
-
-    var count = 0;
 
     request.onMessage = function (response) {
         var message = response.responseBody;
@@ -42,14 +39,6 @@ $(function () {
 
             var me = json.author == author;
             var date =  typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
-
-            var msgNum = Number(json.author);
-            if (msgNum && json.author && json.author.indexOf("q") == -1) {
-                if (count != msgNum) {
-                    console.log("error!!!!");
-                }
-                count++
-            }
             addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(date));
         }
     };
