@@ -708,24 +708,18 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             if (o != null) {
                 addFilter(b);
-                try {
-                    r.setEntity(msg);
-                    if (msg == null) return;
+                r.setEntity(msg);
+                if (msg == null) return;
 
-                    if (delay == -1) {
-                        Object t = b.broadcast(msg).get();
-                        if (o instanceof Broadcastable) {
-                            r.setEntity(returnMsg);
-                        }
-                    } else if (delay == 0) {
-                        b.delayBroadcast(msg);
-                    } else {
-                        b.delayBroadcast(msg, delay, TimeUnit.SECONDS);
+                if (delay == -1) {
+                    b.broadcast(msg);
+                    if (o instanceof Broadcastable) {
+                        r.setEntity(returnMsg);
                     }
-                } catch (InterruptedException ex) {
-                    logger.error("broadcast interrupted", ex);
-                } catch (ExecutionException ex) {
-                    logger.error("execution exception during broadcast", ex);
+                } else if (delay == 0) {
+                    b.delayBroadcast(msg);
+                } else {
+                    b.delayBroadcast(msg, delay, TimeUnit.SECONDS);
                 }
             }
         }
