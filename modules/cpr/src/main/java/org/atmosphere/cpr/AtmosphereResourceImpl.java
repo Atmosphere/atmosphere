@@ -346,14 +346,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
 
-        if (req.getAttribute(DefaultBroadcaster.CACHED) != null &&
-                (transport().equals(TRANSPORT.LONG_POLLING) || transport().equals(TRANSPORT.JSONP))) {
-            // Do nothing because we have found cached message which was written already, and the handler resumed.
-            logger.debug("Not suspendeding {}", uuid());
-            req.removeAttribute(DefaultBroadcaster.CACHED);
-            return this;
-        }
-
         onPreSuspend(event);
         if (!event.isResumedOnTimeout()) {
 
@@ -404,6 +396,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             broadcaster.addAtmosphereResource(this);
+
+            if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && (
+                    transport().equals(TRANSPORT.LONG_POLLING) || transport().equals(TRANSPORT.JSONP))) {
+                action.type(Action.TYPE.CONTINUE);
+                // Do nothing because we have found cached message which was written already, and the handler resumed.
+                logger.debug("Cached message found, not suspending {}", uuid());
+                return this;
+            }
             req.removeAttribute(PRE_SUSPEND);
             notifyListeners();
         }
