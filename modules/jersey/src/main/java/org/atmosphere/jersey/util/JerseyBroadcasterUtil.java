@@ -55,11 +55,11 @@ public final class JerseyBroadcasterUtil {
         boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
         if (cr == null || isCancelled) {
-            logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
             if (!isCancelled) {
-                logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
+                logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. Caching message {} for {}",
+                        e.getMessage(), r.uuid());
             } else {
-                logger.debug("ContainerResponse already resumed or cancelled. Ignoring");
+                logger.debug("ContainerResponse already resumed or cancelled. Caching message {} for {}", e.getMessage(), r.uuid());
             }
 
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
