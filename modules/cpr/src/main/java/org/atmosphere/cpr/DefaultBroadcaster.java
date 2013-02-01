@@ -861,14 +861,12 @@ public class DefaultBroadcaster implements Broadcaster {
         if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
             if (isAtmosphereResourceValid(r)) {
                 if (bc.hasPerRequestFilters()) {
-                    synchronized (r) {
-                        BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
-                        if (a.action() == BroadcastAction.ACTION.ABORT) {
-                            return null;
-                        }
-                        if (a.message() != msg.originalMessage) {
-                            finalMsg = a.message();
-                        }
+                    BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
+                    if (a.action() == BroadcastAction.ACTION.ABORT) {
+                        return null;
+                    }
+                    if (a.message() != msg.originalMessage) {
+                        finalMsg = a.message();
                     }
                 }
             } else {
