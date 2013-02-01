@@ -1765,8 +1765,10 @@ public class AtmosphereFramework implements ServletContextProvider {
                     }
                 });
 
-                for (File file : jars) {
-                    p.scan(file);
+                if (jars != null) {
+                    for (File file : jars) {
+                        p.scan(file);
+                    }
                 }
             }
         } catch (Throwable e) {
