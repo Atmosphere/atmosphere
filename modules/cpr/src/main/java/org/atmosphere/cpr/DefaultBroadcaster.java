@@ -937,7 +937,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+    protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
@@ -960,7 +960,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
                     for (Object o : cacheMessages) {
-                        bc.getBroadcasterCache().addToCache(getID(), r, o);
+                        bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(o));
                     }
                     return true;
                 }
@@ -988,6 +988,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
         }
+        return false;
     }
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
@@ -1286,11 +1287,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     config.getBroadcasterFactory().add(this, name);
                 }
 
-                checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-                if (isAtmosphereResourceValid(r)) {
+                boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+                if (!wasResumed && isAtmosphereResourceValid(r)) {
                     logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
                     resources.add(r);
-                } else {
+                } else if (!wasResumed) {
                     logger.debug("Unable to add AtmosphereResource {}", r.uuid());
                 }
             }
