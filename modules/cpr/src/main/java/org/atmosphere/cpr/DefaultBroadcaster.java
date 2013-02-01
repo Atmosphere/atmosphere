@@ -968,7 +968,8 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
             LinkedList<Object> filteredMessage = new LinkedList<Object>();
-            for (Object o : ((List) e.getMessage())) {
+            List<Object> cacheMessages = (List) e.getMessage();
+            for (Object o : cacheMessages) {
                 filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
             }
 
@@ -977,7 +978,17 @@ public class DefaultBroadcaster implements Broadcaster {
             r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
-                invokeOnStateChange(r, e);
+                try {
+                    invokeOnStateChange(r, e);
+                } catch (Throwable t) {
+                    // An exception occured
+                    logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
+                    for (Object o : cacheMessages) {
+                        bc.getBroadcasterCache().addToCache(getID(), r, o);
+                    }
+                    return true;
+                }
+
                 // TODO: CAST is dangerous
                 for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
                     l.onBroadcast(e);
