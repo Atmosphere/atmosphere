@@ -59,7 +59,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -78,7 +77,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.atmosphere.cache.EventCacheBroadcasterCache.*;
+import static org.atmosphere.cache.EventCacheBroadcasterCache.CacheMessage;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
@@ -136,7 +135,6 @@ public class DefaultBroadcaster implements Broadcaster {
     protected AtmosphereConfig config;
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
-    private final Object[] concurrentSuspendBroadcast = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
@@ -680,11 +678,8 @@ public class DefaultBroadcaster implements Broadcaster {
         if (destroyed.get()) {
             return;
         }
-        // We need to synchronize to make sure there is no suspend operation retrieving cached messages concurrently.
-        // https://github.com/Atmosphere/atmosphere/issues/170
-        synchronized (concurrentSuspendBroadcast) {
-            deliverPush(entry, true);
-        }
+
+        deliverPush(entry, true);
     }
 
     protected void deliverPush(Entry entry, boolean rec) {
@@ -1303,21 +1298,17 @@ public class DefaultBroadcaster implements Broadcaster {
                 return this;
             }
 
-            // We need to synchronize here to let the push method cache message.
-            // https://github.com/Atmosphere/atmosphere/issues/170
-            synchronized (concurrentSuspendBroadcast) {
-                // Re-add yourself
-                if (resources.isEmpty()) {
-                    config.getBroadcasterFactory().add(this, name);
-                }
+            // Re-add yourself
+            if (resources.isEmpty()) {
+                config.getBroadcasterFactory().add(this, name);
+            }
 
-                boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-                if (!wasResumed && isAtmosphereResourceValid(r)) {
-                    logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
-                    resources.add(r);
-                } else if (!wasResumed) {
-                    logger.debug("Unable to add AtmosphereResource {}", r.uuid());
-                }
+            boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+            if (!wasResumed && isAtmosphereResourceValid(r)) {
+                logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
+                resources.add(r);
+            } else if (!wasResumed) {
+                logger.debug("Unable to add AtmosphereResource {}", r.uuid());
             }
         } finally {
             // OK reset
