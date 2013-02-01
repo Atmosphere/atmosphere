@@ -1046,7 +1046,15 @@ jQuery.atmosphere = function() {
                                 _clearState();
                             } catch (e) {
                             }
+                            return;
                         }
+
+                        _request.id = setTimeout(function() {
+                            setTimeout(function () {
+                                _clearState();
+                            }, _request.reconnectInterval)
+                        }, _request.timeout);
+
                     }, _request.connectTimeout);
                 }
 
@@ -1068,9 +1076,13 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onmessage = function(message) {
-                    if (message.data.indexOf("parent.callback") != -1) {
-                        jQuery.atmosphere.log(_request.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
-                    }
+
+                    clearTimeout(_request.id);
+                    _request.id = setTimeout(function() {
+                        setTimeout(function () {
+                            _clearState();
+                        }, _request.reconnectInterval)
+                    }, _request.timeout);
 
                     if (!_handleProtocol(_request, message.data)) return;
 
