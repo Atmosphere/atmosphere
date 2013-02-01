@@ -106,6 +106,8 @@ public class EventCacheBroadcasterCache implements BroadcasterCache {
 
     public void setInvalidateCacheInterval(long invalidateCacheInterval) {
         this.invalidateCacheInterval = invalidateCacheInterval;
+        scheduledFuture.cancel(true);
+        start();
     }
 
     public void setClientIdleTime(long clientIdleTime) {
