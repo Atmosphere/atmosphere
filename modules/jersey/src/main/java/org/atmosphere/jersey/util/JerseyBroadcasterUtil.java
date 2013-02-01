@@ -100,13 +100,13 @@ public final class JerseyBroadcasterUtil {
                         cr.setResponse(Response.ok(msg).build());
                         cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                         cr.write();
+                    }
 
-                        // https://github.com/Atmosphere/atmosphere/issues/169
-                        try {
-                            cr.getOutputStream().flush();
-                        } catch (IOException ex) {
-                            logger.trace("", ex);
-                        }
+                    // https://github.com/Atmosphere/atmosphere/issues/169
+                    try {
+                        cr.getOutputStream().flush();
+                    } catch (IOException ex) {
+                        logger.trace("", ex);
                     }
                 } else {
                     if (e.getMessage() == null) {
