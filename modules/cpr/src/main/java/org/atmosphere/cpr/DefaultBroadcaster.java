@@ -1089,7 +1089,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // https://github.com/Atmosphere/atmosphere/issues/864
         // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (!force || EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+        if (!force && EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
             return;
         }
 
