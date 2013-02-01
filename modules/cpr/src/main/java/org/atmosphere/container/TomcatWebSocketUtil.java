@@ -49,6 +49,8 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -101,17 +103,16 @@ public class TomcatWebSocketUtil {
                 return delegate.doService(req, res);
             }
 
+            String requireSameOrigin = config.getInitParameter(ApplicationConfig.WEBSOCKET_REQUIRE_SAME_ORIGIN);
+            if (Boolean.valueOf(requireSameOrigin) && !verifyOrigin(req)) {
+                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Origin header does not match expected value");
+                return new Action(Action.TYPE.CANCELLED);
+            }
+
             // If we got this far, all is good. Accept the connection.
             res.setHeader("Upgrade", "websocket");
             res.setHeader("Connection", "upgrade");
             res.setHeader("Sec-WebSocket-Accept", getWebSocketAccept(key));
-
-
-            String origin = req.getHeader("Origin");
-            if (!verifyOrigin(origin)) {
-                res.sendError(HttpServletResponse.SC_FORBIDDEN);
-                return Action.CANCELLED;
-            }
 
             if (subProtocol != null) {
                 res.setHeader("Sec-WebSocket-Protocol", subProtocol);
@@ -140,19 +141,31 @@ public class TomcatWebSocketUtil {
         return action;
     }
 
-    /**
-     * Intended to be overridden by sub-classes that wish to verify the origin
-     * of a WebSocket request before processing it.
-     *
-     * @param origin    The value of the origin header from the request which
-     *                  may be <code>null</code>
-     *
-     * @return  <code>true</code> to accept the request. <code>false</code> to
-     *          reject it. This default implementation always returns
-     *          <code>true</code>.
-     */
-    protected static boolean verifyOrigin(String origin) {
-        return true;
+    private static boolean verifyOrigin(HttpServletRequest req) {
+        String origin = req.getHeader("Origin");
+        if (origin == null) {
+            return false;
+        }
+
+        try {
+            URI requestUri = new URI(req.getRequestURL().toString());
+            URI originUri = new URI(origin);
+
+            // First check that the protocol (http, https, etc) is not null and matches
+            if (requestUri.getScheme() != null && originUri.getScheme() != null &&
+                    requestUri.getScheme().equals(originUri.getScheme())) {
+
+                // If the authority (userinfo@hostname:port) is not null and matches, then the origin is verified
+                if (requestUri.getAuthority() != null && originUri.getAuthority() != null &&
+                        requestUri.getAuthority().equals(originUri.getAuthority())) {
+                    return true;
+                }
+            }
+        } catch (URISyntaxException e) {
+            logger.error("Unable to verify request origin", e);
+        }
+
+        return false;
     }
 
     /*
