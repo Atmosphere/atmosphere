@@ -49,7 +49,7 @@ jQuery.atmosphere = function() {
     };
 
     return {
-        version : "1.1.0.beta3",
+        version : "1.1.0.beta4",
         requests : [],
         callbacks : [],
 
@@ -1046,7 +1046,15 @@ jQuery.atmosphere = function() {
                                 _clearState();
                             } catch (e) {
                             }
+                            return;
                         }
+
+                        _request.id = setTimeout(function() {
+                            setTimeout(function () {
+                                _clearState();
+                            }, _request.reconnectInterval)
+                        }, _request.timeout);
+
                     }, _request.connectTimeout);
                 }
 
@@ -1068,6 +1076,13 @@ jQuery.atmosphere = function() {
                 };
 
                 _websocket.onmessage = function(message) {
+
+                    clearTimeout(_request.id);
+                    _request.id = setTimeout(function() {
+                        setTimeout(function () {
+                            _clearState();
+                        }, _request.reconnectInterval)
+                    }, _request.timeout);
 
                     if (!_handleProtocol(_request, message.data)) return;
 
