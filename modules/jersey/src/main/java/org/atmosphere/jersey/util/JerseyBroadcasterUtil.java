@@ -52,15 +52,10 @@ public final class JerseyBroadcasterUtil {
         // Make sure only one thread can play with the ContainerResponse. Threading issue can arise if there is a scheduler
         // or if ContainerResponse is associated with more than Broadcaster.
         cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
-        boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
-        if (cr == null || isCancelled) {
-            if (!isCancelled) {
-                logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. Caching message {} for {}",
-                        e.getMessage(), r.uuid());
-            } else {
-                logger.debug("ContainerResponse already resumed or cancelled. Caching message {} for {}", e.getMessage(), r.uuid());
-            }
+        if (cr == null || r.isCancelled()) {
+            logger.debug("Unexpected state. ContainerResponse has been resumed or cancelled Caching message {} for {}",
+                    e.getMessage(), r.uuid());
 
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
                 DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r, true);
