@@ -962,6 +962,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     case JSONP:
                     case AJAX:
                     case LONG_POLLING:
+                        return true;
                     case SSE:
                         break;
                     default:
