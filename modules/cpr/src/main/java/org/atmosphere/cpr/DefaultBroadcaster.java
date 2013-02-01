@@ -803,17 +803,15 @@ public class DefaultBroadcaster implements Broadcaster {
         // the switch to garantee the Entry will be cached in the order it was broadcasted.
         // Without synchronizing we may end up with a out of order BroadcasterCache queue.
         if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
-            synchronized(r) {
-                if (r.isResumed() || r.isCancelled()) {
-                    // https://github.com/Atmosphere/atmosphere/issues/864
-                    // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
-                    BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-                    if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-                        trackBroadcastMessage(r, entry);
-                    }
-                }  else {
-                    asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
+            if (r.isResumed() || r.isCancelled()) {
+                // https://github.com/Atmosphere/atmosphere/issues/864
+                // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
+                BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+                if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+                    trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
                 }
+            }  else {
+                asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
             }
         } else {
             asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
