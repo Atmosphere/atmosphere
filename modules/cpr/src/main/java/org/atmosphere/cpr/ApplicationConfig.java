@@ -138,6 +138,10 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_MAXBINARYSIZE = "org.atmosphere.websocket.maxBinaryMessageSize";
     /**
+     * Tell Atmosphere to enforce the same origin policy for all incoming WebSocket handshakes.
+     */
+    String WEBSOCKET_REQUIRE_SAME_ORIGIN = "org.atmosphere.websocket.requireSameOrigin";
+    /**
      * The Atmosphere resource to use.
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
