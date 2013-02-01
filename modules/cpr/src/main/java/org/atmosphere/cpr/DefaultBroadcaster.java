@@ -808,7 +808,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
                 BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
                 if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-                    trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
+                    trackBroadcastMessage(r, entry);
                 }
             }  else {
                 asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
