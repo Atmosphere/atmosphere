@@ -250,6 +250,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public synchronized AtmosphereResource resume() {
+
+        if (!isSuspended()) {
+            logger.warn("AtmosphereResource {} not suspend, cannot resume it.", uuid());
+            return this;
+        }
+
         // We need to synchronize the method because the resume may occurs at the same time a message is published
         // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
         try {
