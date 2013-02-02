@@ -677,7 +677,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                         // Prevent StackOverflow
                         boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
-                        asyncIOWriter.write(AtmosphereResponse.this, new String(s));
+                        asyncIOWriter.write(AtmosphereResponse.this, s);
                         forceAsyncIOWriter = b;
 
                     } catch (IOException e) {
