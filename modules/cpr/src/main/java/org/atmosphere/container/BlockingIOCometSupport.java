@@ -196,7 +196,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 if (latch != null && (s == null || s.equalsIgnoreCase("false"))) {
                     latch.countDown();
                 } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
-                    logger.error("Unable to resume the suspended connection");
+                    logger.trace("Unable to resume the suspended connection");
                 }
             }
         } catch (Exception ex) {
