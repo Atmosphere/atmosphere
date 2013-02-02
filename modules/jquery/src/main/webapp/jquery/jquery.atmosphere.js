@@ -2339,6 +2339,10 @@ jQuery.atmosphere = function() {
                 return _request.url;
             };
 
+            this.uuid = function() {
+                return _request.uuid;
+            }
+
             this.push = function(message) {
                 _push(message);
             };
@@ -2383,9 +2387,12 @@ jQuery.atmosphere = function() {
 
         unsubscribe : function() {
             if (jQuery.atmosphere.requests.length > 0) {
-                for (var i = 0; i < jQuery.atmosphere.requests.length; i++) {
-                    jQuery.atmosphere.requests[i].close();
-                    clearTimeout(jQuery.atmosphere.requests[i].id);
+              var requestsClone = [].concat(jQuery.atmosphere.requests);
+              for (var i = 0; i < requestsClone.length; i++) {
+                    var rq = requestsClone[i];
+                    jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid(), async:false});
+                    rq.close();
+                    clearTimeout(rq.id);
                 }
             }
             jQuery.atmosphere.requests = [];

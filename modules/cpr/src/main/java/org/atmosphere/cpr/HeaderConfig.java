@@ -44,6 +44,8 @@ public interface HeaderConfig {
 
     String SSE_TRANSPORT = "sse";
 
+    String DISCONNECT = "close";
+
     /**
      * When a unexpected error occurs.
      */
