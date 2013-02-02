@@ -103,6 +103,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean resumeOnBroadcast = false;
     private Object writeOnTimeout = null;
     private boolean disableSuspend = false;
+    private final AtomicBoolean disconnected = new AtomicBoolean(false);
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
@@ -641,7 +642,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         Action oldAction = action;
         try {
             if (event.isCancelled()) {
-                onDisconnect(event);
+                if (!disconnected.getAndSet(true)) {
+                    onDisconnect(event);
+                }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
                 onResume(event);
             } else if (!isSuspendEvent.getAndSet(true) && event.isSuspended()) {

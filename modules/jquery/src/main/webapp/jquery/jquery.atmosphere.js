@@ -2347,6 +2347,10 @@ jQuery.atmosphere = function() {
                 }
             };
 
+            this.uuid = function() {
+                return _request.uuid;
+            }
+
             this.pushLocal = function(message) {
                 _intraPush(message);
             };
@@ -2392,6 +2396,7 @@ jQuery.atmosphere = function() {
               var requestsClone = [].concat(jQuery.atmosphere.requests);
               for (var i = 0; i < requestsClone.length; i++) {
                     var rq = requestsClone[i];
+                    jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid(), async:false});
                     rq.close();
                     clearTimeout(rq.id);
                 }

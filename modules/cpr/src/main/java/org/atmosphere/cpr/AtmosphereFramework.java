@@ -34,6 +34,7 @@ import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.DefaultHeadersInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
+import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.StreamingAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
@@ -607,6 +608,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null) {
+            // OnDisconnect
+            interceptors.addFirst(newAInterceptor(OnDisconnectInterceptor.class));
             // ADD Tracking ID Handshake
             interceptors.addFirst(newAInterceptor(JavaScriptProtocol.class));
             // ADD JSONP support
