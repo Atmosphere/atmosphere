@@ -535,7 +535,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         bc.getExecutorService().submit(this);
                     }
                 } catch (InterruptedException ex) {
-                    logger.trace("{} got interrupted", Thread.currentThread().getName());
+                    logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
                     logger.trace("", ex);
                     if (!bc.getExecutorService().isShutdown()) {
                         bc.getExecutorService().submit(this);
@@ -580,7 +580,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         bc.getAsyncWriteService().submit(this);
                     }
                 } catch (InterruptedException ex) {
-                    logger.trace("{} got interrupted", Thread.currentThread().getName());
+                    logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
                     logger.trace("", ex);
                     if (!bc.getAsyncWriteService().isShutdown()) {
                         bc.getAsyncWriteService().submit(this);
