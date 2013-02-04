@@ -2351,6 +2351,10 @@ jQuery.atmosphere = function() {
                 _intraPush(message);
             };
 
+            this.enableProtocol = function(message) {
+                return _request.enableProtocol;
+            };
+
             this.response = _response;
         },
 
@@ -2390,7 +2394,9 @@ jQuery.atmosphere = function() {
               var requestsClone = [].concat(jQuery.atmosphere.requests);
               for (var i = 0; i < requestsClone.length; i++) {
                     var rq = requestsClone[i];
-                    jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid(), async:false});
+                    if (rq.enableProtocol()) {
+                        jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid(), async:false});
+                    }
                     rq.close();
                     clearTimeout(rq.id);
                 }
