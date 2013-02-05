@@ -309,32 +309,20 @@ jQuery.atmosphere = function() {
             function _execute() {
                 // Shared across multiple tabs/windows.
                 if (_request.shared) {
+                    _localStorageService = _local(_request);
+                    if (_localStorageService != null) {
+                        if (_request.logLevel == 'debug') {
+                            jQuery.atmosphere.debug("Storage service available. All communication will be local");
+                        }
 
-                    var version  = 0;
-                    if (navigator.appVersion.indexOf("MSIE") != -1) {
-                        version = parseFloat(navigator.appVersion.split("MSIE")[1]);
+                        if (_localStorageService.open(_request)) {
+                            // Local connection.
+                            return;
+                        }
                     }
 
-                    // Multi Tab aren't working on IE 8. Tested with atmosphere.js and jquery-socket.js
-                    // both pops up a blank page.
-                    if (version != 8) {
-                        _localStorageService = _local(_request);
-                        if (_localStorageService != null) {
-                            if (_request.logLevel == 'debug') {
-                                jQuery.atmosphere.debug("Storage service available. All communication will be local");
-                            }
-
-                            if (_localStorageService.open(_request)) {
-                                // Local connection.
-                                return;
-                            }
-                        }
-
-                        if (_request.logLevel == 'debug') {
-                            jQuery.atmosphere.debug("No Storage service available.");
-                        }
-                    } else {
-                        jQuery.atmosphere.info("Multi tab not supported on IE 8.");
+                    if (_request.logLevel == 'debug') {
+                        jQuery.atmosphere.debug("No Storage service available.");
                     }
                     // Wasn't local or an error occurred
                     _localStorageService = null;
@@ -1374,7 +1362,7 @@ jQuery.atmosphere = function() {
                     return;
                 }
 
-                if ((rq.transport == 'streaming') && (jQuery.browser.msie)) {
+                if ((rq.transport == 'streaming') && (jQuery.browser.msie && jQuery.browser.version < 10)) {
                     rq.enableXDR && window.XDomainRequest ? _ieXDR(rq) : _ieStreaming(rq);
                     return;
                 }
@@ -1426,15 +1414,20 @@ jQuery.atmosphere = function() {
                         var update = false;
 
                         // Remote server disconnected us, reconnect.
-                        if (rq.transport == 'streaming'
-                            && (rq.readyState > 2
-                            && ajaxRequest.readyState == 4)) {
+                        if (rq.transport == 'streaming') {
+                            if (jQuery.browser.msie) {
+                                if (ajaxRequest.readyState >= 3) {
+                                    update = true;
+                               }
+                            } else if (rq.readyState > 2
+                                && ajaxRequest.readyState == 4) {
 
-                            rq.readyState = 0;
-                            rq.lastIndex = 0;
+                                rq.readyState = 0;
+                                rq.lastIndex = 0;
 
-                            _reconnect(ajaxRequest, rq, true);
-                            return;
+                                _reconnect(ajaxRequest, rq, true);
+                                return;
+                            }
                         }
 
                         rq.readyState = ajaxRequest.readyState;
