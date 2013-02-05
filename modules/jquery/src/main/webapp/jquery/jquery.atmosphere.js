@@ -1381,7 +1381,7 @@ jQuery.atmosphere = function() {
                     return;
                 }
 
-                if ((rq.transport == 'streaming') && (jQuery.browser.msie)) {
+                if ((rq.transport == 'streaming') && (jQuery.browser.msie && jQuery.browser.version < 10)) {
                     rq.enableXDR && window.XDomainRequest ? _ieXDR(rq) : _ieStreaming(rq);
                     return;
                 }
@@ -1433,15 +1433,20 @@ jQuery.atmosphere = function() {
                         var update = false;
 
                         // Remote server disconnected us, reconnect.
-                        if (rq.transport == 'streaming'
-                            && (rq.readyState > 2
-                            && ajaxRequest.readyState == 4)) {
+                        if (rq.transport == 'streaming') {
+                            if (jQuery.browser.msie) {
+                                if (ajaxRequest.readyState >= 3) {
+                                    update = true;
+                               }
+                            } else if (rq.readyState > 2
+                                && ajaxRequest.readyState == 4) {
 
-                            rq.readyState = 0;
-                            rq.lastIndex = 0;
+                                rq.readyState = 0;
+                                rq.lastIndex = 0;
 
-                            _reconnect(ajaxRequest, rq, true);
-                            return;
+                                _reconnect(ajaxRequest, rq, true);
+                                return;
+                            }
                         }
 
                         rq.readyState = ajaxRequest.readyState;
