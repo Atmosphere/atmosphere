@@ -664,13 +664,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     }
                 }
 
-                public void write(java.lang.String s) {
+                public void write(String s) {
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
                         boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
-                        asyncIOWriter.write(AtmosphereResponse.this, new String(s));
+                        asyncIOWriter.write(AtmosphereResponse.this, s);
                         forceAsyncIOWriter = b;
 
                     } catch (IOException e) {
