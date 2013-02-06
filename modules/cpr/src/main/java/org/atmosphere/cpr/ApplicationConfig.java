@@ -321,4 +321,8 @@ public interface ApplicationConfig {
      * Set to true if order of message delivered to the client is not important
      */
     String OUT_OF_ORDER_BROADCAST = Broadcaster.class.getName() + ".supportOutOfOrderBroadcast";
+    /**
+     * The write operation timeout
+     */
+    String WRITE_TIMEOUT =  Broadcaster.class.getName() + ".writeTimeout";
 }

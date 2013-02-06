@@ -137,6 +137,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
+    private int writeTimeoutInSecond = -1;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -155,6 +156,11 @@ public class DefaultBroadcaster implements Broadcaster {
         s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
         if (s != null) {
             outOfOrderBroadcastSupported.set(Boolean.valueOf(s));
+        }
+
+        s = config.getInitParameter(ApplicationConfig.WRITE_TIMEOUT);
+        if (s != null) {
+            writeTimeoutInSecond = Integer.valueOf(s);
         }
     }
 
@@ -1011,10 +1017,48 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        try {
-            r.getAtmosphereHandler().onStateChange(e);
-        } catch (Throwable t) {
-            onException(t, r);
+        if (writeTimeoutInSecond != -1) {
+            WriteOperation w = new WriteOperation(r, e);
+            bc.getScheduledExecutorService().schedule(w, writeTimeoutInSecond, TimeUnit.MILLISECONDS);
+
+            try {
+                w.call();
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        } else {
+            try {
+                r.getAtmosphereHandler().onStateChange(e);
+            } catch (Throwable t) {
+                onException(t, r);
+            }
+        }
+    }
+
+    final class WriteOperation implements Callable<Object> {
+
+        private final AtmosphereResource r;
+        private final AtmosphereResourceEvent e;
+        private AtomicBoolean completed = new AtomicBoolean();
+
+        private WriteOperation(AtmosphereResource r, AtmosphereResourceEvent e) {
+            this.r = r;
+            this.e = e;
+        }
+
+        @Override
+        public Object call() throws Exception {
+            if (!completed.getAndSet(true)) {
+                try {
+                    r.getAtmosphereHandler().onStateChange(e);
+                } catch (Throwable t) {
+                    onException(t, r);
+                }
+            } else {
+                onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
+                AtmosphereResourceImpl.class.cast(r).cancel();
+            }
+            return null;
         }
     }
 
