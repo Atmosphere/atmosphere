@@ -57,7 +57,7 @@ public class TomcatWebSocketHandler extends MessageInbound {
         if (s != null) {
             webSocketWriteTimeout = Integer.valueOf(1);
         } else {
-            webSocketWriteTimeout = -1;
+            webSocketWriteTimeout =  5 * 60000;
         }
     }
 
