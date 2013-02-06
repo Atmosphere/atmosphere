@@ -54,6 +54,12 @@ public class TomcatWebSocketHandler extends StreamInbound {
         } else {
             webSocketWriteTimeout = -1;
         }
+
+        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
+        if (s != null) {
+            setByteBufferMaxSize(Integer.valueOf(s));
+            setCharBufferMaxSize(getByteBufferMaxSize());
+        }
     }
 
     @Override
