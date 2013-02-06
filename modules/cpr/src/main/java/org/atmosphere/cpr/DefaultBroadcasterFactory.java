@@ -156,7 +156,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config));
+                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config, id.toString()));
             }
 
             b.setBroadcasterLifeCyclePolicy(policy);

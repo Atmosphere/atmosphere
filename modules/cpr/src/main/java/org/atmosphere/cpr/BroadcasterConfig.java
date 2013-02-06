@@ -52,21 +52,18 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.BroadcasterCacheBase;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -81,6 +78,7 @@ public class BroadcasterConfig {
 
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<BroadcastFilter>();
     protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
+
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
     private ExecutorService defaultExecutorService;
@@ -88,34 +86,36 @@ public class BroadcasterConfig {
     private ScheduledExecutorService scheduler;
     private final Object[] lock = new Object[0];
     private BroadcasterCache broadcasterCache;
-    private AtmosphereConfig config;
+    private final AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private boolean shared = false;
-    private String broadcasterID = "/*";
+    private String name;
+    private boolean handleExecutors;
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
-        this(list, config, true);
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
+        this(list, config, true, name);
     }
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
-
-        if (createExecutor) {
+        if (handleExecutors) {
             configExecutors();
-        } else {
-            shared = true;
         }
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+        this.name = name;
+        this.handleExecutors = handleExecutors;
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
-        this(Collections.<String>emptyList(), config, false);
+                             ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
+        this.config = config;
+        this.name = name;
+        this.handleExecutors = true;
     }
 
     private void configureBroadcasterCache() {
@@ -131,6 +131,7 @@ public class BroadcasterConfig {
                 }
                 InjectorProvider.getInjector().inject(broadcasterCache);
             }
+
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
         } catch (IllegalAccessException e) {
@@ -138,11 +139,10 @@ public class BroadcasterConfig {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
-
     }
 
-    protected BroadcasterConfig broadcasterID(String broadcasterID) {
-        this.broadcasterID = broadcasterID;
+    protected BroadcasterConfig broadcasterID(String name) {
+        this.name = name;
         initClusterExtension();
         return this;
     }
@@ -151,7 +151,7 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
                 try {
-                    Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
+                    Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
                     if (b != null) {
                         synchronized (mf) {
                             ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
@@ -167,8 +167,11 @@ public class BroadcasterConfig {
     protected synchronized void configExecutors() {
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
         if (Boolean.parseBoolean(s)) {
+            shared = true;
+            handleExecutors = false;
             isExecutorShared = true;
             isAsyncExecutorShared = true;
+            logger.info("ExecutorServices will be shared amongts Broadcasters");
         }
 
         if (config.properties().get("executorService") == null) {
@@ -203,7 +206,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-BroadcasterConfig-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -215,7 +218,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-BroadcasterConfig-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -230,7 +233,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-AsyncWrite-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -242,7 +245,7 @@ public class BroadcasterConfig {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "SHARED" : name) + "-AsyncWrite-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -367,7 +370,7 @@ public class BroadcasterConfig {
         }
 
         if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
-            Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterID, false);
+            Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
             if (b != null) {
                 synchronized (e) {
                     ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
@@ -395,7 +398,7 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (!force && shared) return;
+        if (!force && !handleExecutors) return;
 
         if (broadcasterCache != null) {
             broadcasterCache.stop();
@@ -512,7 +515,7 @@ public class BroadcasterConfig {
      *
      * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.
-     * @param originalMessage the original message, the one that wasn't filtered by any BroadcastFilter
+     * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
@@ -582,9 +585,6 @@ public class BroadcasterConfig {
      */
     public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
         this.broadcasterCache = broadcasterCache;
-        if (BroadcasterCacheBase.class.isAssignableFrom(broadcasterCache.getClass())) {
-            BroadcasterCacheBase.class.cast(broadcasterCache).setExecutorService(getScheduledExecutorService());
-        }
         return this;
     }
 
@@ -610,7 +610,7 @@ public class BroadcasterConfig {
         }
 
         @Override
-        public void addToCache(String id, AtmosphereResource r, Object e) {
+        public void addToCache(String id, AtmosphereResource r, Object o) {
         }
 
         @Override
@@ -639,11 +639,11 @@ public class BroadcasterConfig {
                     logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
                 }
             }
-
             if (bf != null) {
                 InjectorProvider.getInjector().inject(bf);
-                addFilter(bf, false);
+                addFilter(bf);
             }
+
         }
     }
 
@@ -655,14 +655,5 @@ public class BroadcasterConfig {
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
-    }
-
-    /**
-     * Set the {@link AtmosphereConfig}
-     *
-     * @param config {@link AtmosphereConfig}
-     */
-    public void setAtmosphereConfig(AtmosphereConfig config) {
-        this.config = config;
     }
 }

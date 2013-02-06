@@ -174,7 +174,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @return an instance of {@link BroadcasterConfig}
      */
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config) {
-        return new BroadcasterConfig(config.framework().broadcasterFilters, config);
+        return new BroadcasterConfig(config.framework().broadcasterFilters, config, getID());
     }
 
     /**

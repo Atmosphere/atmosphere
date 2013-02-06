@@ -160,7 +160,7 @@ public class MultipleServletBroadcasterFactory extends BroadcasterFactory {
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(f().config.framework().broadcasterFilters, f().config));
+                b.setBroadcasterConfig(new BroadcasterConfig(f().config.framework().broadcasterFilters, f().config, id.toString()));
             }
 
             b.setBroadcasterLifeCyclePolicy(f().policy);

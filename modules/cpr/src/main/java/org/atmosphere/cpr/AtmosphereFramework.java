@@ -676,7 +676,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             while (i.hasNext()) {
                 e = i.next();
                 w = e.getValue();
-                BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config);
+                BroadcasterConfig broadcasterConfig = new BroadcasterConfig(broadcasterFilters, config, w.mapping);
 
                 if (w.broadcaster == null) {
                     w.broadcaster = broadcasterFactory.get(w.mapping);
