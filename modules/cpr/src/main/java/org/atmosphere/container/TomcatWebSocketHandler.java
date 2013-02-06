@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.apache.catalina.websocket.MessageInbound;
 import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.container.version.TomcatWebSocket;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
@@ -45,11 +46,19 @@ public class TomcatWebSocketHandler extends MessageInbound {
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
+    private final int webSocketWriteTimeout;
 
     public TomcatWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.request = request;
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
+
+        String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
+        if (s != null) {
+            webSocketWriteTimeout = Integer.valueOf(1);
+        } else {
+            webSocketWriteTimeout = -1;
+        }
     }
 
     @Override
@@ -81,5 +90,10 @@ public class TomcatWebSocketHandler extends MessageInbound {
     protected void onTextMessage(CharBuffer message) throws IOException {
         logger.trace("WebSocket.onMessage");
         webSocketProcessor.invokeWebSocketProtocol(webSocket,message.toString());
+    }
+
+    @Override
+    public int getReadTimeout(){
+        return webSocketWriteTimeout;
     }
 }
