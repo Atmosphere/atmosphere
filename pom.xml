@@ -496,7 +496,7 @@
         <jetty8-version>8.1.3.v20120416</jetty8-version>
         <jetty9-version>9.0.0.M5</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
-        <tomcat7-version>7.0.27</tomcat7-version>
+        <tomcat7-version>7.0.35</tomcat7-version>
         <jgroups-version>3.1.0.Final</jgroups-version>
         <common-logging-version>1.1.1</common-logging-version>
         <scala.version>2.9.2</scala.version>
