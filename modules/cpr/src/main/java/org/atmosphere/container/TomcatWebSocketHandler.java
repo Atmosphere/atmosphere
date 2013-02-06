@@ -57,7 +57,7 @@ public class TomcatWebSocketHandler extends MessageInbound {
         if (s != null) {
             webSocketWriteTimeout = Integer.valueOf(1);
         } else {
-            webSocketWriteTimeout =  5 * 60000;
+            webSocketWriteTimeout =  -1;
         }
 
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
