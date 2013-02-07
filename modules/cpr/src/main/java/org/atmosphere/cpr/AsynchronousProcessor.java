@@ -599,7 +599,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             } catch (Throwable ex) {
                 // Something wrong happenned, ignore the exception
-                logger.debug("failed to cancel resource: {}", r.uuid(), ex);
+                logger.debug("failed to cancel resource: {}", r == null ? "" : r.uuid() , ex);
             } finally {
                 config.framework().notify(Action.TYPE.CANCELLED, req, res);
                 try {
