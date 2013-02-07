@@ -63,7 +63,6 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moments between requests.
  * You can use it's associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
  * <br/>
- * You can retrieve the AtmosphereResource can be retrieved as an attribute {@link FrameworkConfig#ATMOSPHERE_RESOURCE}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -856,7 +855,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
      * method will return null.
      *
-     * @return an {@link AtmosphereResource}, or null.
+     * @return an {@link AtmosphereResource}, or null if no resource has ben associated yet.
      */
     public AtmosphereResource resource() {
         return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
