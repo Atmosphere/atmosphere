@@ -1065,6 +1065,7 @@ public class DefaultBroadcaster implements Broadcaster {
         private final AtmosphereResource r;
         private final AtmosphereResourceEvent e;
         private AtomicBoolean completed = new AtomicBoolean();
+        private AtomicBoolean executed = new AtomicBoolean();
 
         private WriteOperation(AtmosphereResource r, AtmosphereResourceEvent e) {
             this.r = r;
@@ -1078,8 +1079,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     r.getAtmosphereHandler().onStateChange(e);
                 } catch (Throwable t) {
                     onException(t, r);
+                } finally {
+                    executed.set(true);
                 }
-            } else if (!completed.get()){
+            } else if (!executed.get()){
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
             }
