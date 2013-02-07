@@ -576,10 +576,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     }
                 }
 
-                logger.debug("Cancelling the connection for AtmosphereResource {}", r.uuid());
-
                 r = (AtmosphereResourceImpl) req.resource();
                 if (r != null) {
+                    logger.debug("Cancelling the connection for AtmosphereResource {}", r.uuid());
 
                     if (r.isCancelled()) {
                         logger.trace("{} is already cancelled", r.uuid());
