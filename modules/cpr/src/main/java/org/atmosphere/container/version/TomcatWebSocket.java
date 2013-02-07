@@ -134,6 +134,7 @@ public class TomcatWebSocket extends WebSocket {
      */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
+        outbound.flush();
         return this;
     }
 
