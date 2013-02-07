@@ -1079,7 +1079,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 } catch (Throwable t) {
                     onException(t, r);
                 }
-            } else {
+            } else if (!completed.get()){
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
             }
