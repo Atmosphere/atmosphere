@@ -43,11 +43,6 @@ public class TomcatWebSocket extends WebSocket {
     }
 
     @Override
-    public String toString() {
-        return outbound.toString();
-    }
-
-    @Override
     public boolean isOpen() {
         return true;
     }
@@ -71,5 +66,29 @@ public class TomcatWebSocket extends WebSocket {
         } catch (IOException e) {
             logger.trace("", e);
         }
+        lastWrite = System.currentTimeMillis();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void close(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.close()");
+        outbound.close(1005, ByteBuffer.wrap(new byte[0]));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        outbound.flush();
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return outbound.toString();
     }
 }
