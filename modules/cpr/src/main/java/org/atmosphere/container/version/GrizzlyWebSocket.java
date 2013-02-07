@@ -118,7 +118,7 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
-        logger.trace("WebSocket.close()");
+        logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         webSocket.close();
     }
 

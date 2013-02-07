@@ -125,7 +125,7 @@ public class TomcatWebSocket extends WebSocket {
      */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
-        logger.trace("WebSocket.close()");
+        logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         outbound.close(1005, ByteBuffer.wrap(new byte[0]));
     }
 
