@@ -28,6 +28,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,7 +65,15 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private Locale locale;
     private boolean headerHandled = false;
     private AtmosphereRequest atmosphereRequest;
-    private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
+    private static final HttpServletResponse dsr = (HttpServletResponse)
+            Proxy.newProxyInstance(AtmosphereResponse.class.getClassLoader(), new Class[]{HttpServletResponse.class},
+                    new InvocationHandler() {
+                        @Override
+                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                            logger.trace("Method {} not supported", method.getName());
+                            return null;
+                        }
+                    });
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private boolean delegateToNativeResponse;
     private boolean destroyable;
@@ -461,7 +472,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public void flushBuffer() throws IOException {
         try {
-            response.flushBuffer();
+            if (asyncIOWriter == null) {
+                response.flushBuffer();
+            } else {
+                asyncIOWriter.flush();
+            }
         } catch (IOException ex) {
             handleException(ex);
             throw ex;
@@ -709,7 +724,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void close() {
-                     // Prevent StackOverflow
+                    // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
                     try {
@@ -1039,189 +1054,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         super.setResponse(response);
         if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
             this.response = HttpServletResponse.class.cast(response);
-        }
-    }
-
-    private final static class DummyHttpServletResponse implements HttpServletResponse {
-        public void addCookie(Cookie cookie) {
-            logger.trace("Unsupported");
-        }
-
-        public boolean containsHeader(String name) {
-            logger.trace("Unsupported");
-            return false;
-        }
-
-        public String encodeURL(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeRedirectURL(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeUrl(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeRedirectUrl(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public void sendError(int sc, String msg) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void sendError(int sc) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void sendRedirect(String location) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void setDateHeader(String name, long date) {
-            logger.trace("Unsupported");
-        }
-
-        public void addDateHeader(String name, long date) {
-            logger.trace("Unsupported");
-        }
-
-        public void setHeader(String name, String value) {
-            logger.trace("Unsupported");
-        }
-
-        public void addHeader(String name, String value) {
-            logger.trace("Unsupported");
-        }
-
-        public void setIntHeader(String name, int value) {
-            logger.trace("Unsupported");
-        }
-
-        public void addIntHeader(String name, int value) {
-            logger.trace("Unsupported");
-        }
-
-        public void setStatus(int sc) {
-            logger.trace("Unsupported");
-        }
-
-        public void setStatus(int sc, String sm) {
-            logger.trace("Unsupported");
-        }
-
-        public int getStatus() {
-            logger.trace("Unsupported");
-            return 200;
-        }
-
-        public String getHeader(String name) {
-            logger.trace("Unsupported");
-            return null;
-        }
-
-        public Collection<String> getHeaders(String name) {
-            logger.trace("Unsupported");
-            return Collections.emptyList();
-        }
-
-        public Collection<String> getHeaderNames() {
-            logger.trace("Unsupported");
-            return Collections.emptyList();
-        }
-
-        public String getCharacterEncoding() {
-            logger.trace("Unsupported");
-            return "ISO-8859-1";
-        }
-
-        public String getContentType() {
-            logger.trace("Unsupported");
-            return "text/plain";
-        }
-
-        public ServletOutputStream getOutputStream() throws IOException {
-            logger.trace("Unsupported");
-            return new NoOpsOutputStream();
-        }
-
-        public PrintWriter getWriter() throws IOException {
-            logger.trace("Unsupported");
-            return new PrintWriter(new NoOpsPrintWriter());
-        }
-
-        public void setCharacterEncoding(String charset) {
-            logger.trace("Unsupported");
-        }
-
-        public void setContentLength(int len) {
-            logger.trace("Unsupported");
-        }
-
-        public void setContentType(String type) {
-            logger.trace("Unsupported");
-        }
-
-        public void setBufferSize(int size) {
-            logger.trace("Unsupported");
-        }
-
-        public int getBufferSize() {
-            logger.trace("Unsupported");
-            return -1;
-        }
-
-        public void flushBuffer() throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void resetBuffer() {
-            logger.trace("Unsupported");
-        }
-
-        public boolean isCommitted() {
-            logger.trace("Unsupported");
-            return false;
-        }
-
-        public void reset() {
-            logger.trace("Unsupported");
-        }
-
-        public void setLocale(Locale loc) {
-            logger.trace("Unsupported");
-        }
-
-        public Locale getLocale() {
-            logger.trace("Unsupported");
-            return Locale.ENGLISH;
-        }
-    }
-
-    private final static class NoOpsOutputStream extends ServletOutputStream {
-        @Override
-        public void write(int i) throws IOException {
-        }
-    }
-
-    private final static class NoOpsPrintWriter extends Writer {
-
-        @Override
-        public void write(char[] chars, int i, int i1) throws IOException {
-        }
-
-        @Override
-        public void flush() throws IOException {
-        }
-
-        @Override
-        public void close() throws IOException {
         }
     }
 
