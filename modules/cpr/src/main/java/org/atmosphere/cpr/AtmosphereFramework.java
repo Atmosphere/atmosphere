@@ -58,7 +58,10 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -465,7 +468,47 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Load the {@link AtmosphereHandler} associated with this AtmosphereServlet.
+     * Initialize the AtmosphereFramework. Invoke that method after having properly configured this class using the setter.
+     */
+    public AtmosphereFramework init() {
+        try {
+            init(new ServletConfig(){
+
+                @Override
+                public String getServletName() {
+                    return "AtmosphereFramework";
+                }
+
+                @Override
+                public ServletContext getServletContext() {
+                    return (ServletContext) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ServletContext.class},
+                            new InvocationHandler() {
+                                @Override
+                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                                    logger.trace("Method {} not supported", method.getName());
+                                    return null;
+                                }
+                            });
+                }
+
+                @Override
+                public String getInitParameter(String name) {
+                    return initParams.get(name);
+                }
+
+                @Override
+                public Enumeration<String> getInitParameterNames() {
+                    return Collections.enumeration(initParams.values());
+                }
+            });
+        } catch (ServletException e) {
+            logger.error("",e);
+        }
+        return this;
+    }
+
+    /**
+     * Initialize the AtmosphereFramework using the {@link ServletContext}
      *
      * @param sc the {@link ServletContext}
      */
