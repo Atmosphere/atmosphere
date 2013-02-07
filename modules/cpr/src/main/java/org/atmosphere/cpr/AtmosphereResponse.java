@@ -513,8 +513,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     } catch (IOException e) {
                         handleException(e);
                         throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
-                    forceAsyncIOWriter = b;
                 }
 
                 @Override
@@ -529,8 +530,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     } catch (IOException e) {
                         handleException(e);
                         throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
-                    forceAsyncIOWriter = b;
                 }
 
                 @Override
@@ -545,8 +547,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     } catch (IOException e) {
                         handleException(e);
                         throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
-                    forceAsyncIOWriter = b;
                 }
 
                 @Override
@@ -561,14 +564,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     } catch (IOException e) {
                         handleException(e);
                         throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
-                    forceAsyncIOWriter = b;
-
                 }
 
                 @Override
                 public void close() throws java.io.IOException {
-
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
@@ -577,8 +579,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     } catch (IOException e) {
                         handleException(e);
                         throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
-                    forceAsyncIOWriter = b;
                 }
             };
         } else {
@@ -622,59 +625,92 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     public PrintWriter getWriter() throws IOException {
         if (!delegateToNativeResponse || forceAsyncIOWriter) {
             return new PrintWriter(getOutputStream()) {
+                @Override
                 public void write(char[] chars, int offset, int lenght) {
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
-                        // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars, offset, lenght));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
                         handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
+                @Override
                 public void write(char[] chars) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
                         handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
+                @Override
                 public void write(String s, int offset, int lenght) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(s.substring(offset, lenght)));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
                         handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
+                @Override
                 public void write(String s) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, s);
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
                         handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
+                }
+
+                @Override
+                public void flush() {
+                    boolean b = forceAsyncIOWriter;
+                    try {
+                        writeStatusAndHeaders();
+                        // Prevent StackOverflow
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.flush(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
+                }
+
+                @Override
+                public void close() {
+                     // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    try {
+                        asyncIOWriter.close(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
             };
