@@ -66,4 +66,14 @@ public class Jetty8WebSocket extends WebSocket {
     public void close() {
         connection.close();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.flush() not supported by Jetty");
+        return this;
+    }
+
 }
