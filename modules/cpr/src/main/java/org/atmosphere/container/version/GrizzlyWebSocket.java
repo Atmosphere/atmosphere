@@ -118,6 +118,7 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.close()");
         webSocket.close();
     }
 
@@ -126,6 +127,7 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.flush() not supported by Grizzly");
         return this;
     }
 
