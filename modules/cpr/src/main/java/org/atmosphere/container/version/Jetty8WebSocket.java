@@ -35,13 +35,11 @@ public class Jetty8WebSocket extends WebSocket {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
     private final Connection connection;
-    private final AtmosphereConfig config;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
     public Jetty8WebSocket(Connection connection, AtmosphereConfig config) {
         super(config);
         this.connection = connection;
-        this.config = config;
     }
 
     /**
@@ -157,6 +155,7 @@ public class Jetty8WebSocket extends WebSocket {
      */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.flush() not supported by Jetty");
         return this;
     }
 
