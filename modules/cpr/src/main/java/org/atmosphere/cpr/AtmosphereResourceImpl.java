@@ -836,7 +836,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    public synchronized void cancel() throws IOException {
+    public void cancel() throws IOException {
         action.type(Action.TYPE.RESUME);
         isCancelled = true;
         asyncSupport.action(this);
