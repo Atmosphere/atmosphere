@@ -68,6 +68,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -109,7 +110,6 @@ public class DefaultBroadcaster implements Broadcaster {
             new ConcurrentLinkedQueue<AtmosphereResource>();
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
-    protected final BlockingQueue<AsyncWriteToken> asyncWriteQueue = new LinkedBlockingQueue<AsyncWriteToken>();
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
@@ -120,6 +120,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener>();
+    protected final ConcurrentHashMap<String,BlockingQueue<AsyncWriteToken>> writeQueues = new ConcurrentHashMap<String,BlockingQueue<AsyncWriteToken>>();
 
     protected Future<?>[] notifierFuture;
     protected Future<?>[] asyncWriteFuture;
@@ -219,7 +220,6 @@ public class DefaultBroadcaster implements Broadcaster {
             resources.clear();
             broadcastOnResume.clear();
             messages.clear();
-            asyncWriteQueue.clear();
             delayedBroadcast.clear();
             broadcasterListeners.clear();
         } catch (Throwable t) {
@@ -572,14 +572,13 @@ public class DefaultBroadcaster implements Broadcaster {
         };
     }
 
-    protected Runnable getAsyncWriteHandler() {
+    protected Runnable getAsyncWriteHandler(final BlockingQueue<AsyncWriteToken> asyncWriteQueue) {
         return new Runnable() {
             public void run() {
                 AsyncWriteToken token = null;
                 try {
                     token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
                     if (token == null) {
-                        if (!destroyed.get()) bc.getAsyncWriteService().submit(this);
                         return;
                     }
 
@@ -641,16 +640,13 @@ public class DefaultBroadcaster implements Broadcaster {
 
         int threads = outOfOrderBroadcastSupported.get() ? reactiveThreadsCount() : 1;
         notifierFuture = new Future<?>[threads];
-        asyncWriteFuture = new Future<?>[threads];
 
         if (outOfOrderBroadcastSupported.get()){
             for (int i = 0; i < threads; i++) {
                 notifierFuture[i] = bc.getExecutorService().submit(getBroadcastHandler());
-                asyncWriteFuture[i] = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
             }
         } else {
             notifierFuture[0] = bc.getExecutorService().submit(getBroadcastHandler());
-            asyncWriteFuture[0] = bc.getAsyncWriteService().submit(getAsyncWriteHandler());
         }
     }
 
@@ -849,12 +845,17 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
                     trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
                 }
-            }  else {
-                asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
+                return;
             }
-        } else {
-            asyncWriteQueue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
         }
+
+        BlockingQueue<AsyncWriteToken> queue = writeQueues.get(r.uuid());
+        if (queue == null) {
+            queue = new LinkedBlockingQueue<AsyncWriteToken>();
+            writeQueues.put(r.uuid(), queue);
+            bc.getAsyncWriteService().submit(getAsyncWriteHandler(queue));
+        }
+        queue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
