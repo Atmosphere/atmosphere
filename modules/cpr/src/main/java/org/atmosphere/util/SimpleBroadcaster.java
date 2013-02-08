@@ -53,8 +53,10 @@
 package org.atmosphere.util;
 
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -63,6 +65,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -169,6 +172,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         push(new Entry(newMsg, subset, f, msg));
         return f;
     }
+
+    @Override
+    protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+        if (writeTimeoutInSecond != -1) {
+            logger.warn("{} not supported with this broadcaster.", ApplicationConfig.WRITE_TIMEOUT);
+        }
+        invokeOnStateChange(r, e);
+    }
+
 
     /**
      * {@inheritDoc}
