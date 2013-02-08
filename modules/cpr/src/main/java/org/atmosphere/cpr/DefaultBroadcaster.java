@@ -580,6 +580,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
                     if (token == null) {
+                        writeQueues.remove(token.resource.uuid());
                         return;
                     }
 
