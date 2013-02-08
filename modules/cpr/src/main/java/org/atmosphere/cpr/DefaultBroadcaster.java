@@ -189,7 +189,8 @@ public class DefaultBroadcaster implements Broadcaster {
         notifyDestroyListener();
 
         try {
-            logger.trace("Broadcaster {} is being destroyed and cannot be re-used", getID());
+            logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
+            logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
 
             if (config.getBroadcasterFactory() != null) {
                 config.getBroadcasterFactory().remove(this, this.getID());
