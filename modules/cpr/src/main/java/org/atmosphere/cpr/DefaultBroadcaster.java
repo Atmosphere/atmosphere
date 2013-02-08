@@ -1018,6 +1018,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (writeTimeoutInSecond != -1) {
+            logger.debug("Registering write timeout {} for {}", writeTimeoutInSecond, r.uuid());
             WriteOperation w = new WriteOperation(r, e);
             bc.getScheduledExecutorService().schedule(w, writeTimeoutInSecond, TimeUnit.MILLISECONDS);
 
@@ -1051,8 +1052,10 @@ public class DefaultBroadcaster implements Broadcaster {
         public Object call() throws Exception {
             if (!completed.getAndSet(true)) {
                 invokeOnStateChange(r,e);
+                logger.debug("Cancelling Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
                 executed.set(true);
             } else if (!executed.get()){
+                logger.debug("Honoring Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
             }
