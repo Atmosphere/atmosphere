@@ -222,6 +222,7 @@ public class DefaultBroadcaster implements Broadcaster {
             messages.clear();
             delayedBroadcast.clear();
             broadcasterListeners.clear();
+            writeQueues.clear();
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
@@ -1423,11 +1424,12 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Broadcaster removeAtmosphereResource(AtmosphereResource r, boolean executeDone) {
-
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "removeAtmosphereResource(AtmosphereResource r)");
             return this;
         }
+
+        writeQueues.remove(r.uuid());
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
         if (executeDone) {
