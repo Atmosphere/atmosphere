@@ -136,7 +136,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
-    private int writeTimeoutInSecond = -1;
+    protected int writeTimeoutInSecond = -1;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
