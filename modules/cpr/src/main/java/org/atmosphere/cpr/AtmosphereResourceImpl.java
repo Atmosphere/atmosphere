@@ -273,9 +273,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     @Override
-    public synchronized AtmosphereResource resume() {
-        // We need to synchronize the method because the resume may occurs at the same time a message is published
-        // and we will miss that message. The DefaultBroadcaster synchronize on that method before writing a message.
+    public AtmosphereResource resume() {
         try {
             if (!isResumed && isInScope) {
                 action.type(Action.TYPE.RESUME);
