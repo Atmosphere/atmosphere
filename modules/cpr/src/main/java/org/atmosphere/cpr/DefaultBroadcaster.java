@@ -1079,6 +1079,10 @@ public class DefaultBroadcaster implements Broadcaster {
             r.removeEventListeners();
         }
 
+        if (notifyAndCache) {
+            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN), notifyAndCache);
+        }
+
         /**
          * Make sure we resume the connection on every IOException.
          */
@@ -1096,10 +1100,6 @@ public class DefaultBroadcaster implements Broadcaster {
             });
         } else {
             r.resume();
-        }
-
-        if (notifyAndCache) {
-            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN));
         }
     }
 
