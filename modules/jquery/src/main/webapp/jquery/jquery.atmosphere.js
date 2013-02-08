@@ -1161,9 +1161,10 @@ jQuery.atmosphere = function() {
                     } else if (_request.reconnect && _response.transport == 'websocket') {
                         _clearState();
                         if (_requestCount++ < _request.maxReconnectOnClose) {
-                            _request.requestCount = _requestCount;
-                            _response.responseBody = "";
-                            _executeWebSocket(true);
+                            _request.id = setTimeout(function() {
+                                _response.responseBody = "";
+                                _executeWebSocket(true);
+                            }, _request.reconnectInterval);
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["Websocket reconnect maximum try reached " + _request.requestCount]);
                             jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
