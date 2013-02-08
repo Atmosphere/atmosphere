@@ -1146,7 +1146,7 @@ jQuery.atmosphere = function() {
                             _request.id = setTimeout(function() {
                                 _response.responseBody = "";
                                 _executeWebSocket(true);
-                            }, _request.connectTimeout);
+                            }, _request.reconnectInterval);
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["Websocket reconnect maximum try reached " + _requestCount]);
                             jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
