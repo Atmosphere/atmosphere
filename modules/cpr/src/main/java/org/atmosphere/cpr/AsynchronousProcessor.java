@@ -402,6 +402,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
             r = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
+            if (r != null && r.isCancelled()) {
+                return cancelledAction;
+            }
+
             if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
                 r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
 
@@ -430,7 +434,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             } catch (Throwable t) {
                 logger.trace("timedout", t);
             } finally {
-
                 try {
                     response.getOutputStream().close();
                 } catch (Throwable t) {
