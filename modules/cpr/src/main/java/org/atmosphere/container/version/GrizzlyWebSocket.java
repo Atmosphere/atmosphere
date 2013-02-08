@@ -42,12 +42,14 @@ public final class GrizzlyWebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         webSocket.send(s);
         return this;
     }
 
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         webSocket.send(Arrays.copyOfRange(data, offset, length));
         return this;
     }

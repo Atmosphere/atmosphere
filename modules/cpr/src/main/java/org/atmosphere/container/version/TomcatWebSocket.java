@@ -49,12 +49,14 @@ public class TomcatWebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         outbound.writeTextMessage(CharBuffer.wrap(s));
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         outbound.writeBinaryMessage(ByteBuffer.wrap(b, offset, length));
         return this;
     }
@@ -67,7 +69,6 @@ public class TomcatWebSocket extends WebSocket {
         } catch (IOException e) {
             logger.trace("", e);
         }
-        lastWrite = System.currentTimeMillis();
     }
 
     /**

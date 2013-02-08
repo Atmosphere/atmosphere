@@ -52,12 +52,14 @@ public class Jetty8WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         connection.sendMessage(s);
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         connection.sendMessage(b, offset, length);
         return this;
     }
