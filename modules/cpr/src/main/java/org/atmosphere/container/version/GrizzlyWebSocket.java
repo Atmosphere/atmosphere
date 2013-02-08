@@ -65,6 +65,8 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
+
         if (binaryWrite) {
             byte[] b = webSocketResponseFilter.filter(r, data).getBytes(resource().getResponse().getCharacterEncoding());
             if (b != null) webSocket.send(b);
@@ -81,6 +83,7 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         if (binaryWrite) {
             byte[] b = webSocketResponseFilter.filter(r, data);
             if (b != null) webSocket.send(b);
@@ -98,6 +101,7 @@ public final class GrizzlyWebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
                 byte[] b = webSocketResponseFilter.filter(r, data, offset, length);

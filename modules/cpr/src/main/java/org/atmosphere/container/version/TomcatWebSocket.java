@@ -66,7 +66,7 @@ public class TomcatWebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
-        logger.trace("WebSocket.write()");
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
         if (binaryWrite) {
             outbound.writeBinaryMessage(ByteBuffer.wrap(
@@ -84,7 +84,7 @@ public class TomcatWebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         firstWrite.set(true);
-        logger.trace("WebSocket.write()");
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
         if (binaryWrite) {
             outbound.writeBinaryMessage(ByteBuffer.wrap(webSocketResponseFilter.filter(r, data)));
@@ -102,7 +102,7 @@ public class TomcatWebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
-        logger.trace("WebSocket.write()");
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {

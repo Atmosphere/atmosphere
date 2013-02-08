@@ -70,7 +70,9 @@ public class Jetty8WebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         firstWrite.set(true);
+
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
 
@@ -94,7 +96,9 @@ public class Jetty8WebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         firstWrite.set(true);
+
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
@@ -119,6 +123,8 @@ public class Jetty8WebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
+
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
