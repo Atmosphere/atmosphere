@@ -1080,7 +1080,7 @@ public class DefaultBroadcaster implements Broadcaster {
         public Object call() throws Exception {
             if (!completed.getAndSet(true)) {
                 invokeOnStateChange(r,e);
-                completed.set(true);
+                executed.set(true);
             } else if (!executed.get()){
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
