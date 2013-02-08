@@ -188,6 +188,17 @@ public class UrlMappingTest {
     }
 
     @Test
+    public void mappingTildeCharacter() throws ServletException {
+        framework.addAtmosphereHandler("/~/*", handler);
+
+        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/~/2").build();
+        assertNotNull(processor.map(r));
+
+        r = new AtmosphereRequest.Builder().pathInfo("/~/1").build();
+        assertNotNull(processor.map(r));
+    }
+
+    @Test
     public void batchMappingTest() throws ServletException {
         framework.addAtmosphereHandler("/", new AH("/"));
         framework.addAtmosphereHandler("/red", new AH("red"));
