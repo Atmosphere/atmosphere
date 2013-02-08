@@ -953,7 +953,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Don't get crazy when looking at that code: https://github.com/Atmosphere/atmosphere/issues/841
             AtmosphereFramework.__uuid.set(config.framework().uuid);
 
-            invokeOnStateChange(r, event);
+            prepareInvokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {
                 r.notifyListeners();
@@ -985,7 +985,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
-                    invokeOnStateChange(r, e);
+                    prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
                     // An exception occured
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
@@ -1042,6 +1042,14 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+        try {
+            r.getAtmosphereHandler().onStateChange(e);
+        } catch (Throwable t) {
+            onException(t, r);
+        }
+    }
+
+    protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (writeTimeoutInSecond != -1) {
             WriteOperation w = new WriteOperation(r, e);
             bc.getScheduledExecutorService().schedule(w, writeTimeoutInSecond, TimeUnit.MILLISECONDS);
@@ -1052,11 +1060,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("", ex);
             }
         } else {
-            try {
-                r.getAtmosphereHandler().onStateChange(e);
-            } catch (Throwable t) {
-                onException(t, r);
-            }
+            invokeOnStateChange(r,e);
         }
     }
 
@@ -1075,13 +1079,8 @@ public class DefaultBroadcaster implements Broadcaster {
         @Override
         public Object call() throws Exception {
             if (!completed.getAndSet(true)) {
-                try {
-                    r.getAtmosphereHandler().onStateChange(e);
-                } catch (Throwable t) {
-                    onException(t, r);
-                } finally {
-                    executed.set(true);
-                }
+                invokeOnStateChange(r,e);
+                completed.set(true);
             } else if (!executed.get()){
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
