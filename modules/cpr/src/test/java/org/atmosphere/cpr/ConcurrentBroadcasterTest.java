@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -97,6 +98,7 @@ public class ConcurrentBroadcasterTest {
         public void destroy() {
         }
     }
+
     @Test
     public void testOrderedConcurrentBroadcast() throws InterruptedException {
         long t1 = System.currentTimeMillis();
@@ -214,6 +216,138 @@ public class ConcurrentBroadcasterTest {
 
         assertEquals(a.count.get(), count * client);
         //Thread.sleep(600000);
+        System.out.println("Took: " + (System.currentTimeMillis() - t1));
+    }
+
+    @Test
+    public void testMultipleNonOrderedSimpleBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework()
+                .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
+                .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
+                .getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
+
+        long t1 = System.currentTimeMillis();
+        AR2 a = new AR2();
+        int count = 50;
+        int client = 100;
+        for (int i=0; i < client; i++) {
+            broadcaster.addAtmosphereResource(newAR(a));
+        }
+
+        final CountDownLatch latch = new CountDownLatch(count * client);
+        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        });
+
+        for (int i = 0; i < count; i++) {
+            broadcaster.broadcast("message-" + i);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(a.count.get(), count * client);
+        //Thread.sleep(600000);
+        System.out.println("Took: " + (System.currentTimeMillis() - t1));
+    }
+
+    @Test
+    public void testMultipleOrderedSimpleBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
+
+        long t1 = System.currentTimeMillis();
+        AR2 a = new AR2();
+        int count = 50;
+        int client = 100;
+        for (int i=0; i < client; i++) {
+            broadcaster.addAtmosphereResource(newAR(a));
+        }
+
+        final CountDownLatch latch = new CountDownLatch(count * client);
+        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        });
+
+        for (int i = 0; i < count; i++) {
+            broadcaster.broadcast("message-" + i);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(a.count.get(), count * client);
+        //Thread.sleep(600000);
+        System.out.println("Took: " + (System.currentTimeMillis() - t1));
+    }
+
+    @Test
+    public void testOrderedSimpleBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
+
+        long t1 = System.currentTimeMillis();
+        atmosphereHandler = new AR();
+        ar = new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
+                broadcaster,
+                mock(AtmosphereRequest.class),
+                AtmosphereResponse.create(),
+                mock(BlockingIOCometSupport.class),
+                atmosphereHandler);
+
+        broadcaster.addAtmosphereResource(ar);
+        final CountDownLatch latch = new CountDownLatch(1000);
+        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        });
+
+        StringBuffer b = new StringBuffer();
+        for (int i = 0; i < 1000; i++) {
+            b.append("message-"+i);
+            broadcaster.broadcast("message-" + i);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(atmosphereHandler.value.get().toString(), b.toString());
         System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
