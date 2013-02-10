@@ -576,33 +576,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (sc.getServletContext() != null) {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
-            boolean found = false;
-            for (AtmosphereInterceptor i: interceptors) {
-                if (i.getClass().isAssignableFrom(TrackMessageSizeInterceptor.class)) {
-                    found = true;
-                    break;
-                }
-            }
-
-            for (Entry<String, AtmosphereHandlerWrapper> e : atmosphereHandlers.entrySet()) {
-                for (AtmosphereInterceptor i : e.getValue().interceptors) {
-                    if (i.getClass().isAssignableFrom(TrackMessageSizeInterceptor.class)) {
-                        found = true;
-                        break;
-                    }
-                }
-            }
 
             for (String i: broadcasterFilters) {
-                if (i.equals(TrackMessageSizeFilter.class.getName())) {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                logger.warn("Neither TrackMessageSizeInterceptor or TrackMessageSizeFilter are installed." +
-                        " atmosphere.js may receive glued and incomplete message.");
+                logger.info("Using BroadcastFilter: {}", i);
             }
 
             logger.info("HttpSession supported: {}", config.isSupportSession());
