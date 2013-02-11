@@ -1697,16 +1697,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return period;
     }
 
-    public void notifyOnPostCreate() {
-        for (BroadcasterListener l : broadcasterListeners) {
-            try {
-                l.onPostCreate(this);
-            } catch (Exception ex) {
-                logger.warn("onPostCreate", ex);
-            }
-        }
-    }
-
     void notifyOnPreDestroy() {
         for (BroadcasterListener l : broadcasterListeners) {
             try {

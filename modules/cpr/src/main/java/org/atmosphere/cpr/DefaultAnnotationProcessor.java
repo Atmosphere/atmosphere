@@ -200,7 +200,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     }
                 } else if (BroadcasterListenerService.class.equals(annotation)) {
                     try {
-                        framework.addBroadcastListener((BroadcasterListener) cl.loadClass(className).newInstance());
+                        framework.addBroadcasterListener((BroadcasterListener) cl.loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
