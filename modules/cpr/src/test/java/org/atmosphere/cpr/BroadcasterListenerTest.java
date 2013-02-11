@@ -15,18 +15,17 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static org.testng.Assert.assertTrue;
 
 public class BroadcasterListenerTest {
