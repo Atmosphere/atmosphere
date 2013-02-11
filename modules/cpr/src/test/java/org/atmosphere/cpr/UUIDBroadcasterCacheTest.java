@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.EventCacheBroadcasterCache;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -33,11 +33,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
-public class EventCacheBroadcasterCacheTest {
+public class UUIDBroadcasterCacheTest {
     private AtmosphereResource ar;
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
-    private EventCacheBroadcasterCache eventCacheBroadcasterCache;
+    private UUIDBroadcasterCache eventCacheBroadcasterCache;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -46,7 +46,7 @@ public class EventCacheBroadcasterCacheTest {
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         config.framework().setBroadcasterFactory(factory);
 
-        eventCacheBroadcasterCache = new EventCacheBroadcasterCache();
+        eventCacheBroadcasterCache = new UUIDBroadcasterCache();
         broadcaster.getBroadcasterConfig().setBroadcasterCache(eventCacheBroadcasterCache);
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,

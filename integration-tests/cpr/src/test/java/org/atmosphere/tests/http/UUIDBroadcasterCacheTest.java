@@ -18,7 +18,7 @@ package org.atmosphere.tests.http;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
-import org.atmosphere.cache.EventCacheBroadcasterCache;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -51,9 +51,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-public class EventCacheBroadcasterCacheTest {
+public class UUIDBroadcasterCacheTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(EventCacheBroadcasterCacheTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCacheTest.class);
 
     protected AtmosphereServlet atmoServlet;
     protected final static String ROOT = "/*";
@@ -107,7 +107,7 @@ public class EventCacheBroadcasterCacheTest {
     public void testEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
-        atmoServlet.framework().setBroadcasterCacheClassName(EventCacheBroadcasterCache.class.getName());
+        atmoServlet.framework().setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName());
         final CountDownLatch suspendLatch = new CountDownLatch(1);
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -212,7 +212,7 @@ public class EventCacheBroadcasterCacheTest {
     public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
-        atmoServlet.framework().setBroadcasterCacheClassName(EventCacheBroadcasterCache.class.getName());
+        atmoServlet.framework().setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName());
         final CountDownLatch suspendLatch = new CountDownLatch(1);
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch missedBroadcastCount = new CountDownLatch(101);
