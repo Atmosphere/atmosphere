@@ -1382,14 +1382,16 @@ jQuery.atmosphere = function() {
                     return;
                 }
 
-                if ((rq.transport == 'streaming') && (jQuery.browser.msie && jQuery.browser.version < 10)) {
-                    rq.enableXDR && window.XDomainRequest ? _ieXDR(rq) : _ieStreaming(rq);
-                    return;
-                }
+                if (jQuery.browser.version < 10) {
+                    if ((rq.transport == 'streaming') && (jQuery.browser.msie)) {
+                        rq.enableXDR && window.XDomainRequest ? _ieXDR(rq) : _ieStreaming(rq);
+                        return;
+                    }
 
-                if ((rq.enableXDR) && (window.XDomainRequest)) {
-                    _ieXDR(rq);
-                    return;
+                    if ((rq.enableXDR) && (window.XDomainRequest)) {
+                        _ieXDR(rq);
+                        return;
+                    }
                 }
 
                 if (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
@@ -1710,8 +1712,12 @@ jQuery.atmosphere = function() {
 
             // From jquery-stream, which is APL2 licensed as well.
             function _ieXDR(request) {
-                _ieStream = _configureXDR(request);
-                _ieStream.open();
+                if (request.transport != "polling") {
+                    _ieStream = _configureXDR(request);
+                    _ieStream.open();
+                } else {
+                    _configureXDR(request).open();
+                }
             }
 
             // From jquery-stream
