@@ -475,7 +475,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             if (asyncIOWriter == null) {
                 response.flushBuffer();
             } else {
-                asyncIOWriter.flush();
+                asyncIOWriter.flush(this);
             }
         } catch (IOException ex) {
             handleException(ex);
@@ -968,9 +968,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
 
-        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
-            writeUsingOriginalResponse = false;
-        }
+//        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
+//            writeUsingOriginalResponse = false;
+//        }
 
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
@@ -1014,9 +1014,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
 
-        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
-            writeUsingOriginalResponse = false;
-        }
+//        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
+//            writeUsingOriginalResponse = false;
+//        }
 
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
