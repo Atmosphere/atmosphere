@@ -20,6 +20,9 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
@@ -47,7 +50,7 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
     }
 
     @Override
-    public Action inspect(AtmosphereResource r) {
+    public Action inspect(final AtmosphereResource r) {
 
         String uuid = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         String handshakeUUID = r.getRequest().getHeader(HeaderConfig.X_ATMO_PROTOCOL);
@@ -56,14 +59,13 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
             // Since 1.0.10
 
             if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                try {
-                    r.getResponse().write(AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.ATMOSPHERE_PADDING)).flushBuffer();
-                } catch (IOException e) {
-                    logger.trace("", e);
-                }
-                r.padding("");
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
+                    }
+                });
             }
-            r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
 
             // We don't need to reconnect here
             if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
