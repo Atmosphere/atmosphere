@@ -174,17 +174,10 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
-<<<<<<< HEAD
     protected boolean webSocketProtocolInitialized = false;
     protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
     protected String libPath = DEFAULT_LIB_PATH;
-=======
-    // Don't get crazy: https://github.com/Atmosphere/atmosphere/issues/841
-    protected static final ThreadLocal<String> __uuid = new ThreadLocal<String>();
-    protected String uuid = UUID.randomUUID().toString();
-    protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
->>>>>>> c1257c9... Add a unit test for BroadcasterListener
 
     @Override
     public ServletContext getServletContext() {
@@ -521,13 +514,8 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
-<<<<<<< HEAD
-=======
-
         if (isInit) return this;
 
-        __uuid.set(uuid);
->>>>>>> c1257c9... Add a unit test for BroadcasterListener
         try {
             ServletContextHolder.register(this);
 
@@ -1764,7 +1752,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
-<<<<<<< HEAD
     /**
      * Add a {@link BroadcasterCacheInspector} which will be associated with the defined {@link BroadcasterCache}
      * @param b {@link BroadcasterCacheInspector}
@@ -1784,8 +1771,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         return inspectors;
     }
 
-=======
->>>>>>> c1257c9... Add a unit test for BroadcasterListener
     protected void autoConfigureService(ServletContext sc) throws IOException {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
