@@ -821,13 +821,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 // https://github.com/Atmosphere/atmosphere/issues/864
                 // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
                 BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-<<<<<<< HEAD
-                if (!EventCacheBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-                    trackBroadcastMessage(r, entry);
-=======
                 if (!UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-                    trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg: entry.originalMessage);
->>>>>>> 126e668... Rename EventCacheBroadcasterCache to UUIDBroadcasterCache
+                    trackBroadcastMessage(r, entry);
                 }
                 return;
             }
