@@ -45,9 +45,9 @@ import java.util.concurrent.TimeUnit;
  * @author Paul Khodchenkov
  * @author Jeanfrancois Arcand
  */
-public class EventCacheBroadcasterCache implements BroadcasterCache {
+public class UUIDBroadcasterCache implements BroadcasterCache {
 
-    private final static Logger logger = LoggerFactory.getLogger(EventCacheBroadcasterCache.class);
+    private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
     private final Map<String, ClientQueue> messages = new HashMap<String, ClientQueue>();
 
