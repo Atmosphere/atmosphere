@@ -20,11 +20,11 @@ import java.io.IOException;
 /**
  * A filter like API that allow an {@link AtmosphereInterceptor} to intercept the response before it get written back
  * to the client. An AsyncIOInterceptor can only be used with an {@link AtmosphereInterceptorWriter}.
- *
+ * <p/>
  * An implementation of this class must make sure the data is written inside the intercept method because it
  * will be lost.
  *
- *  @author Jeanfrancois Arcand
+ * @author Jeanfrancois Arcand
  */
 public interface AsyncIOInterceptor {
 
