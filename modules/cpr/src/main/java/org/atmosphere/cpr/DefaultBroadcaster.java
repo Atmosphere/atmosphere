@@ -1002,14 +1002,19 @@ public class DefaultBroadcaster implements Broadcaster {
         retrieveTrackedBroadcast(r, e);
         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
-            BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
-            LinkedList<Object> filteredMessage = new LinkedList<Object>();
-            List<Object> cacheMessages = (List) e.getMessage();
-            for (Object o : cacheMessages) {
-                filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
-            }
 
-            e.setMessage(filteredMessage);
+            List<Object> cacheMessages = (List) e.getMessage();
+            BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
+            if (cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER)) {
+                LinkedList<Object> filteredMessage = new LinkedList<Object>();
+                for (Object o : cacheMessages) {
+                    filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
+                }
+
+                e.setMessage(filteredMessage);
+            }  else {
+                e.setMessage(cacheMessages);
+            }
 
             r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
