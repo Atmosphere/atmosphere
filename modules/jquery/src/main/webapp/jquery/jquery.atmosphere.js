@@ -1492,6 +1492,7 @@ jQuery.atmosphere = function() {
                                     }
                                 } else {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
+                                    rq.lastIndex = responseText.length;
                                     if (!_handleProtocol( _request, message)) {
                                         _reconnect(ajaxRequest, rq, false);
                                         return;

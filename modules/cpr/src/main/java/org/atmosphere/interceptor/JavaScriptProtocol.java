@@ -23,6 +23,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -33,7 +35,7 @@ import java.io.IOException;
  * @author Jeanfrancois Arcand
  */
 public class JavaScriptProtocol implements AtmosphereInterceptor {
-
+    private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
 
     @Override
@@ -57,9 +59,9 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                 try {
                     r.getResponse().write(AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.ATMOSPHERE_PADDING)).flushBuffer();
                 } catch (IOException e) {
-                    //
+                    logger.trace("", e);
                 }
-                r.padding("none");
+                r.padding("");
             }
             r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
 
