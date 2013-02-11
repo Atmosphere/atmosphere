@@ -64,6 +64,7 @@ public class Jetty8WebSocket extends WebSocket {
 
     @Override
     public void close() {
+        logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         connection.close();
     }
 

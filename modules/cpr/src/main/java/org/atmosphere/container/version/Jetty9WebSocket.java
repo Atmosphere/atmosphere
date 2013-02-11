@@ -53,6 +53,7 @@ public class Jetty9WebSocket extends WebSocket {
     @Override
     public void close() {
         try {
+            logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
             webSocketConnection.close();
         } catch (IOException e) {
             logger.trace("Close error", e);
