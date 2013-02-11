@@ -60,6 +60,8 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                         r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
                     }
                 });
+            } else {
+                r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
             }
 
             // We don't need to reconnect here
