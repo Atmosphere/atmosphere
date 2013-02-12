@@ -208,7 +208,7 @@ public class UUIDBroadcasterCacheTest {
         c.close();
     }
 
-    @Test(timeOut = 60000, enabled = true, invocationCount = 5)
+    @Test(timeOut = 60000, enabled = true)
     public void testConcurrentInAndOutEventCacheBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testEventCacheBroadcasterCache", getClass().getSimpleName());
 
