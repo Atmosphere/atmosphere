@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -98,7 +99,7 @@ public class UUIDBroadcasterCacheTest {
 
     @Test
     public void concurrentCache() throws ExecutionException, InterruptedException, ServletException {
-        final CountDownLatch latch = new CountDownLatch(100);
+        final CountDownLatch latch = new CountDownLatch(101);
         broadcaster.addBroadcasterListener(new BroadcasterListener() {
             @Override
             public void onPostCreate(Broadcaster b) {
@@ -112,23 +113,25 @@ public class UUIDBroadcasterCacheTest {
             @Override
             public void onPreDestroy(Broadcaster b) {
             }
-        }).broadcast("e-1");
+        }).broadcast("e-1").get();
 
         broadcaster.removeAtmosphereResource(ar);
 
         ExecutorService s = Executors.newCachedThreadPool();
-        for (int i=0; i < 99; i++) {
+        final AtomicInteger y = new AtomicInteger();
+
+        for (int i=0; i < 100; i++) {
             s.submit(new Runnable() {
                 @Override
                 public void run() {
-                    broadcaster.broadcast("e");
+                    broadcaster.broadcast("e" + y.getAndIncrement());
                 }
             });
         }
 
         latch.await(10, TimeUnit.SECONDS);
 
-        assertEquals(100, eventCacheBroadcasterCache.messages().get(ar.uuid()).getQueue().size());
+        assertEquals(eventCacheBroadcasterCache.messages().get(ar.uuid()).getQueue().size(), 100);
     }
 
     public final static class AR implements AtmosphereHandler {
