@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.apache.catalina.ssi.ByteArrayServletOutputStream;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -607,7 +609,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             };
         } else {
-            return _r().getOutputStream();
+            return _r().getOutputStream() != null ? _r().getOutputStream() : new ByteArrayServletOutputStream();
         }
     }
 
@@ -737,7 +739,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             };
         } else {
-            return _r().getWriter();
+            return _r().getWriter() != null ? _r().getWriter() : new PrintWriter(new StringWriter());
         }
     }
 
@@ -968,9 +970,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
 
-//        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
-//            writeUsingOriginalResponse = false;
-//        }
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
 
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
@@ -1014,9 +1016,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
 
-//        if (DummyHttpServletResponse.class.isAssignableFrom(response.getClass())) {
-//            writeUsingOriginalResponse = false;
-//        }
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
 
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
