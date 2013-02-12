@@ -1485,12 +1485,13 @@ jQuery.atmosphere = function() {
                                 var text = responseText.substring(rq.lastIndex, responseText.length);
 
                                 var message = responseText.substring(rq.lastIndex, responseText.length);
-                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                rq.lastIndex = responseText.length;
                                 if (!_handleProtocol( _request, message)) {
+                                    rq.lastIndex = responseText.length;
                                     _reconnect(ajaxRequest, rq, false);
                                     return;
                                 }
+                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                                rq.lastIndex = responseText.length;
 
                                 if (jQuery.browser.opera) {
                                     jQuery.atmosphere.iterate(function () {
