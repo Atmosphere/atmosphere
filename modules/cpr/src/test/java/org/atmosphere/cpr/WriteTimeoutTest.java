@@ -56,6 +56,8 @@ public class WriteTimeoutTest {
     @Test
     public void testWriteTimeout() throws ExecutionException, InterruptedException, ServletException {
         final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch guard = new CountDownLatch(1);
+
         atmosphereHandler = new AR(latch);
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
@@ -70,11 +72,12 @@ public class WriteTimeoutTest {
         ar.addEventListener(new AtmosphereResourceEventListenerAdapter() {
             @Override
             public void onThrowable(AtmosphereResourceEvent event) {
-                latch.countDown();
                 t.set(event.throwable());
+                guard.countDown();
             }
         });
         broadcaster.broadcast("foo", ar).get();
+        guard.await(10, TimeUnit.SECONDS);
         assertNotNull(t.get());
         assertEquals(t.get().getMessage(), "Unable to write after 2000");
     }
