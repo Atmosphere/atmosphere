@@ -62,6 +62,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.HeaderConfig;
@@ -1431,7 +1432,7 @@ public abstract class BaseTest {
 
     @Test(timeOut = 60000, enabled = true)
     public void testHeaderBroadcasterCacheWithFilter() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
-        logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
+        logger.info("{}: running test: testHeaderBroadcasterCacheWithFilter", getClass().getSimpleName());
 
         atmoServlet.framework().setBroadcasterCacheClassName(HeaderBroadcasterCache.class.getName());
         final CountDownLatch latch = new CountDownLatch(1);
@@ -1446,6 +1447,7 @@ public abstract class BaseTest {
                         event.suspend(-1, false);
                         return;
                     }
+                    DefaultBroadcaster.class.cast(event.getBroadcaster()).setBroadcasterCacheStrategy(BroadcasterCache.STRATEGY.BEFORE_FILTER);
                     event.getBroadcaster().getBroadcasterConfig().addFilter(new PerRequestBroadcastFilter() {
                         @Override
                         public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
