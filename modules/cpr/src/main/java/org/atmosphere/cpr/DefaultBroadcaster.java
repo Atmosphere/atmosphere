@@ -55,7 +55,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +82,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.atmosphere.cache.UUIDBroadcasterCache.CacheMessage;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
-import static org.atmosphere.cpr.BroadcasterCache.*;
+import static org.atmosphere.cpr.BroadcasterCache.Message;
+import static org.atmosphere.cpr.BroadcasterCache.STRATEGY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
@@ -758,9 +758,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Make sure we execute the filter
-            if (r == null && cacheStrategy == STRATEGY.AFTER_FILTER) {
-                AtmosphereResponse response = AtmosphereResponse.newInstance();
-                response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "-1");
+            if (r == null) {
                 r = noOpsResource;
             }
 
@@ -910,8 +908,9 @@ public class DefaultBroadcaster implements Broadcaster {
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
         cache = !UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass()) && cache;
+        boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
 
-        if (force || (cache && cacheStrategy == STRATEGY.AFTER_FILTER)) {
+        if (force || (cache && after)) {
             msg.message = finalMsg;
             trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, msg);
         }
