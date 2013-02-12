@@ -17,17 +17,18 @@ package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
-import org.eclipse.jetty.websocket.api.WebSocketConnection;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.io.WebSocketBlockingConnection;
+import org.eclipse.jetty.websocket.server.WebSocketServerConnection;
 
 import java.io.IOException;
 
 public class Jetty9WebSocket extends WebSocket {
 
-    private final WebSocketConnection webSocketConnection;
+    private final Session webSocketConnection;
     private final WebSocketBlockingConnection blockingConnection;
 
-    public Jetty9WebSocket(WebSocketConnection webSocketConnection, AtmosphereConfig config) {
+    public Jetty9WebSocket(Session webSocketConnection, AtmosphereConfig config) {
         super(config);
         this.webSocketConnection = webSocketConnection;
         blockingConnection = new WebSocketBlockingConnection(webSocketConnection);
@@ -52,8 +53,8 @@ public class Jetty9WebSocket extends WebSocket {
 
     @Override
     public void close() {
+        logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
-            logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
             webSocketConnection.close();
         } catch (IOException e) {
             logger.trace("Close error", e);

@@ -7,36 +7,12 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.eclipse.jetty.websocket.api.UpgradeRequest;
-import org.eclipse.jetty.websocket.api.WebSocketConnection;
-import org.eclipse.jetty.websocket.api.WebSocketException;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
-import org.eclipse.jetty.websocket.server.ServletWebSocketRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.DispatcherType;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.Part;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.Principal;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Locale;
-import java.util.Map;
 
 public class Jetty9WebSocketHandler implements WebSocketListener {
 
@@ -76,9 +52,9 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     }
 
     @Override
-    public void onWebSocketConnect(WebSocketConnection webSocketConnection) {
+    public void onWebSocketConnect(Session session) {
         logger.trace("WebSocket.onOpen.");
-        webSocket = new Jetty9WebSocket(webSocketConnection, framework.getAtmosphereConfig());
+        webSocket = new Jetty9WebSocket(session, framework.getAtmosphereConfig());
         try {
             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Exception e) {
@@ -87,7 +63,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     }
 
     @Override
-    public void onWebSocketException(WebSocketException e) {
+    public void onWebSocketError(Throwable e) {
         logger.error("", e);
         webSocketProcessor.notifyListener(webSocket,
                 new WebSocketEventListener.WebSocketEvent(e, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
