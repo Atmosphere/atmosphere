@@ -1482,8 +1482,6 @@ jQuery.atmosphere = function() {
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
-                                var text = responseText.substring(rq.lastIndex, responseText.length);
-
                                 var message = responseText.substring(rq.lastIndex, responseText.length);
                                 if (!_handleProtocol( _request, message)) {
                                     rq.lastIndex = responseText.length;
