@@ -215,7 +215,7 @@ public class UUIDBroadcasterCacheTest {
         atmoServlet.framework().setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName());
         final CountDownLatch suspendLatch = new CountDownLatch(1);
         final CountDownLatch latch = new CountDownLatch(1);
-        final CountDownLatch missedBroadcastCount = new CountDownLatch(101);
+        final CountDownLatch missedBroadcastCount = new CountDownLatch(100);
 
         atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
@@ -258,7 +258,6 @@ public class UUIDBroadcasterCacheTest {
 
             @Override
             public void onComplete(Broadcaster b) {
-                System.out.println("missedBroadcastCount=>" + missedBroadcastCount.getCount());
                 missedBroadcastCount.countDown();
             }
 
@@ -309,7 +308,7 @@ public class UUIDBroadcasterCacheTest {
 
             missedBroadcastCount.await(10, TimeUnit.SECONDS);
 
-            // Cache will be returned with 2 messages in it.
+            // Cache will be returned with remaining messages in it.
             c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, response.get().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
                     .addHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT).execute(new AsyncCompletionHandler<Response>() {
 
@@ -326,13 +325,19 @@ public class UUIDBroadcasterCacheTest {
 
             try {
                 latch.await(10, TimeUnit.SECONDS);
+                logger.info("Counddown => {}", latch);
             } catch (InterruptedException e) {
                 fail(e.getMessage());
             }
 
+            StringBuffer b = new StringBuffer("");
+            for (int i=1; i < 101; i++) {
+                b.append("message-" + i);
+            }
+
             //System.out.println("=====>" + messages.get().toString());
-            //assertEquals(messages.toString(),"message-1message-2message-3message-4message-5message-6message-7message-8message-9message-10message-11message-12message-13message-14message-15message-16message-17message-18message-19message-20message-21message-22message-23message-24message-25message-26message-27message-28message-29message-30message-31message-32message-33message-34message-35message-36message-37message-38message-39message-40message-41message-42message-43message-44message-45message-46message-47message-48message-49message-50message-51message-52message-53message-54message-55message-56message-57message-58message-59message-60message-61message-62message-63message-64message-65message-66message-67message-68message-69message-70message-71message-72message-73message-74message-75message-76message-77message-78message-79message-80message-81message-82message-83message-84message-85message-86message-87message-88message-89message-90message-91message-92message-93message-94message-95message-96message-97message-98message-99message-100");
-            assertTrue(messages.toString().length() >= 992);
+            //assertEquals(messages.toString(),b.toString());
+            assertEquals(messages.toString().length(),b.toString().length());
             //assertEquals(messages.toString().length(),  992);
 
         } catch (Exception e) {
