@@ -96,12 +96,11 @@ public class Jetty8WebSocket extends WebSocket {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
-        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         firstWrite.set(true);
 
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
-        logger.trace("WebSocket.write()");
         if (binaryWrite) {
             byte[] b = webSocketResponseFilter.filter(r, data);
             if (b != null) {
@@ -123,11 +122,10 @@ public class Jetty8WebSocket extends WebSocket {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         firstWrite.set(true);
-        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
         if (!connection.isOpen()) throw new IOException("Connection remotely closed");
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
 
-        logger.trace("WebSocket.write()");
         if (binaryWrite) {
             if (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.class.isAssignableFrom(webSocketResponseFilter.getClass())) {
                 byte[] b = webSocketResponseFilter.filter(r, data, offset, length);
