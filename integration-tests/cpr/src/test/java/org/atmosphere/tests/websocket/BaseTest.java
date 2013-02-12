@@ -416,14 +416,20 @@ public abstract class BaseTest {
 
         final AtomicBoolean onResume = new AtomicBoolean();
         final CountDownLatch eventReceived = new CountDownLatch(1);
+        final CountDownLatch suspended = new CountDownLatch(1);
+        final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
 
         final CountDownLatch latch = new CountDownLatch(1);
         atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
 
-            boolean isSuspended = false;
-
             public void onRequest(final AtmosphereResource r) throws IOException {
                 r.addEventListener(new WebSocketEventListenerAdapter() {
+
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        logger.trace("{}", event);
+                        suspended.countDown();
+                    }
 
                     @Override
                     public void onResume(AtmosphereResourceEvent event) {
@@ -432,16 +438,20 @@ public abstract class BaseTest {
                     }
                 });
 
-                if (!isSuspended) {
-                    r.suspend();
-                    isSuspended = true;
+                if (suspended.getCount() != 0) {
+                    resource.set(r.suspend());
                 } else {
+                    try {
+                        suspended.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     String message = r.getRequest().getReader().readLine();
                     r.getBroadcaster().broadcast(message);
                     new Timer().schedule(new TimerTask() {
                         @Override
                         public void run() {
-                            r.resume();
+                            resource.get().resume();
                         }
                     }, 2000);
                 }
