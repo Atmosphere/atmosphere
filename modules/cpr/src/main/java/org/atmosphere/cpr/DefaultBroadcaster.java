@@ -1129,10 +1129,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("Cancelling Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
                 executed.set(true);
             } else if (!executed.get()){
-                logger.trace("Honoring Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
-                onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
-                AtmosphereResourceImpl.class.cast(r).cancel();
-
                 // https://github.com/Atmosphere/atmosphere/issues/902
                 try {
                     ioThread.interrupt();
@@ -1140,6 +1136,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     // Swallow, this is already enough embarrassing
                     logger.trace("I/O failure, unable to interrupt the thread", t);
                 }
+
+                logger.trace("Honoring Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
+                onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
+                AtmosphereResourceImpl.class.cast(r).cancel();
             }
             return null;
         }
