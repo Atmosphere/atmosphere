@@ -1069,7 +1069,9 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
-            onException(t, r);
+            if (!InterruptedException.class.isAssignableFrom(t.getClass())) {
+                onException(t, r);
+            }
         }
     }
 
