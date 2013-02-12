@@ -1486,20 +1486,11 @@ jQuery.atmosphere = function() {
 
                                 var message = responseText.substring(rq.lastIndex, responseText.length);
                                 skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                var message = responseText.substring(rq.lastIndex, responseText.length);
+                                rq.lastIndex = responseText.length;
                                 if (!_handleProtocol( _request, message)) {
                                     _reconnect(ajaxRequest, rq, false);
                                     return;
                                 }
-
-                                rq.lastIndex = responseText.length;
-                                var message = responseText.substring(rq.lastIndex, responseText.length);
-                                rq.lastIndex = responseText.length;
-                                if (!_handleProtocol(_request, message)) {
-                                    _reconnect(ajaxRequest, rq, false);
-                                    return;
-                                }
-                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
                                 if (jQuery.browser.opera) {
                                     jQuery.atmosphere.iterate(function () {
