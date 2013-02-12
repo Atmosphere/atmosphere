@@ -280,7 +280,7 @@ public class UUIDBroadcasterCacheTest {
             });
 
             try {
-                suspendLatch.await(20, TimeUnit.SECONDS);
+                suspendLatch.await(30, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 fail(e.getMessage());
             }
