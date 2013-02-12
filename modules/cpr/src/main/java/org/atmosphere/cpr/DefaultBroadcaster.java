@@ -1076,7 +1076,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (writeTimeoutInSecond != -1) {
             logger.trace("Registering Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
-            WriteOperation w = new WriteOperation(r, e);
+            WriteOperation w = new WriteOperation(r, e, Thread.currentThread());
             bc.getScheduledExecutorService().schedule(w, writeTimeoutInSecond, TimeUnit.MILLISECONDS);
 
             try {
@@ -1095,10 +1095,12 @@ public class DefaultBroadcaster implements Broadcaster {
         private final AtmosphereResourceEvent e;
         private AtomicBoolean completed = new AtomicBoolean();
         private AtomicBoolean executed = new AtomicBoolean();
+        private final Thread ioThread;
 
-        private WriteOperation(AtmosphereResource r, AtmosphereResourceEvent e) {
+        private WriteOperation(AtmosphereResource r, AtmosphereResourceEvent e, Thread ioThread) {
             this.r = r;
             this.e = e;
+            this.ioThread = ioThread;
         }
 
         @Override
@@ -1111,6 +1113,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("Honoring Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
                 onException(new IOException("Unable to write after " + writeTimeoutInSecond), r);
                 AtmosphereResourceImpl.class.cast(r).cancel();
+
+                // https://github.com/Atmosphere/atmosphere/issues/902
+                try {
+                    ioThread.interrupt();
+                } catch (Throwable t) {
+                    // Swallow, this is already enough embarrassing
+                    logger.trace("I/O failure, unable to interrupt the thread", t);
+                }
             }
             return null;
         }
