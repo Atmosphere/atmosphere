@@ -928,8 +928,9 @@ public class DefaultBroadcaster implements Broadcaster {
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
         cache = !UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass()) && cache;
 
-        if (force || (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER)) {
-            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, finalMsg);
+        boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
+        if (force || (cache && after)) {
+            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, after ? finalMsg : msg.originalMessage);
         }
         return finalMsg;
     }
