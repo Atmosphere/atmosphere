@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.apache.catalina.ssi.ByteArrayServletOutputStream;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +28,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.Writer;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -609,7 +607,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             };
         } else {
-            return _r().getOutputStream() != null ? _r().getOutputStream() : new ByteArrayServletOutputStream();
+            return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
+                @Override
+                public void write(int b) throws IOException {
+                }
+            };
         }
     }
 
