@@ -252,7 +252,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             setStatus(sc, msg);
 
             // Prevent StackOverflow
@@ -274,7 +274,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             setStatus(sc);
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -295,7 +295,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -472,11 +472,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public void flushBuffer() throws IOException {
         try {
-            if (asyncIOWriter == null) {
-                response.flushBuffer();
-            } else {
-                asyncIOWriter.flush(this);
-            }
+            response.flushBuffer();
         } catch (IOException ex) {
             handleException(ex);
             throw ex;
@@ -520,7 +516,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             return new ServletOutputStream() {
 
                 @Override
@@ -649,7 +645,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public PrintWriter getWriter() throws IOException {
-        if (forceAsyncIOWriter || !delegateToNativeResponse ) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             return new PrintWriter(getOutputStream()) {
                 @Override
                 public void write(char[] chars, int offset, int lenght) {
@@ -933,6 +929,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(String data, boolean writeUsingOriginalResponse) {
+
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
