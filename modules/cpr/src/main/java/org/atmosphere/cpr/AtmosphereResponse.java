@@ -464,11 +464,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public void flushBuffer() throws IOException {
         try {
-            if (asyncIOWriter == null) {
-                response.flushBuffer();
-            } else {
-                asyncIOWriter.flush();
-            }
+            response.flushBuffer();
         } catch (IOException ex) {
             handleException(ex);
             throw ex;
@@ -919,6 +915,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(String data, boolean writeUsingOriginalResponse) {
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -957,6 +957,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
+
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
