@@ -794,7 +794,6 @@ public class DefaultBroadcaster implements Broadcaster {
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
         if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
             entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
-
         }
         // We cache first, and if the broadcast succeed, we will remove it.
 
