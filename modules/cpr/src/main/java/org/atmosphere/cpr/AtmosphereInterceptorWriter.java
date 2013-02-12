@@ -53,16 +53,12 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     @Override
     public AsyncIOWriter write(String data) throws IOException {
-        write(data.getBytes());
-
-        return this;
+        return write(data.getBytes());
     }
 
     @Override
     public AsyncIOWriter write(byte[] data) throws IOException {
-        write(data, 0, data.length);
-
-        return this;
+        return write(data, 0, data.length);
     }
 
     @Override
