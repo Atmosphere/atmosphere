@@ -123,7 +123,8 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
     protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener>();
-    protected final ConcurrentHashMap<String,BlockingQueue<AsyncWriteToken>> writeQueues = new ConcurrentHashMap<String,BlockingQueue<AsyncWriteToken>>();
+    protected final ConcurrentHashMap<String,WriteQueue> writeQueues = new ConcurrentHashMap<String,WriteQueue>();
+    protected final WriteQueue uniqueWriteQueue = new WriteQueue();
 
     protected Future<?>[] notifierFuture;
     protected Future<?>[] asyncWriteFuture;
@@ -141,6 +142,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
+    protected final AtmosphereResource noOpsResource;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -165,6 +167,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (s != null) {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
+        noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
@@ -570,19 +573,27 @@ public class DefaultBroadcaster implements Broadcaster {
         };
     }
 
-    protected Runnable getAsyncWriteHandler(final BlockingQueue<AsyncWriteToken> asyncWriteQueue) {
+    protected Runnable getAsyncWriteHandler(final WriteQueue writeQueue) {
         return new Runnable() {
             public void run() {
                 AsyncWriteToken token = null;
                 try {
-                    token = asyncWriteQueue.poll(5, TimeUnit.SECONDS);
-                    if (token == null) {
-                        writeQueues.remove(token.resource.uuid());
-                        return;
+                    token = writeQueue.queue.poll(5, TimeUnit.SECONDS);
+                    if (token == null && !outOfOrderBroadcastSupported.get()) {
+                        synchronized (writeQueue) {
+                            if (writeQueue.queue.size() == 0) {
+                                writeQueue.monitored.set(false);
+                                writeQueues.remove(token.resource.uuid());
+                                return;
+                            }
+                        }
                     }
 
-                    if (outOfOrderBroadcastSupported.get()) {
+                    if (token == null || outOfOrderBroadcastSupported.get()) {
                         bc.getAsyncWriteService().submit(this);
+                        if (token == null) {
+                            return;
+                        }
                     }
                 } catch (InterruptedException ex) {
                     logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
@@ -750,27 +761,10 @@ public class DefaultBroadcaster implements Broadcaster {
             if (r == null && cacheStrategy == STRATEGY.AFTER_FILTER) {
                 AtmosphereResponse response = AtmosphereResponse.newInstance();
                 response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "-1");
-                r = AtmosphereResourceFactory.getDefault().create(config,
-                        this,
-                        AtmosphereRequest.create(),
-                        response,
-                        config.framework().getAsyncSupport(),
-                        new AbstractReflectorAtmosphereHandler() {
-                            @Override
-                            public void onRequest(AtmosphereResource resource) throws IOException {
-
-                            }
-
-                            @Override
-                            public void destroy() {
-
-                            }
-                        });
+                r = noOpsResource;
             }
 
             perRequestFilter(r, entry, true, true);
-            //trackBroadcastMessage(r, entry);
-
             entryDone(entry.future);
             return;
         }
@@ -856,13 +850,28 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        BlockingQueue<AsyncWriteToken> queue = writeQueues.get(r.uuid());
-        if (queue == null) {
-            queue = new LinkedBlockingQueue<AsyncWriteToken>();
-            writeQueues.put(r.uuid(), queue);
-            bc.getAsyncWriteService().submit(getAsyncWriteHandler(queue));
+        AsyncWriteToken w = new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache);
+        if (!outOfOrderBroadcastSupported.get()) {
+            WriteQueue writeQueue = writeQueues.get(r.uuid());
+            if (writeQueue == null) {
+                writeQueue = new WriteQueue();
+                writeQueues.put(r.uuid(), writeQueue);
+            }
+
+            writeQueue.queue.put(w);
+            synchronized (writeQueue) {
+                if (!writeQueue.monitored.getAndSet(true)) {
+                    bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
+                }
+            }
+        } else {
+           uniqueWriteQueue.queue.offer(w);
         }
-        queue.put(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
+    }
+
+    private final static class WriteQueue {
+        final BlockingQueue<AsyncWriteToken> queue = new LinkedBlockingQueue<AsyncWriteToken>();;
+        final AtomicBoolean monitored = new AtomicBoolean();
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
