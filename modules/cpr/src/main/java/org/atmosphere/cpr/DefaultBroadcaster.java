@@ -14,11 +14,11 @@
  * the License.
  */
 /*
- * 
+ *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- * 
+ *
  * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- * 
+ *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
@@ -26,7 +26,7 @@
  * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
  * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
  * language governing permissions and limitations under the License.
- * 
+ *
  * When distributing the software, include this License Header Notice in each
  * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
  * Sun designates this particular file as subject to the "Classpath" exception
@@ -35,9 +35,9 @@
  * Header, with the fields enclosed by brackets [] replaced by your own
  * identifying information: "Portions Copyrighted [year]
  * [name of copyright owner]"
- * 
+ *
  * Contributor(s):
- * 
+ *
  * If you wish your version of this file to be governed by only the CDDL or
  * only the GPL Version 2, indicate your decision by adding "[Contributor]
  * elects to include this software in this distribution under the [CDDL or GPL
@@ -139,6 +139,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private final Object[] awaitBarrier = new Object[0];
     protected final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
+    protected final AtmosphereResource noOpsResource;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -163,6 +164,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (s != null) {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
+        noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
@@ -776,8 +778,12 @@ public class DefaultBroadcaster implements Broadcaster {
             if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
                 r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
             }
-            trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage);
 
+            // Make sure we execute the filter
+            if (r == null && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                r = noOpsResource;
+            }
+            perRequestFilter(r, entry, true, true);
             entryDone(entry.future);
             return;
         }
@@ -887,7 +893,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
+        return  perRequestFilter(r,msg, cache, false);
+    }
 
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache, boolean force) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -917,11 +926,11 @@ public class DefaultBroadcaster implements Broadcaster {
         // https://github.com/Atmosphere/atmosphere/issues/864
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (!UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-            if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                msg.message = finalMsg;
-                trackBroadcastMessage(r, msg);
-            }
+        cache = !UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass()) && cache;
+
+        if (force || (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER)) {
+            msg.message = finalMsg;
+            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, msg);
         }
         return finalMsg;
     }
@@ -1096,7 +1105,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("", ex);
             }
         } else {
-            invokeOnStateChange(r,e);
+            invokeOnStateChange(r, e);
         }
     }
 
