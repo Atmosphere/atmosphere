@@ -14,11 +14,11 @@
  * the License.
  */
 /*
- * 
+ *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- * 
+ *
  * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- * 
+ *
  * The contents of this file are subject to the terms of either the GNU
  * General Public License Version 2 only ("GPL") or the Common Development
  * and Distribution License("CDDL") (collectively, the "License").  You
@@ -26,7 +26,7 @@
  * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
  * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
  * language governing permissions and limitations under the License.
- * 
+ *
  * When distributing the software, include this License Header Notice in each
  * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
  * Sun designates this particular file as subject to the "Classpath" exception
@@ -35,9 +35,9 @@
  * Header, with the fields enclosed by brackets [] replaced by your own
  * identifying information: "Portions Copyrighted [year]
  * [name of copyright owner]"
- * 
+ *
  * Contributor(s):
- * 
+ *
  * If you wish your version of this file to be governed by only the CDDL or
  * only the GPL Version 2, indicate your decision by adding "[Contributor]
  * elects to include this software in this distribution under the [CDDL or GPL
@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.atmosphere.cache.UUIDBroadcasterCache.CacheMessage;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
+import static org.atmosphere.cpr.BroadcasterCache.*;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
@@ -135,7 +137,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private Future<?> currentLifecycleTask;
     protected URI uri;
     protected AtmosphereConfig config;
-    protected BroadcasterCache.STRATEGY cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
+    protected STRATEGY cacheStrategy = STRATEGY.AFTER_FILTER;
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
@@ -149,9 +151,9 @@ public class DefaultBroadcaster implements Broadcaster {
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
             if (s.equalsIgnoreCase("afterFilter")) {
-                cacheStrategy = BroadcasterCache.STRATEGY.AFTER_FILTER;
+                cacheStrategy = STRATEGY.AFTER_FILTER;
             } else if (s.equalsIgnoreCase("beforeFilter")) {
-                cacheStrategy = BroadcasterCache.STRATEGY.BEFORE_FILTER;
+                cacheStrategy = STRATEGY.BEFORE_FILTER;
             }
         }
         s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
@@ -327,6 +329,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     r.resume();
                 } catch (Throwable t) {
                     logger.trace("resumeAll", t);
+                } finally {
+                    removeAtmosphereResource(r);
                 }
             }
         }
@@ -741,7 +745,31 @@ public class DefaultBroadcaster implements Broadcaster {
             if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
                 r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
             }
-            trackBroadcastMessage(r, entry);
+
+            // Make sure we execute the filter
+            if (r == null && cacheStrategy == STRATEGY.AFTER_FILTER) {
+                AtmosphereResponse response = AtmosphereResponse.newInstance();
+                response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "-1");
+                r = AtmosphereResourceFactory.getDefault().create(config,
+                        this,
+                        AtmosphereRequest.create(),
+                        response,
+                        config.framework().getAsyncSupport(),
+                        new AbstractReflectorAtmosphereHandler() {
+                            @Override
+                            public void onRequest(AtmosphereResource resource) throws IOException {
+
+                            }
+
+                            @Override
+                            public void destroy() {
+
+                            }
+                        });
+            }
+
+            perRequestFilter(r, entry, true, true);
+            //trackBroadcastMessage(r, entry);
 
             entryDone(entry.future);
             return;
@@ -800,7 +828,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 } else {
                     // See https://github.com/Atmosphere/atmosphere/issues/572
-                    if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                    if (cacheStrategy == STRATEGY.AFTER_FILTER) {
                         entry.message = finalMsg;
                         trackBroadcastMessage(null, entry);
                     }
@@ -838,6 +866,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
+        return  perRequestFilter(r,msg, cache, false);
+    }
+
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache, boolean force) {
 
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
@@ -868,11 +900,11 @@ public class DefaultBroadcaster implements Broadcaster {
         // https://github.com/Atmosphere/atmosphere/issues/864
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (!UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
-            if (cache && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                msg.message = finalMsg;
-                trackBroadcastMessage(r, msg);
-            }
+        cache = !UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass()) && cache;
+
+        if (force || (cache && cacheStrategy == STRATEGY.AFTER_FILTER)) {
+            msg.message = finalMsg;
+            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, msg);
         }
         return finalMsg;
     }
@@ -931,7 +963,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
-            invokeOnStateChange(r, event);
+            prepareInvokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {
                 r.notifyListeners();
@@ -953,7 +985,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             List<Object> cacheMessages = (List) e.getMessage();
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
-            if (cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER)) {
+            if (cacheStrategy.equals(STRATEGY.BEFORE_FILTER)) {
                 LinkedList<Object> filteredMessage = new LinkedList<Object>();
                 for (Object o : cacheMessages) {
                     filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
@@ -968,13 +1000,13 @@ public class DefaultBroadcaster implements Broadcaster {
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
-                    invokeOnStateChange(r, e);
+                    prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
                     // An exception occured
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
                     for (Object o : cacheMessages) {
-                        bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(o));
+                        bc.getBroadcasterCache().addToCache(getID(), r, new Message(o));
                     }
                     return true;
                 }
@@ -1017,15 +1049,23 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void trackBroadcastMessage(final AtmosphereResource r, Entry entry) {
         if (destroyed.get() || bc.getBroadcasterCache() == null) return;
-        Object msg = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
+        Object msg = (cacheStrategy == STRATEGY.AFTER_FILTER) ? entry.message : entry.originalMessage;
         try {
-            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(entry.future.hashCode()), msg));
+            bc.getBroadcasterCache().addToCache(getID(), r, new Message(String.valueOf(entry.future.hashCode()), msg));
         } catch (Throwable t) {
             logger.warn("Unable to track messages {}", msg, t);
         }
     }
 
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+        try {
+            r.getAtmosphereHandler().onStateChange(e);
+        } catch (Throwable t) {
+            onException(t, r);
+        }
+    }
+
+    protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (writeTimeoutInSecond != -1) {
             logger.trace("Registering Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
             WriteOperation w = new WriteOperation(r, e);
@@ -1037,11 +1077,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("", ex);
             }
         } else {
-            try {
-                r.getAtmosphereHandler().onStateChange(e);
-            } catch (Throwable t) {
-                onException(t, r);
-            }
+            invokeOnStateChange(r,e);
         }
     }
 
@@ -1162,8 +1198,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
         try {
             if (token != null && token.originalMessage != null) {
-                Object m = cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
-                bc.getBroadcasterCache().addToCache(getID(), r, new BroadcasterCache.Message(String.valueOf(token.future.hashCode()), m));
+                Object m = cacheStrategy.equals(STRATEGY.BEFORE_FILTER) ? token.originalMessage : token.msg;
+                bc.getBroadcasterCache().addToCache(getID(), r, new Message(String.valueOf(token.future.hashCode()), m));
                 logger.trace("Lost message cached {}", m);
             }
         } catch (Throwable t2) {

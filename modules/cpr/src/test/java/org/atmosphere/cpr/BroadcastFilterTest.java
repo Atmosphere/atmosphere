@@ -315,12 +315,12 @@ public class BroadcastFilterTest {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
             }
         });
-        broadcaster.broadcast("0").get();
+        broadcaster.broadcast("message-1").get();
         broadcaster.addAtmosphereResource(ar);
 
-        broadcaster.broadcast("XXX").get();
+        broadcaster.broadcast("message-2").get();
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.addAtmosphereResource(ar);
-        assertEquals(atmosphereHandler.value.get().toString(), "1|03|XXX1|0");
+        assertEquals(atmosphereHandler.value.get().toString(), "9|message-19|message-29|message-1");
     }
 }

@@ -88,7 +88,7 @@ public class BroadcasterListenerTest {
     public void testGet() throws IOException, ServletException {
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertTrue(completed.get());
         assertTrue(postCreated.get());
         assertTrue(preDssrtoyed.get());
