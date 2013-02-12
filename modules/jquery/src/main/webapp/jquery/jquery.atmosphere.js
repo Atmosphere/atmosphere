@@ -1491,40 +1491,15 @@ jQuery.atmosphere = function() {
                                     _reconnect(ajaxRequest, rq, false);
                                     return;
                                 }
-<<<<<<< HEAD
-                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-=======
-                                _response.junkFull = true;
 
-                                //if it's the start and we see the junk start
-                                //fix for reconnecting on chrome - junk is comming in parts
-                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1 && text.indexOf("<!-- EOD -->") != -1) {
-                                    _response.isJunkEnded = false;
-                                }
-
-                                if (!_response.isJunkEnded) {
-                                    var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLength = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
-
-                                    if (junkEnd > endOfJunkLength && junkEnd != text.length) {
-                                        _response.responseBody = text.substring(junkEnd);
-                                        //fix cached messages
-                                        skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
-                                    } else {
-                                        skipCallbackInvocation = true;
-                                    }
-                                } else {
-                                    var message = responseText.substring(rq.lastIndex, responseText.length);
-                                    rq.lastIndex = responseText.length;
-                                    if (!_handleProtocol( _request, message)) {
-                                        _reconnect(ajaxRequest, rq, false);
-                                        return;
-                                    }
-                                    skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                }
->>>>>>> 3259dc1... Fix streaming regression when enableProtocol is enabled
                                 rq.lastIndex = responseText.length;
+                                var message = responseText.substring(rq.lastIndex, responseText.length);
+                                rq.lastIndex = responseText.length;
+                                if (!_handleProtocol(_request, message)) {
+                                    _reconnect(ajaxRequest, rq, false);
+                                    return;
+                                }
+                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
                                 if (jQuery.browser.opera) {
                                     jQuery.atmosphere.iterate(function () {
