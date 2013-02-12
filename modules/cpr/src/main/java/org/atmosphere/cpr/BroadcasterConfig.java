@@ -107,6 +107,7 @@ public class BroadcasterConfig {
         configureBroadcasterCache();
         this.name = name;
         this.handleExecutors = handleExecutors;
+        logger.info("Using SHARED ExecutorServices for Asynchronous message delivery and write operation {} for Broadcaster {}", isExecutorShared, name);
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
@@ -117,6 +118,7 @@ public class BroadcasterConfig {
         this.config = config;
         this.name = name;
         this.handleExecutors = true;
+        logger.info("Using SHARED ExecutorServices for Asynchronous message delivery and write operation {} for Broadcaster {}", isExecutorShared, name);
     }
 
     private void configureBroadcasterCache() {
@@ -172,12 +174,11 @@ public class BroadcasterConfig {
 
     protected synchronized void configExecutors() {
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        if (Boolean.parseBoolean(s)) {
+        if (s == null || Boolean.parseBoolean(s)) {
             shared = true;
             handleExecutors = false;
             isExecutorShared = true;
             isAsyncExecutorShared = true;
-            logger.info("ExecutorServices will be shared amongts Broadcasters");
         }
 
         if (config.properties().get("executorService") == null) {
