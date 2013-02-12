@@ -780,7 +780,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Make sure we execute the filter
-            if (r == null && cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+            if (r == null) {
                 r = noOpsResource;
             }
             perRequestFilter(r, entry, true, true);
