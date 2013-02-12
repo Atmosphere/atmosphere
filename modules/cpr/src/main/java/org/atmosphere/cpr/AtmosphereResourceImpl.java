@@ -77,7 +77,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
- * and {@link AtmosphereRequest}.
+ * and {@link AtmosphereResponse}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -98,17 +98,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private Serializer serializer;
     private boolean isInScope = true;
     private final AtmosphereResourceEventImpl event;
-    private boolean isResumed = false;
+    private AtomicBoolean isResumed = new AtomicBoolean();
     private AtomicBoolean isCancelled = new AtomicBoolean();
-    private boolean resumeOnBroadcast = false;
+    private AtomicBoolean resumeOnBroadcast = new AtomicBoolean();;
     private Object writeOnTimeout = null;
     private boolean disableSuspend = false;
-    private final AtomicBoolean disconnected = new AtomicBoolean(false);
+    private final AtomicBoolean disconnected = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
             new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
 
-    private final AtomicBoolean isSuspendEvent = new AtomicBoolean(false);
+    private final AtomicBoolean isSuspendEvent = new AtomicBoolean();
     private AtmosphereHandler atmosphereHandler;
     private final String uuid;
     protected HttpSession session;
@@ -224,7 +224,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast) {
-        this.resumeOnBroadcast = resumeOnBroadcast;
+        this.resumeOnBroadcast.set(resumeOnBroadcast);
         // For legacy reason
         req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, resumeOnBroadcast);
         return this;
@@ -243,7 +243,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public boolean resumeOnBroadcast() {
-        return resumeOnBroadcast;
+        return resumeOnBroadcast.get();
     }
 
     /**
@@ -258,9 +258,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
 
         try {
-            if (!isResumed && isInScope) {
+            if (!isResumed.getAndSet(true) && isInScope) {
                 action.type(Action.TYPE.RESUME);
-                isResumed = true;
 
                 // We need it as Jetty doesn't support timeout
                 Broadcaster b = getBroadcaster(false);
@@ -547,7 +546,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public boolean isResumed() {
-        return isResumed;
+        return isResumed.get();
     }
 
     /**
@@ -723,36 +722,25 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public void cancel() throws IOException {
-        action.type(Action.TYPE.RESUME);
-        if (isCancelled.getAndSet(true)) return;
 
-        if (asyncSupport instanceof AsynchronousProcessor) {
-            try {
-                AsynchronousProcessor.class.cast(asyncSupport).resumed(req, response);
-            } catch (ServletException e) {
-                logger.trace("", e);
+        if (!isCancelled.getAndSet(true)) {
+            action.type(Action.TYPE.RESUME);
+            asyncSupport.action(this);
+            // We must close the underlying WebSocket as well.
+            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                AtmosphereResponse.class.cast(response).close();
+                AtmosphereResponse.class.cast(response).destroy();
             }
-        }
-        asyncSupport.action(this);
-        // We must close the underlying WebSocket as well.
-        if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-            AtmosphereResponse.class.cast(response).close();
-            AtmosphereResponse.class.cast(response).destroy();
-        }
 
-        if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-            AtmosphereRequest.class.cast(req).destroy();
-        }
+            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                AtmosphereRequest.class.cast(req).destroy();
+            }
 
-        // TODO: Grab some measurement.
-//        req = null;
-//        response = null;
-
-        // Just in case
-        if (broadcaster != null) {
-            broadcaster.removeAtmosphereResource(this);
+            if (broadcaster != null) {
+                broadcaster.removeAtmosphereResource(this);
+            }
+            event.destroy();
         }
-        event.destroy();
     }
 
     @Override
