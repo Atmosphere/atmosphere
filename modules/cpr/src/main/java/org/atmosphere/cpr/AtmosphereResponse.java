@@ -26,6 +26,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -595,7 +596,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             };
         } else {
-            return _r().getOutputStream();
+            return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
+                @Override
+                public void write(int b) throws IOException {
+                }
+            };
         }
     }
 
@@ -725,7 +730,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 }
             };
         } else {
-            return _r().getWriter();
+            return _r().getWriter() != null ? _r().getWriter() : new PrintWriter(new StringWriter());
         }
     }
 
