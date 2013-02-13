@@ -341,7 +341,7 @@ public class BroadcasterConfig {
             asyncWriteService.shutdownNow();
         }
 
-        if (scheduler != null) {
+        if ((force || !shared) && scheduler != null) {
             scheduler.shutdownNow();
         }
 
