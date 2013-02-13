@@ -43,8 +43,8 @@ public final class GrizzlyWebSocket extends WebSocket {
     @Override
     public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         if (!firstWrite.get()) {
-            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
-                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
+            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
+                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, retrieveUUID());
         } else {
             logger.debug("{} {}", errorCode, message);
         }

@@ -100,4 +100,8 @@ public abstract class WebSocket extends AsyncIOWriterAdapter {
         this.webSocketResponseFilter = w;
         return this;
     }
+
+    protected String retrieveUUID() {
+        return r == null ? "null" : r.uuid();
+    }
 }
