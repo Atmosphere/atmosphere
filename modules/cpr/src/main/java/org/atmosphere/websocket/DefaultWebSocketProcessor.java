@@ -85,9 +85,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean destroyable;
     private final boolean executeAsync;
-<<<<<<< HEAD
-    private final ExecutorService asyncExecutor;
-    private final ExecutorService voidExecutor;
+    private ExecutorService asyncExecutor;
+    private ExecutorService voidExecutor;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
@@ -98,11 +97,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private ByteBuffer bb = ByteBuffer.allocate(8192);
     private CharBuffer cb = CharBuffer.allocate(8192);
-=======
-    private ExecutorService asyncExecutor;
-    private ScheduledExecutorService scheduler;
+
     private boolean shared = false;
->>>>>>> 1a0c441... Fix for #645
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -121,12 +117,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             executeAsync = false;
         }
-
-        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        if (s== null && !Boolean.valueOf(s)) {
-            shared = true;
-        }
-
 
         AtmosphereConfig config =  framework.getAtmosphereConfig();
         if (executeAsync) {
@@ -470,8 +460,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-<<<<<<< HEAD
-=======
     public void destroy() {
         if (asyncExecutor != null) {
             asyncExecutor.shutdown();
@@ -486,7 +474,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
->>>>>>> 1a0c441... Fix for #645
     public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent event) {
         AtmosphereResource resource = webSocket.resource();
         if (resource == null) return;
@@ -527,16 +514,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void destroy() {
-        asyncExecutor.shutdown();
-        voidExecutor.shutdown();
-        scheduler.shutdown();
     }
 
     public static final Map<String, String> configureHeader(AtmosphereRequest request) {
