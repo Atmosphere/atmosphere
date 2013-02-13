@@ -78,7 +78,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
     private ScheduledExecutorService scheduler;
-    private boolean shared = false;
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -97,12 +96,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             executeAsync = false;
         }
-
-        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        if (s== null && !Boolean.valueOf(s)) {
-            shared = true;
-        }
-
 
         AtmosphereConfig config =  framework.getAtmosphereConfig();
         if (executeAsync) {
