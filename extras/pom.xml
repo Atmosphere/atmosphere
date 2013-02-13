@@ -23,7 +23,6 @@
         <module>hazelcast</module>
         <module>weblogic</module>
         <module>jetty-websocketdraft8</module>
-        <module>jaxrs2</module>
         <module>socketio</module>
         <module>cometd</module>
     </modules>
