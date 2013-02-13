@@ -9,7 +9,7 @@
 <div id="overview"><a href="../../../../../apidocs/org/atmosphere/container/version/TomcatWebSocket.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2013 Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -65,8 +65,8 @@
 <a class="jxr_linenumber" name="55" href="#55">55</a>      @Override
 <a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> writeError(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, <strong class="jxr_keyword">int</strong> errorCode, String message) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="57" href="#57">57</a>          <strong class="jxr_keyword">if</strong> (!firstWrite.get()) {
-<a class="jxr_linenumber" name="58" href="#58">58</a>              logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed {}:{}. "</span> +
-<a class="jxr_linenumber" name="59" href="#59">59</a>                      <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, message, errorCode);
+<a class="jxr_linenumber" name="58" href="#58">58</a>              logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} "</span> +
+<a class="jxr_linenumber" name="59" href="#59">59</a>                      <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, errorCode + <span class="jxr_string">" "</span> + message, retrieveUUID());
 <a class="jxr_linenumber" name="60" href="#60">60</a>          } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="61" href="#61">61</a>              logger.debug(<span class="jxr_string">"{} {}"</span>, errorCode, message);
 <a class="jxr_linenumber" name="62" href="#62">62</a>          }
@@ -76,7 +76,7 @@
 <a class="jxr_linenumber" name="66" href="#66">66</a>      @Override
 <a class="jxr_linenumber" name="67" href="#67">67</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> write(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, String data) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="68" href="#68">68</a>          firstWrite.set(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="69" href="#69">69</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
+<a class="jxr_linenumber" name="69" href="#69">69</a>          logger.trace(<span class="jxr_string">"WebSocket.write() for {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">""</span>);
 <a class="jxr_linenumber" name="70" href="#70">70</a>  
 <a class="jxr_linenumber" name="71" href="#71">71</a>          <strong class="jxr_keyword">if</strong> (binaryWrite) {
 <a class="jxr_linenumber" name="72" href="#72">72</a>              outbound.writeBinaryMessage(ByteBuffer.wrap(
@@ -94,7 +94,7 @@
 <a class="jxr_linenumber" name="84" href="#84">84</a>      @Override
 <a class="jxr_linenumber" name="85" href="#85">85</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> write(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, byte[] data) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="86" href="#86">86</a>          firstWrite.set(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="87" href="#87">87</a>          logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
+<a class="jxr_linenumber" name="87" href="#87">87</a>          logger.trace(<span class="jxr_string">"WebSocket.write() for {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">""</span>);
 <a class="jxr_linenumber" name="88" href="#88">88</a>  
 <a class="jxr_linenumber" name="89" href="#89">89</a>          <strong class="jxr_keyword">if</strong> (binaryWrite) {
 <a class="jxr_linenumber" name="90" href="#90">90</a>              outbound.writeBinaryMessage(ByteBuffer.wrap(webSocketResponseFilter.filter(r, data)));
@@ -112,7 +112,7 @@
 <a class="jxr_linenumber" name="102" href="#102">102</a>     @Override
 <a class="jxr_linenumber" name="103" href="#103">103</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> write(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="104" href="#104">104</a>         firstWrite.set(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="105" href="#105">105</a>         logger.trace(<span class="jxr_string">"WebSocket.write()"</span>);
+<a class="jxr_linenumber" name="105" href="#105">105</a>         logger.trace(<span class="jxr_string">"WebSocket.write() for {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">""</span>);
 <a class="jxr_linenumber" name="106" href="#106">106</a> 
 <a class="jxr_linenumber" name="107" href="#107">107</a>         <strong class="jxr_keyword">if</strong> (binaryWrite) {
 <a class="jxr_linenumber" name="108" href="#108">108</a>             <strong class="jxr_keyword">if</strong> (!WebSocketResponseFilter.NoOpsWebSocketResponseFilter.<strong class="jxr_keyword">class</strong>.isAssignableFrom(webSocketResponseFilter.getClass())) {
@@ -135,7 +135,7 @@
 <a class="jxr_linenumber" name="125" href="#125">125</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="126" href="#126">126</a>     @Override
 <a class="jxr_linenumber" name="127" href="#127">127</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="128" href="#128">128</a>         logger.trace(<span class="jxr_string">"WebSocket.close()"</span>);
+<a class="jxr_linenumber" name="128" href="#128">128</a>         logger.trace(<span class="jxr_string">"WebSocket.close() for AtmosphereResource {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">"null"</span>);
 <a class="jxr_linenumber" name="129" href="#129">129</a>         outbound.close(1005, ByteBuffer.wrap(<strong class="jxr_keyword">new</strong> byte[0]));
 <a class="jxr_linenumber" name="130" href="#130">130</a>     }
 <a class="jxr_linenumber" name="131" href="#131">131</a> 
@@ -144,14 +144,15 @@
 <a class="jxr_linenumber" name="134" href="#134">134</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="135" href="#135">135</a>     @Override
 <a class="jxr_linenumber" name="136" href="#136">136</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> flush(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="137" href="#137">137</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="138" href="#138">138</a>     }
-<a class="jxr_linenumber" name="139" href="#139">139</a> 
-<a class="jxr_linenumber" name="140" href="#140">140</a>     @Override
-<a class="jxr_linenumber" name="141" href="#141">141</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="142" href="#142">142</a>         <strong class="jxr_keyword">return</strong> outbound.toString();
-<a class="jxr_linenumber" name="143" href="#143">143</a>     }
-<a class="jxr_linenumber" name="144" href="#144">144</a> }
+<a class="jxr_linenumber" name="137" href="#137">137</a>         outbound.flush();
+<a class="jxr_linenumber" name="138" href="#138">138</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="139" href="#139">139</a>     }
+<a class="jxr_linenumber" name="140" href="#140">140</a> 
+<a class="jxr_linenumber" name="141" href="#141">141</a>     @Override
+<a class="jxr_linenumber" name="142" href="#142">142</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="143" href="#143">143</a>         <strong class="jxr_keyword">return</strong> outbound.toString();
+<a class="jxr_linenumber" name="144" href="#144">144</a>     }
+<a class="jxr_linenumber" name="145" href="#145">145</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

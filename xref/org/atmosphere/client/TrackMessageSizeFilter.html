@@ -9,7 +9,7 @@
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/client/TrackMessageSizeFilter.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2013 Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -54,7 +54,7 @@
 <a class="jxr_linenumber" name="44" href="#44">44</a>          <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"true"</span>.equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
 <a class="jxr_linenumber" name="45" href="#45">45</a>                  &amp;&amp; message != <strong class="jxr_keyword">null</strong> &amp;&amp; String.<strong class="jxr_keyword">class</strong>.isAssignableFrom(message.getClass())) {
 <a class="jxr_linenumber" name="46" href="#46">46</a>  
-<a class="jxr_linenumber" name="47" href="#47">47</a>              String msg = message.toString();
+<a class="jxr_linenumber" name="47" href="#47">47</a>              String msg = message.toString().trim();
 <a class="jxr_linenumber" name="48" href="#48">48</a>              msg = msg.length() + <span class="jxr_string">"|"</span> + msg;
 <a class="jxr_linenumber" name="49" href="#49">49</a>              <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a>(BroadcastAction.ACTION.CONTINUE, msg);
 <a class="jxr_linenumber" name="50" href="#50">50</a>  

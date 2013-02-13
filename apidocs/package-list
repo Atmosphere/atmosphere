@@ -30,13 +30,11 @@ org.atmosphere.jersey
 org.atmosphere.jersey.util
 org.atmosphere.jetty
 org.atmosphere.plugin.hazelcast
-org.atmosphere.plugin.jaxrs
 org.atmosphere.plugin.jgroups
 org.atmosphere.plugin.jms
 org.atmosphere.plugin.redis
 org.atmosphere.plugin.xmpp
 org.atmosphere.samples.chat
-org.atmosphere.samples.chat.jaxrs2
 org.atmosphere.samples.chat.jersey
 org.atmosphere.samples.client
 org.atmosphere.samples.di.guice

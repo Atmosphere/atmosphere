@@ -11,7 +11,7 @@
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
 <a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
-<a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Copyright (c) 2012 Oracle and/or its affiliates. All rights reserved.</em>
+<a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="6" href="#6">6</a>   <em class="jxr_comment"> * The contents of this file are subject to the terms of either the GNU</em>
 <a class="jxr_linenumber" name="7" href="#7">7</a>   <em class="jxr_comment"> * General Public License Version 2 only ("GPL") or the Common Development</em>
@@ -77,8 +77,8 @@
 <a class="jxr_linenumber" name="67" href="#67">67</a>          @Override
 <a class="jxr_linenumber" name="68" href="#68">68</a>          <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> writeError(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, <strong class="jxr_keyword">int</strong> errorCode, String message) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="69" href="#69">69</a>              <strong class="jxr_keyword">if</strong> (!firstWrite.get()) {
-<a class="jxr_linenumber" name="70" href="#70">70</a>                  logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed {}:{}. "</span> +
-<a class="jxr_linenumber" name="71" href="#71">71</a>                          <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, message, errorCode);
+<a class="jxr_linenumber" name="70" href="#70">70</a>                  logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} "</span> +
+<a class="jxr_linenumber" name="71" href="#71">71</a>                          <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, errorCode + <span class="jxr_string">" "</span> + message, retrieveUUID());
 <a class="jxr_linenumber" name="72" href="#72">72</a>              } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="73" href="#73">73</a>                  logger.debug(<span class="jxr_string">"{} {}"</span>, errorCode, message);
 <a class="jxr_linenumber" name="74" href="#74">74</a>              }
@@ -152,18 +152,19 @@
 <a class="jxr_linenumber" name="142" href="#142">142</a> <em class="jxr_javadoccomment">         */</em>
 <a class="jxr_linenumber" name="143" href="#143">143</a>         @Override
 <a class="jxr_linenumber" name="144" href="#144">144</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="145" href="#145">145</a>             webSocket.close();
-<a class="jxr_linenumber" name="146" href="#146">146</a>         }
-<a class="jxr_linenumber" name="147" href="#147">147</a>     
-<a class="jxr_linenumber" name="148" href="#148">148</a>         <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="149" href="#149">149</a> <em class="jxr_javadoccomment">         * {@inheritDoc}</em>
-<a class="jxr_linenumber" name="150" href="#150">150</a> <em class="jxr_javadoccomment">         */</em>
-<a class="jxr_linenumber" name="151" href="#151">151</a>         @Override
-<a class="jxr_linenumber" name="152" href="#152">152</a>         <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> flush(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="153" href="#153">153</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="154" href="#154">154</a>         }
-<a class="jxr_linenumber" name="155" href="#155">155</a>     
-<a class="jxr_linenumber" name="156" href="#156">156</a> }
+<a class="jxr_linenumber" name="145" href="#145">145</a>             logger.trace(<span class="jxr_string">"WebSocket.close() for AtmosphereResource {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">"null"</span>);
+<a class="jxr_linenumber" name="146" href="#146">146</a>             webSocket.close();
+<a class="jxr_linenumber" name="147" href="#147">147</a>         }
+<a class="jxr_linenumber" name="148" href="#148">148</a>     
+<a class="jxr_linenumber" name="149" href="#149">149</a>         <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="150" href="#150">150</a> <em class="jxr_javadoccomment">         * {@inheritDoc}</em>
+<a class="jxr_linenumber" name="151" href="#151">151</a> <em class="jxr_javadoccomment">         */</em>
+<a class="jxr_linenumber" name="152" href="#152">152</a>         @Override
+<a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> flush(<a href="../../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="154" href="#154">154</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="155" href="#155">155</a>         }
+<a class="jxr_linenumber" name="156" href="#156">156</a>     
+<a class="jxr_linenumber" name="157" href="#157">157</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

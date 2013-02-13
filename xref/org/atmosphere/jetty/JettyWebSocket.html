@@ -9,7 +9,7 @@
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/jetty/JettyWebSocket.html">View Javadoc</a></div><pre>
 
 <a class="jxr_linenumber" name="1" href="#1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2012 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="2" href="#2">2</a>   <em class="jxr_comment"> * Copyright 2013 Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="3" href="#3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="4" href="#4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="5" href="#5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -59,8 +59,8 @@
 <a class="jxr_linenumber" name="49" href="#49">49</a>      @Override
 <a class="jxr_linenumber" name="50" href="#50">50</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> writeError(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, <strong class="jxr_keyword">int</strong> errorCode, String message) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="51" href="#51">51</a>          <strong class="jxr_keyword">if</strong> (!firstWrite.get()) {
-<a class="jxr_linenumber" name="52" href="#52">52</a>              logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed {}:{}. "</span> +
-<a class="jxr_linenumber" name="53" href="#53">53</a>                      <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, message, errorCode);
+<a class="jxr_linenumber" name="52" href="#52">52</a>              logger.debug(<span class="jxr_string">"The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} "</span> +
+<a class="jxr_linenumber" name="53" href="#53">53</a>                      <span class="jxr_string">"The WebSocket connection is still open and client can continue sending messages."</span>, errorCode + message, retrieveUUID());
 <a class="jxr_linenumber" name="54" href="#54">54</a>          } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="55" href="#55">55</a>              logger.debug(<span class="jxr_string">"{} {}"</span>, errorCode, message);
 <a class="jxr_linenumber" name="56" href="#56">56</a>          }
