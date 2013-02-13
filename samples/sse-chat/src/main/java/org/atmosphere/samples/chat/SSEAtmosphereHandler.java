@@ -21,7 +21,9 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.handler.OnMessage;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 
 import java.io.IOException;
 import java.util.Date;
@@ -31,39 +33,19 @@ import java.util.Date;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService(path = "/chat", interceptors= {AtmosphereResourceLifecycleInterceptor.class})
-public class SSEAtmosphereHandler implements AtmosphereHandler {
+@AtmosphereHandlerService(path = "/chat",
+        interceptors= {AtmosphereResourceLifecycleInterceptor.class,
+                       BroadcastOnPostAtmosphereInterceptor.class})
+public class SSEAtmosphereHandler extends OnMessage<String> {
 
     @Override
-    public void onRequest(AtmosphereResource r) throws IOException {
+    public void onMessage(AtmosphereResponse response, String message) throws IOException {
+        // Simple JSON -- Use Jackson for more complex structure
+        // Message looks like { "author" : "foo", "message" : "bar" }
+        String author = message.substring(message.indexOf(":") + 2, message.indexOf(",") - 1);
+        String chat = message.substring(message.lastIndexOf(":") + 2, message.length() - 2);
 
-        AtmosphereRequest req = r.getRequest();
-        if (req.getMethod().equalsIgnoreCase("POST")) {
-            r.getBroadcaster().broadcast(req.getReader().readLine().trim());
-        }
-    }
-
-    @Override
-    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        AtmosphereResource r = event.getResource();
-        AtmosphereResponse res = r.getResponse();
-
-        if (event.isSuspended()) {
-            String body = event.getMessage().toString();
-
-            // Simple JSON -- Use Jackson for more complex structure
-            // Message looks like { "author" : "foo", "message" : "bar" }
-            String author = body.substring(body.indexOf(":") + 2, body.indexOf(",") - 1);
-            String message = body.substring(body.lastIndexOf(":") + 2, body.length() - 2);
-
-            res.getWriter().write(new Data(author, message).toString());
-        } else if (!event.isResuming()){
-            event.broadcaster().broadcast(new Data("Someone", "say bye bye!").toString());
-        }
-    }
-
-    @Override
-    public void destroy() {
+        response.getWriter().write(new Data(author, chat).toString());
     }
 
     private final static class Data {
