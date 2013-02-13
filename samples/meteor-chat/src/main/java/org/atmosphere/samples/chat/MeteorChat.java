@@ -56,9 +56,7 @@ public class MeteorChat extends HttpServlet {
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         // Set the logger level to TRACE to see what's happening.
-        Meteor m = Meteor.build(req).addListener(new AtmosphereResourceEventListenerAdapter());
-
-        m.resumeOnBroadcast(m.transport() == LONG_POLLING ? true : false).suspend(-1);
+        Meteor.build(req).addListener(new AtmosphereResourceEventListenerAdapter());
     }
 
     /**
