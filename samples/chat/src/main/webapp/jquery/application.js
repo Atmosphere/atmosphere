@@ -19,7 +19,6 @@ $(function () {
         transport : transport ,
         trackMessageLength : true,
         enableProtocol : true,
-        reconnectInterval : 5000,
         fallbackTransport: 'long-polling'};
 
 
