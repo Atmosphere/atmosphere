@@ -18,7 +18,6 @@ $(function () {
         logLevel : 'debug',
         transport : transport ,
         enableProtocol : true,
-        reconnectInterval : 5000,
         fallbackTransport: 'long-polling'};
 
 
