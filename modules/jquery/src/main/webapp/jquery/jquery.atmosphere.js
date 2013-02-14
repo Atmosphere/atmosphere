@@ -273,6 +273,11 @@ jQuery.atmosphere = function() {
                 _reinit();
 
                 _request = jQuery.extend(_request, options);
+                // Allow at least 1 request
+                _request.mrequest = _request.reconnect;
+                if (!_request.reconnect) {
+                    _request.reconnect = true;
+                }
             }
 
             /**
@@ -909,7 +914,7 @@ jQuery.atmosphere = function() {
                     _request.lastTimestamp = Number(_request.stime) + Number(time);
                 }
 
-                if (!_request.reconnect) {
+                if (sseOpened && !_request.reconnect) {
                     if (_sse != null) {
                         _clearState();
                     }
@@ -1020,7 +1025,7 @@ jQuery.atmosphere = function() {
                     _open('re-opening', "websocket", _request);
                 }
 
-                if (!_request.reconnect) {
+                if (webSocketOpened && !_request.reconnect) {
                     if (_websocket != null) {
                         _clearState();
                     }
@@ -2213,7 +2218,13 @@ jQuery.atmosphere = function() {
                     func(_response);
                 };
 
-                var isString =  typeof(_response.responseBody) == 'string';   
+                if (_localStorageService == null && _localSocketF != null) {
+                    _localSocketF(_response.responseBody);
+                }
+
+                _request.reconnect = _request.mrequest;
+
+                var isString =  typeof(_response.responseBody) == 'string';
                 var messages = ( isString && _request.trackMessageLength) ?
                     _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
