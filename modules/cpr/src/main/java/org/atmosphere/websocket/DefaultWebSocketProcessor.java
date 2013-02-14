@@ -406,7 +406,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (resource != null && resource.isInScope()) {
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-
                     if (!resource.isCancelled()) {
                         if (h != null) {
                             if (closeCode == 1000) {
