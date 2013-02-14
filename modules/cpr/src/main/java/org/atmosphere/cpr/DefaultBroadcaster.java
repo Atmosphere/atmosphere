@@ -143,6 +143,9 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected final AtmosphereResource noOpsResource;
+    // https://github.com/Atmosphere/atmosphere/issues/864
+    // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
+    protected final boolean uuidCache;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -168,6 +171,7 @@ public class DefaultBroadcaster implements Broadcaster {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
+        uuidCache = UUIDBroadcasterCache.class.isAssignableFrom(bc.getBroadcasterCache().getClass());
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
@@ -771,7 +775,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // Cache the message before executing any operation.
         // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+        if (uuidCache) {
             entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
 
         }
@@ -840,8 +844,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (r.isResumed() || r.isCancelled()) {
                 // https://github.com/Atmosphere/atmosphere/issues/864
                 // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
-                BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-                if (!UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+                if (!uuidCache) {
                     trackBroadcastMessage(r, entry);
                 }
                 return;
@@ -886,28 +889,25 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object finalMsg = msg.message;
 
-        if (AtmosphereResourceImpl.class.isAssignableFrom(r.getClass())) {
-            if (isAtmosphereResourceValid(r)) {
-                if (bc.hasPerRequestFilters()) {
-                    BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
-                    if (a.action() == BroadcastAction.ACTION.ABORT) {
-                        return null;
-                    }
-                    if (a.message() != msg.originalMessage) {
-                        finalMsg = a.message();
-                    }
+        if (isAtmosphereResourceValid(r)) {
+            if (bc.hasPerRequestFilters()) {
+                BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
+                if (a.action() == BroadcastAction.ACTION.ABORT) {
+                    return null;
                 }
-            } else {
-                // The resource is no longer valid.
-                removeAtmosphereResource(r);
-                config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                if (a.message() != msg.originalMessage) {
+                    finalMsg = a.message();
+                }
             }
+        } else {
+            // The resource is no longer valid.
+            removeAtmosphereResource(r);
+            config.getBroadcasterFactory().removeAllAtmosphereResource(r);
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
-        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        cache = !UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass()) && cache;
+        cache = !uuidCache && cache;
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
 
         if (force || (cache && after)) {
@@ -941,7 +941,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // https://github.com/Atmosphere/atmosphere/issues/864
             // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
             BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-            if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+            if (uuidCache) {
                 UUIDBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), r, token.cache);
             }
 
@@ -1208,11 +1208,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param r {@link AtmosphereResource}
      */
     public void cacheLostMessage(AtmosphereResource r, AsyncWriteToken token, boolean force) {
-
-        // https://github.com/Atmosphere/atmosphere/issues/864
-        // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
-        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (!force && UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())) {
+        if (!force && uuidCache) {
             return;
         }
 

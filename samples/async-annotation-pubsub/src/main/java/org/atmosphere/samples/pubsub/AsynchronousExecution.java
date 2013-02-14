@@ -31,31 +31,15 @@ import java.util.concurrent.Callable;
  *
  * @author Jeanfrancois Arcand
  */
-@Path("/async")
-public class AsynchronousAnnotation {
-    /**
-     * Suspend the connection, wait for a broadcast events.
-     * @return
-     */
-    @GET
-    @Asynchronous
-    public String subscribe() {
-        return null;
-    }
-
-    /**
-     * Asynchronously return a String.
-     * @param message a message sent by the client.
-     * @return a Callable that will resume the suspended connection if long-polling/jsonp is used, or keep-alive the
-     * connection for websocket and http streaming.
-     */
+@Path("/chat")
+public class AsynchronousExecution {
     @POST
-    @Asynchronous
-    public Callable<String> publish(final @FormParam("message") String message) {
-        return new Callable<String>() {
+    @Asynchronous(contentType = "application/json")
+    public Callable<Response> publish(final Message message) {
+        return new Callable<Response>() {
 
-            public String call() throws Exception {
-                return message;
+            public Response call() throws Exception {
+                return new Response(message.author, message.message);
             }
         };
     }
