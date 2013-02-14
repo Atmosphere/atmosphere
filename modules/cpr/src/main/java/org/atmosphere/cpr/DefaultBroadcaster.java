@@ -1415,7 +1415,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void entryDone(final BroadcasterFuture<?> f) {
         notifyBroadcastListener();
-        f.done();
+        if (f != null) f.done();
     }
 
     void notifyBroadcastListener() {
