@@ -20,6 +20,7 @@ import org.mortbay.jetty.Server;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 
 public class BlockingIOJerseyTest extends BasePubSubTest {
@@ -52,5 +53,13 @@ public class BlockingIOJerseyTest extends BasePubSubTest {
         atmoServlet.destroy();
         server.stop();
         server = null;
+    }
+
+    @Test(enabled = false)
+    public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    }
+
+    @Test(timeOut = 20000, enabled = false)
+    public void testProgrammaticResume() {
     }
 }
