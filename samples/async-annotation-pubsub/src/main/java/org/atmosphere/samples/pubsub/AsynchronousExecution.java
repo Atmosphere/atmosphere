@@ -31,15 +31,15 @@ import java.util.concurrent.Callable;
  *
  * @author Jeanfrancois Arcand
  */
-@Path("/chat")
+@Path("/async")
 public class AsynchronousExecution {
     @POST
-    @Asynchronous(contentType = "application/json")
+    @Asynchronous(waitForResource = false, contentType = "application/json")
     public Callable<Response> publish(final Message message) {
         return new Callable<Response>() {
 
             public Response call() throws Exception {
-                return new Response(message.author, message.message);
+                return new Response("Asynchronous Execution", message.message);
             }
         };
     }
