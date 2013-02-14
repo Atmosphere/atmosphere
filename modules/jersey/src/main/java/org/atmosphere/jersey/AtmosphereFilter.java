@@ -356,7 +356,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     final Broadcaster bcaster = newBroadcaster;
                     logger.debug("Broadcaster {} was created {}", broadcasterName, bcaster);
 
-                    if (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null) {
+                    if (!waitForResource || (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null)) {
                         boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
                         final boolean resumeOnBroadcast = transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT);
 
@@ -382,7 +382,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                         if (waitForResource) {
                                             bcaster.awaitAndBroadcast(entity, 10, TimeUnit.SECONDS);
                                         } else {
-                                            bcaster.broadcast(entity);
+                                            bcaster.broadcastOnResume(entity);
+                                            event.getResource().resume();
                                         }
                                     }
                                 } finally {
@@ -997,8 +998,15 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             Class[] broadcastFilter = am.getAnnotation(Asynchronous.class).broadcastFilter();
 
             boolean wait = am.getAnnotation(Asynchronous.class).waitForResource();
-            f = new Filter(Action.ASYNCHRONOUS, suspendTimeout, wait ? -1 : 0, null, false, broadcastFilter,
-                    am.getAnnotation(Asynchronous.class).header(), am.getAnnotation(Asynchronous.class).writeEntity());
+            f = new Filter(Action.ASYNCHRONOUS,
+                    suspendTimeout,
+                    wait ? -1 : 0,
+                    null,
+                    false,
+                    broadcastFilter,
+                    am.getAnnotation(Asynchronous.class).header(),
+                    am.getAnnotation(Asynchronous.class).writeEntity(),
+                    am.getAnnotation(Asynchronous.class).contentType());
             f.setListeners(am.getAnnotation(Asynchronous.class).eventListeners());
             list.addFirst(f);
         }
