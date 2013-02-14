@@ -55,13 +55,11 @@ $(function () {
             return;
         }
 
+        input.removeAttr('disabled').focus();
         if (!logged) {
             logged = true;
             status.text(myName + ': ').css('color', 'blue');
-            input.removeAttr('disabled').focus();
         } else {
-            input.removeAttr('disabled');
-
             var me = json.author == author;
             var date = typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
             addMessage(json.author, json.text, me ? 'blue' : 'black', new Date(date));
