@@ -181,7 +181,6 @@ public class ExecutorsFactory {
             });
             config.properties().put("scheduler", scheduler);
             return scheduler;
-
         } else {
             return (ScheduledExecutorService) config.properties().get("scheduler");
         }
