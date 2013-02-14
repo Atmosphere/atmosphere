@@ -144,6 +144,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
             for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
                 if (now - entry.getValue() > clientIdleTime) {
+                    logger.debug("Invalidate client {}", entry.getKey());
                     inactiveClients.add(entry.getKey());
                 }
             }

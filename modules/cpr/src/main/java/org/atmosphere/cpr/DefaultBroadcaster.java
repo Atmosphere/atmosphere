@@ -1436,20 +1436,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
 
     protected void entryDone(final BroadcasterFuture<?> f) {
-        if (f != null) {
-            if (bc.getExecutorService() != null) {
-                bc.getExecutorService().submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        notifyBroadcastListener();
-                        f.done();
-                    }
-                });
-            } else {
-                notifyBroadcastListener();
-                f.done();
-            }
-        }
+        notifyBroadcastListener();
+        f.done();
     }
 
     void notifyBroadcastListener() {
