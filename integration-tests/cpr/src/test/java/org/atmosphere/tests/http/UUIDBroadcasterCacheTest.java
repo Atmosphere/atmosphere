@@ -214,6 +214,7 @@ public class UUIDBroadcasterCacheTest {
 
         atmoServlet.framework().setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName());
         final CountDownLatch suspendLatch = new CountDownLatch(1);
+        final CountDownLatch resumedLatch = new CountDownLatch(1);
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch missedBroadcastCount = new CountDownLatch(100);
 
@@ -227,6 +228,10 @@ public class UUIDBroadcasterCacheTest {
                         @Override
                         public void onSuspend(AtmosphereResourceEvent event) {
                             suspendLatch.countDown();
+                        }
+                        @Override
+                        public void onResume(AtmosphereResourceEvent event) {
+                            resumedLatch.countDown();
                         }
                     }).suspend(-1, false);
                     return;
@@ -285,9 +290,15 @@ public class UUIDBroadcasterCacheTest {
                 fail(e.getMessage());
             }
 
-            // This will resume the connection
+            // This will resume the connection  and publish message-0
             c.prepareGet(urlTarget).execute().get();
 
+            // Make sure we are fully resumed.
+            try {
+                resumedLatch.await(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
             // Generate Cached messages
             for (int i = 0; i < 100; i++) {
                 c.prepareGet(urlTarget).execute();
