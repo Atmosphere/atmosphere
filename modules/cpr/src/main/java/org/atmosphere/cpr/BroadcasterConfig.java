@@ -67,8 +67,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
@@ -90,7 +88,7 @@ public class BroadcasterConfig {
     private final AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
-    private boolean shared = false;
+    private final boolean shared;
     private String name;
     private boolean handleExecutors;
 
@@ -100,15 +98,17 @@ public class BroadcasterConfig {
 
     public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
+        this.name = name;
+        this.shared = config.framework().isShareExecutorServices();
+
         if (handleExecutors) {
             configExecutors();
         }
+
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
         configureSharedCacheExecutor();
-        this.name = name;
         this.handleExecutors = handleExecutors;
-        printShared();
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
@@ -119,15 +119,8 @@ public class BroadcasterConfig {
         this.config = config;
         this.name = name;
         this.handleExecutors = true;
-        printShared();
+        this.shared = config.framework().isShareExecutorServices();
     }
-
-    protected void printShared() {
-        if (shared) {
-            logger.info("Using shared ExecutorServices amongst all Atmosphere components: Broadcaster {}", name);
-        }
-    }
-
     private void configureBroadcasterCache() {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
@@ -190,9 +183,7 @@ public class BroadcasterConfig {
     }
 
     protected synchronized void configExecutors() {
-        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        if (s == null || Boolean.parseBoolean(s)) {
-            shared = true;
+        if (shared) {
             handleExecutors = false;
             isExecutorShared = true;
             isAsyncExecutorShared = true;

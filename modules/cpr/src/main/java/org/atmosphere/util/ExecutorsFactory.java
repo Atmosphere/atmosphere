@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -44,18 +43,12 @@ public class ExecutorsFactory {
      * @return {@link ExecutorService}
      */
     public static ExecutorService getMessageDispatcher(final AtmosphereConfig config, final String name) {
-        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        final AtomicBoolean shared = new AtomicBoolean();
-        boolean isExecutorShared = false;
+        final boolean shared = config.framework().isShareExecutorServices();
 
-        if (s == null || Boolean.parseBoolean(s)) {
-            shared.set(true);
-            isExecutorShared = true;
-        }
-
-        if (config.properties().get("executorService") == null) {
+        boolean isExecutorShared = shared ? true : false;
+        if (!shared || config.properties().get("executorService") == null) {
             int numberOfMessageProcessingThread = -1;
-            s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
+            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
             }
@@ -74,7 +67,7 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared.get() ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -86,13 +79,16 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared.get() ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
                 });
             }
-            config.properties().put("executorService", messageService);
+
+            if (shared) {
+                config.properties().put("executorService", messageService);
+            }
             return messageService;
         } else {
             return (ExecutorService) config.properties().get("executorService");
@@ -106,18 +102,12 @@ public class ExecutorsFactory {
      * @return {@link ExecutorService}
      */
     public static ExecutorService getAsyncOperationExecutor(final AtmosphereConfig config, final String name) {
-        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        final AtomicBoolean shared = new AtomicBoolean();
-        boolean isAsyncExecutorShared = false;
+        final boolean shared = config.framework().isShareExecutorServices();
 
-        if (s == null || Boolean.parseBoolean(s)) {
-            shared.set(true);
-            isAsyncExecutorShared = true;
-        }
-
-        if (config.properties().get("asyncWriteService") == null) {
+        boolean isAsyncExecutorShared = shared ? true : false;
+        if (!shared || config.properties().get("asyncWriteService") == null) {
             int numberOfAsyncThread = -1;
-            s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
             }
@@ -136,7 +126,7 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared.get() ? "Atmosphere-Shared" : name) + "-AsyncOp-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-AsyncOp-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -148,13 +138,16 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared.get() ? "Atmosphere-Shared" : name) + "-AsyncOp-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-AsyncOp-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
                 });
             }
-            config.properties().put("asyncWriteService", asyncWriteService);
+
+            if (shared) {
+                config.properties().put("asyncWriteService", asyncWriteService);
+            }
             return asyncWriteService;
         } else {
             return (ExecutorService) config.properties().get("asyncWriteService");
@@ -167,7 +160,9 @@ public class ExecutorsFactory {
      * @return {@link ScheduledExecutorService}
      */
     public static ScheduledExecutorService getScheduler(final AtmosphereConfig config) {
-        if (config.properties().get("scheduler") == null) {
+        final boolean shared = config.framework().isShareExecutorServices();
+
+        if (!shared || config.properties().get("scheduler") == null) {
             ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
 
                 private final AtomicInteger count = new AtomicInteger();
@@ -179,7 +174,10 @@ public class ExecutorsFactory {
                     return t;
                 }
             });
-            config.properties().put("scheduler", scheduler);
+
+            if (shared) {
+                config.properties().put("scheduler", scheduler);
+            }
             return scheduler;
         } else {
             return (ScheduledExecutorService) config.properties().get("scheduler");

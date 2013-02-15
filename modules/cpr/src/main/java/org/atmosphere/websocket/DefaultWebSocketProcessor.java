@@ -453,11 +453,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     @Override
     public void destroy() {
-        if (asyncExecutor != null) {
+        boolean shared = framework.isShareExecutorServices();
+        if (asyncExecutor != null && !shared) {
             asyncExecutor.shutdown();
         }
 
-        if (scheduler != null) {
+        if (scheduler != null && !shared) {
             scheduler.shutdown();
         }
     }
