@@ -408,7 +408,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (!resource.isCancelled()) {
                         if (h != null) {
-                            if (closeCode == 1000) {
+                            if (closeCode == 1002 ||closeCode == 1005 ) {
                                 h.timedOut();
                             } else {
                                 h.closed();
