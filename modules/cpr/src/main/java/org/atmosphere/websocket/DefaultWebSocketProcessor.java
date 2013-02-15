@@ -262,7 +262,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (h != null) {
-                        if (closeCode == 1001) {
+                        if (closeCode == 1005) {
                             h.timedOut();
                         } else {
                             h.closed();
