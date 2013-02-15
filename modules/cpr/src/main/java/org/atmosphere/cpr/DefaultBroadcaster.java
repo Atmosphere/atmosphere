@@ -787,7 +787,12 @@ public class DefaultBroadcaster implements Broadcaster {
             if (r == null) {
                 r = noOpsResource;
             }
-            perRequestFilter(r, entry, true, true);
+            if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
+                perRequestFilter(r, entry, true);
+            } else {
+                trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, entry.originalMessage);
+            }
             entryDone(entry.future);
             return;
         }
@@ -895,10 +900,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
-        return  perRequestFilter(r,msg, cache, false);
-    }
-
-    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache, boolean force) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -928,7 +929,7 @@ public class DefaultBroadcaster implements Broadcaster {
         cache = !uuidCache && cache;
 
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
-        if (force || (cache && after)) {
+        if (cache && after) {
             trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, after ? finalMsg : msg.originalMessage);
         }
         return finalMsg;
