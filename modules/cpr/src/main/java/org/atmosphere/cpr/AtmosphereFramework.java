@@ -168,19 +168,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String uuid = UUID.randomUUID().toString();
     protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
-
-    @Override
-    public ServletContext getServletContext() {
-        return servletConfig.getServletContext();
-    }
-
-    public ServletConfig getServletConfig() {
-        return servletConfig;
-    }
-
-    public List<String> broadcasterFilters() {
-        return broadcasterFilters;
-    }
+    protected boolean sharedThreadPools = true;
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -212,15 +200,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             return "AtmosphereHandlerWrapper{ atmosphereHandler=" + atmosphereHandler + ", broadcaster=" +
                     broadcaster + " }";
         }
-    }
-
-    /**
-     * Return a configured instance of {@link AtmosphereConfig}
-     *
-     * @return a configured instance of {@link AtmosphereConfig}
-     */
-    public AtmosphereConfig getAtmosphereConfig() {
-        return config;
     }
 
     /**
@@ -574,6 +553,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                 logger.info("Using BroadcastFilter: {}", i);
             }
 
+            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
+            if (s != null) {
+                sharedThreadPools = Boolean.parseBoolean(s);
+            }
+
+            logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
             logger.info("HttpSession supported: {}", config.isSupportSession());
             logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
             logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
@@ -1703,6 +1688,50 @@ public class AtmosphereFramework implements ServletContextProvider {
         } else {
             broadcasterListeners.add(b);
         }
+        return this;
+    }
+
+    /**
+     * Return a configured instance of {@link AtmosphereConfig}
+     *
+     * @return a configured instance of {@link AtmosphereConfig}
+     */
+    public AtmosphereConfig getAtmosphereConfig() {
+        return config;
+    }
+
+    @Override
+    public ServletContext getServletContext() {
+        return servletConfig.getServletContext();
+    }
+
+    public ServletConfig getServletConfig() {
+        return servletConfig;
+    }
+
+    /**
+     * Return the list of {@link BroadcastFilter}
+     * @return  the list of {@link BroadcastFilter
+     */
+    public List<String> broadcasterFilters() {
+        return broadcasterFilters;
+    }
+
+    /**
+     * Returns true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     * @return  true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     */
+    public boolean isShareExecutorServices() {
+        return sharedThreadPools;
+    }
+
+    /**
+     * Set to true to have a {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     * @param sharedThreadPools
+     * @return this
+     */
+    public AtmosphereFramework shareExecutorServices(boolean sharedThreadPools) {
+        this.sharedThreadPools = sharedThreadPools;
         return this;
     }
 
