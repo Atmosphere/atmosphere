@@ -767,7 +767,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
                 logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
-                perRequestFilter(r, entry, true);
+                perRequestFilter(r, entry, true, true);
             } else {
                 trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, entry);
             }
@@ -880,6 +880,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
+        return  perRequestFilter(r,msg, cache, false);
+    }
+
+    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache, boolean force) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -906,7 +910,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // https://github.com/Atmosphere/atmosphere/issues/864
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
-        cache = !uuidCache && cache;
+        cache = force || (!uuidCache && cache);
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
 
         if (cache && after) {
