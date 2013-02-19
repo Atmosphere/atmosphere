@@ -149,7 +149,7 @@ public class DefaultBroadcaster implements Broadcaster {
     // https://github.com/Atmosphere/atmosphere/issues/864
     // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
     protected final boolean uuidCache;
-    protected int waitTime = 1;
+    protected int waitTime = 1000;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -564,7 +564,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 while (!isDestroyed() && !outOfOrderBroadcastSupported.get()) {
                     Entry msg = null;
                     try {
-                        msg = messages.poll(waitTime, TimeUnit.SECONDS);
+                        msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
                         if (msg == null) {
                             dispatchThread.decrementAndGet();
                             return;
@@ -602,7 +602,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 while (!isDestroyed() && !outOfOrderBroadcastSupported.get()) {
                     AsyncWriteToken token = null;
                     try {
-                        token = writeQueue.queue.poll(waitTime, TimeUnit.SECONDS);
+                        token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
                         if (token == null) {
                             synchronized (writeQueue) {
                                 if (writeQueue.queue.size() == 0) {
