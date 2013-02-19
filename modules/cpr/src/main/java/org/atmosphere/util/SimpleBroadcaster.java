@@ -100,7 +100,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
-        bc.setExecutorService(null, false).setAsyncWriteService(null, false);
+        bc.setExecutorService(null, false).setAsyncWriteService(null, false)
+                .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
     }
 
     /**
