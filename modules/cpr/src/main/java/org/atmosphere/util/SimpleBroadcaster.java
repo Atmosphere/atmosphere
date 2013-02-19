@@ -85,7 +85,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      */
     @Override
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
-        return new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID());
+        return new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID())
+                .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
     }
 
     protected void start() {
