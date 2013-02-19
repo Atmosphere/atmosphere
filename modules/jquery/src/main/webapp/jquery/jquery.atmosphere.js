@@ -1489,7 +1489,10 @@ jQuery.atmosphere = function() {
 
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
-                                        //fix cached messages
+                                        if (!_handleProtocol( _request, _response.responseBody)) {
+                                            _reconnect(ajaxRequest, rq, false);
+                                            return;
+                                        }
                                         skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
                                     } else {
                                         skipCallbackInvocation = true;
@@ -2355,7 +2358,7 @@ jQuery.atmosphere = function() {
 
             this.uuid = function() {
                 return _request.uuid;
-            }
+            };
 
             this.push = function(message) {
                 _push(message);
