@@ -67,7 +67,7 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-DispatchOp-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
@@ -79,7 +79,7 @@ public class ExecutorsFactory {
 
                     @Override
                     public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-dispatch-" + count.getAndIncrement());
+                        Thread t = new Thread(runnable, (shared ? "Atmosphere-Shared" : name) + "-DispatchOp-" + count.getAndIncrement());
                         t.setDaemon(true);
                         return t;
                     }
