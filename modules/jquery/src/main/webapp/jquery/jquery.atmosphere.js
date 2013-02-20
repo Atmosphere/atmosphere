@@ -1490,7 +1490,6 @@ jQuery.atmosphere = function() {
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
                                         if (!_handleProtocol( _request, _response.responseBody)) {
-                                            _reconnect(ajaxRequest, rq, false);
                                             return;
                                         }
                                         skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
@@ -1501,7 +1500,6 @@ jQuery.atmosphere = function() {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
                                     rq.lastIndex = responseText.length;
                                     if (!_handleProtocol( _request, message)) {
-                                        _reconnect(ajaxRequest, rq, false);
                                         return;
                                     }
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);

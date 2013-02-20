@@ -26,9 +26,11 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 /**
- * An Intewrceptor that send back to a websocket and http client the value of {@link HeaderConfig.X_ATMOSPHERE_TRACKING_ID}
- * and {@link HeaderConfig.X_CACHE_DATE}
+ * An Intewrceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
+ * and {@link HeaderConfig#X_CACHE_DATE}
  *
  * @author Jeanfrancois Arcand
  */
@@ -58,6 +60,11 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
                         r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
+                        try {
+                            r.getResponse().flushBuffer();
+                        } catch (IOException e) {
+                            logger.trace("",e);
+                        }
                     }
                 });
             } else {
