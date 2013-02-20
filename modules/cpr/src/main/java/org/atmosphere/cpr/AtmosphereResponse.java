@@ -938,13 +938,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    OutputStream o = writeUsingOriginalResponse && isNotNoOps() ? _r().getOutputStream() : getOutputStream();
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
                     logger.trace("", ex);
                 }
             } else {
-                PrintWriter w = writeUsingOriginalResponse && isNotNoOps() ? _r().getWriter() : getWriter();
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(data);
             }
         } catch (Exception ex) {
@@ -981,12 +981,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    OutputStream o = writeUsingOriginalResponse && isNotNoOps() ? _r().getOutputStream() : getOutputStream();
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                PrintWriter w = writeUsingOriginalResponse && isNotNoOps()? _r().getWriter() : getWriter();
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(new String(data, getCharacterEncoding()));
             }
         } catch (Exception ex) {
@@ -1027,12 +1027,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         try {
             if (isUsingStream) {
                 try {
-                    OutputStream o = writeUsingOriginalResponse && isNotNoOps() ? _r().getOutputStream() : getOutputStream();
+                    OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data, offset, length);
                 } catch (java.lang.IllegalStateException ex) {
                 }
             } else {
-                PrintWriter w = writeUsingOriginalResponse && isNotNoOps() ? _r().getWriter() : getWriter();
+                PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(new String(data, offset, length, getCharacterEncoding()));
             }
         } catch (Exception ex) {
@@ -1053,10 +1053,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         } else {
             return null;
         }
-    }
-
-    private boolean isNotNoOps() {
-        return !DummyHttpServletResponse.class.isAssignableFrom(response.getClass());
     }
 
     public void setResponse(ServletResponse response) {
