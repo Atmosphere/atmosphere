@@ -1490,7 +1490,6 @@ jQuery.atmosphere = function() {
                                 var message = responseText.substring(rq.lastIndex, responseText.length);
                                 if (!_handleProtocol( _request, message)) {
                                     rq.lastIndex = responseText.length;
-                                    _reconnect(ajaxRequest, rq, false);
                                     return;
                                 }
                                 skipCallbackInvocation = _trackMessageSize(message, rq, _response);
