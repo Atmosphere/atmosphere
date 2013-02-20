@@ -46,10 +46,20 @@
 							eu.infomas.annotation*;resolution:=optional,
 							org.apache.coyote*;resolution:=optional,
                             org.mortbay.util.ajax*;resolution:=optional,
+                            org.atmosphere.jboss;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
-                            org.atmosphere.*,
+                            org.atmosphere.cache*,
+                            org.atmosphere.client*,
+                            org.atmosphere.config*,
+                            org.atmosphere.container*,
+                            org.atmosphere.cpr*,
+                            org.atmosphere.di*,
+                            org.atmosphere.handler*,
+                            org.atmosphere.interceptor*,
+                            org.atmosphere.util*,
+                            org.atmosphere.websocket*,
                         </Export-Package>
                     </instructions>
                 </configuration>
