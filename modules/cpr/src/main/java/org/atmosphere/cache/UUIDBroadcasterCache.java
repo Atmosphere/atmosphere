@@ -227,7 +227,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return cacheMessage;
     }
 
-    private String uuid(AtmosphereResource r) {
+    protected String uuid(AtmosphereResource r) {
         return r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                                 ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
     }
@@ -278,7 +278,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
-        String clientId = r.uuid();
+        String clientId = uuid(r);
         long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
