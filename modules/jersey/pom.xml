@@ -79,8 +79,6 @@
             <version>${jersey-version}</version>
         </dependency>
         <dependency>
-<<<<<<< HEAD
-=======
             <groupId>com.sun.grizzly</groupId>
             <artifactId>grizzly-http</artifactId>
             <version>${grizzly-version}</version>
