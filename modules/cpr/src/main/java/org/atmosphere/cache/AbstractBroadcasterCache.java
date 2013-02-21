@@ -145,7 +145,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      */
     public AbstractBroadcasterCache setReaper(ScheduledExecutorService reaper) {
         if (this.reaper != null) {
-            reaper.shutdown();
+            this.reaper.shutdown();
         }
         this.reaper = reaper;
         return this;
