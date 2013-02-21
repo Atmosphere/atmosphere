@@ -17,6 +17,7 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -29,6 +30,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.VoidExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -78,9 +79,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean destroyable;
     private final boolean executeAsync;
-    private final ExecutorService asyncExecutor;
-    private final ExecutorService voidExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+    private ExecutorService asyncExecutor;
+    private  ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
@@ -90,6 +90,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private ByteBuffer bb = ByteBuffer.allocate(8192);
     private CharBuffer cb = CharBuffer.allocate(8192);
+
+    private boolean shared = false;
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -109,8 +111,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             executeAsync = false;
         }
 
-        asyncExecutor = Executors.newCachedThreadPool();
-        voidExecutor = VoidExecutorService.VOID;
+        AtmosphereConfig config =  framework.getAtmosphereConfig();
+        if (executeAsync) {
+            asyncExecutor = ExecutorsFactory.getAsyncOperationExecutor(config, "WebSocket");
+        } else {
+            asyncExecutor = VoidExecutorService.VOID;
+        }
+
+        scheduler = ExecutorsFactory.getScheduler(config);
     }
 
     @Override
@@ -187,9 +195,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             if (r != null) {
 
                 boolean b = r.dispatchRequestAsynchronously();
-                ExecutorService s = (executeAsync || b) ? asyncExecutor : voidExecutor;
-
-                s.execute(new Runnable() {
+                asyncExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
@@ -400,10 +406,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (resource != null && resource.isInScope()) {
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-
                     if (!resource.isCancelled()) {
                         if (h != null) {
-                            if (closeCode == 1000) {
+                            // Tomcat and Jetty differ, same with browser
+                            if (closeCode == 1002 ||closeCode == 1005 ) {
                                 h.timedOut();
                             } else {
                                 h.closed();
@@ -440,6 +446,21 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocket.resource(null);
                 }
             }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void destroy() {
+        boolean shared = framework.isShareExecutorServices();
+        if (asyncExecutor != null && !shared) {
+            asyncExecutor.shutdown();
+        }
+
+        if (scheduler != null && !shared) {
+            scheduler.shutdown();
         }
     }
 
@@ -487,16 +508,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void destroy() {
-        asyncExecutor.shutdown();
-        voidExecutor.shutdown();
-        scheduler.shutdown();
     }
 
     public static final Map<String, String> configureHeader(AtmosphereRequest request) {

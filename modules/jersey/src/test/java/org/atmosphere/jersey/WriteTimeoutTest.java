@@ -13,16 +13,32 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.cpr;
+package org.atmosphere.jersey;
 
+import com.sun.jersey.spi.container.servlet.ServletContainer;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.handler.ReflectorServletProcessor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import java.io.IOException;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -31,21 +47,75 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class WriteTimeoutTest {
 
     private AtmosphereResource ar;
-    private Broadcaster broadcaster;
-    private AR atmosphereHandler;
-    private  AtmosphereConfig config;
+    private J broadcaster;
+    private AtmosphereHandler atmosphereHandler;
+    private AtmosphereConfig config;
+
+
+    private final static class F extends DefaultBroadcasterFactory {
+
+        protected F(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+            super(clazz, broadcasterLifeCyclePolicy, c);
+        }
+    }
+
+    public final static class J extends JerseyBroadcaster {
+        private CountDownLatch latch;
+
+        public J(String id, AtmosphereConfig config) {
+            super(id, config);
+        }
+
+        JerseyBroadcaster latch(CountDownLatch latch) {
+            this.latch = latch;
+            return this;
+        }
+
+        @Override
+        protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+            try {
+                if (latch != null) latch.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            }
+        }
+    }
 
     @BeforeMethod
     public void setUp() throws Exception {
-        config = new AtmosphereFramework().addInitParameter("org.atmosphere.cpr.Broadcaster.writeTimeout", "2000").init().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config = new AtmosphereFramework().addInitParameter("org.atmosphere.cpr.Broadcaster.writeTimeout", "2000")
+                .addInitParameter("com.sun.jersey.config.property.packages", "org.atmosphere.jersey")
+                .addInitParameter("org.atmosphere.useStream", "true")
+                .addInitParameter("org.atmosphere.disableOnStateEvent", "true")
+                .init(new ServletConfig() {
+                    @Override
+                    public String getServletName() {
+                        return "void";
+                    }
+
+                    @Override
+                    public ServletContext getServletContext() {
+                        return mock(ServletContext.class);
+                    }
+
+                    @Override
+                    public String getInitParameter(String name) {
+                        return null;
+                    }
+
+                    @Override
+                    public Enumeration<String> getInitParameterNames() {
+                        return Collections.enumeration(new ArrayList<String>());
+                    }
+                }).getAtmosphereConfig();
+        DefaultBroadcasterFactory factory = new F(J.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
-        broadcaster = factory.get(DefaultBroadcaster.class, "test");
+        broadcaster = (J) factory.get("test");
+        atmosphereHandler = new ReflectorServletProcessor(new ServletContainer());
     }
 
     @AfterMethod
@@ -58,7 +128,6 @@ public class WriteTimeoutTest {
         final CountDownLatch latch = new CountDownLatch(1);
         final CountDownLatch guard = new CountDownLatch(1);
 
-        atmosphereHandler = new AR(latch);
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
@@ -66,7 +135,7 @@ public class WriteTimeoutTest {
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
-        broadcaster.addAtmosphereResource(ar);
+        broadcaster.latch(latch).addAtmosphereResource(ar);
 
         final AtomicReference<Throwable> t = new AtomicReference<Throwable>();
         ar.addEventListener(new AtmosphereResourceEventListenerAdapter() {
@@ -84,7 +153,6 @@ public class WriteTimeoutTest {
 
     @Test
     public void testNoWriteTimeout() throws ExecutionException, InterruptedException, ServletException {
-        atmosphereHandler = new AR(null);
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
@@ -103,32 +171,5 @@ public class WriteTimeoutTest {
         });
         broadcaster.broadcast("foo", ar).get();
         assertEquals(t.get(), null);
-    }
-
-    public final static class AR implements AtmosphereHandler {
-
-        private final CountDownLatch latch;
-
-        public AR(CountDownLatch latch) {
-            this.latch = latch;
-        }
-
-        @Override
-        public void onRequest(AtmosphereResource e) throws IOException {
-
-        }
-
-        @Override
-        public void onStateChange(AtmosphereResourceEvent e) throws IOException {
-            try {
-                if (latch != null) latch.await(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e1) {
-                e1.printStackTrace();
-            }
-        }
-
-        @Override
-        public void destroy() {
-        }
     }
 }

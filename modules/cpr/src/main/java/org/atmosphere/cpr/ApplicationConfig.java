@@ -325,4 +325,9 @@ public interface ApplicationConfig {
      * The write operation timeout
      */
     String WRITE_TIMEOUT =  Broadcaster.class.getName() + ".writeTimeout";
+    /**
+     * The sleep time, in millisecond, before the {@link DefaultBroadcaster} release it's reactive thread for pushing message
+     * and execute async write. Default is 1000
+     */
+   String BROADCASTER_WAIT_TIME =  Broadcaster.class.getName() + ".threadWaitTime";
 }

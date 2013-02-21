@@ -19,7 +19,6 @@ $(function () {
         transport : transport ,
         trackMessageLength : true,
         enableProtocol : true,
-        reconnectInterval : 5000,
         fallbackTransport: 'long-polling'};
 
 
@@ -49,13 +48,11 @@ $(function () {
             return;
         }
 
+        input.removeAttr('disabled').focus();
         if (!logged && myName) {
             logged = true;
             status.text(myName + ': ').css('color', 'blue');
-            input.removeAttr('disabled').focus();
         } else {
-            input.removeAttr('disabled');
-
             var me = json.author == author;
             var date = typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
             addMessage(json.author, json.message, me ? 'blue' : 'black', new Date(date));
@@ -63,6 +60,7 @@ $(function () {
     };
 
     request.onClose = function(response) {
+        subSocket.push(jQuery.stringifyJSON({ author: author, message: 'disconnecting' }));
         logged = false;
     };
 

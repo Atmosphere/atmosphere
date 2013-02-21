@@ -15,9 +15,8 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.AbstractBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -26,11 +25,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
@@ -245,82 +242,11 @@ public class BroadcastFilterTest {
 
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
-            if (e.getMessage() instanceof List) {
-                value.get().append(((List) e.getMessage()).get(0));
-            } else {
-                value.get().append(e.getMessage());
-            }
+            value.get().append(e.getMessage());
         }
 
         @Override
         public void destroy() {
         }
-    }
-
-    @Test
-    public void testTrackMessageSizeFilter() throws ExecutionException, InterruptedException {
-        //Make sure we are empty.
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
-            @Override
-            public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
-
-                long now = System.nanoTime() * 2;
-                put(e, now);
-            }
-
-            @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-                long cacheHeaderTime = Long.valueOf(System.nanoTime());
-                return get(cacheHeaderTime);
-            }
-        }).addFilter(new TrackMessageSizeFilter() {
-            @Override
-            public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-
-                String msg = message.toString();
-                msg = msg.length() + "|" + msg;
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
-            }
-        });
-
-        broadcaster.broadcast("0").get();
-        broadcaster.addAtmosphereResource(ar);
-        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
-    }
-
-    @Test
-    public void testComplexTrackMessageSizeFilter() throws ExecutionException, InterruptedException {
-        //Make sure we are empty.
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
-            @Override
-            public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
-
-                long now = System.nanoTime() * 2;
-                put(e, now);
-            }
-
-            @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-                long cacheHeaderTime = Long.valueOf(System.nanoTime());
-                return get(cacheHeaderTime);
-            }
-        }).addFilter(new TrackMessageSizeFilter() {
-            @Override
-            public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-
-                String msg = message.toString();
-                msg = msg.length() + "|" + msg;
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
-            }
-        });
-        broadcaster.broadcast("message-1").get();
-        broadcaster.addAtmosphereResource(ar);
-
-        broadcaster.broadcast("message-2").get();
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.addAtmosphereResource(ar);
-        assertEquals(atmosphereHandler.value.get().toString(), "9|message-19|message-29|message-1");
     }
 }

@@ -76,7 +76,7 @@ public class UUIDBroadcasterCacheTest {
 
     @Test
     public void addRemoveAddTest() throws ExecutionException, InterruptedException, ServletException {
-        broadcaster.broadcast("e1");
+        broadcaster.broadcast("e1").get();
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.broadcast("e2").get();
         assertEquals(1, eventCacheBroadcasterCache.messages().size());
@@ -84,17 +84,17 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.addAtmosphereResource(ar);
         broadcaster.broadcast("e3").get();
 
-        assertEquals(0, eventCacheBroadcasterCache.messages().get(ar.uuid()).getQueue().size());
+        assertEquals(0, eventCacheBroadcasterCache.messages().size());
     }
 
     @Test
-    public void nothingCachedTest() throws ExecutionException, InterruptedException, ServletException {
+    public void everythingCachedTest() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.removeAtmosphereResource(ar);
 
-        broadcaster.broadcast("e1");
-        broadcaster.broadcast("e2");
+        broadcaster.broadcast("e1").get();
+        broadcaster.broadcast("e2").get();
 
-        assertEquals(0, eventCacheBroadcasterCache.messages().size());
+        assertEquals(1, eventCacheBroadcasterCache.messages().size());
     }
 
     @Test

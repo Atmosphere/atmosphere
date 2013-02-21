@@ -419,7 +419,7 @@ public abstract class BasePubSubTest extends BaseTest {
         c.close();
     }
 
-    @Test(timeOut = 20000, enabled = true)
+    @Test(timeOut = 20000, enabled = false)
     public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         logger.info("{}: running test: testHeaderBroadcasterCache", getClass().getSimpleName());
 
