@@ -60,6 +60,7 @@ import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.di.ServletContextProvider;
+import org.atmosphere.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -72,6 +73,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
+
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -358,8 +363,27 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
 
+        // https://github.com/Atmosphere/atmosphere/issues/920
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
+        boolean webSocketSupported = (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT));
+        if (!webSocketSupported) {
+            try {
+                Enumeration<String> connection = req.getHeaders("Connection");
+                if (connection != null && connection.hasMoreElements()) {
+                    String[] e = connection.nextElement().toString().split(",");
+                    for (String upgrade : e) {
+                        if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
+                            webSocketSupported = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                logger.trace("", ex);
+            }
+        }
+
+        if (webSocketSupported){
             cometEvent.close();
         }
     }
