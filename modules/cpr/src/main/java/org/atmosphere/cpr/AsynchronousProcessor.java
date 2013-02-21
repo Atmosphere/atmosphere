@@ -368,7 +368,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
                 // Glassfish 3.1.2 issue .. BEUUUURRRRKKKKKK!!
                 if (atmosphereHandlerWrapper == null) {
-                    path = path.substring(req.getContextPath().length());
+                    if (path.indexOf(req.getContextPath()) != -1) {
+                        path = path.substring(req.getContextPath().length());
+                    }
                     atmosphereHandlerWrapper = map(path);
                 }
 
