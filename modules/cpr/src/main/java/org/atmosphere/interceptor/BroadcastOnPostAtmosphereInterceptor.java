@@ -76,6 +76,8 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
             }
             if (stringBuilder.length() > 0) {
                 r.getBroadcaster().broadcast(stringBuilder.toString());
+            } else {
+                logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
             }
         }
     }
