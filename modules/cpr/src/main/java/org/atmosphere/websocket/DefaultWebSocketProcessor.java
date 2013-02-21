@@ -86,8 +86,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final boolean destroyable;
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
-    private ExecutorService voidExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+    private  ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
