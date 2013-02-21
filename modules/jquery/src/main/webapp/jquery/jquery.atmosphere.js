@@ -2091,9 +2091,6 @@ jQuery.atmosphere = function() {
             /**
              * Send a message using currently opened websocket. <br>
              *
-             * @param {string, Object}
-                *            Message to send. This is an object, string message is
-             *            saved in data member.
              */
             function _pushWebSocket(message) {
                 var msg = _getStringMessage(message);
