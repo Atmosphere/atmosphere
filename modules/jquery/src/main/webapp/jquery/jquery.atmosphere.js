@@ -1994,7 +1994,7 @@ jQuery.atmosphere = function() {
                 try {
                     if (_localStorageService) {
                         _localStorageService.localSend(message);
-                    } else {
+                    } else if (_storageService) {
                         _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
                     }
                 } catch (err) {
@@ -2096,9 +2096,6 @@ jQuery.atmosphere = function() {
             /**
              * Send a message using currently opened websocket. <br>
              *
-             * @param {string, Object}
-                *            Message to send. This is an object, string message is
-             *            saved in data member.
              */
             function _pushWebSocket(message) {
                 var msg = _getStringMessage(message);
