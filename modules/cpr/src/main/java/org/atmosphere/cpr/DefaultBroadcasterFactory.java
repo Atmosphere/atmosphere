@@ -167,6 +167,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             for (BroadcasterListener l : broadcasterListeners) {
                 b.addBroadcasterListener(l);
             }
+            logger.trace("Broadcaster {} was created {}", id, b);
+
             notifyOnPostCreate(b);
             return b;
         } catch (Throwable t) {
@@ -223,11 +225,13 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull, boolean unique) {
         synchronized(id) {
+            logger.trace("About to create {}", id);
             if (unique && store.get(id) != null) {
                 throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
             }
 
             Broadcaster b = store.get(id);
+            logger.trace("Looking in the store using {} returned {}", id, b);
             if (b != null && !c.isAssignableFrom(b.getClass())) {
                 String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
                 logger.debug(msg);
@@ -236,7 +240,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
             if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
                 if (b != null) {
-                    logger.debug("Removing destroyed Broadcaster {}", b.getID());
+                    logger.trace("Removing destroyed Broadcaster {}", b.getID());
                     store.remove(b.getID(), b);
                 }
 
@@ -247,7 +251,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 }
 
                 if (nb == null) {
-                    logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
+                    logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
                 }
 
                 b = nb;
