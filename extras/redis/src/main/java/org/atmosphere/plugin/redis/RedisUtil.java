@@ -127,20 +127,26 @@ public class RedisUtil {
      * {@inheritDoc}
      */
     public void destroy() {
-        Object lockingObject = getLockingObject();
-        synchronized (lockingObject) {
-            try {
-                disconnectPublisher();
-                disconnectSubscriber();
-                if (jedisPool != null) {
-                    jedisPool.destroy();
+        if (!sharedPool) {
+            Object lockingObject = getLockingObject();
+            synchronized (lockingObject) {
+                try {
+                    disconnectPublisher();
+                    disconnectSubscriber();
+                    if (jedisPool != null) {
+                        jedisPool.destroy();
+                    }
+                } catch (Throwable t) {
+                    logger.warn("Jedis error on close", t);
+                } finally {
+                    config.properties().put(REDIS_SHARED_POOL, null);
                 }
-            } catch (Throwable t) {
-                logger.warn("Jedis error on close", t);
-            } finally {
-                config.properties().put(REDIS_SHARED_POOL, null);
             }
         }
+    }
+
+    public boolean isShared(){
+        return sharedPool;
     }
 
     /**
