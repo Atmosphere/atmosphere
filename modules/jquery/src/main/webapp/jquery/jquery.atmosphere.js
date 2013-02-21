@@ -798,6 +798,7 @@ jQuery.atmosphere = function() {
                     data = '';
                 }
 
+                var async = typeof(rq.async) != 'undefined' ? rq.async : true;
                 _jqxhr = jQuery.ajax({
                     url : url,
                     type : rq.method,
@@ -827,10 +828,11 @@ jQuery.atmosphere = function() {
                             _onError();
                         }
                     },
-                    data : rq.data,
                     beforeSend : function(jqXHR) {
                         _doRequest(jqXHR, rq, false);
-                    }
+                    },
+                    crossDomain : rq.enableXDR,
+                    async: async
                 });
             }
 
@@ -1970,7 +1972,9 @@ jQuery.atmosphere = function() {
              */
             function _push(message) {
 
-                if (_localStorageService != null) {
+                if (_response.status == 408) {
+                    _pushOnClose(message);
+                } else if (_localStorageService != null) {
                     _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
@@ -1981,6 +1985,15 @@ jQuery.atmosphere = function() {
                 } else if (_websocket != null) {
                     _pushWebSocket(message);
                 }
+            }
+
+            function _pushOnClose(message) {
+                var rq = _getPushRequest(message);
+                rq.transport = "ajax";
+                rq.method = "GET";
+                rq.async = false;
+                rq.reconnect = false;
+                _executeRequest(rq);
             }
 
             function _pushLocal(message) {
@@ -2280,8 +2293,6 @@ jQuery.atmosphere = function() {
             function _close() {
                 _request.reconnect = false;
                 _response.request = _request;
-                _subscribed = false;
-                _abordingConnection = true;
                 _response.state = 'unsubscribe';
                 _response.responseBody = "";
                 _response.status = 408;
@@ -2406,10 +2417,10 @@ jQuery.atmosphere = function() {
               var requestsClone = [].concat(jQuery.atmosphere.requests);
               for (var i = 0; i < requestsClone.length; i++) {
                     var rq = requestsClone[i];
+                    rq.close();
                     if (rq.enableProtocol()) {
                         jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID(), async:false});
                     }
-                    rq.close();
                     clearTimeout(rq.id);
                 }
             }
