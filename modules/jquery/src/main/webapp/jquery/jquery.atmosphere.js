@@ -1491,6 +1491,7 @@ jQuery.atmosphere = function() {
 
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         _response.responseBody = text.substring(junkEnd);
+                                        rq.lastIndex = responseText.length;
                                         if (!_handleProtocol( _request, _response.responseBody)) {
                                             return;
                                         }
