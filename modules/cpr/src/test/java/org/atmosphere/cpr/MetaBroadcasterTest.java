@@ -54,6 +54,14 @@ public class MetaBroadcasterTest {
     }
 
     @Test
+    public void doubleSameBroadcasterEmailTest() throws ExecutionException, InterruptedException {
+        factory.lookup("/admin@atmosphere.com", true);
+        factory.lookup("/admin@atmosphere.com", true);
+
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").get().size(), 1);
+    }
+
+    @Test
     public void exactBroadcastTest() throws ExecutionException, InterruptedException {
 
         factory.get("/a");
