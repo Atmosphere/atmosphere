@@ -57,6 +57,10 @@
                     <groupId>javax.servlet</groupId>
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.jetty.orbit</groupId>
+                    <artifactId>javax.servlet</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -84,6 +88,12 @@
             <groupId>com.sun.grizzly</groupId>
             <artifactId>grizzly-http-servlet</artifactId>
             <version>${grizzly-version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -127,7 +137,6 @@
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
             <version>1.0</version>
             <scope>provided</scope>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
