@@ -1693,18 +1693,14 @@ jQuery.atmosphere = function() {
                 var lastIndex = 0;
                 var xdrCallback = function (xdr) {
                     var responseBody = xdr.responseText;
-                    var isJunkEnded = false;
-
-                    if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
-                        isJunkEnded = true;
-                    }
+                    var isJunkEnded = responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1;
 
                     if (isJunkEnded) {
                         var endOfJunk = "<!-- EOD -->";
-                        var endOfJunkLenght = endOfJunk.length;
+                        var endOfJunkLength = endOfJunk.length;
                         var junkEnd = responseBody.indexOf(endOfJunk);
                         if (junkEnd !== -1) {
-                            responseBody = responseBody.substring(junkEnd + endOfJunkLenght + lastIndex);
+                            responseBody = responseBody.substring(junkEnd + endOfJunkLength + lastIndex);
                             lastIndex += responseBody.length;
                         }
                     }
@@ -1868,11 +1864,7 @@ jQuery.atmosphere = function() {
                                     clone.appendChild(cdoc.createTextNode("."));
 
                                     var text = clone.innerText;
-                                    var isJunkEnded = true;
-
-                                    if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                                        isJunkEnded = false;
-                                    }
+                                    var isJunkEnded = text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1;
 
                                     if (isJunkEnded) {
                                         var endOfJunk = "<!-- EOD -->";
@@ -1992,7 +1984,7 @@ jQuery.atmosphere = function() {
                 try {
                     if (_localStorageService) {
                         _localStorageService.localSend(message);
-                    } else {
+                    } else if (_storageService) {
                         _storageService.signal("localMessage",  jQuery.stringifyJSON({id: guid , event: message}));
                     }
                 } catch (err) {
