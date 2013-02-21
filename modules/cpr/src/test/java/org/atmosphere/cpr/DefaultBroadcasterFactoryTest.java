@@ -135,6 +135,31 @@ public class DefaultBroadcasterFactoryTest {
     }
 
     @Test
+    public void testSlashFactory() {
+        factory.lookup("/atmosphere", true);
+        factory.lookup("/atmosphere", true);
+
+        assertEquals(factory.lookupAll().size(), 1);
+    }
+
+    @Test
+    public void testEmailFactory() {
+        factory.lookup("/atmosphere@atmosphere.com", true);
+        factory.lookup("/atmosphere@atmosphere.com", true);
+        factory.lookup("/atmosphere", true);
+
+        assertEquals(factory.lookupAll().size(), 2);
+    }
+
+    @Test
+    public void testSlashEmailFactory() {
+        factory.lookup("/atmosphere@atmosphere.com", true);
+        factory.lookup("/atmosphere@atmosphere.com", true);
+
+        assertEquals(factory.lookupAll().size(), 1);
+    }
+
+    @Test
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
