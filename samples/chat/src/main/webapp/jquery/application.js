@@ -60,6 +60,7 @@ $(function () {
     };
 
     request.onClose = function(response) {
+        subSocket.push(jQuery.stringifyJSON({ author: author, message: 'disconnecting' }));
         logged = false;
     };
 
