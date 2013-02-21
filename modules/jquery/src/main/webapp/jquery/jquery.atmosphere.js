@@ -2212,7 +2212,9 @@ jQuery.atmosphere = function() {
                         break;
                     case "unsubscribe" :
                     case "closed" :
-                        if (typeof(f.onClose) != 'undefined') f.onClose(response);
+                        var closed = typeof(_request.closed) != 'undefined' ? _request.closed : false;
+                        if (typeof(f.onClose) != 'undefined' && !closed) f.onClose(response);
+                        _request.closed = true;
                         break;
                 }
             }
