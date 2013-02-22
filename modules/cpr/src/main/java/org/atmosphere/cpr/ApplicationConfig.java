@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.client.HeaderBroadcasterPlusInterceptor;
 import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
@@ -279,6 +280,11 @@ public interface ApplicationConfig {
      * received in one chunk. Default is '<||>'
      */
     String MESSAGE_DELIMITER = TrackMessageSizeInterceptor.class.getName() + ".delimiter";
+    /**
+     * The token used to separate message generated time and message. This value is used by the client to parse the message received
+     * to get the time on server when the message got generated. Default is '<##>'
+     */
+    String MESSAGE_TIMESTAMP_DELIMITER = HeaderBroadcasterPlusInterceptor.class.getName() + ".delimiter";
     /**
      * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
      * is used
