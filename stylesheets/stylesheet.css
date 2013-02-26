@@ -349,7 +349,9 @@ footer a:hover {
 		width:375px;
 	}
 	.example-left-long {
-		width:770px;
+        font-size:10px;
+		width:600px;
+        color: #444;
 	}
 	.example pre {
 		font-size:10px;

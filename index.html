@@ -30,19 +30,19 @@
 
             <p>The Atmosphere Framework is the most popular asynchronous application development framework for
                 enterprise Java. The Atmosphere Framework provides the enterprise features required to build massive
-                scalability real time asynchronous application</p>
+                scalability real time asynchronous applications using transport like WebSocket, Server Side Events and traditional Ajax Techniques</p>
 
             <h3>Write Once, Deploy Anywhere</h3>
 
-            <p>The Atmosphere Framework goal to make real time apps possible in every <a
+            <p>The Atmosphere Framework mission is to make real time apps possible in every <a
                     href="https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers">browser,
                 library and mobile
                 device</a>, blurring the differences between the different transport mechanisms. The framework is
                 written in
                 Java and Javascript and support the majority of <a
                         href="https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions">existing
-                    Java/Web Framework</a> and can be deployed in every
-                Java Web Server like Tomcat, Jetty, GlassFish, Netty etc. </p>
+                    Java/Web Framework</a>. Applications written using the Atmosphere Framework can be deployed in every
+                Java Web Server like WebLogic, Tomcat, Jetty, GlassFish, Netty etc. </p>
 
             <div class="example">
                 <div class="example-left">
@@ -78,49 +78,66 @@ public class Echo extends OnMessage&lt;String&gt; {
         </section>
 
         <h3>Commercial Support</h3>
+        <p>The Atmosphere Framework is open source under the Apache 2 license and can be downloaded for free, hosted on <a href="https://github.com/Atmosphere/atmosphere">Github</a>. You can also help maintaining the project alive and buy an AtmospherePlus commercial support package</p>
+        <p>AtmospherePlus Services includes<p>
+        <ul>
+            <li>Response at most in 1 business day.</li>
+            <li>Access to private certified maintenance releases.</li>
+            <li>Defect patches.</li>
+            <li>Private branch management in case you need.</li>
+            <li>Customized builds.</li>
+            <li>Unlimited number of cases.</li>
+            <li>Remote desktop connection.</li>
+            <li>Conference calls for discussions.</li>
+            <li>High priority to your issues.</li>
+            <li>Non Atmosphere related general Real Time assistance.</li>
+            <li>Support for Socket.IO, GWT, Async Http Client library etc.</li>
+            <li>New Features</li>
+        </ul>
+
+        <p>New feature and enhancement requests are not available in core services and provided via an hour based model instead. When you have a feature request we provide an estimate, if you confirm we deliver your request within an estimated timeframe and deduct the amount of work from your hours. These requests can be</p>
+        <ul>
+            <li>New components.</li>
+            <li>New functionality to existing components.</li>
+            <li>Changing the way a certain functionality is implemented.</li>
+            <li>Proof of Concept implementations of a use case.</li>
+            <li>Code reviews to offer best practices.</li>
+        </ul>
+
+        <p>Hourly rate is 200 usd and discounts apply on bulk purchases that are more than 50. You can purchase additional hours along with the subscription and also anytime during your subscription period. If your subscription term ends with unused hours, they will be added to your new subscription term in case you extend.
+
+        <p>To get a quote, please <a href="mailto:support@async-io.org">contact us</a>and mention the total number of developers who will be working in your Atmosphere projects.</p>
 
         <p></p>
 
         <h2>Download</h2>
 
-        <h3>Zip file</h3>
-        <section id="downloads" class="clearfix">
-            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.0.11/atmosphere-runtime-libs-1.0.11-distribution.zip"
-               id="download-zip" class="button"><span>Runtime</span></a>
-            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.0.11/atmosphere-jersey-libs-1.0.11-distribution.zip"
-               id="download-zip" class="button"><span>Jersey</span></a>
+        <section id="downloads">
+            <div class="example">
 
-            <p/>
-            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-gwt-libs/1.0.11/atmosphere-gwt-libs-1.0.11-distribution.zip"
-               id="download-zip" class="button"><span>GWT</span></a>
-            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-socket.io-libs/1.0.11/atmosphere-socket.io-libs-1.0.11-distribution.zip"
-               id="download-zip" class="button"><span>Socket.IO</span></a>
-            <!-- <a href="https://github.com/Atmosphere/atmosphere" id="view-on-github" class="button"><span>View on GitHub</span></a> -->
-        </section>
+                <div class="example-left">
+                    <h4>Using Maven</h4>
+                <pre class="prettyprint">
+&lt;dependency&gt;
+ &lt;groupId>org.atmosphere&lt;/groupId&gt;
+ &lt;artifactId>atmosphere-{atmosphere-module}&lt;/artifactId&gt;
+ &lt;version>1.0.11&lt;/version&gt;
+&lt;/dependency&gt;
+                </pre>
+                </div>
 
-        <h3>Using Maven</h3>
-
-        <section id="main_content">
-            <div class="clearfix">
-                <span class="nt">&lt;dependency&gt;</span>
-                <br/>
-                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;groupId&gt;</span>org.atmosphere<span
-                    class="nt">&lt;/groupId&gt;</span>
-                <br/>
-                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;artifactId&gt;</span>atmosphere-{atmosphere-module}<span
-                    class="nt">&lt;/artifactId&gt;</span>
-                <br/>
-                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;version&gt;</span>1.0.11<span
-                    class="nt">&lt;/version&gt;</span>
-                <br/>
-                <span class="nt">&lt;/dependency&gt;</span>
+                <div class="example-right">
+                    <h4>Zip</h4>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.0.11/atmosphere-runtime-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>Runtime</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.0.11/atmosphere-jersey-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>Jersey</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-gwt-libs/1.0.11/atmosphere-gwt-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>GWT</span></a>
+                </div>
             </div>
         </section>
         <hr>
-
-
-        </section>
-
         <footer>
             <p>For Commercial Support, contact <a href="mailto:support@async-io.org">support@async-io.org</a></p>
         </footer>
