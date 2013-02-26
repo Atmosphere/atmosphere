@@ -563,6 +563,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
             logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
             logger.info("Using Broadcaster: {}", broadcasterClassName);
+            logger.info("For Commercial Support, visit {} or send and email to {}", "http://www.async-io.org/", "support@async-io.org");
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
 
         } catch (Throwable t) {
