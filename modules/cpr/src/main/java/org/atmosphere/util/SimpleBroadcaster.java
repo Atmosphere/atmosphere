@@ -190,7 +190,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
         synchronized (r) {
-            executeAsyncWrite(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+            executeAsyncWrite(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
         }
     }
 }
