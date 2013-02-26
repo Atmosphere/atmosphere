@@ -25,7 +25,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -176,6 +178,14 @@ public class BroadcastFilterTest {
         assertEquals(atmosphereHandler.value.get().toString(), "01a2b3c4");
     }
 
+    @Test
+    public void testVoidAtmosphereResouce() throws ExecutionException, InterruptedException {
+        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
+        String s = broadcaster.broadcast("0").get();
+        assertEquals(s, "01");
+    }
+
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {
 
         String msg;
@@ -192,6 +202,29 @@ public class BroadcastFilterTest {
         @Override
         public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+        }
+    }
+
+    private final static class VoidAtmosphereResource implements PerRequestBroadcastFilter {
+
+        String msg;
+
+        public VoidAtmosphereResource(String msg) {
+            this.msg = msg;
+        }
+
+        @Override
+        public BroadcastAction filter(Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+        }
+
+        @Override
+        public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
+            if (r.uuid().equals(VOID_ATMOSPHERE_RESOURCE_UUID)){
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
+            } else {
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, "error");
+            }
         }
     }
 

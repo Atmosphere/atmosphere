@@ -63,6 +63,12 @@ package org.atmosphere.cpr;
 public interface BroadcastFilter {
 
     /**
+     * When a message is about to get cached and some {@link BroadcastFilter} are defined, and when no {@link AtmosphereResource}
+     * are available, a noop {@link AtmosphereResource} with uuid == -1 will be used to invoke BroadcastFilter.
+     */
+    public final static String VOID_ATMOSPHERE_RESOURCE_UUID = "-1";
+
+    /**
      * Simple class that tells the {@link Broadcaster} to broadcast or not
      * the transformed value.
      */
