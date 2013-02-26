@@ -1596,7 +1596,7 @@ jQuery.atmosphere = function() {
                             if (_subscribed) {
                                 setTimeout(function () {
                                     _clearState();
-                                    _execute();
+                                    _executeRequest(rq);
                                 }, rq.reconnectInterval)
                             }
                         }, rq.timeout);
