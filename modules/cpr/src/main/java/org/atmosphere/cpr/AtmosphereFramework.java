@@ -563,9 +563,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
             logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
             logger.info("Using Broadcaster: {}", broadcasterClassName);
-            logger.info("For Commercial Support, visit {} or send an email to {}", "http://www.async-io.org/", "support@async-io.org");
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
-
+            logger.info("\n\n\tFor Commercial Support, visit \n\t{} " +
+                    "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
