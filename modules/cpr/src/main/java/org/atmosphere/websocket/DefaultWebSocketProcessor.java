@@ -259,7 +259,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (h != null) {
                         // Tomcat and Jetty differ, same with browser
-                        if (closeCode == 1002 || closeCode == 1005) {
+                        if (closeCode == 1002) {
                             h.timedOut();
                         } else {
                             h.closed();
