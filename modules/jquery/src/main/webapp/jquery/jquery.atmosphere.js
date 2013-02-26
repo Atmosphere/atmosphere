@@ -1056,14 +1056,14 @@ jQuery.atmosphere = function() {
                             return;
                         }
 
-                        _request.id = setTimeout(function() {
-                            setTimeout(function () {
-                                _clearState();
-                            }, _request.reconnectInterval)
-                        }, _request.timeout);
-
                     }, _request.connectTimeout);
                 }
+
+                _request.id = setTimeout(function() {
+                    setTimeout(function () {
+                        _clearState();
+                    }, _request.reconnectInterval)
+                }, _request.timeout);
 
                 _websocket.onopen = function(message) {
                     if (_request.logLevel == 'debug') {
