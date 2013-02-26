@@ -90,7 +90,7 @@ header h2 {
 }
 
 .inner {
-  width: 620px;
+  width: 800px;
   margin: 0 auto;
 }
 
@@ -336,6 +336,25 @@ footer a:hover {
 .clearfix {display: inline-block;}
 * html .clearfix {height: 1%;}
 .clearfix {display: block;}
+
+.example {
+	overflow:hidden;
+}
+    .example-left {
+		float:left;
+		width:400px;
+	}
+	.example-right {
+		float:right;
+		width:375px;
+	}
+	.example-left-long {
+		width:770px;
+	}
+	.example pre {
+		font-size:10px;
+		height:100%;
+	}
 
 /* #Media Queries
 ================================================== */

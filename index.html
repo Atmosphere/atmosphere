@@ -1,85 +1,143 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset='utf-8'>
-        <meta http-equiv="X-UA-Compatible" content="chrome=1">
-        <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
-        <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-        <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-        <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
-        <!--[if lt IE 9]>
-        <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-        <![endif]-->
-        <title>Atmosphere</title>
-    </head>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>Atmosphere</title>
+</head>
 
-    <body>
-        <div id="container">
-            <div class="inner">
+<body>
+<div id="container">
+    <div class="inner">
 
-                <header>
-                <h1>The Atmosphere Framework</h1>
-                <h2>Realtime Client Server Framework for the JVM, supporting WebSockets and Cross-Browser Fallbacks Support </h2>
-                </header>
+        <header>
+            <h1>The Atmosphere Framework</h1>
 
-                <section id="main_content">
-                <h3>What is The Atmosphere Framework?</h3>
+            <h2>Real Time Client Server Framework for the JVM, supporting WebSockets and Cross-Browser Fallbacks
+                Support </h2>
+        </header>
 
-                <p>The Atmosphere Framework is the most popular asynchronous application development framework for enterprise Java. The Atmosphere Framework provides the enterprise features required to build massive scalability real time asynchronous application</p>
+        <section id="main_content">
+            <h3>What is The Atmosphere Framework?</h3>
 
-                <h3>Write Once, Deploy Anywhere</h3>
+            <p>The Atmosphere Framework is the most popular asynchronous application development framework for
+                enterprise Java. The Atmosphere Framework provides the enterprise features required to build massive
+                scalability real time asynchronous application</p>
 
-                <h3>Commercial Support</h3>
+            <h3>Write Once, Deploy Anywhere</h3>
 
-                <p></p>
+            <p>The Atmosphere Framework goal to make real time apps possible in every <a
+                    href="https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers">browser,
+                library and mobile
+                device</a>, blurring the differences between the different transport mechanisms. The framework is
+                written in
+                Java and Javascript and support the majority of <a
+                        href="https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions">existing
+                    Java/Web Framework</a> and can be deployed in every
+                Java Web Server like Tomcat, Jetty, GlassFish, Netty etc. </p>
 
-                <h2>Download</h2>
-                <h3>Zip file</h3>
-                <section id="downloads" class="clearfix">
-                <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.0.11/atmosphere-runtime-libs-1.0.11-distribution.zip" id="download-zip" class="button"><span>Runtime</span></a>
-                <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.0.11/atmosphere-jersey-libs-1.0.11-distribution.zip" id="download-zip" class="button"><span>Jersey</span></a>
-                <p/>
-                <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-gwt-libs/1.0.11/atmosphere-gwt-libs-1.0.11-distribution.zip" id="download-zip" class="button"><span>GWT</span></a>  
-                <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-socket.io-libs/1.0.11/atmosphere-socket.io-libs-1.0.11-distribution.zip" id="download-zip" class="button"><span>Socket.IO</span></a>  
-                <!-- <a href="https://github.com/Atmosphere/atmosphere" id="view-on-github" class="button"><span>View on GitHub</span></a> -->
-                </section>
+            <div class="example">
+                <div class="example-left">
+                    <h4>Server</h4>
+            	    <pre class="prettyprint">import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.handler.OnMessage;
 
-                <h3>Using Maven</h3>
-
-                <section id="main_content">
-                <div class="clearfix">     
-                    <span class="nt">&lt;dependency&gt;</span>
-                         <br/>
-                         &nbsp;&nbsp;&nbsp;<span class="nt">&lt;groupId&gt;</span>org.atmosphere<span class="nt">&lt;/groupId&gt;</span>
-                         <br/>
-                         &nbsp;&nbsp;&nbsp;<span class="nt">&lt;artifactId&gt;</span>atmosphere-{atmosphere-module}<span class="nt">&lt;/artifactId&gt;</span>
-                         <br/>
-                         &nbsp;&nbsp;&nbsp;<span class="nt">&lt;version&gt;</span>1.0.11<span class="nt">&lt;/version&gt;</span>
-                         <br/>
-                      <span class="nt">&lt;/dependency&gt;</span>
+@ManagedService(path = "/echo")
+public class Echo extends OnMessage&lt;String&gt; {
+    @Override
+    public void onMessage(AtmosphereResponse res, String m) {
+        res.write("Echo: " + n);
+    }
+}</pre>
                 </div>
-                </section>
-                <hr>
 
+                <div class="example-right">
+                    <h4>Client</h4>
+            							<pre class="prettyprint">$(function () {
+   var request = {
+     url: document.location.toString() + 'echo',
+     transport : "websocket" ,
+     fallbackTransport: 'long-polling'};
 
-                </section>
-
-                <footer>
-                <p>For Commercial Support, contact <a href="mailto:support@async-io.org">support@async-io.org</a></p>
-                </footer>
-
-                <script type="text/javascript">
-                    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-                    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-                    </script>
-                    <script type="text/javascript">
-                        try {
-                            var pageTracker = _gat._getTracker("UA-31990725-1");
-                            pageTracker._trackPageview();
-                        } catch(err) {}
-                    </script>
-
+   request.onMessage = function (response) {
+     console.log(response.responseBody)
+   };
+   $.atmosphere.subscribe(request).push("Hello");
+}</pre>
                 </div>
             </div>
-        </body>
-    </html>
+        </section>
+
+        <h3>Commercial Support</h3>
+
+        <p></p>
+
+        <h2>Download</h2>
+
+        <h3>Zip file</h3>
+        <section id="downloads" class="clearfix">
+            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.0.11/atmosphere-runtime-libs-1.0.11-distribution.zip"
+               id="download-zip" class="button"><span>Runtime</span></a>
+            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.0.11/atmosphere-jersey-libs-1.0.11-distribution.zip"
+               id="download-zip" class="button"><span>Jersey</span></a>
+
+            <p/>
+            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-gwt-libs/1.0.11/atmosphere-gwt-libs-1.0.11-distribution.zip"
+               id="download-zip" class="button"><span>GWT</span></a>
+            <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-socket.io-libs/1.0.11/atmosphere-socket.io-libs-1.0.11-distribution.zip"
+               id="download-zip" class="button"><span>Socket.IO</span></a>
+            <!-- <a href="https://github.com/Atmosphere/atmosphere" id="view-on-github" class="button"><span>View on GitHub</span></a> -->
+        </section>
+
+        <h3>Using Maven</h3>
+
+        <section id="main_content">
+            <div class="clearfix">
+                <span class="nt">&lt;dependency&gt;</span>
+                <br/>
+                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;groupId&gt;</span>org.atmosphere<span
+                    class="nt">&lt;/groupId&gt;</span>
+                <br/>
+                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;artifactId&gt;</span>atmosphere-{atmosphere-module}<span
+                    class="nt">&lt;/artifactId&gt;</span>
+                <br/>
+                &nbsp;&nbsp;&nbsp;<span class="nt">&lt;version&gt;</span>1.0.11<span
+                    class="nt">&lt;/version&gt;</span>
+                <br/>
+                <span class="nt">&lt;/dependency&gt;</span>
+            </div>
+        </section>
+        <hr>
+
+
+        </section>
+
+        <footer>
+            <p>For Commercial Support, contact <a href="mailto:support@async-io.org">support@async-io.org</a></p>
+        </footer>
+
+        <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+        </script>
+        <script type="text/javascript">
+            try {
+                var pageTracker = _gat._getTracker("UA-31990725-1");
+                pageTracker._trackPageview();
+            } catch (err) {
+            }
+        </script>
+
+    </div>
+</div>
+</body>
+</html>
