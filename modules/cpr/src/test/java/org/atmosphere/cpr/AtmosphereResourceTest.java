@@ -25,16 +25,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
-<<<<<<< HEAD
-=======
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-<<<<<<< HEAD
->>>>>>> b8ae6da... Fix for #938
-=======
->>>>>>> b8ae6da... Fix for #938
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
@@ -149,7 +142,7 @@ public class AtmosphereResourceTest {
         new Thread() {
             public void run() {
                 try {
-                    framework.doCometSupport(parentRequest, AtmosphereResponse.create());
+                    framework.doCometSupport(parentRequest, AtmosphereResponse.newInstance());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {
@@ -163,7 +156,7 @@ public class AtmosphereResourceTest {
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().attributes(m).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         AtmosphereResource r = parentRequest.resource();
         Broadcaster b = r.getBroadcaster();
