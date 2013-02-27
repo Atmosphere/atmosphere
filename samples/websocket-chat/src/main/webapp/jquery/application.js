@@ -14,7 +14,6 @@ $(function () {
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
-        shared : true,
         transport : 'websocket'};
 
     request.onOpen = function(response) {
@@ -36,7 +35,7 @@ $(function () {
         if (!logged && myName) {
             status.text(myName + ': ').css('color', 'blue');
             input.removeAttr('disabled').focus();
-            subSocket.pushLocal(myName);
+            logged = true;
         } else {
             var me = json.author == author;
             var date = typeof(json.time) == 'string' ? parseInt(json.time) : json.time;
