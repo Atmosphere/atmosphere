@@ -19,6 +19,7 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
 import java.io.IOException;
+import java.util.Date;
 
 @ManagedService(path = "/chat")
 public class ChatAtmosphereHandler extends OnMessage<String> {
@@ -26,23 +27,6 @@ public class ChatAtmosphereHandler extends OnMessage<String> {
     @Override
     public void onMessage(AtmosphereResponse response, String message) throws IOException {
         response.getWriter().write("Echo: " + message);
-    }
-
-}
-
-    /**
-     * Simple listener for events.
-     */
-    public final static class WebSocketEventListener extends WebSocketEventListenerAdapter {
-        @Override
-        public void onConnect(WebSocketEvent event) {
-            logger.debug("{}", event);
-        }
-
-        @Override
-        public void onDisconnect(WebSocketEvent event) {
-            logger.debug("{}", event);
-        }
     }
 
     public final static class Data {
