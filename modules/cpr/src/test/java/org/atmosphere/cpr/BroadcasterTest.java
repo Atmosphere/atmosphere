@@ -78,6 +78,18 @@ public class BroadcasterTest {
     }
 
     @Test
+    public void testCancelAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+
+        AtmosphereResourceImpl.class.cast(ar).cancel();
+        AsynchronousProcessor.destroyResource(ar);
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
+    }
+
+    @Test
     public void testSetBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         AtmosphereConfig config = new AtmosphereFramework()
                 .setAsyncSupport(mock(BlockingIOCometSupport.class))
