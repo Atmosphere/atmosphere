@@ -491,7 +491,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
 
                 if (r != null) {
-                    destroyResource(r);
+                    r._destroy();
                 }
             }
         }
@@ -511,15 +511,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         (AtmosphereHandler)
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
-                synchronized (r) {
-                    try {
-                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-                    } finally {
-                        Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                        if (m != null) {
-                            m.destroy();
+                if (atmosphereHandler != null) {
+                    synchronized (r) {
+                        try {
+                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                        } finally {
+                            Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                            if (m != null) {
+                                m.destroy();
+                            }
+                            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                         }
-                        req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     }
                 }
             }
@@ -529,24 +531,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             } catch (Throwable t) {
                 logger.warn("failed calling onThrowable()", ex);
             }
-        }
-    }
-
-    public static void destroyResource(AtmosphereResource r) {
-        if (r == null) return;
-
-        try {
-            r.removeEventListeners();
-            try {
-                AtmosphereResourceImpl.class.cast(r).getBroadcaster(false).removeAtmosphereResource(r);
-            } catch (IllegalStateException ex) {
-                logger.trace(ex.getMessage(), ex);
-            }
-            if (BroadcasterFactory.getDefault() != null) {
-                BroadcasterFactory.getDefault().removeAllAtmosphereResource(r);
-            }
-        } catch (Throwable t) {
-            logger.trace("destroyResource", t);
         }
     }
 
@@ -622,7 +606,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     logger.trace("cancel", t);
                 } finally {
                     if (r != null) {
-                        destroyResource(r);
+                        r._destroy();
                     }
                 }
             }

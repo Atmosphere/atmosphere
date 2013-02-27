@@ -60,7 +60,7 @@ public final class JerseyBroadcasterUtil {
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
                 DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r, true);
             }
-            AsynchronousProcessor.destroyResource(r);
+            AtmosphereResourceImpl.class.cast(r)._destroy();
             return;
         }
 
@@ -163,6 +163,6 @@ public final class JerseyBroadcasterUtil {
     final static void onException(Throwable t, AtmosphereResource r) {
         logger.trace("onException()", t);
         r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-        AsynchronousProcessor.destroyResource(r);
+        AtmosphereResourceImpl.class.cast(r)._destroy();
     }
 }

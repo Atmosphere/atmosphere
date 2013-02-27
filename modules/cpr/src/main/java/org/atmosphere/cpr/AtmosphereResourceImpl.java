@@ -855,6 +855,22 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
+    public void _destroy() {
+        try {
+            removeEventListeners();
+            try {
+                getBroadcaster(false).removeAtmosphereResource(this);
+            } catch (IllegalStateException ex) {
+                logger.trace(ex.getMessage(), ex);
+            }
+            if (config.getBroadcasterFactory().getDefault() != null) {
+                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+            }
+        } catch (Throwable t) {
+            logger.trace("destroyResource", t);
+        }
+    }
+
     @Override
     public String toString() {
         return "AtmosphereResourceImpl{" +
