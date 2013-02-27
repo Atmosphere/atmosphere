@@ -31,6 +31,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+<<<<<<< HEAD
+>>>>>>> b8ae6da... Fix for #938
+=======
 >>>>>>> b8ae6da... Fix for #938
 import java.util.concurrent.atomic.AtomicReference;
 
