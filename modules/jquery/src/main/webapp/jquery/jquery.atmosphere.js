@@ -680,7 +680,6 @@ jQuery.atmosphere = function() {
 
                 request.close = function() {
                     _close();
-                    request.reconnect = false;
                 };
 
                 _response.request = request;
@@ -2294,6 +2293,7 @@ jQuery.atmosphere = function() {
              * @private
              */
             function _close() {
+                _abordingConnection = true;
                 _request.reconnect = false;
                 _response.request = _request;
                 _response.state = 'unsubscribe';
