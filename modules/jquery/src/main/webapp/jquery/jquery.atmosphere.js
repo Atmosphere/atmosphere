@@ -2440,6 +2440,9 @@ jQuery.atmosphere = function() {
                     // Suppose you can subscribe once to an url
                     if (rq.getUrl() == url) {
                         rq.close();
+                        if (rq.enableProtocol()) {
+                            jQuery.ajax({url: url + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID(), async:false});
+                        }
                         clearTimeout(rq.id);
                         idx = i;
                         break;
