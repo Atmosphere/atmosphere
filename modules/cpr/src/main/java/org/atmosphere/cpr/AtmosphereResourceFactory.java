@@ -136,7 +136,7 @@ public final class AtmosphereResourceFactory {
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return AtmosphereResourceFactory.getDefault().create(config,
                 noOps,
-                AtmosphereRequest.create(),
+                AtmosphereRequest.newInstance(),
                 response,
                 config.framework().getAsyncSupport(),
                 noOpsHandler);

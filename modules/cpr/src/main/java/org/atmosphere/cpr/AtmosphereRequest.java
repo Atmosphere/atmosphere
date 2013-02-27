@@ -1543,7 +1543,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      *
      * @return an instance of this class without an associated {@link HttpServletRequest}
      */
-    public final static AtmosphereRequest create() {
+    public final static AtmosphereRequest newInstance() {
         return new Builder().build();
     }
 

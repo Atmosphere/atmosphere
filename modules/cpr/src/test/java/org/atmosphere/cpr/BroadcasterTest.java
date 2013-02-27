@@ -49,7 +49,7 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                AtmosphereRequest.create(),
+                AtmosphereRequest.newInstance(),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -111,7 +111,7 @@ public class BroadcasterTest {
     public void testCancelAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
         Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
         two.addAtmosphereResource(ar);
-        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE,ar);
+        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, ar);
         ar.getAtmosphereConfig().framework().setAsyncSupport(new AsynchronousProcessor(ar.getAtmosphereConfig()) {
             @Override
             public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
