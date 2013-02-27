@@ -111,6 +111,42 @@ public class WebSocketProcessorTest {
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
 
+        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
+
+    }
+
+
+    @Test
+    public void basicBackwardCompatbileWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        framework.addInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR, "true")
+                .addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.getBroadcaster().addAtmosphereResource(resource);
+                resource.getResponse().write(resource.getRequest().getReader().readLine());
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                event.write(event.getMessage().toString().getBytes());
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request);
+        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+        BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
+
         assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcastyoBroadcast");
 
     }

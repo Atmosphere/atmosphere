@@ -1051,7 +1051,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             r.getResponse().flushBuffer();
                         } catch (IOException ioe) {
                             logger.trace("", ioe);
-                            AsynchronousProcessor.destroyResource(r);
+                            AtmosphereResourceImpl.class.cast(r)._destroy();
                         }
                         break;
                 }
@@ -1419,7 +1419,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
                 String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                if (parentUUID != null && !parentUUID.equals(r.uuid())) {
+                Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+                if (!backwardCompatible && parentUUID != null && !parentUUID.equals(r.uuid())) {
                     logger.warn("You are trying to add an AtmosphereResource {} for a WebSocket message. The original AtmosphereResource " +
                             " {} will be added instead.", r.uuid(), parentUUID);
                     AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);

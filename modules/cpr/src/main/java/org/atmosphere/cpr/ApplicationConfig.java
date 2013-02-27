@@ -324,10 +324,16 @@ public interface ApplicationConfig {
     /**
      * The write operation timeout
      */
-    String WRITE_TIMEOUT =  Broadcaster.class.getName() + ".writeTimeout";
+    String WRITE_TIMEOUT = Broadcaster.class.getName() + ".writeTimeout";
     /**
      * The sleep time, in millisecond, before the {@link DefaultBroadcaster} release it's reactive thread for pushing message
      * and execute async write. Default is 1000
      */
-   String BROADCASTER_WAIT_TIME =  Broadcaster.class.getName() + ".threadWaitTime";
+    String BROADCASTER_WAIT_TIME = Broadcaster.class.getName() + ".threadWaitTime";
+    /**
+     * Before 1.0.12, WebSocket's AtmosphereResource manually added to {@link Broadcaster} where added without checking
+     * if the parent, e.g the AtmosphereResource's created on the first request was already added to the Broadcaster. That caused
+     * some messages to be written twice instead of one.
+     */
+    String BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR = "org.atmosphere.websocket.backwardCompatible.atmosphereResource";
 }
