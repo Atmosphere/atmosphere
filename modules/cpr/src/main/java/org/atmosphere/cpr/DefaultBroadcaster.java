@@ -86,6 +86,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.BroadcasterCache.Message;
 import static org.atmosphere.cpr.BroadcasterCache.STRATEGY;
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
@@ -198,8 +199,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
-<<<<<<< HEAD
-=======
      * Set the {@link BroadcasterCache.STRATEGY}
      *
      * @param cacheStrategy the {@link BroadcasterCache.STRATEGY}
@@ -211,7 +210,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
->>>>>>> 11c9189... Fix for #917
      * {@inheritDoc}
      */
     public synchronized void destroy() {
@@ -1419,7 +1417,18 @@ public class DefaultBroadcaster implements Broadcaster {
             boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
             if (!wasResumed && isAtmosphereResourceValid(r)) {
                 logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
-                resources.add(r);
+
+                String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                if (parentUUID != null && !parentUUID.equals(r.uuid())) {
+                    logger.warn("You are trying to add an AtmosphereResource {} for a WebSocket message. The original AtmosphereResource " +
+                            " {} will be added instead.", r.uuid(), parentUUID);
+                    AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                    if (p != null && !resources.contains(p)) {
+                        resources.add(p);
+                    }
+                } else {
+                    resources.add(r);
+                }
             } else if (!wasResumed) {
                 logger.debug("Unable to add AtmosphereResource {}", r.uuid());
             }

@@ -25,8 +25,16 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+<<<<<<< HEAD
+=======
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+>>>>>>> b8ae6da... Fix for #938
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
@@ -98,4 +106,71 @@ public class AtmosphereResourceTest {
 
         assertEquals(e.get(), e2.get());
     }
+
+    @Test
+    public void testCancelParentUUID() throws IOException, ServletException, InterruptedException {
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        final AtmosphereRequest parentRequest = new AtmosphereRequest.Builder().pathInfo("/a").build();
+
+        final CountDownLatch suspended = new CountDownLatch(1);
+
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                try {
+                    r.getBroadcaster().addAtmosphereResource(r);
+                    return suspended.getCount() == 1 ? Action.SUSPEND : Action.CONTINUE;
+                } finally {
+                    suspended.countDown();
+                }
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+            }
+        });
+
+        new Thread() {
+            public void run() {
+                try {
+                    framework.doCometSupport(parentRequest, AtmosphereResponse.create());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ServletException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+
+        suspended.await();
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().attributes(m).pathInfo("/a").build();
+        framework.doCometSupport(request, AtmosphereResponse.create());
+
+        AtmosphereResource r = parentRequest.resource();
+        Broadcaster b = r.getBroadcaster();
+
+        assertEquals(b.getAtmosphereResources().size(), 1);
+
+        AtmosphereResourceImpl.class.cast(r).cancel();
+
+        assertEquals(b.getAtmosphereResources().size(), 0);
+
+    }
+
 }
