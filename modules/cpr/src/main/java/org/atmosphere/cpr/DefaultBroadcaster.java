@@ -1421,8 +1421,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
                 Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
                 if (!backwardCompatible && parentUUID != null) {
-                    logger.warn("You are trying to add an AtmosphereResource {} for a WebSocket message. The original AtmosphereResource " +
-                            " {} will be added instead.", r.uuid(), parentUUID);
                     AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
                     if (p != null && !resources.contains(p)) {
                         resources.add(p);
