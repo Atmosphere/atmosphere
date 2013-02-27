@@ -36,6 +36,7 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
@@ -195,9 +196,18 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     framework.setDefaultBroadcasterClassName(className);
                 } else if (WebSocketHandlerService.class.equals(annotation)) {
                     try {
-                        framework.initWebSocket();
                         Class<WebSocketHandler> s = (Class<WebSocketHandler>) cl.loadClass(className);
                         WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
+
+                        framework.addAtmosphereHandler(m.path(), new AbstractReflectorAtmosphereHandler() {
+                            @Override
+                            public void onRequest(AtmosphereResource resource) throws IOException {
+                            }
+
+                            @Override
+                            public void destroy() {
+                            }
+                        }).initWebSocket();
 
                         WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
                         p.registerWebSocketHandler(m.path(), s.newInstance());
