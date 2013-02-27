@@ -406,6 +406,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 return cancelledAction;
             }
 
+            if (r == null) {
+                logger.debug("AtmosphereResource was null, failed to timeout AtmosphereRequest {}", request);
+            }
+
             if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
                 r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
 
@@ -557,6 +561,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         } catch (Throwable t2) {
                         }
                     }
+                }  else {
+                    logger.debug("AtmosphereResource was null, failed to cancel AtmosphereRequest {}", req);
                 }
             } catch (Throwable ex) {
                 // Something wrong happenned, ignore the exception
