@@ -995,9 +995,6 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
-            // Don't get crazy when looking at that code: https://github.com/Atmosphere/atmosphere/issues/841
-            AtmosphereFramework.__uuid.set(config.framework().uuid);
-
             prepareInvokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {

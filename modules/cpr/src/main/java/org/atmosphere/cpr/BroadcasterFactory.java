@@ -62,7 +62,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public abstract class BroadcasterFactory {
 
     protected static BroadcasterFactory factory;
-    protected static AtmosphereConfig config;
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     /**
@@ -199,6 +198,5 @@ public abstract class BroadcasterFactory {
 
     static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {
         factory = f;
-        config = c;
     }
 }

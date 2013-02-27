@@ -83,7 +83,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
-
+    protected AtmosphereConfig config;
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
     private final Class<? extends Broadcaster> clazz;
     private BroadcasterLifeCyclePolicy policy =
