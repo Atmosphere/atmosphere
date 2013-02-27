@@ -83,7 +83,7 @@ public class BroadcasterTest {
         two.addAtmosphereResource(ar);
 
         AtmosphereResourceImpl.class.cast(ar).cancel();
-        AsynchronousProcessor.destroyResource(ar);
+        AtmosphereResourceImpl.class.cast(ar)._destroy();
 
         assertEquals(broadcaster.getAtmosphereResources().size(), 0);
         assertEquals(two.getAtmosphereResources().size(), 0);
