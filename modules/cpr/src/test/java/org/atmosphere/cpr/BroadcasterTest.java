@@ -49,7 +49,7 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                AtmosphereRequest.create(),
                 AtmosphereResponse.create(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -78,12 +78,48 @@ public class BroadcasterTest {
     }
 
     @Test
-    public void testCancelAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+    public void testAtmosphereResourceCancel() throws ExecutionException, InterruptedException, ServletException, IOException {
         Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
         two.addAtmosphereResource(ar);
 
         AtmosphereResourceImpl.class.cast(ar).cancel();
         AsynchronousProcessor.destroyResource(ar);
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
+    }
+
+    @Test
+    public void testTimeoutAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE,ar);
+        ar.getAtmosphereConfig().framework().setAsyncSupport(new AsynchronousProcessor(ar.getAtmosphereConfig()) {
+            @Override
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return Action.CONTINUE;
+            }
+        });
+
+        AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).timedout(ar.getRequest(), ar.getResponse());
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
+    }
+
+    @Test
+    public void testCancelAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE,ar);
+        ar.getAtmosphereConfig().framework().setAsyncSupport(new AsynchronousProcessor(ar.getAtmosphereConfig()) {
+            @Override
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return Action.CONTINUE;
+            }
+        });
+
+        AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).cancelled(ar.getRequest(), ar.getResponse());
 
         assertEquals(broadcaster.getAtmosphereResources().size(), 0);
         assertEquals(two.getAtmosphereResources().size(), 0);
