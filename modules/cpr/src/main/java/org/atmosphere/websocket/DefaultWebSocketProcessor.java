@@ -276,7 +276,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     } catch (IOException e) {
                         logger.trace("", e);
                     }
-                    AtmosphereResourceImpl.class.cast(r)._destroy();
+                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
             } finally {
                 if (r != null) {
