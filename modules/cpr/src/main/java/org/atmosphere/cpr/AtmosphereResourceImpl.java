@@ -661,7 +661,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (serializer != null) {
             serializer.write(os, o);
         } else {
-            response.getOutputStream().write(o.toString().getBytes());
+            response.getOutputStream().write(o.toString().getBytes(response.getCharacterEncoding()));
         }
         return this;
     }
