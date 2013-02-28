@@ -503,7 +503,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (!delegateToNativeResponse) {
             return charSet;
         } else {
-            return _r().getCharacterEncoding();
+            return _r().getCharacterEncoding() == null ? charSet : _r().getCharacterEncoding();
         }
     }
 
