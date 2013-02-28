@@ -133,6 +133,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
+    public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*=@;\\?]+";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
@@ -164,7 +165,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String broadcasterLifeCyclePolicy = "NEVER";
     protected String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
     protected WebSocketProtocol webSocketProtocol;
-    protected String handlersPath = "/WEB-INF/classes/";
+    protected String handlersPath = DEFAULT_HANDLER_PATH;
     protected ServletConfig servletConfig;
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
@@ -1801,9 +1802,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void autoConfigureService(ServletContext sc) throws IOException {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-        String path = libPath != DEFAULT_LIB_PATH ? libPath : sc.getRealPath(handlersPath);
+        String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
         try {
-            AnnotationProcessor p = (AnnotationProcessor) cl.loadClass(annotationProcessorClassName).newInstance();
+            AnnotationProcessor p = (AnnotationProcessor) getClass().getClassLoader().loadClass(annotationProcessorClassName).newInstance();
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
             p.configure(this);
@@ -1811,7 +1812,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 p.scan(new File(path));
             }
 
-            String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
+            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : DEFAULT_LIB_PATH;
             if (pathLibs != null) {
                 File libFolder = new File(pathLibs);
                 File jars[] = libFolder.listFiles(new FilenameFilter() {
