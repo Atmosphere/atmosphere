@@ -1812,7 +1812,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 p.scan(new File(path));
             }
 
-            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : DEFAULT_LIB_PATH;
+            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath :  sc.getRealPath(DEFAULT_LIB_PATH);
             if (pathLibs != null) {
                 File libFolder = new File(pathLibs);
                 File jars[] = libFolder.listFiles(new FilenameFilter() {
