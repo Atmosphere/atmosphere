@@ -135,7 +135,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         for (Class i : interceptors) {
                             try {
                                 AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                                ai.configure(framework.getAtmosphereConfig());
                                 l.add(ai);
                             } catch (Throwable e) {
                                 logger.warn("", e);
@@ -179,7 +178,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         for (Class i : interceptors) {
                             try {
                                 AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                                ai.configure(framework.getAtmosphereConfig());
                                 l.add(ai);
                             } catch (Throwable e) {
                                 logger.warn("", e);
@@ -225,7 +223,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 } else if (AtmosphereInterceptorService.class.equals(annotation)) {
                     try {
                         AtmosphereInterceptor a = (AtmosphereInterceptor) loadClass(className).newInstance();
-                        a.configure(framework.getAtmosphereConfig());
                         framework.interceptor(a);
                     } catch (Throwable e) {
                         logger.warn("", e);
@@ -275,7 +272,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         for (Class i : interceptors) {
                             try {
                                 AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                                ai.configure(framework.getAtmosphereConfig());
                                 l.add(ai);
                             } catch (Throwable e) {
                                 logger.warn("", e);
@@ -307,7 +303,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
                                 }
                             };
-                            ai.configure(framework.getAtmosphereConfig());
                             l.add(ai);
                         } catch (Throwable e) {
                             logger.warn("", e);

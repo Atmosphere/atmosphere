@@ -264,11 +264,9 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
-
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
         w.interceptors = l;
         addMapping(mapping, w);
-
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
         if (l.size() > 0) {
             logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
@@ -633,18 +631,32 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
             logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
         }
+        initInterceptors();
     }
 
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
         AtmosphereInterceptor ai = null;
         try {
             ai = (AtmosphereInterceptor) getClass().getClassLoader().loadClass(a.getName()).newInstance();
-            ai.configure(config);
             logger.info("\t{} : {}", a.getName(), ai);
         } catch (Exception ex) {
             logger.warn("", ex);
         }
         return ai;
+    }
+
+    protected void initInterceptors(){
+        for (AtmosphereInterceptor i : interceptors) {
+            i.configure(config);
+        }
+
+        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
+            if (w.interceptors != null) {
+                for (AtmosphereInterceptor i : w.interceptors) {
+                    i.configure(config);
+                }
+            }
+        }
     }
 
     protected void configureWebDotXmlAtmosphereHandler(ServletConfig sc) {
@@ -1102,7 +1114,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                     for (String a : atmoHandler.getAtmosphereInterceptorClasses()) {
                         try {
                             AtmosphereInterceptor ai = (AtmosphereInterceptor) c.loadClass(a).newInstance();
-                            ai.configure(config);
                             l.add(ai);
                         } catch (Throwable e) {
                             logger.warn("", e);
@@ -1677,7 +1688,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         if (!found) {
-            c.configure(config);
             interceptors.addLast(c);
             logger.info("Installed AtmosphereInterceptor {}. ", c);
         }
