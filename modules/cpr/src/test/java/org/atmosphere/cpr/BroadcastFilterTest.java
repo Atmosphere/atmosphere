@@ -182,7 +182,7 @@ public class BroadcastFilterTest {
     public void testVoidAtmosphereResouce() throws ExecutionException, InterruptedException {
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
-        String s = broadcaster.broadcast("0").get();
+        String s = (String) broadcaster.broadcast("0").get();
         assertEquals(s, "01");
     }
 
