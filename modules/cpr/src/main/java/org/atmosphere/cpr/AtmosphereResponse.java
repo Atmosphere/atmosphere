@@ -404,6 +404,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return status;
     }
 
+    public ServletResponse getResponse() {
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            return this;
+        } else {
+            return super.getResponse();
+        }
+   	}
+
     public String getStatusMessage() {
         return statusMessage;
     }
