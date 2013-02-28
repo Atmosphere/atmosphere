@@ -603,7 +603,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                 try {
                     AtmosphereInterceptor ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
                             .loadClass(a.trim()).newInstance();
-                    ai.configure(config);
                     interceptor(ai);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
@@ -1678,6 +1677,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         if (!found) {
+            c.configure(config);
             interceptors.addLast(c);
             logger.info("Installed AtmosphereInterceptor {}. ", c);
         }
