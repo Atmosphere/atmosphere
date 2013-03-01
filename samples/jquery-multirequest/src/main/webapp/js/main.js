@@ -105,6 +105,7 @@ function subscribeAtmosphere(location, call, transport) {
 	var rq = $.atmosphere.subscribe(location, globalCallback, $.atmosphere.request = {
 		logLevel : 'debug',
 		transport : transport,
+        enableProtocol: true,
 		callback : call
 	});
 	return rq;
