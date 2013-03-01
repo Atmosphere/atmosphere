@@ -333,6 +333,133 @@ footer a:hover {
   height: 0;
 }
 
+/** Support levels table */
+table.support-levels {
+  margin-top: 40px;
+  width: 660px;
+}
+table.support-levels tfoot td.legend {
+  text-align: left !important;
+  font-size: 14px;
+  padding-top: 10px;
+}
+table.support-levels .table-td {
+  /*width: 130px;*/
+
+  height: 35px;
+  background: url('../images/table_td.gif') 0 0 repeat-x #eeeeee;
+  color: #4169e1;
+  font-size: 14px;
+  font-style: italic;
+  border: 1px solid #eeeeee;
+}
+table.support-levels td {
+  margin: 0;
+  padding: 0;
+  border-collapse: collapse;
+}
+table.support-levels td.head_type_1 {
+  border-left: 1px solid #cccccc;
+
+}
+table.support-levels td.first {
+  border-left: none;
+}
+table.support-levels td.noborder {
+  border: none;
+}
+table.support-levels .table_head {
+  height: 50px;
+  width: inherit !important;
+  position: relative;
+}
+table.support-levels .table_head_title {
+  font-size: 18px;
+  height: 50px;
+}
+table.support-levels .table_head_title .sub-script {
+  font-size: 18px;
+  font-weight: normal;
+  margin-top: -10px;
+}
+table.support-levels .last .table_head_title {
+}
+table.support-levels .first .table_head_title {
+}
+table.support-levels td.table-row-title {
+  font-size: 12px;
+  font-weight: normal;
+  width: 120px;
+  text-align: right !important;
+  padding-right: 15px;
+}
+table.support-levels td.even {
+  background: white;
+  /* for non-css3 browsers */
+
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#eeeeee', endColorstr='white', GradientType=1);
+  /* for IE */
+
+  background: -webkit-gradient(linear, left bottom, right bottom, from(#eeeeee), to(#ffffff));
+  /* for webkit browsers */
+
+  background: -moz-linear-gradient(left, #eeeeee, #ffffff);
+  /* for firefox 3.6+ */
+
+}
+.support-levels-table-legend {
+  font-size: 13px;
+  margin: 0 0 40px 170px;
+}
+
+table.support-levels .subscribe-gray {
+  height: 55px;
+  background: #d1d3d4;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  color: #385028;
+  font-size: 14px;
+  font-style: italic;
+  border: 1px solid #eeeeee;
+}
+
+table.support-levels .subscribe-left {
+  border-bottom-left-radius: 10px;
+  -webkit-border-bottom-left-radius: 10px;
+  -moz-border-radius-bottomleft: 10px;
+}
+
+table.support-levels .subscribe-right {
+  border-bottom-right-radius: 10px;
+  -webkit-border-bottom-right-radius: 10px;
+  -moz-border-radius-bottomright: 10px;
+}
+
+table.support-levels .subscribe-button {
+  padding: 3px 12px;
+  background: #eeeeee;
+  border: 1px solid #acacac;
+  border-radius: 12px;
+  -moz-border-radius: 12px;
+  -webkit-border-radius: 12px;
+  font-family: arial, sans-serif;
+  font-size: 12px;
+  font-style: italic;
+  color: #486138;
+
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#ffffff', endColorstr='#e2e2e2', gradientType='0');
+  /* for IE */
+
+  background: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#e2e2e2));
+  /* for webkit browsers */
+
+  background: -moz-linear-gradient(top, #ffffff, #e2e2e2);
+  /* for firefox 3.6+ */
+}
+
+table.support-levels .subscribe-button:hover {
+  text-decoration: none;
+}
+
 .clearfix {display: inline-block;}
 * html .clearfix {height: 1%;}
 .clearfix {display: block;}
