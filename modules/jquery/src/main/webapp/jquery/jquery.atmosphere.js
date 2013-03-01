@@ -2424,7 +2424,7 @@ jQuery.atmosphere = function() {
                     if (rq.enableProtocol()) {
                         jQuery.ajax({url: this._closeUrl(rq), async:false});
                     }
-                    clearTimeout(rq.request.id);
+                    clearTimeout(rq.response.request.id);
                 }
             }
             jQuery.atmosphere.requests = [];
@@ -2449,7 +2449,7 @@ jQuery.atmosphere = function() {
                         if (rq.enableProtocol()) {
                             jQuery.ajax({url :this._closeUrl(rq), async:false});
                         }
-                        clearTimeout(rq.request.id);
+                        clearTimeout(rq.response.request.id);
                         idx = i;
                         break;
                     }
