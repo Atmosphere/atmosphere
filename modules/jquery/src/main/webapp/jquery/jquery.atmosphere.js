@@ -2429,13 +2429,19 @@ jQuery.atmosphere = function() {
                     var rq = requestsClone[i];
                     rq.close();
                     if (rq.enableProtocol()) {
-                        jQuery.ajax({url: rq.getUrl() + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID(), async:false});
+                        jQuery.ajax({url: this._closeUrl(rq), async:false});
                     }
-                    clearTimeout(rq.id);
+                    clearTimeout(rq.request.id);
                 }
             }
             jQuery.atmosphere.requests = [];
             jQuery.atmosphere.callbacks = [];
+        },
+
+        _closeUrl : function(rq) {
+            var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID();
+            var url = rq.getUrl().replace(/([?&])_=[^&]*/, query);
+            return url + (url === rq.getUrl() ? (/\?/.test(rq.getUrl()) ? "&" : "?") + query : "");
         },
 
         unsubscribeUrl: function(url) {
@@ -2448,9 +2454,9 @@ jQuery.atmosphere = function() {
                     if (rq.getUrl() == url) {
                         rq.close();
                         if (rq.enableProtocol()) {
-                            jQuery.ajax({url: url + "?X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID(), async:false});
+                            jQuery.ajax({url :this._closeUrl(rq), async:false});
                         }
-                        clearTimeout(rq.id);
+                        clearTimeout(rq.request.id);
                         idx = i;
                         break;
                     }
