@@ -1,8 +1,8 @@
 /*
- * Portal
+ * Portal v1.0
  * http://github.com/flowersinthesand/portal
  * 
- * Copyright 2012, Donghwan Kim 
+ * Copyright 2011-2013, Donghwan Kim 
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
@@ -43,8 +43,13 @@
 		},
 		getAbsoluteURL: function(url) {
 			var div = document.createElement("div");
+			
+			// Uses an innerHTML property to obtain an absolute URL
 			div.innerHTML = '<a href="' + url + '"/>';
-			return decodeURI(div.firstChild.href);
+			
+			// encodeURI and decodeURI are needed to normalize URL between IE and non-IE, 
+			// since IE doesn't encode the href property value and return it - http://jsfiddle.net/Yq9M8/1/
+			return encodeURI(decodeURI(div.firstChild.href));
 		},
 		iterate: function(fn) {
 			var timeoutId;
@@ -225,10 +230,11 @@
 						}
 					}
 				})("", {"": value});
-		}
+		},
+		browser: {},
+		storage: !!(window.localStorage && window.StorageEvent)
 	};
 	portal.support.corsable = "withCredentials" in portal.support.xhr();
-	portal.support.storage = !!(window.localStorage && window.StorageEvent);
 	guid = portal.support.now();
 	
 	// Browser sniffing
@@ -241,7 +247,6 @@
 				ua.indexOf("compatible") < 0 && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec(ua) ||
 				[];
 		
-		portal.support.browser = {};
 		portal.support.browser[match[1] || ""] = true;
 		portal.support.browser.version = match[2] || "0";
 		
@@ -282,9 +287,8 @@
 		transports: ["ws", "sse", "stream", "longpoll"],
 		timeout: false,
 		heartbeat: false,
-		_heartbeat: 5000,
-		lastEventId: "",
-		sharing: true,
+		lastEventId: 0,
+		sharing: false,
 		prepare: function(connect) {
 			connect();
 		},
@@ -301,15 +305,15 @@
 				return v.toString(16);
 			});
 		},
-		urlBuilder: function(url, params) {
-			return url + (/\?/.test(url) ? "&" : "?") + portal.support.param(params);
+		urlBuilder: function(url, params, when) {
+			return url + (/\?/.test(url) ? "&" : "?") + "when=" + when + "&" + portal.support.param(params);
 		},
 		inbound: portal.support.parseJSON,
 		outbound: portal.support.stringifyJSON,
 		
 		// Transport options
 		credentials: false,
-		longpollTest: true,
+		notifyAbort: false,
 		xdrURL: function(url) {
 			// Maintaining session by rewriting URL
 			// http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
@@ -364,8 +368,11 @@
 			}
 			
 			return array;
-		}
+		},
+		
 		// Undocumented
+		_heartbeat: 5000,
+		longpollTest: true
 		// method: null
 		// initIframe: null
 	};
@@ -559,7 +566,7 @@
 								while (!transport && candidates.length) {
 									type = candidates.shift();
 									connection.transport = type;
-									connection.url = self.buildURL();
+									connection.url = self.buildURL("open");
 									transport = portal.transports[type](self, opts);
 								}
 								
@@ -653,6 +660,8 @@
 				},
 				// Disconnects the connection
 				close: function() {
+					var script, head;
+					
 					// Prevents reconnection
 					opts.reconnect = false;
 					if (reconnectTimer) {
@@ -662,6 +671,21 @@
 					// Fires the close event immediately for transport which doesn't give feedback on disconnection
 					if (unloading || !transport || !transport.feedback) {
 						self.fire("close", unloading ? "error" : "aborted");
+						if (opts.notifyAbort && connection.transport !== "session") {
+							head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
+							script = document.createElement("script");
+							script.async = false;
+							script.src = self.buildURL("abort");
+							script.onload = script.onreadystatechange = function() {
+								if (!script.readyState || /loaded|complete/.test(script.readyState)) {
+									script.onload = script.onreadystatechange = null;
+									if (script.parentNode) {
+										script.parentNode.removeChild(script);
+									}
+								}
+							};
+							head.insertBefore(script, head.firstChild);
+						}
 					}
 					
 					// Delegates to the transport
@@ -701,10 +725,12 @@
 						array = array == null ? [] : !portal.support.isArray(array) ? [array] : array;
 					}
 					
+					connection.lastEventIds = [];
 					portal.support.each(array, function(i, event) {
 						var latch, args = [event.type, event.data];
 						
 						opts.lastEventId = event.id;
+						connection.lastEventIds.push(event.id);
 						if (event.reply) {
 							args.push(function(result) {
 								if (!latch) {
@@ -721,14 +747,23 @@
 				},
 				// For internal use only
 				// builds an effective URL
-				buildURL: function(params) {
-					return opts.urlBuilder.call(self, url, portal.support.extend({
-						id: opts.id, 
-						transport: connection.transport, 
-						heartbeat: opts.heartbeat, 
-						lastEventId: opts.lastEventId,
-						_: guid++
-					}, opts.params, params));
+				buildURL: function(when, params) {
+					var p = when === "open" ? 
+							{
+								transport: connection.transport, 
+								heartbeat: opts.heartbeat, 
+								lastEventId: opts.lastEventId
+							} : 
+							when === "poll" ? 
+							{
+								transport: connection.transport, 
+								lastEventIds: connection.lastEventIds && connection.lastEventIds.join(","), 
+								/* deprecated */lastEventId: opts.lastEventId
+							} : 
+							{};
+					
+					portal.support.extend(p, {id: opts.id, _: guid++}, opts.params && opts.params[when], params);
+					return opts.urlBuilder.call(self, url, p, when);
 				}
 			};
 		
@@ -1509,6 +1544,13 @@
 			
 			if (!ActiveXObject || options.crossDomain) {
 				return;
+			} else {
+				// IE 10 Metro doesn't support ActiveXObject
+				try {
+					new ActiveXObject("htmlfile");
+				} catch(e) {
+					return;
+				}
 			}
 			
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
@@ -1634,6 +1676,7 @@
 		longpollajax: function(socket, options) {
 			var xhr, 
 				aborted,
+				// deprecated
 				count = 0;
 			
 			if (options.crossDomain && !portal.support.corsable) {
@@ -1643,7 +1686,7 @@
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
 				open: function() {
 					function poll() {
-						var url = socket.buildURL({count: ++count});
+						var url = socket.buildURL(!count ? "open" : "poll", {count: ++count});
 						
 						socket.data("url", url);
 						
@@ -1699,6 +1742,7 @@
 		// Long polling - XDomainRequest
 		longpollxdr: function(socket, options) {
 			var xdr, 
+				// deprecated
 				count = 0, 
 				XDomainRequest = window.XDomainRequest;
 			
@@ -1709,7 +1753,7 @@
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
 				open: function() {
 					function poll() {
-						var url = options.xdrURL.call(socket, socket.buildURL({count: ++count}));
+						var url = options.xdrURL.call(socket, socket.buildURL(!count ? "open" : "poll", {count: ++count}));
 						
 						socket.data("url", url);
 						
@@ -1755,25 +1799,25 @@
 		longpolljsonp: function(socket, options) {
 			var script, 
 				called, 
+				// deprecated
 				count = 0, 
 				callback = jsonpCallbacks.pop() || ("socket_" + (++guid));
 			
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
 				open: function() {
 					function poll() {
-						var url = socket.buildURL({callback: callback, count: ++count}), 
+						var url = socket.buildURL(!count ? "open" : "poll", {callback: callback, count: ++count}), 
 							head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
-						
 						
 						socket.data("url", url);
 						
 						script = document.createElement("script");
-						script.async = "async";
+						script.async = true;
 						script.src = url;
 						script.clean = function() {
 							script.clean = script.onerror = script.onload = script.onreadystatechange = null;
-							if (head && script.parentNode) {
-								head.removeChild(script);
+							if (script.parentNode) {
+								script.parentNode.removeChild(script);
 							}
 						};
 						script.onload = script.onreadystatechange = function() {
@@ -1850,6 +1894,28 @@
 		unloading = true;
 		// Closes all sockets when the document is unloaded 
 		portal.finalize();
+	});
+	portal.support.on(window, "online", function() {
+		var url, socket;
+		
+		for (url in sockets) {
+			socket = sockets[url];
+			// There is no reason to wait
+			if (socket.state() === "waiting") {
+				socket.open();
+			}
+		}
+	});
+	portal.support.on(window, "offline", function() {
+		var url, socket;
+		
+		for (url in sockets) {
+			socket = sockets[url];
+			// Closes sockets which cannot detect disconnection manually
+			if (socket.state() === "opened") {
+				socket.fire("close", "error");
+			}
+		}
 	});
 	
 	// Exposes portal to the global object

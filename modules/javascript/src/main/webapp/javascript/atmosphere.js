@@ -2,10 +2,10 @@
  * Atmosphere.js
  * https://github.com/Atmosphere/atmosphere
  * 
- * Requires Portal 1.0 rc1
+ * Requires Portal 1.0
  * https://github.com/flowersinthesand/portal
  * 
- * Copyright 2012, Donghwan Kim 
+ * Copyright 2012-2013, Donghwan Kim 
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
