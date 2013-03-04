@@ -18,13 +18,9 @@ package org.atmosphere.container.version;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GrizzlyWebSocket extends WebSocket {
 
