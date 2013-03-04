@@ -81,7 +81,7 @@
 			maxRequest: -1,
 			transport: "long-polling",
 			fallbackTransport: "streaming",
-			webSocketUrl: null,
+			dispatchUrl: null,
 			webSocketPathDelimiter: "@@",
 			enableXDR: false,
 			rewriteURL: false,
@@ -208,7 +208,7 @@
 					return messages;
 				},
 				outbound: function(event) {
-					var url = request.webSocketUrl, 
+					var url = request.dispatchUrl, 
 						delim = request.webSocketPathDelimiter;
 
 					if (request.timeout > 0) {
@@ -374,8 +374,11 @@
 				}
 			});
 		};
-		this.push = function(message) {
+		this.push = function(message, dispatchUrl) {
+			var old = socket.option("dispatchUrl");
+			socket.option("dispatchUrl", dispatchUrl);
 			socket.send("message", message);
+			socket.option("dispatchUrl", old);
 		};
 		this.pushLocal = function(message) {
 			socket.broadcast("session", {from: socket.option("id"), data: message});
@@ -391,7 +394,7 @@
 			
 			function post() {
 				if (queue.length) {
-					send(options.url, queue.shift());
+					send(options.url + (options.dispatchUrl || ""), queue.shift());
 				} else {
 					sending = false;
 				}

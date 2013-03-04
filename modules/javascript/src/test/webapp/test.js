@@ -220,7 +220,7 @@ asyncTest("fallbackMethod should be used to establish a connection as a fallback
 	});
 });
 
-asyncTest("data should be formatted according to webSocketUrl and webSocketPathDelimiter if webSocketUrl is not null", function() {
+asyncTest("data should be formatted according to dispatchUrl and webSocketPathDelimiter if dispatchUrl is not null", function() {
 	var socket;
 	
 	portal.defaults.server = function(request) {
@@ -234,7 +234,7 @@ asyncTest("data should be formatted according to webSocketUrl and webSocketPathD
 	socket = atmosphere.subscribe({
 		url: "url",
 		transport: "test",
-		webSocketUrl: "greeting",
+		dispatchUrl: "greeting",
 		webSocketPathDelimiter: "!!"
 	});
 	portal.find().data("transport", "ws");
