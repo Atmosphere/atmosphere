@@ -83,6 +83,7 @@
 			fallbackTransport: "streaming",
 			dispatchUrl: null,
 			webSocketPathDelimiter: "@@",
+			webSocketBinaryType: null,
 			enableXDR: false,
 			rewriteURL: false,
 			attachHeadersAsQueryString: true,
