@@ -2,10 +2,10 @@
  * Atmosphere.js
  * https://github.com/Atmosphere/atmosphere
  * 
- * Requires Portal 1.0 rc1
+ * Requires Portal 1.0
  * https://github.com/flowersinthesand/portal
  * 
- * Copyright 2012, Donghwan Kim 
+ * Copyright 2012-2013, Donghwan Kim 
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
@@ -78,11 +78,12 @@
 			method: "GET",
 			fallbackMethod: "GET",
 			headers: {},
-			maxRequest: 60,
+			maxRequest: -1,
 			transport: "long-polling",
 			fallbackTransport: "streaming",
-			webSocketUrl: null,
+			dispatchUrl: null,
 			webSocketPathDelimiter: "@@",
+			webSocketBinaryType: null,
 			enableXDR: false,
 			rewriteURL: false,
 			attachHeadersAsQueryString: true,
@@ -135,7 +136,7 @@
 				sharing: request.shared,
 				params: request.headers,
 				longpollTest: false,
-				urlBuilder: function(url, params) {
+				urlBuilder: function(url, params, when) {
 					if (!request.attachHeadersAsQueryString) {
 						return url;
 					}
@@ -162,7 +163,7 @@
 					return url + (/\?/.test(url) ? "&": "?") + portal.support.param(params);
 				},
 				reconnect: function(lastDelay, attempts) {
-					return attempts < request.maxRequest ? request.reconnectInterval : false;
+					return (request.maxRequest === -1 || attempts < request.maxRequest) ? request.reconnectInterval : false;
 				},
 				xdrURL: request.enableXDR && function(url) {
 					return (request.rewriteURL || portal.defaults.xdrURL || function() {}).call(request.rewriteURL ? window : socket, url) || url;
@@ -208,14 +209,11 @@
 					return messages;
 				},
 				outbound: function(event) {
-					var url = request.webSocketUrl, 
-						delim = request.webSocketPathDelimiter;
-
 					if (request.timeout > 0) {
 						setIdleTimer();
 					}
 					
-					return (socket.data("transport") === "ws" && url ? delim + url + delim : "") + event.data;
+					return event.data;
 				},
 				streamParser: function(chunk) {
 					return [chunk.replace(/^\s+/g, "")];
@@ -374,8 +372,11 @@
 				}
 			});
 		};
-		this.push = function(message) {
+		this.push = function(message, dispatchUrl) {
+			var old = socket.option("dispatchUrl");
+			socket.option("dispatchUrl", dispatchUrl);
 			socket.send("message", message);
+			socket.option("dispatchUrl", old);
 		};
 		this.pushLocal = function(message) {
 			socket.broadcast("session", {from: socket.option("id"), data: message});
@@ -384,6 +385,53 @@
 	
 	// Overrides transports
 	portal.support.extend(portal.transports, {
+		// WebSocket
+		ws: function(socket, options) {
+			var ws, 
+				aborted,
+				WebSocket = window.WebSocket || window.MozWebSocket;
+			
+			if (!WebSocket) {
+				return;
+			}
+			
+			return {
+				feedback: true,
+				open: function() {
+					// Makes an absolute url whose scheme is ws or wss
+					var url = portal.support.getAbsoluteURL(socket.data("url")).replace(/^http/, "ws");
+					
+					socket.data("url", url);
+					
+					ws = new WebSocket(url);
+					if (options.atrequest.webSocketBinaryType) {
+						ws.binaryType = options.atrequest.webSocketBinaryType;
+					}
+					
+					ws.onopen = function(event) {
+						socket.data("event", event).fire("open");
+					};
+					ws.onmessage = function(event) {
+						socket.data("event", event)._fire(event.data);
+					};
+					ws.onerror = function(event) {
+						socket.data("event", event).fire("close", aborted ? "aborted" : "error");
+					};
+					ws.onclose = function(event) {
+						socket.data("event", event).fire("close", aborted ? "aborted" : event.wasClean ? "done" : "error");
+					};
+				},
+				send: function(data) {
+					var url = options.atrequest.dispatchUrl, delim = options.atrequest.webSocketPathDelimiter;
+					console.log(options.atrequest);
+					ws.send((url ? delim + url + delim : "") + data);
+				},
+				close: function() {
+					aborted = true;
+					ws.close();
+				}
+			};
+		},
 		httpbase: function(socket, options) {
 			var send,
 				sending,
@@ -391,7 +439,7 @@
 			
 			function post() {
 				if (queue.length) {
-					send(options.url, queue.shift());
+					send(options.url + (options.dispatchUrl || ""), queue.shift());
 				} else {
 					sending = false;
 				}
@@ -533,7 +581,7 @@
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
 				open: function() {
 					function poll() {
-						var url = socket.buildURL({count: ++count});
+						var url = socket.buildURL(!count ? "open" : "poll", {count: ++count});
 						
 						socket.data("url", url);
 						
