@@ -135,7 +135,7 @@
 				sharing: request.shared,
 				params: request.headers,
 				longpollTest: false,
-				urlBuilder: function(url, params) {
+				urlBuilder: function(url, params, when) {
 					if (!request.attachHeadersAsQueryString) {
 						return url;
 					}
@@ -533,7 +533,7 @@
 			return portal.support.extend(portal.transports.httpbase(socket, options), {
 				open: function() {
 					function poll() {
-						var url = socket.buildURL({count: ++count});
+						var url = socket.buildURL(!count ? "open" : "poll", {count: ++count});
 						
 						socket.data("url", url);
 						

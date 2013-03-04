@@ -35,7 +35,6 @@
 				<artifactId>jetty-maven-plugin</artifactId>
 				<version>${jetty8-version}</version>
 				<configuration>
-					<scanIntervalSeconds>1</scanIntervalSeconds>
 					<webAppConfig>
 						<contextPath>/</contextPath>
 						<resourceBases>
