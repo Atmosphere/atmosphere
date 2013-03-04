@@ -93,7 +93,7 @@
 <a class="jxr_linenumber" name="83" href="#83">83</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> {
 <a class="jxr_linenumber" name="84" href="#84">84</a>  
 <a class="jxr_linenumber" name="85" href="#85">85</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="86" href="#86">86</a>  
+<a class="jxr_linenumber" name="86" href="#86">86</a>      <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
 <a class="jxr_linenumber" name="87" href="#87">87</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> ConcurrentHashMap&lt;Object, Broadcaster&gt; store = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;Object, Broadcaster&gt;();
 <a class="jxr_linenumber" name="88" href="#88">88</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> Broadcaster&gt; clazz;
 <a class="jxr_linenumber" name="89" href="#89">89</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a> policy =
@@ -182,7 +182,7 @@
 <a class="jxr_linenumber" name="172" href="#172">172</a>             notifyOnPostCreate(b);
 <a class="jxr_linenumber" name="173" href="#173">173</a>             <strong class="jxr_keyword">return</strong> b;
 <a class="jxr_linenumber" name="174" href="#174">174</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="175" href="#175">175</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/MultipleServletBroadcasterFactory.html">BroadcasterCreationException</a>(t);
+<a class="jxr_linenumber" name="175" href="#175">175</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a>(t);
 <a class="jxr_linenumber" name="176" href="#176">176</a>         }
 <a class="jxr_linenumber" name="177" href="#177">177</a>     }
 <a class="jxr_linenumber" name="178" href="#178">178</a> 
@@ -373,8 +373,8 @@
 <a class="jxr_linenumber" name="363" href="#363">363</a>         <strong class="jxr_keyword">return</strong> factory;
 <a class="jxr_linenumber" name="364" href="#364">364</a>     }
 <a class="jxr_linenumber" name="365" href="#365">365</a> 
-<a class="jxr_linenumber" name="366" href="#366">366</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/MultipleServletBroadcasterFactory.html">BroadcasterCreationException</a> <strong class="jxr_keyword">extends</strong> RuntimeException {
-<a class="jxr_linenumber" name="367" href="#367">367</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/MultipleServletBroadcasterFactory.html">BroadcasterCreationException</a>(Throwable t) {
+<a class="jxr_linenumber" name="366" href="#366">366</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a> <strong class="jxr_keyword">extends</strong> RuntimeException {
+<a class="jxr_linenumber" name="367" href="#367">367</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcasterFactory.html">BroadcasterCreationException</a>(Throwable t) {
 <a class="jxr_linenumber" name="368" href="#368">368</a>             <strong class="jxr_keyword">super</strong>(t);
 <a class="jxr_linenumber" name="369" href="#369">369</a>         }
 <a class="jxr_linenumber" name="370" href="#370">370</a>     }

@@ -269,7 +269,7 @@
 <a class="jxr_linenumber" name="259" href="#259">259</a>                             r.getAttribute(ASYNCHRONOUS_HOOK);
 <a class="jxr_linenumber" name="260" href="#260">260</a>                     <strong class="jxr_keyword">if</strong> (h != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="261" href="#261">261</a>                         <em class="jxr_comment">// Tomcat and Jetty differ, same with browser</em>
-<a class="jxr_linenumber" name="262" href="#262">262</a>                         <strong class="jxr_keyword">if</strong> (closeCode == 1002 || closeCode == 1005) {
+<a class="jxr_linenumber" name="262" href="#262">262</a>                         <strong class="jxr_keyword">if</strong> (closeCode == 1002) {
 <a class="jxr_linenumber" name="263" href="#263">263</a>                             h.timedOut();
 <a class="jxr_linenumber" name="264" href="#264">264</a>                         } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="265" href="#265">265</a>                             h.closed();
@@ -286,7 +286,7 @@
 <a class="jxr_linenumber" name="276" href="#276">276</a>                     } <strong class="jxr_keyword">catch</strong> (IOException e) {
 <a class="jxr_linenumber" name="277" href="#277">277</a>                         logger.trace(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="278" href="#278">278</a>                     }
-<a class="jxr_linenumber" name="279" href="#279">279</a>                     AsynchronousProcessor.destroyResource(resource);
+<a class="jxr_linenumber" name="279" href="#279">279</a>                     AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource)._destroy();
 <a class="jxr_linenumber" name="280" href="#280">280</a>                 }
 <a class="jxr_linenumber" name="281" href="#281">281</a>             } <strong class="jxr_keyword">finally</strong> {
 <a class="jxr_linenumber" name="282" href="#282">282</a>                 <strong class="jxr_keyword">if</strong> (r != <strong class="jxr_keyword">null</strong>) {

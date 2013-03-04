@@ -63,7 +63,7 @@
 <a class="jxr_linenumber" name="53" href="#53">53</a>  
 <a class="jxr_linenumber" name="54" href="#54">54</a>      @Override
 <a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> write(String data) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">return</strong> write(data.getBytes());
+<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">return</strong> write(data.getBytes(response.getCharacterEncoding()));
 <a class="jxr_linenumber" name="57" href="#57">57</a>      }
 <a class="jxr_linenumber" name="58" href="#58">58</a>  
 <a class="jxr_linenumber" name="59" href="#59">59</a>      @Override

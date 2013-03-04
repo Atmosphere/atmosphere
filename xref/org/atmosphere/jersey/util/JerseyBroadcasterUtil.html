@@ -70,7 +70,7 @@
 <a class="jxr_linenumber" name="60" href="#60">60</a>              <strong class="jxr_keyword">if</strong> (DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.isAssignableFrom(broadcaster.getClass())) {
 <a class="jxr_linenumber" name="61" href="#61">61</a>                  DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(broadcaster).cacheLostMessage(r, <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="62" href="#62">62</a>              }
-<a class="jxr_linenumber" name="63" href="#63">63</a>              AsynchronousProcessor.destroyResource(r);
+<a class="jxr_linenumber" name="63" href="#63">63</a>              AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r)._destroy();
 <a class="jxr_linenumber" name="64" href="#64">64</a>              <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="65" href="#65">65</a>          }
 <a class="jxr_linenumber" name="66" href="#66">66</a>  
@@ -173,7 +173,7 @@
 <a class="jxr_linenumber" name="163" href="#163">163</a>     <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> onException(Throwable t, <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
 <a class="jxr_linenumber" name="164" href="#164">164</a>         logger.trace(<span class="jxr_string">"onException()"</span>, t);
 <a class="jxr_linenumber" name="165" href="#165">165</a>         r.notifyListeners(<strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a>((AtmosphereResourceImpl) r, <strong class="jxr_keyword">true</strong>, false));
-<a class="jxr_linenumber" name="166" href="#166">166</a>         AsynchronousProcessor.destroyResource(r);
+<a class="jxr_linenumber" name="166" href="#166">166</a>         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r)._destroy();
 <a class="jxr_linenumber" name="167" href="#167">167</a>     }
 <a class="jxr_linenumber" name="168" href="#168">168</a> }
 </pre>
