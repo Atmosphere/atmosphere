@@ -78,7 +78,7 @@
 			method: "GET",
 			fallbackMethod: "GET",
 			headers: {},
-			maxRequest: 60,
+			maxRequest: -1,
 			transport: "long-polling",
 			fallbackTransport: "streaming",
 			webSocketUrl: null,
@@ -162,7 +162,7 @@
 					return url + (/\?/.test(url) ? "&": "?") + portal.support.param(params);
 				},
 				reconnect: function(lastDelay, attempts) {
-					return attempts < request.maxRequest ? request.reconnectInterval : false;
+					return (request.maxRequest === -1 || attempts < request.maxRequest) ? request.reconnectInterval : false;
 				},
 				xdrURL: request.enableXDR && function(url) {
 					return (request.rewriteURL || portal.defaults.xdrURL || function() {}).call(request.rewriteURL ? window : socket, url) || url;

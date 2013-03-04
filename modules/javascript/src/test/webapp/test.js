@@ -72,6 +72,7 @@ asyncTest("socket should be closed if it has been timed out after connectTimeout
 		url: "url",
 		transport: "test",
 		connectTimeout: 100,
+		maxRequest: 0,
 		onClose: function() {
 			ok(true);
 			start();
@@ -396,6 +397,7 @@ asyncTest("onReconnect should be invoked when the client reconnect to the server
 			strictEqual(response.state, "re-opening");
 			ok(opened);
 			start();
+			request.maxRequest = 0;
 		}
 	});
 });
@@ -418,6 +420,7 @@ asyncTest("push method should publish data to the server and receive AtmosphereR
 	socket = atmosphere.subscribe({
 		url: "url",
 		transport: "test",
+		maxRequest: 0,
 		onOpen: function() {
 			socket.push("data");
 		}
