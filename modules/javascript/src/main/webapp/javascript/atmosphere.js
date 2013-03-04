@@ -208,14 +208,11 @@
 					return messages;
 				},
 				outbound: function(event) {
-					var url = request.dispatchUrl, 
-						delim = request.webSocketPathDelimiter;
-
 					if (request.timeout > 0) {
 						setIdleTimer();
 					}
 					
-					return (socket.data("transport") === "ws" && url ? delim + url + delim : "") + event.data;
+					return event.data;
 				},
 				streamParser: function(chunk) {
 					return [chunk.replace(/^\s+/g, "")];
@@ -387,6 +384,53 @@
 	
 	// Overrides transports
 	portal.support.extend(portal.transports, {
+		// WebSocket
+		ws: function(socket, options) {
+			var ws, 
+				aborted,
+				WebSocket = window.WebSocket || window.MozWebSocket;
+			
+			if (!WebSocket) {
+				return;
+			}
+			
+			return {
+				feedback: true,
+				open: function() {
+					// Makes an absolute url whose scheme is ws or wss
+					var url = portal.support.getAbsoluteURL(socket.data("url")).replace(/^http/, "ws");
+					
+					socket.data("url", url);
+					
+					ws = new WebSocket(url);
+					if (options.atrequest.webSocketBinaryType) {
+						ws.binaryType = options.atrequest.webSocketBinaryType;
+					}
+					
+					ws.onopen = function(event) {
+						socket.data("event", event).fire("open");
+					};
+					ws.onmessage = function(event) {
+						socket.data("event", event)._fire(event.data);
+					};
+					ws.onerror = function(event) {
+						socket.data("event", event).fire("close", aborted ? "aborted" : "error");
+					};
+					ws.onclose = function(event) {
+						socket.data("event", event).fire("close", aborted ? "aborted" : event.wasClean ? "done" : "error");
+					};
+				},
+				send: function(data) {
+					var url = options.atrequest.dispatchUrl, delim = options.atrequest.webSocketPathDelimiter;
+					console.log(options.atrequest);
+					ws.send((url ? delim + url + delim : "") + data);
+				},
+				close: function() {
+					aborted = true;
+					ws.close();
+				}
+			};
+		},
 		httpbase: function(socket, options) {
 			var send,
 				sending,

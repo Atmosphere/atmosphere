@@ -220,27 +220,6 @@ asyncTest("fallbackMethod should be used to establish a connection as a fallback
 	});
 });
 
-asyncTest("data should be formatted according to dispatchUrl and webSocketPathDelimiter if dispatchUrl is not null", function() {
-	var socket;
-	
-	portal.defaults.server = function(request) {
-		request.accept().on("message", function(data) {
-			portal.find().data("transport", "test");
-			strictEqual(data, "!!greeting!!aloha");
-			start();
-		});
-	};
-	
-	socket = atmosphere.subscribe({
-		url: "url",
-		transport: "test",
-		dispatchUrl: "greeting",
-		webSocketPathDelimiter: "!!"
-	});
-	portal.find().data("transport", "ws");
-	socket.push("aloha");
-});
-
 asyncTest("data should be extracted from raw string according to trackMessageLength and messageDelimiter if trackMessageLength is true", function() {
 	var bodies =[];
 	
