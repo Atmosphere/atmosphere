@@ -263,6 +263,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         AtmosphereHandler handler = (AtmosphereHandler) loadClass(className).newInstance();
                         ManagedService a = handler.getClass().getAnnotation(ManagedService.class);
 
+                        framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
+
                         Class<? extends AtmosphereInterceptor>[] interceptors = new Class[]{
                                 AtmosphereResourceLifecycleInterceptor.class,
                                 BroadcastOnPostAtmosphereInterceptor.class,

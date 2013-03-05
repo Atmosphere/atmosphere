@@ -16,6 +16,8 @@
 package org.atmosphere.config.service;
 
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcaster;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -26,7 +28,7 @@ import java.lang.annotation.Target;
 /**
  * A Meta annotation that configure Atmosphere with
  * <ul>
- *     <li>The {@link org.atmosphere.cache.HeaderBroadcasterCache}for caching message. </li>
+ *     <li>The {@link org.atmosphere.cache.UUIDBroadcasterCache}for caching message. </li>
  *     <li>The {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor} for managing the connection lifecycle</li>
  *     <li>The {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} for pushing messages to suspended connection</li>
  *     <li>The {@link org.atmosphere.client.TrackMessageSizeInterceptor} for making sure messages are delivered entirely</li>
@@ -37,7 +39,7 @@ import java.lang.annotation.Target;
  * <blockquote>
  @AtmosphereHandlerService(
         path = "/chat",
-        broadcasterCache = HeaderBroadcasterCache.class,
+        broadcasterCache = UUIDBroadcasterCache.class,
         interceptors = {AtmosphereResourceLifecycleInterceptor.class,
         BroadcastOnPostAtmosphereInterceptor.class,
         TrackMessageSizeInterceptor.class,
@@ -52,11 +54,21 @@ import java.lang.annotation.Target;
 public @interface ManagedService {
     /**
      * The mapping path, or context-root used to map this AtmosphereHandler
+     *
      * @return mapping path, or context-root used to map this AtmosphereHandler
      */
     String path() default "/";
+
     /**
      * Add {@link AtmosphereResourceEventListener} to track internal events.
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+
+    /**
+     * The {@link org.atmosphere.cpr.Broadcaster} class name
+     *
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name
+     */
+    Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
+
 }
