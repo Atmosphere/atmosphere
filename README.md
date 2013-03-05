@@ -8,6 +8,10 @@ The Atmosphere Framework contains client and server side components for building
 
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
+### Tutorial
+
+Get started using this step by step [tutorial](http://async-io.org/tutorial.html)
+
 ### Official Documentation
 Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API) for Client Components
 
@@ -42,26 +46,6 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
          <version>1.1.0.beta3</version>
       </dependency>
 ```
-[Top](#Top)
-
-#### Latest Publications
-
-[Getting Started with Atmosphere (PDF, needs to sign on)](http://jaxenter.com/jax-magazine)
-
-[Modern JVM/JavaScript framework Atmosphere reaches 1.0, asynchronous future beckons?](http://jaxenter.com/modern-jvm-javascript-framework-atmosphere-reaches-1-0-asynchronous-future-beckons-44330.html)
-
-[1.0.0 announcement](http://jfarcand.wordpress.com/2012/09/04/atmosphere-1-0-the-asynchronous-javascriptjava-framework-now-available/)
-
-[Grails Events Bus and sample](http://groovyflow.com/posts/489#.T8TxDpl1DvU)
-
-[Introducing SwaggerSocket](http://jfarcand.wordpress.com/2012/04/26/transparently-adding-websockets-to-your-application-using-swaggersocket/)
-
-[Writing HTML5 Server Side Events using Atmosphere](http://jfarcand.wordpress.com/2012/05/14/writing-portable-html5-server-side-evens-application-using-the-atmosphere-framework/)
-
-[Comet/WebSocket? Introducing the Atmosphere framework](http://www.ncolomer.net/2012/03/comewebsocket-introducing-the-atmosphere-framework/)
-
-[Latest Presentation - Writing highly scalable WebSocket using the Atmosphere Framework](http://www.slideshare.net/jfarcand/writing-highly-scalable-websocket-using-the-atmosphere-framework)
-
 [Top](#Top)
 
 #### RoadMap
