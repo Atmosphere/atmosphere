@@ -17,7 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Get;
-import org.atmosphere.config.service.ManagedAtmosphereHandlerService;
+import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
@@ -32,11 +32,11 @@ import javax.servlet.ServletException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -47,6 +47,7 @@ public class ManagedAtmosphereHandlerTest {
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
+        //String name = new File("./modules/cpr/target/").getAbsolutePath();
         String name = new File("./target/").getAbsolutePath();
         framework.setHandlersPath(name);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
@@ -94,7 +95,7 @@ public class ManagedAtmosphereHandlerTest {
         framework.destroy();
     }
 
-    @ManagedAtmosphereHandlerService(path = "/a")
+    @ManagedService(path = "/a")
     public final static class ManagedGet {
         @Get
         public void get(AtmosphereResource resource) {
@@ -113,7 +114,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
     }
 
-    @ManagedAtmosphereHandlerService(path = "/b")
+    @ManagedService(path = "/b")
     public final static class ManagedPost {
         @Post
         public void post(AtmosphereResource resource) {
@@ -132,7 +133,7 @@ public class ManagedAtmosphereHandlerTest {
 
     }
 
-    @ManagedAtmosphereHandlerService(path = "/c")
+    @ManagedService(path = "/c")
     public final static class ManagedDelete {
         @Delete
         public void delete(AtmosphereResource resource) {
@@ -150,7 +151,7 @@ public class ManagedAtmosphereHandlerTest {
         r.get().resume();
     }
 
-    @ManagedAtmosphereHandlerService(path = "/d")
+    @ManagedService(path = "/d")
     public final static class ManagedPut {
         @Put
         public void put(AtmosphereResource resource) {
@@ -168,7 +169,7 @@ public class ManagedAtmosphereHandlerTest {
         r.get().resume();
     }
 
-    @ManagedAtmosphereHandlerService(path = "/e")
+    @ManagedService(path = "/e")
     public final static class ManagedMessage {
 
         @Get
@@ -177,7 +178,13 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    event.getResource().getBroadcaster().broadcast("message");
+                    try {
+                        event.getResource().getBroadcaster().broadcast("message").get();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } catch (ExecutionException e) {
+                        e.printStackTrace();
+                    }
                 }
             }).suspend();
 

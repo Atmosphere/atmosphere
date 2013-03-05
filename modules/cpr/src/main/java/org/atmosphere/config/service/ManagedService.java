@@ -15,9 +15,17 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -71,4 +79,20 @@ public @interface ManagedService {
      */
     Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 
+    /**
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor}
+     * , {@link BroadcastOnPostAtmosphereInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}
+     */
+    Class<? extends AtmosphereInterceptor>[] interceptors() default {
+            AtmosphereResourceLifecycleInterceptor.class,
+            BroadcastOnPostAtmosphereInterceptor.class,
+            TrackMessageSizeInterceptor.class,
+            HeartbeatInterceptor.class};
+
+    /**
+     * The {@link org.atmosphere.cpr.BroadcasterCache} class name
+     *
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name. Default is {@link UUIDBroadcasterCache}
+     */
+    Class<? extends BroadcasterCache> broadcasterCache() default UUIDBroadcasterCache.class;
 }

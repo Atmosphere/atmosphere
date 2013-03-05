@@ -115,4 +115,8 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
         }
         return null;
     }
+
+    public Object object(){
+        return object;
+    }
 }
