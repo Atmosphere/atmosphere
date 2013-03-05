@@ -485,6 +485,22 @@ table.support-levels .subscribe-button:hover {
 		height:100%;
 	}
 
+.asyncIO {
+	overflow:hidden;
+}
+    .asyncIO-left {
+		float:left;
+		width:100px;
+	}
+	.asyncIO-right {
+		float:right;
+		width:675px;
+	}
+	.asyncIO pre {
+		font-size:10px;
+		height:100%;
+	}
+
 /* #Media Queries
 ================================================== */
 
