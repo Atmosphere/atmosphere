@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation to use in order to replace the defaul {@link org.atmosphere.util.EndpointMapper}
+ * An annotation to use in order to replace the default {@link org.atmosphere.util.EndpointMapper}
  *
  * @author Jeanfrancois Arcand
  */

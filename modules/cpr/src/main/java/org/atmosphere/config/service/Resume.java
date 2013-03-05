@@ -20,6 +20,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Use this annotation with the {@link ManagedService}. A method annotated with this annotation will be executed and then
+ *  the connection will be resumed.
+ *
+ * @author Jeanfrancois Arcand
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Resume {

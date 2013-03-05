@@ -20,6 +20,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotate a method that will gets invoked when String message are broadcasted using the {@link org.atmosphere.cpr.Broadcaster} associated
+ * with the class where the annotation is associated.
+ *
+ * @author Jeanfrancois Arcand
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Message {
