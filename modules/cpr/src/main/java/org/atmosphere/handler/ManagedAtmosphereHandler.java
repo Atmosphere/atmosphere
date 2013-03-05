@@ -34,6 +34,11 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+/**
+ * An internal implementation of {@link AtmosphereHandler} that implement supports for Atmosphere 1.1 annotation.
+ *
+ * @author Jeanfrancois
+ */
 public class ManagedAtmosphereHandler implements AtmosphereHandler {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
