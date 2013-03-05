@@ -84,8 +84,10 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, resource);
         } else {
-            String message = event.getMessage().toString();
-            invoke(onMessageMethod, event);
+            Object m = invoke(onMessageMethod, event.getMessage().toString());
+            if (m != null) {
+                event.getResource().getResponse().write(m.toString());
+            }
         }
 
     }
