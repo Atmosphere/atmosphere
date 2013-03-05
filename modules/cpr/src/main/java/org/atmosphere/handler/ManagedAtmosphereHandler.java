@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +70,7 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
     public void onRequest(AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
+        Broadcaster b = resource.getBroadcaster();
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {
@@ -77,6 +79,11 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
             invoke(onDeleteMethod, resource);            
         } else if (method.equalsIgnoreCase("put")) {
             invoke(onPutMethod, resource);           
+        }
+
+        if (b.equals(resource.getBroadcaster())) {
+            b.removeAtmosphereResource(resource);
+            resource.getBroadcaster().addAtmosphereResource(resource);
         }
     }
 
