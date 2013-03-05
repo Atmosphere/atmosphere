@@ -173,8 +173,8 @@ AtmosphereHandler to write our application (Listing 2).
     on
     the application’s logic.
     Now instead of writing our own complete AtmosphereHandler, we can extend the OnMessage&lt;T&gt; handler, which
-    delegates the broadcast operation to the onMessage method (Line 10). For our chat application, it
-    just means we write what we receive (Line 11). If we have 50 connected users, that means the onMessage will be
+    delegates the broadcast operation to the onMessage method. For our chat application, it
+    just means we write what we receive. If we have 50 connected users, that means the onMessage will be
     called 50
     times so the 50 users gets the message.
     We are using JSON between the client and the server. The client sent:
@@ -364,7 +364,7 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
 </div>
 <p>The next step is to define some functions callback. For this article, let’s define only a one subset. First, we
     define
-    an onOpen function that gets invoked when the underlying transport is connected to the server (line 24). There we
+    an onOpen function that gets invoked when the underlying transport is connected to the server. There we
     just
     display the transport that was used for connecting to the server. The transport is specified on the request object,
     which is defined as:</p>
