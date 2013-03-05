@@ -48,7 +48,6 @@ public class ManagedAtmosphereHandlerTest {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
         String name = new File("./target/").getAbsolutePath();
-        System.out.println("====> " + name);
         framework.setHandlersPath(name);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
