@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="keywords" content="Java,WebSockets,Server Side Events,AJAX,JavaScript">
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <title>Async-IO.org: Powering the Atmosphere Framework</title>
+</head>
+
+<body>
+<div id="container">
+    <div class="inner">
+
+        <header>
+            <div class="asyncIO">
+                <div class="asyncIO-left">
+                    <br>
+
+                    <div style="text-align: center;">
+                        <a href="http://async-io.org"><img title="logo" alt="" src="./images/AsyncIO.png"/></a>
+                    </div>
+                </div>
+                <div class="asyncIO-right">
+                    <h1>Welcome to Async-IO.org!</h1>
+
+                    <h2>Download the Atmosphere Framework or its Sample</h2>
+                </div>
+            </div>
+        </header>
+
+        <section id="downloads">
+            <h3>Download Production Ready Atmosphere!</h3>
+            <div class="example">
+
+                <div class="example-left">
+                    <h4>Using Maven</h4>
+                <pre class="prettyprint">
+&lt;dependency&gt;
+ &lt;groupId>org.atmosphere&lt;/groupId&gt;
+ &lt;artifactId>atmosphere-{module}&lt;/artifactId&gt;
+ &lt;version>1.0.12&lt;/version&gt;
+&lt;/dependency&gt;
+                </pre>
+                    <h5>where module can be runtime, jersey, socket-io, cometd, gwt, redis, hazelcast, jgroups or
+                        jms</h5>
+                </div>
+
+                <div class="example-right">
+                    <h4>Zip</h4>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.0.12/atmosphere-runtime-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>Runtime</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.0.12/atmosphere-jersey-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>Jersey</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-gwt-libs/1.0.12/atmosphere-gwt-libs-1.0.11-distribution.zip"
+                       id="download-zip" class="button"><span>GWT</span></a>
+                </div>
+            </div>
+            <br>
+            <h3>Download our Work in Progress Atmosphere!</h3>
+            <div class="example">
+
+                <div class="example-left">
+                    <h4>Using Maven</h4>
+                <pre class="prettyprint">
+&lt;dependency&gt;
+ &lt;groupId>org.atmosphere&lt;/groupId&gt;
+ &lt;artifactId>atmosphere-{module}&lt;/artifactId&gt;
+ &lt;version>1.1.beta3&lt;/version&gt;
+&lt;/dependency&gt;
+                </pre>
+                    <h5>where module can be runtime, jersey, socket-io, cometd, gwt, redis, hazelcast, jgroups or
+                        jms</h5>
+                </div>
+
+                <div class="example-right">
+                    <h4>Zip</h4>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-runtime-libs/1.1.0.beta3/atmosphere-runtime-libs-1.1.0.beta3-distribution.zip"
+                       id="download-zip" class="button"><span>Runtime</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/atmosphere-jersey-libs/1.1.0.beta3/atmosphere-jersey-libs-1.1.0.beta3-distribution.zip"
+                       id="download-zip" class="button"><span>Jersey</span></a>
+                </div>
+            </div>
+            <br>
+            <p>You can also download our ready to use samples by directly downloading WAR file <a href="https://github.com/Atmosphere/atmosphere/blob/atmosphere-1.0.x/samples/README.md">here</a>, or click on the appropriate button below. Just deploy the war file in your favorite WebServer.</p>
+            <br>
+            <div class="example">
+
+                <div class="example-left">
+                    <h4>WAR</h4>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-chat/1.0.12/atmosphere-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>Chat</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-jquery-pubsub/1.0.12/atmosphere-jquery-pubsub-1.0.12.war"
+                       id="download-zip" class="button"><span>PubSub</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-scala-chat/1.0.12/atmosphere-scala-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>Scala Chat</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-spring-websocket/1.0.12/atmosphere-spring-websocket-1.0.12.war"
+                       id="download-zip" class="button"><span>Spring</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-websocket-chat/1.0.12/atmosphere-websocket-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>WebSockets</span></a>
+                </div>
+
+                <div class="example-right">
+                    <h4>WAR</h4>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-meteor-pubsub/1.0.12/atmosphere-meteor-pubsub-1.0.12.war"
+                       id="download-zip" class="button"><span>Servlet</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-gwt-chat/1.0.12/atmosphere-gwt-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>GWT</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-socketio-chat/1.0.12/atmosphere-socketio-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>Socket.IO</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-guice-chat/1.0.12/atmosphere-guice-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>Guice</span></a>
+                    <a href="http://search.maven.org/remotecontent?filepath=org/atmosphere/samples/atmosphere-sse-rest-chat/1.0.12/atmosphere-sse-rest-chat-1.0.12.war"
+                       id="download-zip" class="button"><span>SSE</span></a>
+                </div>
+            </div>
+        </section>
+        <footer>
+            <p>©2013. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a href="http://twitter.com/asyncio">Twitter</a></p>
+        </footer>
+
+        <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+        </script>
+        <script type="text/javascript">
+            try {
+                var pageTracker = _gat._getTracker("UA-31990725-1");
+                pageTracker._trackPageview();
+            } catch (err) {
+            }
+        </script>
+
+    </div>
+</div>
+</body>
+</html>

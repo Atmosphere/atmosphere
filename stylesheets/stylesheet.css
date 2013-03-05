@@ -519,7 +519,7 @@ table.support-levels .subscribe-button:hover {
   #downloads {
     margin-bottom: 25px;
   }
-  #download-zip, #download-tar-gz {
+  #download-zip, #download-tar-gz, #download-war {
     display: none;
   }
   .inner {
