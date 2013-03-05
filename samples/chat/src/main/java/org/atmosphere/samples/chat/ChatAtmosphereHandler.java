@@ -18,15 +18,18 @@ package org.atmosphere.samples.chat;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
+import org.codehaus.jackson.map.ObjectMapper;
+
 import java.io.IOException;
 import java.util.Date;
 
 @ManagedService(path = "/chat")
 public class ChatAtmosphereHandler extends OnMessage<String> {
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void onMessage(AtmosphereResponse response, String message) throws IOException {
-        response.getWriter().write("Echo: " + message);
+        response.getWriter().write(mapper.writeValueAsString(mapper.readValue(message, Data.class)));
     }
 
     public final static class Data {
