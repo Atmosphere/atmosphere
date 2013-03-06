@@ -23,7 +23,10 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
+import org.glassfish.grizzly.filterchain.Filter;
+import org.glassfish.grizzly.filterchain.FilterChain;
 import org.glassfish.grizzly.http.HttpRequestPacket;
+import org.glassfish.grizzly.http.server.HttpServerFilter;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 import org.glassfish.grizzly.http.server.util.DispatcherHelper;
@@ -49,6 +52,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Iterator;
 
 public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
@@ -221,7 +225,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                 super(protocolHandler, request, listeners);
                 Request req = Request.create();
                 Response res = req.getResponse();
-                req.initialize(request, protocolHandler.getFilterChainContext(), null);
+                req.initialize(request, protocolHandler.getFilterChainContext(), getHttpServerFilterFromChain(protocolHandler.getFilterChainContext().getFilterChain()));
                 res.initialize(req, request.getResponse(), protocolHandler.getFilterChainContext(), null, null);
                 servletRequest = HttpServletRequestImpl.create();
                 servletResponse = HttpServletResponseImpl.create();
@@ -234,6 +238,23 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                     throw new WebSocketException("Unable to initialize WebSocket instance", e);
                 }
 
+            }
+
+
+            /**
+             * Find the HttpServerFilter in the FilterChain.
+             * @param filterChain the FilterChain to search for the HttpServerFilter
+             * @return null or the found HttpServerFilter
+             */
+            private HttpServerFilter getHttpServerFilterFromChain(FilterChain filterChain) {
+                Iterator<Filter> filterIterator = filterChain.iterator();
+                while(filterIterator.hasNext()) {
+                    Filter candidate = filterIterator.next();
+                    if(candidate instanceof HttpServerFilter) {
+                        return (HttpServerFilter)candidate;
+                    }
+                }
+                return null;
             }
 
 
