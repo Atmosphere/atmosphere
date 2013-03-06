@@ -19,7 +19,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.io.WebSocketBlockingConnection;
-import org.eclipse.jetty.websocket.server.WebSocketServerConnection;
 
 import java.io.IOException;
 

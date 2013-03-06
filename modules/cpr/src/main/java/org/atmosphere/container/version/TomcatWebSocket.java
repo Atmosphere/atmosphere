@@ -19,14 +19,10 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tomcat WebSocket Support

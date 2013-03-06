@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.client.MessageLengthInterceptor;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.util.EndpointMapper;

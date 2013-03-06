@@ -18,13 +18,9 @@ package org.atmosphere.container.version;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
 import org.eclipse.jetty.websocket.WebSocket.Connection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Jetty 8 WebSocket support.
