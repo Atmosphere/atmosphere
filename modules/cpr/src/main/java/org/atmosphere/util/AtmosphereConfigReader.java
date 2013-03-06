@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -184,10 +184,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getNodeValue();
+                            param = n2.getFirstChild().getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
                             if (n2 != null) {
-                                value = n2.getNodeValue();
+                                value = n2.getFirstChild().getNodeValue();
                             }
                         }
 
@@ -205,10 +205,10 @@ public class AtmosphereConfigReader {
                         Node n2 = n.getChildNodes().item(k);
 
                         if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getNodeValue();
+                            param = n2.getFirstChild().getNodeValue();
                         } else if (n2.getNodeName().equals("param-value")) {
                             if (n2 != null) {
-                                value = n2.getNodeValue();
+                                value = n2.getFirstChild().getNodeValue();
                             }
                         }
 

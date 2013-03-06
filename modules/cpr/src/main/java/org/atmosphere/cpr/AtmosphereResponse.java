@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,10 @@ import javax.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.io.Writer;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +41,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 
 /**
  * An Atmosphere's response representation. An AtmosphereResponse can be used to construct bi-directional asynchronous
@@ -60,9 +65,17 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private Locale locale;
     private boolean headerHandled = false;
     private AtmosphereRequest atmosphereRequest;
-    private static final DummyHttpServletResponse dsr = new DummyHttpServletResponse();
+    private static final HttpServletResponse dsr = (HttpServletResponse)
+            Proxy.newProxyInstance(AtmosphereResponse.class.getClassLoader(), new Class[]{HttpServletResponse.class},
+                    new InvocationHandler() {
+                        @Override
+                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                            logger.trace("Method {} not supported", method.getName());
+                            return null;
+                        }
+                    });
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
-    private final boolean delegateToNativeResponse;
+    private boolean delegateToNativeResponse;
     private boolean destroyable;
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
@@ -111,7 +124,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<String, String>();
-        public boolean destroyable = true;
+        private boolean destroyable = true;
 
         public Builder() {
         }
@@ -229,12 +242,17 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return response.encodeRedirectURL(url);
     }
 
+    public AtmosphereResponse delegateToNativeResponse(boolean delegateToNativeResponse) {
+        this.delegateToNativeResponse = delegateToNativeResponse;
+        return this;
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             setStatus(sc, msg);
 
             // Prevent StackOverflow
@@ -256,7 +274,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendError(int sc) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             setStatus(sc);
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -277,7 +295,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void sendRedirect(String location) throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -386,6 +404,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return status;
     }
 
+    public ServletResponse getResponse() {
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            return this;
+        } else {
+            return super.getResponse();
+        }
+   	}
+
     public String getStatusMessage() {
         return statusMessage;
     }
@@ -444,7 +470,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (!delegateToNativeResponse) {
             this.charSet = charSet;
         } else {
-            response.setCharacterEncoding(charSet);
+            _r().setCharacterEncoding(charSet);
         }
     }
 
@@ -453,7 +479,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void flushBuffer() throws IOException {
-        response.flushBuffer();
+        try {
+            response.flushBuffer();
+        } catch (IOException ex) {
+            handleException(ex);
+            throw ex;
+        }
     }
 
     /**
@@ -472,7 +503,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (!delegateToNativeResponse) {
             return charSet;
         } else {
-            return _r().getCharacterEncoding();
+            return _r().getCharacterEncoding() == null ? charSet : _r().getCharacterEncoding();
         }
     }
 
@@ -493,7 +524,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             return new ServletOutputStream() {
 
                 @Override
@@ -503,8 +534,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
-                    asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
-                    forceAsyncIOWriter = b;
+                    try {
+                        asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
+                    } catch (IOException e) {
+                        handleException(e);
+                        throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
                 }
 
                 @Override
@@ -514,8 +551,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
-                    asyncIOWriter.write(AtmosphereResponse.this, bytes);
-                    forceAsyncIOWriter = b;
+                    try {
+                        asyncIOWriter.write(AtmosphereResponse.this, bytes);
+                    } catch (IOException e) {
+                        handleException(e);
+                        throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
                 }
 
                 @Override
@@ -525,8 +568,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
-                    asyncIOWriter.write(AtmosphereResponse.this, bytes, start, offset);
-                    forceAsyncIOWriter = b;
+                    try {
+                        asyncIOWriter.write(AtmosphereResponse.this, bytes, start, offset);
+                    } catch (IOException e) {
+                        handleException(e);
+                        throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
                 }
 
                 @Override
@@ -536,23 +585,37 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
-                    asyncIOWriter.flush(AtmosphereResponse.this);
-                    forceAsyncIOWriter = b;
-
+                    try {
+                        asyncIOWriter.flush(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                        throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
                 }
 
                 @Override
                 public void close() throws java.io.IOException {
-
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
-                    asyncIOWriter.close(AtmosphereResponse.this);
-                    forceAsyncIOWriter = b;
+                    try {
+                        asyncIOWriter.close(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                        throw e;
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
                 }
             };
         } else {
-            return _r().getOutputStream();
+            return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
+                @Override
+                public void write(int b) throws IOException {
+                }
+            };
         }
     }
 
@@ -590,66 +653,99 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public PrintWriter getWriter() throws IOException {
-        if (!delegateToNativeResponse || forceAsyncIOWriter) {
+        if (forceAsyncIOWriter || !delegateToNativeResponse) {
             return new PrintWriter(getOutputStream()) {
+                @Override
                 public void write(char[] chars, int offset, int lenght) {
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
-                        // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars, offset, lenght));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
+                @Override
                 public void write(char[] chars) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
+                @Override
                 public void write(String s, int offset, int lenght) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, new String(s.substring(offset, lenght)));
-                        forceAsyncIOWriter = b;
-
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
 
-                public void write(java.lang.String s) {
+                @Override
+                public void write(String s) {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
-                        asyncIOWriter.write(AtmosphereResponse.this, new String(s));
-                        forceAsyncIOWriter = b;
-
+                        asyncIOWriter.write(AtmosphereResponse.this, s);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
+                }
+
+                @Override
+                public void flush() {
+                    boolean b = forceAsyncIOWriter;
+                    try {
+                        writeStatusAndHeaders();
+                        // Prevent StackOverflow
+                        forceAsyncIOWriter = false;
+                        asyncIOWriter.flush(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
+                    }
+                }
+
+                @Override
+                public void close() {
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
+                    forceAsyncIOWriter = false;
+                    try {
+                        asyncIOWriter.close(AtmosphereResponse.this);
+                    } catch (IOException e) {
+                        handleException(e);
+                    } finally {
+                        forceAsyncIOWriter = b;
                     }
                 }
             };
         } else {
-            return _r().getWriter();
+            return _r().getWriter() != null ? _r().getWriter() : new PrintWriter(new StringWriter());
         }
     }
 
@@ -658,6 +754,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setContentLength(int len) {
+        headers.put("Content-Length", String.valueOf(len));
+
         if (!delegateToNativeResponse) {
             contentLength = len;
         } else {
@@ -670,6 +768,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public void setContentType(String contentType) {
+        headers.put("Content-Type", String.valueOf(contentType));
+
         if (!delegateToNativeResponse) {
             this.contentType = contentType;
         } else {
@@ -682,11 +782,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     @Override
     public String getContentType() {
-        if (!delegateToNativeResponse) {
-            return contentType;
-        } else {
-            return _r().getContentType();
-        }
+        return getHeader("Content-type");
     }
 
     /**
@@ -795,19 +891,21 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * Close the associated {@link PrintWriter} or {@link java.io.OutputStream}
      */
     public void closeStreamOrWriter() {
-        try {
-            boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-            if (isUsingStream) {
-                try {
-                    getOutputStream().close();
-                } catch (java.lang.IllegalStateException ex) {
-                    logger.trace("",ex);
+        if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+            try {
+                boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+                if (isUsingStream) {
+                    try {
+                        getOutputStream().close();
+                    } catch (java.lang.IllegalStateException ex) {
+                        logger.trace("", ex);
+                    }
+                } else {
+                    getWriter().close();
                 }
-            } else {
-                getWriter().close();
+            } catch (IOException e) {
+                logger.trace("", e);
             }
-        } catch (IOException e) {
-            logger.trace("", e);
         }
     }
 
@@ -821,15 +919,29 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return write(data, false);
     }
 
+    private void handleException(Exception ex) {
+        AtmosphereResource r = resource();
+        if (r != null) {
+            AtmosphereResourceImpl.class.cast(r).notifyListeners(
+                    new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
+        }
+        logger.trace("", ex);
+    }
+
     /**
      * Write the String by either using the {@link PrintWriter} or {@link java.io.OutputStream}. The decision is
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
      * execute the write without invoking the defined {@link AsyncIOWriter}
      *
-     * @param data the String to write
+     * @param data                       the String to write
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(String data, boolean writeUsingOriginalResponse) {
+
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -837,14 +949,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data.getBytes(getCharacterEncoding()));
                 } catch (java.lang.IllegalStateException ex) {
-                    logger.trace("",ex);
+                    logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(data);
             }
-        } catch (IOException e) {
-            logger.trace("", e);
+        } catch (Exception ex) {
+            handleException(ex);
         }
         return this;
     }
@@ -864,10 +976,15 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
      * execute the write without invoking the defined {@link AsyncIOWriter}
      *
-     * @param data the bytes to write
+     * @param data                       the bytes to write
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
+
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -880,8 +997,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(new String(data, getCharacterEncoding()));
             }
-        } catch (IOException e) {
-            logger.trace("", e);
+        } catch (Exception ex) {
+            handleException(ex);
         }
         return this;
     }
@@ -903,12 +1020,17 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * based on the request attribute  {@link ApplicationConfig#PROPERTY_USE_STREAM} If writeUsingOriginalResponse if set to true,
      * execute the write without invoking the defined {@link AsyncIOWriter}
      *
-     * @param data   the bytes to write
-     * @param offset the first byte position to write
-     * @param length the data length
+     * @param data                       the bytes to write
+     * @param offset                     the first byte position to write
+     * @param length                     the data length
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
+
+        if (Proxy.class.isAssignableFrom(response.getClass())) {
+            writeUsingOriginalResponse = false;
+        }
+
         boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
             if (isUsingStream) {
@@ -921,8 +1043,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
                 w.write(new String(data, offset, length, getCharacterEncoding()));
             }
-        } catch (IOException e) {
-            logger.trace("", e);
+        } catch (Exception ex) {
+            handleException(ex);
         }
         return this;
     }
@@ -948,195 +1070,29 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
     }
 
-    private final static class DummyHttpServletResponse implements HttpServletResponse {
-        public void addCookie(Cookie cookie) {
-            logger.trace("Unsupported");
-        }
-
-        public boolean containsHeader(String name) {
-            logger.trace("Unsupported");
-            return false;
-        }
-
-        public String encodeURL(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeRedirectURL(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeUrl(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public String encodeRedirectUrl(String url) {
-            logger.trace("Unsupported");
-            return url;
-        }
-
-        public void sendError(int sc, String msg) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void sendError(int sc) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void sendRedirect(String location) throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void setDateHeader(String name, long date) {
-            logger.trace("Unsupported");
-        }
-
-        public void addDateHeader(String name, long date) {
-            logger.trace("Unsupported");
-        }
-
-        public void setHeader(String name, String value) {
-            logger.trace("Unsupported");
-        }
-
-        public void addHeader(String name, String value) {
-            logger.trace("Unsupported");
-        }
-
-        public void setIntHeader(String name, int value) {
-            logger.trace("Unsupported");
-        }
-
-        public void addIntHeader(String name, int value) {
-            logger.trace("Unsupported");
-        }
-
-        public void setStatus(int sc) {
-            logger.trace("Unsupported");
-        }
-
-        public void setStatus(int sc, String sm) {
-            logger.trace("Unsupported");
-        }
-
-        public int getStatus() {
-            logger.trace("Unsupported");
-            return 200;
-        }
-
-        public String getHeader(String name) {
-            logger.trace("Unsupported");
-            return null;
-        }
-
-        public Collection<String> getHeaders(String name) {
-            logger.trace("Unsupported");
-            return Collections.emptyList();
-        }
-
-        public Collection<String> getHeaderNames() {
-            logger.trace("Unsupported");
-            return Collections.emptyList();
-        }
-
-        public String getCharacterEncoding() {
-            logger.trace("Unsupported");
-            return "ISO-8859-1";
-        }
-
-        public String getContentType() {
-            logger.trace("Unsupported");
-            return "text/plain";
-        }
-
-        public ServletOutputStream getOutputStream() throws IOException {
-            logger.trace("Unsupported");
-            return new NoOpsOutputStream();
-        }
-
-        public PrintWriter getWriter() throws IOException {
-            logger.trace("Unsupported");
-            return new PrintWriter(new NoOpsPrintWriter());
-        }
-
-        public void setCharacterEncoding(String charset) {
-            logger.trace("Unsupported");
-        }
-
-        public void setContentLength(int len) {
-            logger.trace("Unsupported");
-        }
-
-        public void setContentType(String type) {
-            logger.trace("Unsupported");
-        }
-
-        public void setBufferSize(int size) {
-            logger.trace("Unsupported");
-        }
-
-        public int getBufferSize() {
-            logger.trace("Unsupported");
-            return -1;
-        }
-
-        public void flushBuffer() throws IOException {
-            logger.trace("Unsupported");
-        }
-
-        public void resetBuffer() {
-            logger.trace("Unsupported");
-        }
-
-        public boolean isCommitted() {
-            logger.trace("Unsupported");
-            return false;
-        }
-
-        public void reset() {
-            logger.trace("Unsupported");
-        }
-
-        public void setLocale(Locale loc) {
-            logger.trace("Unsupported");
-        }
-
-        public Locale getLocale() {
-            logger.trace("Unsupported");
-            return Locale.ENGLISH;
-        }
-    }
-
-    private final static class NoOpsOutputStream extends ServletOutputStream {
-        @Override
-        public void write(int i) throws IOException {
-        }
-    }
-
-    private final static class NoOpsPrintWriter extends Writer {
-
-        @Override
-        public void write(char[] chars, int i, int i1) throws IOException {
-        }
-
-        @Override
-        public void flush() throws IOException {
-        }
-
-        @Override
-        public void close() throws IOException {
-        }
+    /**
+     * Create an instance not associated with any response parent.
+     *
+     * @return
+     */
+    public final static AtmosphereResponse newInstance() {
+        return new Builder().build();
     }
 
     /**
-     * Create an instance not associated with any response parent.
+     * Create a new instance to use with WebSocket.
+     *
      * @return
      */
-    public final static AtmosphereResponse create() {
-        return new Builder().build();
+    public final static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
+        boolean destroyable;
+        String s = config.getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+        if (s != null && Boolean.valueOf(s)) {
+            destroyable = true;
+        } else {
+            destroyable = false;
+        }
+        return new AtmosphereResponse(webSocket, request, destroyable);
     }
 
     /**

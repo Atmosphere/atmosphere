@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -53,8 +53,11 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.cache.AbstractBroadcasterCache;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +67,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
@@ -82,39 +83,44 @@ public class BroadcasterConfig {
 
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
-    private ExecutorService defaultExecutorService;
-    private ExecutorService defaultAsyncWriteService;
     private ScheduledExecutorService scheduler;
-    private final Object[] lock = new Object[0];
-    private BroadcasterCache broadcasterCache;
+    private BroadcasterCache broadcasterCache = new DefaultBroadcasterCache();
     private final AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
-    private boolean shared = false;
+    private final boolean shared;
+    private String name;
+    private boolean handleExecutors;
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config) {
-        this(list, config, true);
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
+        this(list, config, true, name);
     }
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean createExecutor) {
+    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
-        if (createExecutor) {
+        this.name = name;
+        this.shared = config.framework().isShareExecutorServices();
+
+        if (handleExecutors) {
             configExecutors();
-        } else {
-            shared = true;
         }
+
         configureBroadcasterFilter(list);
         configureBroadcasterCache();
+        configureSharedCacheExecutor();
+        this.handleExecutors = handleExecutors;
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
         this.config = config;
+        this.name = name;
+        this.handleExecutors = true;
+        this.shared = config.framework().isShareExecutorServices();
     }
-
     private void configureBroadcasterCache() {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
@@ -133,7 +139,6 @@ public class BroadcasterConfig {
                 broadcasterCache.inspector(b);
                 InjectorProvider.getInjector().inject(b);
             }
-
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
         } catch (IllegalAccessException e) {
@@ -141,107 +146,52 @@ public class BroadcasterConfig {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
+    }
 
+    private void configureSharedCacheExecutor() {
+        if (!shared) return;
+
+        // Ugly, will be fixed in 1.1 new BroadcasterCache API
+        if (AbstractBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
+            AbstractBroadcasterCache.class.cast(broadcasterCache).setReaper(scheduler);
+        } else if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
+            UUIDBroadcasterCache.class.cast(broadcasterCache).setExecutorService(scheduler);
+        }
+    }
+
+    protected BroadcasterConfig broadcasterID(String name) {
+        this.name = name;
+        initClusterExtension();
+        return this;
+    }
+
+    protected void initClusterExtension() {
+        for (BroadcastFilter mf : filters) {
+            if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
+                try {
+                    Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
+                    if (b != null) {
+                        synchronized (mf) {
+                            ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
+                        }
+                    }
+                } catch (Throwable t) {
+                    logger.error("", t);
+                }
+            }
+        }
     }
 
     protected synchronized void configExecutors() {
-        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
-        if (Boolean.parseBoolean(s)) {
+        if (shared) {
+            handleExecutors = false;
             isExecutorShared = true;
             isAsyncExecutorShared = true;
         }
 
-        if (config.properties().get("executorService") == null) {
-            int numberOfMessageProcessingThread = -1;
-            s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
-            if (s != null) {
-                numberOfMessageProcessingThread = Integer.parseInt(s);
-            }
-
-            if (isExecutorShared && numberOfMessageProcessingThread == 1) {
-                logger.warn("Not enough numberOfMessageProcessingThread for a shareable thread pool {}, " +
-                        "Setting it to a newCachedThreadPool", numberOfMessageProcessingThread);
-                numberOfMessageProcessingThread = -1;
-            }
-
-            int numberOfAsyncThread = -1;
-            s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
-            if (s != null) {
-                numberOfAsyncThread = Integer.parseInt(s);
-            }
-
-            if (isAsyncExecutorShared && numberOfAsyncThread == 1) {
-                logger.warn("Not enough numberOfAsyncThread for a shareable thread pool {}, " +
-                        "Setting it to a newCachedThreadPool", numberOfAsyncThread);
-                numberOfAsyncThread = -1;
-            }
-
-            if (numberOfMessageProcessingThread == -1) {
-                executorService = Executors.newCachedThreadPool(new ThreadFactory() {
-
-                    private final AtomicInteger count = new AtomicInteger();
-
-                    @Override
-                    public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
-            } else {
-                executorService = Executors.newFixedThreadPool(numberOfMessageProcessingThread, new ThreadFactory() {
-
-                    private final AtomicInteger count = new AtomicInteger();
-
-                    @Override
-                    public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-BroadcasterConfig-" + count.getAndIncrement());
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
-            }
-            defaultExecutorService = executorService;
-
-            if (numberOfAsyncThread == -1) {
-                asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
-
-                    private final AtomicInteger count = new AtomicInteger();
-
-                    @Override
-                    public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
-            } else {
-                asyncWriteService = Executors.newFixedThreadPool(numberOfAsyncThread, new ThreadFactory() {
-
-                    private final AtomicInteger count = new AtomicInteger();
-
-                    @Override
-                    public Thread newThread(final Runnable runnable) {
-                        Thread t = new Thread(runnable, "Atmosphere-AsyncWrite-" + count.getAndIncrement());
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
-            }
-            defaultAsyncWriteService = asyncWriteService;
-
-            if (isExecutorShared) {
-                config.properties().put("executorService", executorService);
-                config.properties().put("asyncWriteService", asyncWriteService);
-            }
-
-        } else {
-            executorService = (ExecutorService) config.properties().get("executorService");
-            defaultExecutorService = executorService;
-
-            asyncWriteService = (ExecutorService) config.properties().get("asyncWriteService");
-            defaultAsyncWriteService = asyncWriteService;
-        }
+        executorService = ExecutorsFactory.getMessageDispatcher(config, name);
+        asyncWriteService = ExecutorsFactory.getAsyncOperationExecutor(config, name);
+        scheduler = ExecutorsFactory.getScheduler(config);
     }
 
     /**
@@ -329,11 +279,30 @@ public class BroadcasterConfig {
      * @return true if added.
      */
     public boolean addFilter(BroadcastFilter e) {
+        return addFilter(e, true);
+    }
+
+    /**
+     * Add a {@link BroadcastFilter}
+     *
+     * @param e {@link BroadcastFilter}
+     * @return true if added.
+     */
+    protected boolean addFilter(BroadcastFilter e, boolean init) {
         logDuplicateFilter(e);
         if (filters.contains(e)) return false;
 
         if (e instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) e).init();
+            ((BroadcastFilterLifecycle) e).init(config);
+        }
+
+        if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
+            Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
+            if (b != null) {
+                synchronized (e) {
+                    ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
+                }
+            }
         }
 
         if (e instanceof PerRequestBroadcastFilter) {
@@ -356,9 +325,9 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (!force && shared) return;
+        if (!force && !handleExecutors) return;
 
-        if (broadcasterCache != null) {
+        if ((force || !shared) && broadcasterCache != null) {
             broadcasterCache.stop();
         }
 
@@ -368,14 +337,8 @@ public class BroadcasterConfig {
         if ((force || !isAsyncExecutorShared) && asyncWriteService != null) {
             asyncWriteService.shutdownNow();
         }
-        if ((force || !isExecutorShared) && defaultExecutorService != null) {
-            defaultExecutorService.shutdownNow();
-        }
-        if ((force || !isAsyncExecutorShared) && defaultAsyncWriteService != null) {
-            defaultAsyncWriteService.shutdownNow();
-        }
 
-        if (scheduler != null) {
+        if ((force || !shared) && scheduler != null) {
             scheduler.shutdownNow();
         }
 
@@ -476,26 +439,17 @@ public class BroadcasterConfig {
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-        BroadcastAction transformed = new BroadcastAction(originalMessage);
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
+        BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
-                transformed = mf.filter(r, message, transformed.message());
+                transformed = mf.filter(r, originalMessage, transformed.message());
                 if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
                     return transformed;
                 }
             }
         }
         return transformed;
-    }
-
-    /**
-     * Return the default {@link ExecutorService}.
-     *
-     * @return the defaultExecutorService
-     */
-    public ExecutorService getDefaultExecutorService() {
-        return defaultExecutorService;
     }
 
     /**
@@ -522,11 +476,6 @@ public class BroadcasterConfig {
      * @return An ExecutorService.
      */
     public ScheduledExecutorService getScheduledExecutorService() {
-        synchronized (lock) {
-            if (scheduler == null) {
-                scheduler = Executors.newSingleThreadScheduledExecutor();
-            }
-        }
         return scheduler;
     }
 
@@ -547,9 +496,6 @@ public class BroadcasterConfig {
      * @return this
      */
     public BroadcasterCache getBroadcasterCache() {
-        if (broadcasterCache == null) {
-            broadcasterCache = new DefaultBroadcasterCache();
-        }
         return broadcasterCache;
     }
 

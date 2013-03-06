@@ -14,8 +14,8 @@
             <param-value>org.atmosphere.samples.pubsub</param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.useNative</param-name>
-            <param-value>true</param-value>
+            <param-name>org.atmosphere.websocket.messageContentType</param-name>
+            <param-value>application/json</param-value>
         </init-param>
         <load-on-startup>0</load-on-startup>
     </servlet>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -74,7 +74,11 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
                     }
                 }
             }
-            r.getBroadcaster().broadcast(stringBuilder.toString());
+            if (stringBuilder.length() > 0) {
+                r.getBroadcaster().broadcast(stringBuilder.toString());
+            } else {
+                logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
+            }
         }
     }
 

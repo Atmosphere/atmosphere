@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,6 +17,7 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -29,19 +30,24 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.VoidExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
+import java.io.StringReader;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -73,11 +79,19 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean destroyable;
     private final boolean executeAsync;
-    private final ExecutorService asyncExecutor;
-    private final ExecutorService voidExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+    private ExecutorService asyncExecutor;
+    private  ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
+
+    // 2MB - like maxPostSize
+    private int byteBufferMaxSize = 2097152;
+    private int charBufferMaxSize = 2097152;
+
+    private ByteBuffer bb = ByteBuffer.allocate(8192);
+    private CharBuffer cb = CharBuffer.allocate(8192);
+
+    private boolean shared = false;
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -96,8 +110,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             executeAsync = false;
         }
-        asyncExecutor = Executors.newCachedThreadPool();
-        voidExecutor = VoidExecutorService.VOID;
+
+        AtmosphereConfig config =  framework.getAtmosphereConfig();
+        if (executeAsync) {
+            asyncExecutor = ExecutorsFactory.getAsyncOperationExecutor(config, "WebSocket");
+        } else {
+            asyncExecutor = VoidExecutorService.VOID;
+        }
+
+        scheduler = ExecutorsFactory.getScheduler(config);
     }
 
     @Override
@@ -110,16 +131,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
-    public final void open(final WebSocket webSocket, final AtmosphereRequest request) throws IOException {
+    public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
-        AtmosphereResponse wsr = new AtmosphereResponse(webSocket, request, destroyable);
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
 
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(),
-                wsr,
+                response,
                 framework.getAsyncSupport());
 
         request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
@@ -128,10 +148,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
 
-        // No WebSocketHandler defined.
-        if (handlers.size() == 0) {
-            dispatch(webSocket, request, wsr);
-        } else {
+        // We must dispatch to execute AtmosphereInterceptor
+        dispatch(webSocket, request, response);
+        if (handlers.size() != 0) {
             WebSocketHandler handler = mapper.map(request, handlers);
             if (handler == null) {
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
@@ -168,30 +187,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
-        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
-
-        if (webSocketHandler == null) {
-            List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
-            dispatch(webSocket, list);
-        } else {
-            try {
-                webSocketHandler.onTextMessage(webSocket, webSocketMessage);
-            } catch (Exception ex) {
-                webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                        new AtmosphereResponse.Builder()
-                                .request(webSocket.resource().getRequest())
-                                .status(500)
-                                .statusMessage("Server Error").build()));
-            }
-        }
-        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
-    }
-
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
         if (list == null) return;
 
@@ -199,9 +194,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             if (r != null) {
 
                 boolean b = r.dispatchRequestAsynchronously();
-                ExecutorService s = (executeAsync || b) ? asyncExecutor : voidExecutor;
-
-                s.execute(new Runnable() {
+                asyncExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
@@ -221,29 +214,142 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * {@inheritDoc}
      */
     @Override
+    public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+
+        if (webSocketHandler == null) {
+            if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
+                dispatch(webSocket, list);
+            } else {
+                logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
+                invokeWebSocketProtocol(webSocket, new StringReader(webSocketMessage));
+                return;
+            }
+        } else {
+            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+                try {
+                    webSocketHandler.onTextMessage(webSocket, webSocketMessage);
+                } catch (Exception ex) {
+                    webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                            new AtmosphereResponse.Builder()
+                                    .request(webSocket.resource().getRequest())
+                                    .status(500)
+                                    .statusMessage("Server Error").build()));
+                }
+            } else {
+                logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
+                invokeWebSocketProtocol(webSocket, new StringReader(webSocketMessage));
+                return;
+            }
+        }
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
 
         if (webSocketHandler == null) {
-            List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
-            dispatch(webSocket, list);
+            if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
+                dispatch(webSocket, list);
+            } else {
+                logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
+                invokeWebSocketProtocol(webSocket, new ByteArrayInputStream(data, offset, length));
+                return;
+            }
         } else {
-            try {
-                webSocketHandler.onByteMessage(webSocket, data, offset, length);
-            } catch (Exception ex) {
-                webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                        new AtmosphereResponse.Builder()
-                                .request(webSocket.resource().getRequest())
-                                .status(500)
-                                .statusMessage("Server Error").build()));
+            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+                try {
+                    webSocketHandler.onByteMessage(webSocket, data, offset, length);
+                } catch (Exception ex) {
+                    webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                            new AtmosphereResponse.Builder()
+                                    .request(webSocket.resource().getRequest())
+                                    .status(500)
+                                    .statusMessage("Server Error").build()));
+                }
+            } else {
+                logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
+                invokeWebSocketProtocol(webSocket, new ByteArrayInputStream(data, offset, length));
+                return;
             }
         }
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<byte[]>(data, MESSAGE, webSocket));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream) {
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+        try {
+            if (webSocketHandler == null) {
+                if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                    List<AtmosphereRequest>  list = WebSocketProtocolStream.class.cast(webSocketProtocol).onBinaryStream(webSocket, stream);
+                    dispatch(webSocket, list);
+                } else {
+                    dispatchStream(webSocket, stream);
+                    return;
+                }
+            } else {
+                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+                    WebSocketStreamingHandler.class.cast(webSocketHandler).onBinaryStream(webSocket, stream);
+                } else {
+                    dispatchStream(webSocket, stream);
+                    return;
+                }
+
+            }
+        } catch (Exception ex) {
+            webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                    new AtmosphereResponse.Builder()
+                            .request(webSocket.resource().getRequest())
+                            .status(500)
+                            .statusMessage("Server Error").build()));
+        }
+
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<InputStream>(stream, MESSAGE, webSocket));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) {
+        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
 
         try {
-            notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(new String(data, offset, length, "UTF-8"), MESSAGE, webSocket));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("UnsupportedEncodingException", e);
+            if (webSocketHandler == null) {
+                if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                    List<AtmosphereRequest> list = WebSocketProtocolStream.class.cast(webSocketProtocol).onTextStream(webSocket, reader);
+                    dispatch(webSocket, list);
+                } else {
+                    dispatchReader(webSocket, reader);
+                    return;
+                }
+            } else {
+                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+                    WebSocketStreamingHandler.class.cast(webSocketHandler).onTextStream(webSocket, reader);
+                } else {
+                    dispatchReader(webSocket, reader);
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                    new AtmosphereResponse.Builder()
+                            .request(webSocket.resource().getRequest())
+                            .status(500)
+                            .statusMessage("Server Error").build()));
         }
+
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<Reader>(reader, MESSAGE, webSocket));
     }
 
     /**
@@ -299,14 +405,17 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (resource != null && resource.isInScope()) {
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (h != null) {
-                        if (closeCode == 1000) {
-                            h.timedOut();
-                        } else {
-                            h.closed();
+                    if (!resource.isCancelled()) {
+                        if (h != null) {
+                            // Tomcat and Jetty differ, same with browser
+                            if (closeCode == 1002) {
+                                h.timedOut();
+                            } else {
+                                h.closed();
+                            }
+                        } else if (webSocketHandler == null) {
+                            logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
-                    } else if (webSocketHandler == null) {
-                        logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                     }
 
                     if (webSocketHandler != null) {
@@ -321,7 +430,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     } catch (IOException e) {
                         logger.trace("", e);
                     }
-                    AsynchronousProcessor.destroyResource(resource);
+                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
             } finally {
                 if (r != null) {
@@ -336,6 +445,21 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocket.resource(null);
                 }
             }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void destroy() {
+        boolean shared = framework.isShareExecutorServices();
+        if (asyncExecutor != null && !shared) {
+            asyncExecutor.shutdown();
+        }
+
+        if (scheduler != null && !shared) {
+            scheduler.shutdown();
         }
     }
 
@@ -385,16 +509,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void destroy() {
-        asyncExecutor.shutdown();
-        voidExecutor.shutdown();
-        scheduler.shutdown();
-    }
-
     public static final Map<String, String> configureHeader(AtmosphereRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
@@ -407,5 +521,106 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         headers.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
         return headers;
+    }
+
+    protected void dispatchStream(WebSocket webSocket, InputStream is) throws IOException {
+        int read = 0;
+        while (read > -1) {
+            bb.position(bb.position() + read);
+            if (bb.remaining() == 0) {
+                resizeByteBuffer();
+            }
+            read = is.read(bb.array(), bb.position(), bb.remaining());
+        }
+        bb.flip();
+        try {
+            invokeWebSocketProtocol(webSocket, bb.array(), 0, bb.limit());
+        } finally {
+            bb.clear();
+        }
+    }
+
+    protected void dispatchReader(WebSocket webSocket,Reader r) throws IOException {
+        int read = 0;
+        while (read > -1) {
+            cb.position(cb.position() + read);
+            if (cb.remaining() == 0) {
+                resizeCharBuffer();
+            }
+            read = r.read(cb.array(), cb.position(), cb.remaining());
+        }
+        cb.flip();
+        try {
+            invokeWebSocketProtocol(webSocket, cb.toString());
+        } finally {
+            cb.clear();
+        }
+    }
+
+    private void resizeByteBuffer() throws IOException {
+        int maxSize = getByteBufferMaxSize();
+        if (bb.limit() >= maxSize) {
+            throw new IOException("Message Buffer too small");
+        }
+
+        long newSize = bb.limit() * 2;
+        if (newSize > maxSize) {
+            newSize = maxSize;
+        }
+
+        // Cast is safe. newSize < maxSize and maxSize is an int
+        ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
+        bb.rewind();
+        newBuffer.put(bb);
+        bb = newBuffer;
+    }
+
+    private void resizeCharBuffer() throws IOException {
+        int maxSize = getCharBufferMaxSize();
+        if (cb.limit() >= maxSize) {
+            throw new IOException("Message Buffer too small");
+        }
+
+        long newSize = cb.limit() * 2;
+        if (newSize > maxSize) {
+            newSize = maxSize;
+        }
+
+        // Cast is safe. newSize < maxSize and maxSize is an int
+        CharBuffer newBuffer = CharBuffer.allocate((int) newSize);
+        cb.rewind();
+        newBuffer.put(cb);
+        cb = newBuffer;
+    }
+
+    /**
+     * Obtain the current maximum size (in bytes) of the buffer used for binary
+     * messages.
+     */
+    public final int getByteBufferMaxSize() {
+        return byteBufferMaxSize;
+    }
+
+    /**
+     * Set the maximum size (in bytes) of the buffer used for binary messages.
+     */
+    public final void setByteBufferMaxSize(int byteBufferMaxSize) {
+        this.byteBufferMaxSize = byteBufferMaxSize;
+    }
+
+    /**
+     * Obtain the current maximum size (in characters) of the buffer used for
+     * binary messages.
+     */
+    public final int getCharBufferMaxSize() {
+        return charBufferMaxSize;
+    }
+
+    /**
+     * Set the maximum size (in characters) of the buffer used for textual
+     * messages.
+     */
+    public final void setCharBufferMaxSize(int charBufferMaxSize) {
+        this.charBufferMaxSize = charBufferMaxSize;
     }
 }

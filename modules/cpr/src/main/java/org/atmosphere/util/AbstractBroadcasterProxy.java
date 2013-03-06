@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -109,7 +109,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected void broadcastReceivedMessage(Object message) {
         try {
             Object newMsg = filter(message);
-            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this), message));
+            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, this), message));
         } catch (Throwable t) {
             logger.error("failed to push message: " + message, t);
         }
@@ -129,12 +129,12 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, null, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }
@@ -153,12 +153,12 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, r, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }
@@ -178,12 +178,12 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, subset, f, false));
         } finally {
-            f.done();
+            futureDone(f);
         }
         return f;
     }

@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2013 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -16,15 +16,10 @@
 package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Grizzly2WebSocket extends WebSocket {
 
@@ -41,17 +36,20 @@ public class Grizzly2WebSocket extends WebSocket {
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
         webSocket.send(s);
+        return this;
     }
 
     @Override
-    public void write(byte[] data, int offset, int length) throws IOException {
+    public WebSocket write(byte[] data, int offset, int length) throws IOException {
         webSocket.send(Arrays.copyOfRange(data, offset, length));
+        return this;
     }
 
     @Override
     public void close() {
+        logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         webSocket.close();
     }
 

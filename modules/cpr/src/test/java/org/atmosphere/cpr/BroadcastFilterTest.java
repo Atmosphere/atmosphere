@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,10 +15,8 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.AbstractBroadcasterCache;
-import org.atmosphere.cache.HeaderBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -26,15 +24,12 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
-import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
@@ -48,12 +43,13 @@ public class BroadcastFilterTest {
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -102,7 +98,7 @@ public class BroadcastFilterTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -151,7 +147,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new PerRequestFilter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "01234");
+        assertEquals(atmosphereHandler.value.get().toString(), "012341234");
     }
 
     @Test
@@ -165,7 +161,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new Filter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "0abc");
+        assertEquals(atmosphereHandler.value.get().toString(), "01234abc");
     }
 
     @Test
@@ -182,6 +178,14 @@ public class BroadcastFilterTest {
         assertEquals(atmosphereHandler.value.get().toString(), "01a2b3c4");
     }
 
+    @Test
+    public void testVoidAtmosphereResouce() throws ExecutionException, InterruptedException {
+        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
+        String s = (String) broadcaster.broadcast("0").get();
+        assertEquals(s, "01");
+    }
+
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {
 
         String msg;
@@ -192,12 +196,35 @@ public class BroadcastFilterTest {
 
         @Override
         public BroadcastAction filter(Object originalMessage, Object message) {
-            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
 
         @Override
         public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+        }
+    }
+
+    private final static class VoidAtmosphereResource implements PerRequestBroadcastFilter {
+
+        String msg;
+
+        public VoidAtmosphereResource(String msg) {
+            this.msg = msg;
+        }
+
+        @Override
+        public BroadcastAction filter(Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
+        }
+
+        @Override
+        public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
+            if (r.uuid().equals(VOID_ATMOSPHERE_RESOURCE_UUID)){
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
+            } else {
+                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, "error");
+            }
         }
     }
 
@@ -248,82 +275,11 @@ public class BroadcastFilterTest {
 
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
-            if (e.getMessage() instanceof List) {
-                value.get().append(((List) e.getMessage()).get(0));
-            } else {
-                value.get().append(e.getMessage());
-            }
+            value.get().append(e.getMessage());
         }
 
         @Override
         public void destroy() {
         }
-    }
-
-    @Test
-    public void testTrackMessageSizeFilter() throws ExecutionException, InterruptedException {
-        //Make sure we are empty.
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
-            @Override
-            public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
-
-                long now = System.nanoTime() * 2;
-                put(e, now);
-            }
-
-            @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-                long cacheHeaderTime = Long.valueOf(System.nanoTime());
-                return get(cacheHeaderTime);
-            }
-        }).addFilter(new TrackMessageSizeFilter() {
-            @Override
-            public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-
-                String msg = message.toString();
-                msg = msg.length() + "|" + msg;
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
-            }
-        });
-
-        broadcaster.broadcast("0").get();
-        broadcaster.addAtmosphereResource(ar);
-        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
-    }
-
-    @Test
-    public void testComplexTrackMessageSizeFilter() throws ExecutionException, InterruptedException {
-        //Make sure we are empty.
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
-            @Override
-            public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
-
-                long now = System.nanoTime() * 2;
-                put(e, now);
-            }
-
-            @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-                long cacheHeaderTime = Long.valueOf(System.nanoTime());
-                return get(cacheHeaderTime);
-            }
-        }).addFilter(new TrackMessageSizeFilter() {
-            @Override
-            public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
-
-                String msg = message.toString();
-                msg = msg.length() + "|" + msg;
-                return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
-            }
-        });
-        broadcaster.broadcast("0").get();
-        broadcaster.addAtmosphereResource(ar);
-
-        broadcaster.broadcast("XXX").get();
-        broadcaster.removeAtmosphereResource(ar);
-        broadcaster.addAtmosphereResource(ar);
-        assertEquals(atmosphereHandler.value.get().toString(), "1|03|XXX1|0");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -62,23 +62,23 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
     void onConnect(WebSocketEvent event);
 
 
-    public static final class WebSocketEvent {
-        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT}
-        private final String message;
+    public static final class WebSocketEvent<T> {
+        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM, EXCEPTION}
+        private final T message;
         private final TYPE type;
         private final WebSocket webSocket;
 
-        public WebSocketEvent(String message, TYPE type, WebSocket webSocket) {
+        public WebSocketEvent(T message, TYPE type, WebSocket webSocket) {
             this.message = message;
             this.type = type;
             this.webSocket = webSocket;
         }
 
         /**
-         * The received message
+         * The received message if the message was a String.
          * @return received message
          */
-        public String message(){
+        public T message(){
             return message;
         }
 

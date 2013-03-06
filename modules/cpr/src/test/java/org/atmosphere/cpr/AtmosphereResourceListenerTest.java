@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -136,7 +136,7 @@ public class AtmosphereResourceListenerTest {
                 r.resume();
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertTrue(preSuspended.get());
         assertTrue(suspended.get());

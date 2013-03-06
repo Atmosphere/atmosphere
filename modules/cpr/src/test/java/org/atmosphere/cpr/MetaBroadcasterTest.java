@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -93,6 +93,24 @@ public class MetaBroadcasterTest {
         factory.get("/a/chat3");
 
         assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/*", "yo").get().size(), 3);
+
+    }
+
+    @Test
+    public void underscoreMatching() throws ExecutionException, InterruptedException {
+        factory.get("/a/_b");
+        factory.get("/b");
+        factory.get("/c");
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/_b", "yo").get().size(), 1);
+
+    }
+
+    @Test
+    public void issue836Test() throws ExecutionException, InterruptedException {
+        factory.get("/a/@b");
+        factory.get("/b");
+        factory.get("/c");
+        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/@b", "yo").get().size(), 1);
 
     }
 }

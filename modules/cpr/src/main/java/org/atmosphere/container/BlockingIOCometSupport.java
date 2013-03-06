@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -145,16 +145,23 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         CountDownLatch latch = new CountDownLatch(1);
         req.setAttribute(LATCH, latch);
 
+        boolean ok = true;
         try {
             if (action.timeout() != -1) {
-                latch.await(action.timeout(), TimeUnit.MILLISECONDS);
+                ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
             } else {
                 latch.await();
             }
         } catch (InterruptedException ex) {
             logger.trace("", ex);
         } finally {
-            timedout(req, res);
+            if (!ok) {
+                timedout(req, res);
+            } else {
+                if (req.resource() != null) {
+                    AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+                }
+            }
         }
     }
 
@@ -189,7 +196,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 if (latch != null && (s == null || s.equalsIgnoreCase("false"))) {
                     latch.countDown();
                 } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
-                    logger.error("Unable to resume the suspended connection");
+                    logger.trace("Unable to resume the suspended connection");
                 }
             }
         } catch (Exception ex) {

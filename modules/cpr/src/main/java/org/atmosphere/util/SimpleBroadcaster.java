@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -53,8 +53,10 @@
 package org.atmosphere.util;
 
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -63,6 +65,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -84,7 +87,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
         BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
         if (bc == null) {
-            bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false);
+            bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID())
+                    .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
             config.properties().put(BroadcasterConfig.class.getName(), bc);
         }
         return bc;
@@ -103,7 +107,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
-        bc.setExecutorService(null, false).setAsyncWriteService(null, false);
+        bc.setExecutorService(null, false).setAsyncWriteService(null, false)
+                .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
     }
 
     /**
@@ -114,15 +119,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, null, f, msg));
         return f;
     }
@@ -135,15 +140,15 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, r, f, msg));
         return f;
     }
@@ -156,7 +161,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
-            return null;
+            return futureDone(msg);
         }
 
         start();
@@ -164,11 +169,20 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, broadcasterListeners, this);
-        f.done();
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        entryDone(f);
         push(new Entry(newMsg, subset, f, msg));
         return f;
     }
+
+    @Override
+    protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
+        if (writeTimeoutInSecond != -1) {
+            logger.warn("{} not supported with this broadcaster.", ApplicationConfig.WRITE_TIMEOUT);
+        }
+        invokeOnStateChange(r, e);
+    }
+
 
     /**
      * {@inheritDoc}
@@ -176,7 +190,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
         synchronized (r) {
-            executeAsyncWrite(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage));
+            executeAsyncWrite(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
         }
     }
 }

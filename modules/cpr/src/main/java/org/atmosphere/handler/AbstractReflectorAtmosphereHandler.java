@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -55,6 +55,7 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
@@ -93,7 +94,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
         Object message = event.getMessage();
         AtmosphereResponse r = event.getResource().getResponse();
-        if (message == null || event.isCancelled() || event.getResource().getRequest().destroyed()) return;
+        if (message == null || event.isCancelled() || event.isResuming() || event.getResource().getRequest().destroyed()) return;
 
         if (event.getResource().getSerializer() != null) {
             try {
@@ -132,9 +133,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                    r.getWriter().flush();
                 }
             }
-
-            postStateChange(event);
         }
+        postStateChange(event);
     }
 
     /**
@@ -142,17 +142,20 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        Boolean resumeOnBroadcast = event.getResource().resumeOnBroadcast();
+        if (event.isResuming()) return;
+
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
-            Object o = event.getResource().getRequest().getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
                 resumeOnBroadcast = Boolean.class.cast(o);
             }
         }
 
         if (resumeOnBroadcast != null && resumeOnBroadcast) {
-            event.getResource().resume();
+            r.resume();
         }
     }
 }

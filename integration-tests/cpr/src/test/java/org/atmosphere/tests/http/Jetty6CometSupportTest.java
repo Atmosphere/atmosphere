@@ -54,6 +54,7 @@ package org.atmosphere.tests.http;
 import org.atmosphere.container.JettyCometSupport;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.nio.SelectChannelConnector;
+import org.testng.annotations.Test;
 
 
 public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
@@ -69,4 +70,13 @@ public class Jetty6CometSupportTest extends BlockingIOCometSupportTest {
     public void configureCometSupport() {
         atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
+
+    @Test(timeOut = 60000, enabled = false)
+    public void testHeaderBroadcasterCache() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    }
+
+    @Test(timeOut = 60000, enabled = false)
+    public void testHeaderBroadcasterCacheWithFilter() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    }
+
 }

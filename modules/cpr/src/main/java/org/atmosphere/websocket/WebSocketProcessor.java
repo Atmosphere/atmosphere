@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,6 +20,8 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 
 /**
  * Atmosphere's WebSocket Support implementation. The default behavior is implemented in {@link DefaultWebSocketProcessor}.
@@ -45,7 +47,7 @@ public interface WebSocketProcessor {
      * @param request
      * @throws IOException
      */
-    void open(WebSocket webSocket, final AtmosphereRequest request) throws IOException;
+    void open(WebSocket webSocket, AtmosphereRequest request, AtmosphereResponse response) throws IOException;
 
     /**
      * Invoked when a WebSocket message gets received from the underlying container
@@ -60,6 +62,20 @@ public interface WebSocketProcessor {
      * @param data
      */
     void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length);
+
+    /**
+     * Invoked when a WebSocket message gets received from the underlying container
+     *
+     * @param stream
+     */
+    void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream);
+
+    /**
+     * Invoked when a WebSocket message gets received from the underlying container
+     *
+     * @param reader
+     */
+    void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) throws IOException;
 
     /**
      * Invked when the WebServer is closing the native WebSocket

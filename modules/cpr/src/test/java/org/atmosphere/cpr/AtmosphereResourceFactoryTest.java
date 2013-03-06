@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jason Burgess
+ * Copyright 2013 Jason Burgess
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -60,7 +60,7 @@ public class AtmosphereResourceFactoryTest {
 
     @Test
     public void createTest() {
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), mock(Broadcaster.class), AtmosphereResponse.create().request(AtmosphereRequest.create()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), mock(Broadcaster.class), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
     }
@@ -69,7 +69,7 @@ public class AtmosphereResourceFactoryTest {
     public void findTest() {
         Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), b1, AtmosphereResponse.create().request(AtmosphereRequest.create()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
 
@@ -84,7 +84,7 @@ public class AtmosphereResourceFactoryTest {
         for (int i = 0; i < 10; i++) {
             BroadcasterFactory.getDefault().get(String.valueOf(i));
         }
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.create().request(AtmosphereRequest.create()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         assertNull(AtmosphereResourceFactory.getDefault().find(r.uuid()));
@@ -96,7 +96,7 @@ public class AtmosphereResourceFactoryTest {
             BroadcasterFactory.getDefault().get(String.valueOf(i));
         }
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.create().request(AtmosphereRequest.create()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         b2.addAtmosphereResource(r);

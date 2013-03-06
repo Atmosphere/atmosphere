@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -37,7 +37,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
     public DefaultEndpointMapper() {
     }
 
-    protected U map(String path, Map<String, U> handlers) {
+    protected U match(String path, Map<String, U> handlers) {
         U handler = handlers.get(path);
 
         if (handler == null) {
@@ -92,6 +92,49 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
                     String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
                     while (p.length() > 0) {
                         handler = map(p, handlers);
+
+                        // (3.1) Try path wildcard
+                        if (handler != null) {
+                            break;
+                        }
+                        p = p.substring(0, p.lastIndexOf("/"));
+                    }
+                }
+
+                // Glassfish 3.1.2 issue .. BEUUUURRRRKKKKKK!!
+                if (handler == null) {
+                    path = path.substring(req.getContextPath().length());
+                    handler = map(path, handlers);
+                }
+            }
+        }
+        return handler;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public U map(String path, Map<String, U> handlers) {
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+
+        U handler = match(path + (path.endsWith("/") ? "all" : "/all"), handlers);
+        if (handler == null) {
+            // (2) First, try exact match
+            handler = match(path, handlers);
+
+            if (handler == null) {
+                // (3) Wildcard
+                handler = match(path + "*", handlers);
+
+                // (4) try without a path
+                if (handler == null) {
+                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    while (p.length() > 0 && p.indexOf("/") != -1) {
+                        handler = match(p, handlers);
 
                         // (3.1) Try path wildcard
                         if (handler != null) {

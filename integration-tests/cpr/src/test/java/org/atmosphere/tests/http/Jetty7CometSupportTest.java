@@ -65,7 +65,7 @@ public class Jetty7CometSupportTest extends BaseTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = TestHelper.getEnvVariable("ATMOSPHERE_HTTP_PORT", findFreePort());
+        int port = findFreePort();
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new Server(port);

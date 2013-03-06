@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -52,20 +52,15 @@ public final class JerseyBroadcasterUtil {
         // Make sure only one thread can play with the ContainerResponse. Threading issue can arise if there is a scheduler
         // or if ContainerResponse is associated with more than Broadcaster.
         cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
-        boolean isCancelled = r.getAtmosphereResourceEvent().isCancelled();
 
-        if (cr == null || isCancelled) {
-            logger.debug("Retrieving HttpServletRequest {} with ContainerResponse {}", request, cr);
-            if (!isCancelled) {
-                logger.debug("Unexpected state. ContainerResponse cannot be null or already committed. The connection hasn't been suspended yet");
-            } else {
-                logger.debug("ContainerResponse already resumed or cancelled. Ignoring");
-            }
+        if (cr == null || r.isCancelled()) {
+            logger.debug("Unexpected state. ContainerResponse has been resumed or cancelled Caching message {} for {}",
+                    e.getMessage(), r.uuid());
 
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r);
+                DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r, true);
             }
-            AsynchronousProcessor.destroyResource(r);
+            AtmosphereResourceImpl.class.cast(r)._destroy();
             return;
         }
 
@@ -105,13 +100,13 @@ public final class JerseyBroadcasterUtil {
                         cr.setResponse(Response.ok(msg).build());
                         cr.getHttpHeaders().add(HttpHeaders.CONTENT_TYPE, m);
                         cr.write();
+                    }
 
-                        // https://github.com/Atmosphere/atmosphere/issues/169
-                        try {
-                            cr.getOutputStream().flush();
-                        } catch (IOException ex) {
-                            logger.trace("", ex);
-                        }
+                    // https://github.com/Atmosphere/atmosphere/issues/169
+                    try {
+                        cr.getOutputStream().flush();
+                    } catch (IOException ex) {
+                        logger.trace("", ex);
                     }
                 } else {
                     if (e.getMessage() == null) {
@@ -129,8 +124,17 @@ public final class JerseyBroadcasterUtil {
                     }
                 }
             } catch (Throwable t) {
+                boolean notifyAndCache = true;
+                for (StackTraceElement element : t.getStackTrace()) {
+                    if (element.getClassName().equals("java.io.BufferedWriter")
+                            && element.getMethodName().equals("flush")) {
+                        logger.trace("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
+                        notifyAndCache = false;
+                    }
+                }
+
                 if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
-                    DefaultBroadcaster.class.cast(broadcaster).onException(t, r);
+                    DefaultBroadcaster.class.cast(broadcaster).onException(t, r, notifyAndCache);
                 } else {
                     onException(t, r);
                 }
@@ -148,6 +152,7 @@ public final class JerseyBroadcasterUtil {
                             ((ConcurrentHashMap<String, AtmosphereResource>) request.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
                         }
                     }
+                    r.getRequest().setAttribute(FrameworkConfig.CONTAINER_RESPONSE, null);
                     r.resume();
                 }
 
@@ -158,6 +163,6 @@ public final class JerseyBroadcasterUtil {
     final static void onException(Throwable t, AtmosphereResource r) {
         logger.trace("onException()", t);
         r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
-        AsynchronousProcessor.destroyResource(r);
+        AtmosphereResourceImpl.class.cast(r)._destroy();
     }
 }

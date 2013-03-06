@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2013 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -18,6 +18,8 @@ package org.atmosphere.websocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.util.List;
 
 /**
@@ -47,6 +49,7 @@ public interface WebSocketProtocol {
      *
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
@@ -63,6 +66,7 @@ public interface WebSocketProtocol {
      * @param webSocket The {@link WebSocket} connection
      * @param offset    offset message index
      * @param length    length of the message.
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +18,10 @@ package org.atmosphere.handler;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,7 +39,7 @@ import java.util.List;
 public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     public final static String MESSAGE_DELIMITER = "|";
-
+    private final Logger logger = LoggerFactory.getLogger(OnMessage.class);
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
         if (resource.getRequest().getMethod().equalsIgnoreCase("GET")) {
@@ -46,8 +49,9 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        AtmosphereResponse response = event.getResource().getResponse();
+        AtmosphereResponse response = ((AtmosphereResourceImpl)event.getResource()).getResponse(false);
 
+        logger.debug("{} with event {}", event.getResource().uuid(), event);
         if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
             List<T> messages = List.class.cast(event.getMessage());
             for (T t: messages) {

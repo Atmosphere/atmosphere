@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,8 +15,9 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.client.MessageLengthInterceptor;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
@@ -135,6 +136,10 @@ public interface ApplicationConfig {
      * Set the WebSocket mas text size: size<0 No aggregation of frames to messages, >=0 max size of text frame aggregation buffer in characters
      */
     String WEBSOCKET_MAXBINARYSIZE = "org.atmosphere.websocket.maxBinaryMessageSize";
+    /**
+     * Tell Atmosphere to enforce the same origin policy for all incoming WebSocket handshakes.
+     */
+    String WEBSOCKET_REQUIRE_SAME_ORIGIN = "org.atmosphere.websocket.requireSameOrigin";
     /**
      * The Atmosphere resource to use.
      */
@@ -272,7 +277,7 @@ public interface ApplicationConfig {
      * The token used to separate broadcasted messages. This value is used by the client to parse several messages
      * received in one chunk. Default is '<||>'
      */
-    String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
+    String MESSAGE_DELIMITER = TrackMessageSizeInterceptor.class.getName() + ".delimiter";
     /**
      * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
      * is used
@@ -295,4 +300,39 @@ public interface ApplicationConfig {
      * Change the default regex used when mapping AtmosphereHandler. Default is {@link AtmosphereFramework#MAPPING_REGEX}
      */
     String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
+    /**
+     * The annotation processor
+     */
+    String ANNOTATION_PROCESSOR =  AnnotationProcessor.class.getName();
+    /**
+     * Define an implementation of the {@link EndpointMapper}
+     */
+    String ENDPOINT_MAPPER = EndpointMapper.class.getName();
+    /**
+     * The list of content-type to exclude when delimiting message.
+     */
+    String EXCLUDED_CONTENT_TYPES = TrackMessageSizeInterceptor.class.getName() + ".excludedContentType";
+    /**
+     * Use a unique uuid for all WebSocket message delivered on the same connection.
+     */
+    String UNIQUE_UUID_WEBSOCKET = AtmosphereResource.class.getName() + ".uniqueUUID";
+    /**
+     * Set to true if order of message delivered to the client is not important
+     */
+    String OUT_OF_ORDER_BROADCAST = Broadcaster.class.getName() + ".supportOutOfOrderBroadcast";
+    /**
+     * The write operation timeout
+     */
+    String WRITE_TIMEOUT = Broadcaster.class.getName() + ".writeTimeout";
+    /**
+     * The sleep time, in millisecond, before the {@link DefaultBroadcaster} release it's reactive thread for pushing message
+     * and execute async write. Default is 1000
+     */
+    String BROADCASTER_WAIT_TIME = Broadcaster.class.getName() + ".threadWaitTime";
+    /**
+     * Before 1.0.12, WebSocket's AtmosphereResource manually added to {@link Broadcaster} where added without checking
+     * if the parent, e.g the AtmosphereResource's created on the first request was already added to the Broadcaster. That caused
+     * some messages to be written twice instead of one.
+     */
+    String BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR = "org.atmosphere.websocket.backwardCompatible.atmosphereResource";
 }

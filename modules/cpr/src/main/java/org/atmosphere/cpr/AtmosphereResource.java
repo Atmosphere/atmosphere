@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -305,5 +305,11 @@ public interface AtmosphereResource {
      * @return the {@link HttpSession} is supported, and creates it if not already created
      */
     HttpSession session(boolean create);
+
+    /**
+     * Close the underlying connection. Invoking this method will close the underlying connection and resume the
+     * {@link AtmosphereResource}}
+     */
+    void close() throws IOException;
 
 }

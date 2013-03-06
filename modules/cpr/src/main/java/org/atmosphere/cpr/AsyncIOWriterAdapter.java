@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,7 +22,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsyncIOWriterAdapter implements AsyncIOWriter {
+public class AsyncIOWriterAdapter implements AsyncIOWriter {
 
     public AsyncIOWriterAdapter() {
     }

@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
-@WebSocketHandlerService
+@WebSocketHandlerService (path ="/pubsub")
 public class WebSocketPubSub extends WebSocketHandlerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);

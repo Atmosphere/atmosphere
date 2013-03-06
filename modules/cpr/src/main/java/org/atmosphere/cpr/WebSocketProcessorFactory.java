@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -28,6 +28,7 @@ public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
     private WebSocketProcessor webSocketprocessor;
+    private AtmosphereFramework framework;
 
     public final static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
@@ -43,6 +44,7 @@ public class WebSocketProcessorFactory {
      */
     public synchronized WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
         if (webSocketprocessor == null) {
+            this.framework = framework;
             String webSocketProcessorName = framework.getWebSocketProcessorClassName();
             if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
                 try {
@@ -60,6 +62,11 @@ public class WebSocketProcessorFactory {
             if (webSocketprocessor == null) {
                 webSocketprocessor = new DefaultWebSocketProcessor(framework);
             }
+        }
+
+        // More than one Atmosphere Application on the same JVM
+        if (!this.framework.equals(framework)) {
+            webSocketprocessor = new DefaultWebSocketProcessor(framework);
         }
 
         return webSocketprocessor;

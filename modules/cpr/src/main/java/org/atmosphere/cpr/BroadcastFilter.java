@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -61,6 +61,12 @@ package org.atmosphere.cpr;
  * @author Jeanfrancois Arcand
  */
 public interface BroadcastFilter {
+
+    /**
+     * When a message is about to get cached and some {@link BroadcastFilter} are defined, and when no {@link AtmosphereResource}
+     * are available, a noop {@link AtmosphereResource} with uuid == -1 will be used to invoke BroadcastFilter.
+     */
+    public final static String VOID_ATMOSPHERE_RESOURCE_UUID = "-1";
 
     /**
      * Simple class that tells the {@link Broadcaster} to broadcast or not

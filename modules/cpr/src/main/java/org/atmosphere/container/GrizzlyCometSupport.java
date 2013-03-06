@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -165,6 +165,12 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
         if (handler == null && supportSession() && req.getSession(false) != null) {
             handler = ctx.getCometHandler((Integer) req.getSession(false).getAttribute(ATMOSPHERE));
             req.getSession().removeAttribute(ATMOSPHERE);
+        }
+
+        try {
+            AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+        } catch (IOException e) {
+            logger.trace("", e);
         }
 
         if (handler != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null

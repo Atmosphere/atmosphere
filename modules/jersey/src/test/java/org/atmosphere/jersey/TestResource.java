@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,6 +21,7 @@ import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.jboss.netty.handler.codec.http.QueryStringEncoder;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -28,6 +29,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 
 import static org.testng.Assert.assertNotNull;
@@ -53,5 +55,11 @@ public class TestResource {
         assertNotNull(bf.toString());
         assertNotNull(ar.toString());
         return "";
+    }
+
+    @GET
+    @Path("/a")
+    public String queryString(@QueryParam("a") String a, @QueryParam("b") String b) {
+        return a + b;
     }
 }

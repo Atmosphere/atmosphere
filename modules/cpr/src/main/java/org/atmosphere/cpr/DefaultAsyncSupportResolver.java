@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -60,6 +60,7 @@ import org.atmosphere.container.Grizzly2CometSupport;
 import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
@@ -95,13 +96,14 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY = "org.mortbay.util.ajax.Continuation";
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
-    public final static String JETTY_9 = "org.eclipse.jetty.websocket.server.WebSocketServerFactory";
+    public final static String JETTY_9 = "org.eclipse.jetty.websocket.api.WebSocketPolicy";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
     public final static String GRIZZLY2 = "org.glassfish.grizzly.http.servlet.ServletHandler";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
     public final static String GRIZZLY2_WEBSOCKET = "org.glassfish.grizzly.websockets.WebSocketEngine";
     public final static String NETTY = "org.jboss.netty.channel.Channel";
+    public final static String JBOSS_AS7_WEBSOCKET = "org.atmosphere.jboss.as.websockets.servlet.WebSocketServlet";
 
     private final AtmosphereConfig config;
 
@@ -169,6 +171,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);
+
+                if (testClassExists(JBOSS_AS7_WEBSOCKET))
+                    add(JBossWebSocketSupport.class);
             }
         };
     }

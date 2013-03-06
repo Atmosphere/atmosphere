@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -70,5 +70,9 @@ public @interface Asynchronous {
      * @return true if the entity needs to be written back to the calling connection.
      */
     public boolean writeEntity() default true;
-
+    /**
+     * If the @Produces annotation is missing, this value will be used instead.
+     * @return the default content-type used if the @Produces annotation is missing.
+     */
+    public String contentType() default "";
 }

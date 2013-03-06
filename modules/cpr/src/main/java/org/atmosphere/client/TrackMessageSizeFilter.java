@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,6 +17,7 @@ package org.atmosphere.client;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
@@ -39,13 +40,13 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 
     @Override
-    public BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
+    public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
 
         AtmosphereRequest request = r.getRequest();
-        if ("true".equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
+        if (r.uuid().equals(BroadcastFilter.VOID_ATMOSPHERE_RESOURCE_UUID) || "true".equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
                 && message != null && String.class.isAssignableFrom(message.getClass())) {
 
-            String msg = message.toString();
+            String msg = message.toString().trim();
             msg = msg.length() + "|" + msg;
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, msg);
 

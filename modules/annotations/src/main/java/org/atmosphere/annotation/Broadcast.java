@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -60,10 +60,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Broadcast to all suspended response the value of the method annotated
- * with this annotation. The broadcast operation will block the calling thread of the annotated method, e.g API {@link org.atmosphere.cpr.BroadcasterFuture#get()} will
- * be invoked by the underlying container (Jersey). To use non blocking broadcast operation, inject a {@link org.atmosphere.cpr.Broadcaster}
- * or use a {@link org.atmosphere.cpr.BroadcasterFactory} to create Broadcaster.
+ * Broadcast to all suspended response the value of the method annotated with this annotation.
  *
  * @author Jeanfrancois Arcand
  */
@@ -71,10 +68,12 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Broadcast {
 
+    public String value() default "/*";
+
     /**
-     * Add {@link BroadcastFilter} to the broadcast operation.
+     * Add {@link BroadcastFilter}s to the broadcast operation.
      */
-    public Class<? extends BroadcastFilter>[] value() default {};
+    public Class<? extends BroadcastFilter>[] filters() default {};
 
     /**
      * Resume all suspended response on the first broadcast operation.

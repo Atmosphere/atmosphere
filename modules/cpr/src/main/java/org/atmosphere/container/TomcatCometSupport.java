@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -120,13 +120,17 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                     }
                     req.setAttribute(SUSPENDED, true);
                 } catch (UnsupportedOperationException ex) {
-                    // Swallow s Tomcat APR isn't supporting time out
                     // TODO: Must implement the same functionality using a Scheduler
+                    logger.trace("Warning: CometEvent.setTimeout not supported on this Tomcat instance. " +
+                            " [The Tomcat native connector does not support timeouts on asynchronous I/O.]");
                 }
-            } else if (action.type() == Action.TYPE.RESUME) {
-                event.close();
+                req.setAttribute(SUSPENDED, true);
             } else {
-                event.close();
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
+                }
             }
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
@@ -137,19 +141,36 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 action = cancelled(req, res);
             }
 
-            event.close();
-        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
 
             action = timedout(req, res);
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         } else if (event.getEventType() == EventType.ERROR) {
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         } else if (event.getEventType() == EventType.END) {
-            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+            if (req.resource() != null && req.resource().isResumed()) {
+                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+            } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                event.close();
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
+                }
             }
         }
         return action;
@@ -169,7 +190,11 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 // Resume without closing the underlying suspended connection.
                 if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                         || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
-                    event.close();
+                    try {
+                        event.close();
+                    } catch (IllegalStateException ex) {
+                        logger.trace("event.close", ex);
+                    }
                 }
             } catch (IOException ex) {
                 logger.debug("action failed", ex);
@@ -185,7 +210,11 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            event.close();
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
         }
         return action;
     }

@@ -1277,7 +1277,7 @@ public abstract class BaseTest {
             }
 
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                if (event.isResuming()) {
+                if (event.isResuming() || event.isCancelled()) {
                     return;
                 }
                 PrintWriter writer = event.getResource().getResponse().getWriter();
@@ -1315,6 +1315,7 @@ public abstract class BaseTest {
             logger.error("test failed", e);
             fail(e.getMessage());
         } finally {
+            BroadcasterFactory.getDefault().lookup(DefaultBroadcaster.class, "suspend").destroy();
             c.close();
         }
     }

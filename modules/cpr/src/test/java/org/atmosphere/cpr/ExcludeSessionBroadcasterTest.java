@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -41,12 +41,14 @@ public class ExcludeSessionBroadcasterTest {
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(ExcludeSessionBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+
         broadcaster = factory.get(ExcludeSessionBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

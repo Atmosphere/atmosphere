@@ -271,6 +271,7 @@
     </profiles>
     <modules>
         <module>modules</module>
+        <module>assembly</module>
         <module>samples</module>
         <module>integration-tests</module>
     </modules>
@@ -337,13 +338,6 @@
                 <enabled>false</enabled>
             </snapshots>
         </pluginRepository>
-<!--
-        <pluginRepository>
-            <id>scala-tools.org</id>
-            <name>Scala-Tools Maven2 Repository</name>
-            <url>http://scala-tools.org/repo-releases</url>
-        </pluginRepository>
--->
     </pluginRepositories>
     <repositories>
         <repository>
@@ -480,11 +474,10 @@
 
     <properties>
         <jetty-version>6.1.22</jetty-version>
-        <jersey-version>1.12</jersey-version>
-        <atmosphere-version>0.9-SNAPSHOT</atmosphere-version>
+        <jersey-version>1.14</jersey-version>
+        <atmosphere-version>1.1.0-SNAPSHOT</atmosphere-version>
         <jaxb-version>2.1</jaxb-version>
         <jackson-version>1.3.1</jackson-version>
-        <gwt-version>2.4.0</gwt-version>
         <junit-version>3.8.1</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b74b</servlet-version>
@@ -492,24 +485,25 @@
         <grizzly2-version>2.2.18</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
-        <jetty7-version>7.6.0.v20120127</jetty7-version>
-        <jetty8-version>8.1.3.v20120416</jetty8-version>
-        <jetty9-version>9.0.0.M0</jetty9-version>
+        <jetty7-version>7.6.9.v20130131</jetty7-version>
+        <jetty8-version>8.1.9.v20130131</jetty8-version>
+        <jetty9-version>9.0.0.RC0</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
-        <tomcat7-version>7.0.27</tomcat7-version>
+        <tomcat7-version>7.0.35</tomcat7-version>
         <jgroups-version>3.1.0.Final</jgroups-version>
         <common-logging-version>1.1.1</common-logging-version>
         <scala.version>2.9.2</scala.version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>2.3.6</felix-version>
+        <felix-version>2.3.7</felix-version>
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
         <spring-version>3.0.6.RELEASE</spring-version>
         <wicket.version>1.4.12</wicket.version>
-        <ahc.version>1.7.6</ahc.version>
+        <ahc.version>1.7.7</ahc.version>
         <jedis.version>2.0.0</jedis.version>
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.6.1</slf4j-version>
         <logback-version>0.9.30</logback-version>
+        <jbossaswebsockets-version>0.4-SNAPSHOT</jbossaswebsockets-version>
     </properties>
 </project>

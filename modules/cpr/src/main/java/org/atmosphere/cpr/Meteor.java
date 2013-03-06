@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -173,7 +173,8 @@ public class Meteor {
 
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
-                b = BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
+                BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
+                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }

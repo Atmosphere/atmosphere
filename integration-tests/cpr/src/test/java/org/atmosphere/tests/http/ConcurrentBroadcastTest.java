@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2013 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -18,6 +18,7 @@ package org.atmosphere.tests.http;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JettyCometSupport;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -108,7 +109,7 @@ public class ConcurrentBroadcastTest {
     }
 
     public void configureCometSupport() {
-        atmoServlet.framework().setAsyncSupport(new JettyCometSupport(atmoServlet.framework().getAtmosphereConfig()));
+        atmoServlet.framework().setAsyncSupport(new BlockingIOCometSupport(atmoServlet.framework().getAtmosphereConfig()));
     }
 
     @AfterMethod(alwaysRun = true)

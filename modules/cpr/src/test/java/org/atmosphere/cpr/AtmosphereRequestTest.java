@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -74,7 +74,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        Map<String,String[]> qs = new HashMap<String,String[]>();
+        Map<String, String[]> qs = new HashMap<String, String[]>();
         qs.put("Content-Type", new String[]{"application/xml"});
         qs.put("X-Atmosphere-Transport", new String[]{"long-polling"});
 
@@ -99,7 +99,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "application/xml");
         assertEquals(e2.get().toLowerCase(), "long_polling");
@@ -136,7 +136,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -173,7 +173,7 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -210,8 +210,35 @@ public class AtmosphereRequestTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertEquals(e.get(), "a=b");
+    }
+
+    @Test
+    public void testEncodingOnPreSuspend() throws IOException, ServletException {
+        final AtomicReference<AtmosphereResponse> e = new AtomicReference<AtmosphereResponse>();
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onPreSuspend(AtmosphereResourceEvent event) {
+                        AtmosphereResponse response = event.getResource().getResponse();
+                        response.setCharacterEncoding("utf-8");
+                        e.set(response);
+                    }
+                }).suspend(10);
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+
+        assertEquals(e.get().getCharacterEncoding(), "utf-8");
     }
 }

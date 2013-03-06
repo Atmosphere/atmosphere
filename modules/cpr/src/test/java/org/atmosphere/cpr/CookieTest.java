@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -92,7 +92,7 @@ public class CookieTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.create());
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());

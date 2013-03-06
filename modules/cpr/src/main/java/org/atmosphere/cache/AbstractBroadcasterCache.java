@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -53,7 +53,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void start() {
-        reaper.scheduleAtFixedRate(new Runnable() {
+        scheduledFuture = reaper.scheduleAtFixedRate(new Runnable() {
 
             public void run() {
                 readWriteLock.writeLock().lock();
@@ -75,7 +75,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
                     readWriteLock.writeLock().unlock();
                 }
             }
-        }, 0, invalidateCacheInterval, TimeUnit.MINUTES);
+        }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -144,6 +144,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      * @return this
      */
     public AbstractBroadcasterCache setReaper(ScheduledExecutorService reaper) {
+        if (this.reaper != null) {
+            this.reaper.shutdown();
+        }
         this.reaper = reaper;
         return this;
     }

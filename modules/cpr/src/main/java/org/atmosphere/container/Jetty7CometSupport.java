@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -168,21 +168,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
 
     protected Continuation getContinuation(AtmosphereRequest req) {
         return ContinuationSupport.getContinuation(req);
-    }
-
-    @Override
-    public Action resumed(AtmosphereRequest req, AtmosphereResponse res)
-            throws IOException, ServletException {
-        AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-        AtmosphereHandler atmosphereHandler =
-                (AtmosphereHandler)
-                        req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
-
-        synchronized (r) {
-            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-        }
-        return new Action(Action.TYPE.RESUME);
     }
 
     /**

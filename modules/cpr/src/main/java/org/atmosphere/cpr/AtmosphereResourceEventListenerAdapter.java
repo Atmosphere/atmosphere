@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -32,7 +32,7 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onPreSuspend(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -40,7 +40,7 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onSuspend(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -48,7 +48,7 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onResume(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -56,7 +56,7 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -64,7 +64,7 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onBroadcast(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 
     /**
@@ -72,6 +72,6 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
      */
     @Override
     public void onThrowable(AtmosphereResourceEvent event) {
-        logger.trace("", event);
+        logger.trace("{}", event);
     }
 }

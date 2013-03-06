@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -122,7 +122,7 @@ public @interface Suspend {
     public boolean resumeOnBroadcast() default false;
 
     /**
-     * Add {@link AtmosphereResourceEventListener} to the broadcast operation.
+     * Add {@link AtmosphereResourceEventListener} to track internal events.
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 

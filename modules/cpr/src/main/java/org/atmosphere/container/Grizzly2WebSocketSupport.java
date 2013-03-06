@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -159,7 +159,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                 AtmosphereRequest r = AtmosphereRequest.wrap(g2WebSocket.getRequest());
                 org.atmosphere.websocket.WebSocket webSocket = new Grizzly2WebSocket(g2WebSocket, config);
                 g2WebSocket.getRequest().setAttribute("grizzly.webSocket", webSocket);
-                webSocketProcessor.open(webSocket, r);
+                webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
             } catch (Exception e) {
                 LOGGER.warn("failed to connect to web socket", e);
             }

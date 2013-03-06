@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -77,26 +78,25 @@ public class BroadcasterFuture<E> implements Future {
     private boolean isDone = false;
     private final E msg;
     private final Future<?> innerFuture;
-    private final CopyOnWriteArrayList<BroadcasterListener> listeners;
     private final Broadcaster broadcaster;
     private final AtomicBoolean notified = new AtomicBoolean();
 
-    public BroadcasterFuture(E msg, CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
-        this(null, msg, listeners, b);
+    public BroadcasterFuture(E msg, Broadcaster b) {
+        this(null, msg, b);
     }
 
     public BroadcasterFuture(Future<?> innerFuture, E msg,
-                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
-        this(innerFuture, msg, 1, listeners, b);
+                             Broadcaster b) {
+        this(innerFuture, msg, 1, b);
     }
 
     public BroadcasterFuture(E msg, int latchCount,
-                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
-        this(null, msg, latchCount, listeners, b);
+                             Broadcaster b) {
+        this(null, msg, latchCount, b);
     }
 
     public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount,
-                             CopyOnWriteArrayList<BroadcasterListener> listeners, Broadcaster b) {
+                             Broadcaster b) {
         this.msg = msg;
         this.innerFuture = innerFuture;
         this.broadcaster = b;
@@ -105,7 +105,6 @@ public class BroadcasterFuture<E> implements Future {
         } else {
             latch = null;
         }
-        this.listeners = (listeners == null ? new CopyOnWriteArrayList<BroadcasterListener>() : listeners);
     }
 
     /**
@@ -118,7 +117,6 @@ public class BroadcasterFuture<E> implements Future {
             return innerFuture.cancel(b);
         }
         isCancelled = true;
-        notifyListener();
 
         while (latch.getCount() > 0) {
             latch.countDown();
@@ -160,12 +158,8 @@ public class BroadcasterFuture<E> implements Future {
         isDone = true;
 
         if (latch != null) {
-            if (latch.getCount() - 1 <= 0) {
-                notifyListener();
-            }
             latch.countDown();
         }
-
         return this;
     }
 
@@ -179,21 +173,8 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await();
-        notifyListener();
         return msg;
 
-    }
-
-    void notifyListener() {
-        if (!notified.getAndSet(true)) {
-            for (BroadcasterListener b : listeners) {
-                try {
-                    b.onComplete(broadcaster);
-                } catch (Exception ex) {
-                    logger.warn("", ex);
-                }
-            }
-        }
     }
 
     /**
@@ -207,7 +188,6 @@ public class BroadcasterFuture<E> implements Future {
         }
 
         latch.await(l, tu);
-        notifyListener();
         return msg;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -23,16 +23,26 @@ import java.util.Map;
  * This class is responsible for mapping request to handler like {@link org.atmosphere.cpr.AtmosphereHandler}
  * or {@link org.atmosphere.websocket.WebSocketHandler}
  *
+ * @Jeanfrancois Arcand
  * @param <U>
  */
 public interface EndpointMapper<U> {
 
     /**
      * Mape the request to its associated endpoint.
-     * @param req
-     * @param handlers
-     * @return
+     * @param req an {@link AtmosphereRequest}
+     * @param handlers a map used for mapping the request to.
+     * @return U the result, or null if not mapped
      */
     U map(AtmosphereRequest req, Map<String, U> handlers);
+
+
+    /**
+     * Mape the request to its associated endpoint.
+     * @param path a URI
+     * @param handlers a map used for mapping the request to.
+     * @return U the result, or null if not mapped
+     */
+    U map(String path, Map<String, U> handlers);
 
 }

@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2013 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -19,7 +19,6 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -94,17 +93,19 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             return null;
         }
         String pathInfo = resource.getRequest().getPathInfo();
+        String requestURI = resource.getRequest().getRequestURI();
 
         if (d.startsWith(delimiter)) {
             int delimiterLength = delimiter.length();
             int bodyBeginIndex = d.indexOf(delimiter, delimiterLength);
             if (bodyBeginIndex != -1) {
                 pathInfo = d.substring(delimiterLength, bodyBeginIndex);
+                requestURI += pathInfo;
                 d = d.substring(bodyBeginIndex + delimiterLength);
             }
         }
 
-        Map<String,Object> m = new HashMap<String, Object>();
+        Map<String, Object> m = new HashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
         // Propagate the original attribute to WebSocket message.
         m.putAll(resource.getRequest().attributes());
@@ -119,6 +120,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .body(d)
                 .attributes(m)
                 .pathInfo(pathInfo)
+                .requestURI(requestURI)
                 .destroyable(destroyable)
                 .headers(resource.getRequest().headersMap())
                 .session(resource.session())
@@ -132,7 +134,39 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
      */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
-        return onMessage(webSocket, new String(d, offset, length));
+
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        if (resource == null) {
+            logger.trace("The WebSocket has been closed before the message was processed.");
+            return null;
+        }
+        String pathInfo = resource.getRequest().getPathInfo();
+        String requestURI = resource.getRequest().getRequestURI();
+
+
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+        // Propagate the original attribute to WebSocket message.
+        m.putAll(resource.getRequest().attributes());
+
+        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+
+        // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
+        list.add(new AtmosphereRequest.Builder()
+                .request(resource.getRequest())
+                .method(methodType)
+                .contentType(contentType)
+                .body(d, offset, length)
+                .attributes(m)
+                .pathInfo(pathInfo)
+                .requestURI(requestURI)
+                .destroyable(destroyable)
+                .headers(resource.getRequest().headersMap())
+                .session(resource.session())
+                .build());
+
+        return list;
     }
 
     /**

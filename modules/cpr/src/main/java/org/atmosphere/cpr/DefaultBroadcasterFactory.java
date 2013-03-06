@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -62,6 +62,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
@@ -91,10 +93,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
+        this.factory = this;
         config = c;
-        if (factory == null) {
-            this.factory = this;
-        }
         configure(broadcasterLifeCyclePolicy);
     }
 
@@ -149,11 +149,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throw new NullPointerException("Class is null");
         }
 
-        if (store.containsKey(id)) {
-            throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
-        }
-
-        return lookup(c, id, true);
+        return lookup(c, id, true, true);
     }
 
     private Broadcaster createBroadcaster(Class<? extends Broadcaster> c, Object id) throws BroadcasterCreationException {
@@ -162,7 +158,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             InjectorProvider.getInjector().inject(b);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config));
+                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config, id.toString()));
             }
 
             b.setBroadcasterLifeCyclePolicy(policy);
@@ -173,6 +169,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             for (BroadcasterListener l : broadcasterListeners) {
                 b.addBroadcasterListener(l);
             }
+            logger.trace("Broadcaster {} was created {}", id, b);
+
             notifyOnPostCreate(b);
             return b;
         } catch (Throwable t) {
@@ -224,33 +222,44 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
      */
     @Override
     public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
-        Broadcaster b = store.get(id);
-        if (b != null && !c.isAssignableFrom(b.getClass())) {
-            String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
-            logger.debug(msg);
-            throw new IllegalStateException(msg);
+        return lookup(c, id, createIfNull, false);
+    }
+
+    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull, boolean unique) {
+        synchronized(id) {
+            logger.trace("About to create {}", id);
+            if (unique && store.get(id) != null) {
+                throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
+            }
+
+            Broadcaster b = store.get(id);
+            logger.trace("Looking in the store using {} returned {}", id, b);
+            if (b != null && !c.isAssignableFrom(b.getClass())) {
+                String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
+                logger.debug(msg);
+                throw new IllegalStateException(msg);
+            }
+
+            if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
+                if (b != null) {
+                    logger.trace("Removing destroyed Broadcaster {}", b.getID());
+                    store.remove(b.getID(), b);
+                }
+
+                Broadcaster nb = store.get(id);
+                if (nb == null) {
+                    nb = createBroadcaster(c, id);
+                    store.put(id, nb);
+                }
+
+                if (nb == null) {
+                    logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
+                }
+
+                b = nb;
+            }
+            return b;
         }
-
-        if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
-            if (b != null) {
-                logger.debug("Removing destroyed Broadcaster {}", b.getID());
-                store.remove(b.getID(), b);
-            }
-
-            Broadcaster nb = store.get(id);
-            if (nb == null) {
-                nb = createBroadcaster(c, id);
-                store.put(id, nb);
-            }
-
-            if (nb == null) {
-                logger.debug("Added Broadcaster {} . Factory size: {}", id, store.size());
-            }
-
-            b = nb;
-        }
-
-        return b;
     }
 
     /**
@@ -352,6 +361,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             throws InstantiationException, IllegalAccessException {
 
         factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);
+         c.framework().setBroadcasterFactory(factory);
         return factory;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -56,9 +56,11 @@ package org.atmosphere.cpr;
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.di.ServletContextProvider;
+import org.atmosphere.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -71,6 +73,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
+
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
@@ -357,8 +363,27 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
 
+        // https://github.com/Atmosphere/atmosphere/issues/920
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
+        boolean webSocketSupported = (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT));
+        if (!webSocketSupported) {
+            try {
+                Enumeration<String> connection = req.getHeaders("Connection");
+                if (connection != null && connection.hasMoreElements()) {
+                    String[] e = connection.nextElement().toString().split(",");
+                    for (String upgrade : e) {
+                        if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
+                            webSocketSupported = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                logger.trace("", ex);
+            }
+        }
+
+        if (webSocketSupported){
             cometEvent.close();
         }
     }
@@ -379,7 +404,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
             synchronized (framework.asyncSupport) {
-                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)) {
+                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)
+                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
                     AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
@@ -390,7 +416,13 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                 }
             }
         }
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        if (framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
+            logger.trace("Dispatching websocket event: " + httpEvent);
+            ((JBossWebSocketSupport) framework.asyncSupport).dispatch(httpEvent);
+        } else {
+            logger.trace("Dispatching comet event: " + httpEvent);
+            framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        }
     }
 
 }

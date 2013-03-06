@@ -1,5 +1,5 @@
 /*
-* Copyright 2012 Jeanfrancois Arcand
+* Copyright 2013 Jeanfrancois Arcand
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -210,8 +210,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         super.writeError(r, errorCode, message);
         if (!firstWrite.get()) {
-            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed {}:{}. " +
-                    "The WebSocket connection is still open and client can continue sending messages.", message, errorCode);
+            logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
+                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + message, retrieveUUID());
         } else {
             logger.debug("{} {}", errorCode, message);
         }
@@ -253,10 +253,13 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     abstract public boolean isOpen();
 
-    abstract public void write(String s) throws IOException;
+    abstract public WebSocket write(String s) throws IOException;
 
-    abstract public void write(byte[] b, int offset, int length) throws IOException;
+    abstract public WebSocket write(byte[] b, int offset, int length) throws IOException;
 
     abstract public void close();
 
+    protected String retrieveUUID() {
+        return r == null ? "null" : r.uuid();
+    }
 }

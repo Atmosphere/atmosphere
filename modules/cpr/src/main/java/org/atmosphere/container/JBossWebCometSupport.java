@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -79,6 +79,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
     public static final String HTTP_EVENT = "HttpEvent";
     private final static String SUSPENDED = JBossWebCometSupport.class.getName() + ".suspended";
+
+    private static final IllegalStateException unableToDetectComet = new IllegalStateException(unableToDetectComet());
     private final Boolean closeConnectionOnInputStream;
 
     public JBossWebCometSupport(AtmosphereConfig config) {
@@ -90,8 +92,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     /**
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
-     * @param req the {@link AtmosphereRequest}
-     * @param res the {@link AtmosphereResponse}
+     * @param req the {@link org.atmosphere.cpr.AtmosphereRequest}
+     * @param res the {@link org.atmosphere.cpr.AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -101,7 +103,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
-            throw new IllegalStateException(unableToDetectComet());
+            throw unableToDetectComet;
         }
 
         Action action = null;

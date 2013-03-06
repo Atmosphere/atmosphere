@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -63,7 +63,6 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moments between requests.
  * You can use it's associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
  * <br/>
- * You can retrieve the AtmosphereResource can be retrieved as an attribute {@link FrameworkConfig#ATMOSPHERE_RESOURCE}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -75,6 +74,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
+    private boolean cookieComputed = false;
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -111,6 +111,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     public boolean destroyed() {
         return destroyed.get();
+    }
+
+    public AtmosphereRequest destroyable(boolean destroyable) {
+        b.destroyable = destroyable;
+        return this;
     }
 
     /**
@@ -311,9 +316,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Cookie[] getCookies() {
-        Cookie[] c = b.request.getCookies();
-        if (c != null && c.length > 0) {
-            b.cookies.addAll(Arrays.asList(c));
+        if (!cookieComputed) {
+            cookieComputed = true;
+            Cookie[] c = b.request.getCookies();
+            if (c != null && c.length > 0) {
+                b.cookies.addAll(Arrays.asList(c));
+            }
         }
         return b.cookies.toArray(new Cookie[]{});
     }
@@ -493,7 +501,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             Map<String, List<String>> m = decoder.getParameters();
             Map<String, String[]> newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
-                newM.put(q.getKey(), q.getValue().toArray(new String[m.size()]));
+                newM.put(q.getKey(), q.getValue().toArray(new String[q.getValue().size()]));
             }
             b.queryStrings(newM);
         }
@@ -840,14 +848,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Locale getLocale() {
-        return b.request.getLocale();
+        return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
     }
 
     /**
      * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
      * method will return null.
      *
-     * @return an {@link AtmosphereResource}, or null.
+     * @return an {@link AtmosphereResource}, or null if no resource has ben associated yet.
      */
     public AtmosphereResource resource() {
         return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
@@ -858,7 +866,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<Locale> getLocales() {
-        return b.request.getLocales();
+        return  isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
     }
 
     /**
@@ -974,6 +982,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
         private Set<Cookie> cookies = new HashSet<Cookie>();
+        private Set<Locale> locales = new HashSet<Locale>();
+
 
         private String contextPath = "";
         private String serverName = "";
@@ -1135,6 +1145,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             } else {
                 webSocketFakeSession = session;
             }
+            return this;
+        }
+
+        public Builder locale(Locale locale){
+            locales.add(locale);
             return this;
         }
     }
@@ -1528,7 +1543,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      *
      * @return an instance of this class without an associated {@link HttpServletRequest}
      */
-    public final static AtmosphereRequest create() {
+    public final static AtmosphereRequest newInstance() {
         return new Builder().build();
     }
 
@@ -1556,6 +1571,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
         Builder b;
         HttpServletRequest r;
+
+        Cookie[] cs = request.getCookies();
+        Set<Cookie> hs = new HashSet();
+        for (Cookie c: cs) {
+            hs.add(c);
+        }
+
         boolean isWrapped = false;
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             b = AtmosphereRequest.class.cast(request).b;
@@ -1573,7 +1595,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .method(request.getMethod())
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
+                .remoteAddr(request.getRemoteAddr())
+                .remoteHost(request.getRemoteHost())
+                .remotePort(request.getRemotePort())
                 .destroyable(isDestroyable)
+                .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
 
         if (loadInMemory) {
@@ -1585,13 +1611,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
             b.request(r);
         }
-
-        Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = new HashSet();
-        for (Cookie c : cs) {
-            hs.add(c);
-        }
-        b.cookies(hs);
 
         return isWrapped ? AtmosphereRequest.class.cast(request) : b.build();
     }
@@ -1616,6 +1635,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             b.queryStrings.put(s, request.getParameterValues(s));
         }
         b.queryString = request.getQueryString();
+
+        Enumeration<Locale> l = request.getLocales();
+        while (l.hasMoreElements()) {
+            b.locale(l.nextElement());
+        }
     }
 
     @Override
@@ -1627,6 +1651,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     " pathInfo=" + getPathInfo() +
                     " requestURI=" + getRequestURI() +
                     " requestURL=" + getRequestURL() +
+                    " AtmosphereResource UUID=" + resource() != null ? resource().uuid() : "" +
                     " destroyable=" + b.destroyable +
                     '}';
         } catch (Exception e) {

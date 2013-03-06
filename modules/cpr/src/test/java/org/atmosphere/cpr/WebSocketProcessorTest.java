@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -107,7 +107,43 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+        BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
+
+        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
+
+    }
+
+
+    @Test
+    public void basicBackwardCompatbileWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        framework.addInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR, "true")
+                .addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.getBroadcaster().addAtmosphereResource(resource);
+                resource.getResponse().write(resource.getRequest().getReader().readLine());
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                event.write(event.getMessage().toString().getBytes());
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -146,7 +182,7 @@ public class WebSocketProcessorTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
@@ -186,7 +222,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Disconnect", DISCONNECT, w));
 
@@ -224,7 +260,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
 
@@ -247,13 +283,15 @@ public class WebSocketProcessorTest {
         }
 
         @Override
-        public void write(String s) throws IOException {
+        public WebSocket write(String s) throws IOException {
             outputStream.write(s.getBytes());
+            return this;
         }
 
         @Override
-        public void write(byte[] b, int offset, int length) throws IOException {
+        public WebSocket write(byte[] b, int offset, int length) throws IOException {
             outputStream.write(b, offset, length);
+            return this;
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -19,14 +19,10 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketResponseFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tomcat WebSocket Support
@@ -43,31 +39,54 @@ public class TomcatWebSocket extends WebSocket {
     }
 
     @Override
-    public String toString() {
-        return outbound.toString();
-    }
-
-    @Override
     public boolean isOpen() {
         return true;
     }
 
     @Override
-    public void write(String s) throws IOException {
+    public WebSocket write(String s) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         outbound.writeTextMessage(CharBuffer.wrap(s));
+        return this;
     }
 
     @Override
-    public void write(byte[] b, int offset, int length) throws IOException {
+    public WebSocket write(byte[] b, int offset, int length) throws IOException {
+        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
         outbound.writeBinaryMessage(ByteBuffer.wrap(b, offset, length));
+        return this;
     }
 
     @Override
     public void close() {
         try {
+            logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
             outbound.close(1005, ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
             logger.trace("", e);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void close(AtmosphereResponse r) throws IOException {
+        logger.trace("WebSocket.close()");
+        outbound.close(1005, ByteBuffer.wrap(new byte[0]));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WebSocket flush(AtmosphereResponse r) throws IOException {
+        outbound.flush();
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return outbound.toString();
     }
 }

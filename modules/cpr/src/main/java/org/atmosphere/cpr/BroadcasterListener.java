@@ -25,4 +25,13 @@ public interface BroadcasterListener {
      */
     void onPreDestroy(Broadcaster b);
 
+
+    /**
+     * Throw this exception to interrupt the {@link org.atmosphere.cpr.Broadcaster#destroy()} operation.
+     */
+    public final static class BroadcastListenerException extends RuntimeException {
+
+        public BroadcastListenerException(){
+        }
+    }
 }

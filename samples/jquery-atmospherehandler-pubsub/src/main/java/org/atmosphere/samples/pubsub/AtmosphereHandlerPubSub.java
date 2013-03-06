@@ -16,6 +16,10 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
+import org.atmosphere.config.service.Get;
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.Message;
+import org.atmosphere.config.service.Post;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -37,38 +41,23 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-@AtmosphereHandlerService
-public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler {
+@ManagedService(path = "/")
+public class AtmosphereHandlerPubSub  {
 
-    @Override
+    @Get
     public void onRequest(AtmosphereResource r) throws IOException {
 
-        AtmosphereRequest req = r.getRequest();
-        AtmosphereResponse res = r.getResponse();
-        String method = req.getMethod();
-
-        // Suspend the response.
-        if ("GET".equalsIgnoreCase(method)) {
-            // Log all events on the console, including WebSocket events.
-            r.addEventListener(new WebSocketEventListenerAdapter());
-
-            res.setContentType("text/html;charset=ISO-8859-1");
-
-            Broadcaster b = lookupBroadcaster(req.getPathInfo());
-            r.setBroadcaster(b).suspend(-1);
-        } else if ("POST".equalsIgnoreCase(method)) {
-            Broadcaster b = lookupBroadcaster(req.getPathInfo());
-
-            String message = req.getReader().readLine();
-
-            if (message != null && message.indexOf("message") != -1) {
-                b.broadcast(message.substring("message=".length()));
-            }
-        }
+        Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
+        r.setBroadcaster(b);
     }
 
-    @Override
-    public void destroy() {
+    @Message
+    public String onMessage(String message) throws IOException {
+        if (message != null && message.indexOf("message") != -1) {
+            return (message.substring("message=".length()));
+        } else {
+            return "=error=";
+        }
     }
 
     /**

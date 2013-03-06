@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -14,6 +14,8 @@
  * the License.
  */
 package org.atmosphere.util;
+
+import org.atmosphere.cpr.AtmosphereResponse;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
@@ -45,6 +47,4 @@ public final class Utils {
         }
         return webSocketEnabled;
     }
-
-
 }

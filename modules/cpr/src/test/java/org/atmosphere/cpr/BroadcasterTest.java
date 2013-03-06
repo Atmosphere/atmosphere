@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jean-Francois Arcand
+ * Copyright 2013 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -44,12 +44,13 @@ public class BroadcasterTest {
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereRequest.newInstance(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -58,7 +59,7 @@ public class BroadcasterTest {
 
     @AfterMethod
     public void unSetUp() throws Exception {
-        broadcaster.removeAtmosphereResource(ar);
+        broadcaster.destroy();
         atmosphereHandler.value.set(new HashSet());
     }
 
@@ -74,6 +75,54 @@ public class BroadcasterTest {
 
         broadcaster.broadcast("foo").get();
         assertEquals(atmosphereHandler.value.get(), new HashSet());
+    }
+
+    @Test
+    public void testAtmosphereResourceCancel() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+
+        AtmosphereResourceImpl.class.cast(ar).cancel();
+        AtmosphereResourceImpl.class.cast(ar)._destroy();
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
+    }
+
+    @Test
+    public void testTimeoutAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE,ar);
+        ar.getAtmosphereConfig().framework().setAsyncSupport(new AsynchronousProcessor(ar.getAtmosphereConfig()) {
+            @Override
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return Action.CONTINUE;
+            }
+        });
+
+        AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).timedout(ar.getRequest(), ar.getResponse());
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
+    }
+
+    @Test
+    public void testCancelAtmosphereResource() throws ExecutionException, InterruptedException, ServletException, IOException {
+        Broadcaster two = ar.getAtmosphereConfig().getBroadcasterFactory().get(DefaultBroadcaster.class, "two");
+        two.addAtmosphereResource(ar);
+        ar.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, ar);
+        ar.getAtmosphereConfig().framework().setAsyncSupport(new AsynchronousProcessor(ar.getAtmosphereConfig()) {
+            @Override
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return Action.CONTINUE;
+            }
+        });
+
+        AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).cancelled(ar.getRequest(), ar.getResponse());
+
+        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
+        assertEquals(two.getAtmosphereResources().size(), 0);
     }
 
     @Test
@@ -109,19 +158,19 @@ public class BroadcasterTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar2 = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar3 = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequest.class),
-                AtmosphereResponse.create(),
+                AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

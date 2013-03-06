@@ -186,7 +186,7 @@ public class PubSub {
      * @return A {@link Broadcastable} used to broadcast events.
      */
     @POST
-    @Broadcast(value = {StringFilterAggregator.class})
+    @Broadcast(filters = {StringFilterAggregator.class})
     @Path("aggregate")
     public Broadcastable aggregate(@FormParam("message") String message) {
         return broadcast(message);

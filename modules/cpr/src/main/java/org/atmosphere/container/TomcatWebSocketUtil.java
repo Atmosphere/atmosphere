@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -46,8 +46,11 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -100,6 +103,12 @@ public class TomcatWebSocketUtil {
                 return delegate.doService(req, res);
             }
 
+            String requireSameOrigin = config.getInitParameter(ApplicationConfig.WEBSOCKET_REQUIRE_SAME_ORIGIN);
+            if (Boolean.valueOf(requireSameOrigin) && !verifyOrigin(req)) {
+                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Origin header does not match expected value");
+                return new Action(Action.TYPE.CANCELLED);
+            }
+
             // If we got this far, all is good. Accept the connection.
             res.setHeader("Upgrade", "websocket");
             res.setHeader("Connection", "upgrade");
@@ -130,6 +139,33 @@ public class TomcatWebSocketUtil {
             req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
         }
         return action;
+    }
+
+    private static boolean verifyOrigin(HttpServletRequest req) {
+        String origin = req.getHeader("Origin");
+        if (origin == null) {
+            return false;
+        }
+
+        try {
+            URI requestUri = new URI(req.getRequestURL().toString());
+            URI originUri = new URI(origin);
+
+            // First check that the protocol (http, https, etc) is not null and matches
+            if (requestUri.getScheme() != null && originUri.getScheme() != null &&
+                    requestUri.getScheme().equals(originUri.getScheme())) {
+
+                // If the authority (userinfo@hostname:port) is not null and matches, then the origin is verified
+                if (requestUri.getAuthority() != null && originUri.getAuthority() != null &&
+                        requestUri.getAuthority().equals(originUri.getAuthority())) {
+                    return true;
+                }
+            }
+        } catch (URISyntaxException e) {
+            logger.error("Unable to verify request origin", e);
+        }
+
+        return false;
     }
 
     /*

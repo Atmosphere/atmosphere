@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,12 +21,16 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
@@ -65,6 +69,14 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         if (!Utils.webSocketEnabled(request)) {
             return super.service(request, response);
         } else {
+            boolean webSocketNotSupported = request.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null;
+
+            if (webSocketNotSupported)  {
+                response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+                response.sendError(501, "Websocket protocol not supported");
+                return Action.CANCELLED;
+            }
+
             return suspended(request, response);
         }
     }
