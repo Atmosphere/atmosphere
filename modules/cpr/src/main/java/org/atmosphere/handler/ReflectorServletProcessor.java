@@ -110,7 +110,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
                 Thread.currentThread().getContextClassLoader());
 
         loadServlet(sc, urlC);
-        if (filters.isEmpty()) {
+        if (!filters.isEmpty()) {
             loadFilterInstances(sc);
         } else {
             loadFilterClasses(sc, urlC);
@@ -136,6 +136,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC)
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+
         for (Map.Entry<String, String> fClassAndName : filtersClassAndNames.entrySet()) {
             String fClass = fClassAndName.getKey();
             String filterName = fClassAndName.getValue();
