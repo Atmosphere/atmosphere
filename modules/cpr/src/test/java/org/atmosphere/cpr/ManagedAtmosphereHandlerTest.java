@@ -191,8 +191,8 @@ public class ManagedAtmosphereHandlerTest {
         }
 
         @Message
-        public void message(AtmosphereResourceEvent event) {
-            message.set(event.getMessage().toString());
+        public void message(String m) {
+            message.set(m);
         }
     }
 
