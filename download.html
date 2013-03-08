@@ -143,6 +143,22 @@
             <img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1"
                  height="1">
         </form>
+
+        <h3> Questions? Use our forum</h3>
+
+        <iframe id="forum_embed"
+                src="javascript:void(0)"
+                scrolling="no"
+                frameborder="0"
+                width="900"
+                height="700">
+        </iframe>
+        <script type="text/javascript">
+            document.getElementById('forum_embed').src =
+                    'https://groups.google.com/forum/embed/?place=forum/atmosphere-framework'
+                            + '&showsearch=true&showpopout=true&showtabs=false'
+                            + '&parenturl=' + encodeURIComponent(window.location.href);
+        </script>
         <footer>
             <p>©2013. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
                     href="http://twitter.com/asyncio">Twitter</a></p>
