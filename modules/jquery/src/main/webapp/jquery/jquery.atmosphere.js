@@ -2095,6 +2095,7 @@ jQuery.atmosphere = function() {
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
                     uuid : _request.uuid,
+                    messageDelimiter : '|',
                     enableProtocol : false,
                     maxReconnectOnClose : _request.maxReconnectOnClose
                 };
