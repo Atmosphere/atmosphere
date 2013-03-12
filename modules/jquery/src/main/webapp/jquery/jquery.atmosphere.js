@@ -49,7 +49,7 @@ jQuery.atmosphere = function() {
     };
 
     return {
-        version : "1.0.12",
+        version : "1.0.13-SNAPSHOT",
         requests : [],
         callbacks : [],
 
