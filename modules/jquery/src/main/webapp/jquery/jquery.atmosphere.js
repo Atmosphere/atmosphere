@@ -2250,7 +2250,6 @@ jQuery.atmosphere = function() {
                         _localSocketF(_response.responseBody);
                     }
 
-                    // Ugly see issue 400.
                     if (_response.responseBody.length == 0 && _response.state == "messageReceived") {
                         continue;
                     }
