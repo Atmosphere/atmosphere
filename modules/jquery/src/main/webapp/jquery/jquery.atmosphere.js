@@ -1221,12 +1221,9 @@ jQuery.atmosphere = function() {
                     if (messages.length != 0) {
                         response.responseBody = messages.join(request.messageDelimiter);
                         return false;
-                    } else {
-                        return true;
                     }
-                } else {
-                    response.responseBody = message;
                 }
+                response.responseBody = message;
                 return false;
             }
 
