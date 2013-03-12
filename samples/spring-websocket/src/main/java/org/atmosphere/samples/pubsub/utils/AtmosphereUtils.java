@@ -51,10 +51,13 @@ public final class AtmosphereUtils {
             }
         });
         resource.suspend();
-        try {
-            countDownLatch.await();
-        } catch (InterruptedException e) {
-            LOG.error("Interrupted while trying to suspend resource {}", resource);
+        // If a BroadcasterCache is used, the resource may not have been suspended when transport == long-polling
+        if (resource.isSuspended()) {
+            try {
+                countDownLatch.await();
+            } catch (InterruptedException e) {
+                LOG.error("Interrupted while trying to suspend resource {}", resource);
+            }
         }
     }
 }
