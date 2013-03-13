@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public final static String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
-    private final ScheduledExecutorService heartBeat = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledExecutorService heartBeat;
     private static final byte[] padding;
     private static final String paddingText;
     private int heartbeatFrequencyInSeconds = 30;
@@ -65,6 +66,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         if (s != null) {
             heartbeatFrequencyInSeconds = Integer.valueOf(s);
         }
+        heartBeat = ExecutorsFactory.getScheduler(config);
     }
 
     @Override
