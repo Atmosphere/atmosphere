@@ -1240,6 +1240,7 @@ jQuery.atmosphere = function() {
                         response.responseBody = messages.join(request.messageDelimiter);
                         return false;
                     } else {
+                        response.responseBody = "";
                         return true;
                     }
                 } else {
