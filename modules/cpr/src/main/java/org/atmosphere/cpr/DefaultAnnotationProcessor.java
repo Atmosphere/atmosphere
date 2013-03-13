@@ -63,20 +63,14 @@ import java.util.List;
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
-    protected AtmosphereFramework framework;
     private org.slf4j.Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
+    protected AnnotationDetector detector;
 
     public DefaultAnnotationProcessor() {
     }
 
     @Override
-    public AnnotationProcessor configure(AtmosphereFramework framework) {
-        this.framework = framework;
-        return this;
-    }
-
-    @Override
-    public AnnotationProcessor scan(File rootDir) throws IOException {
+    public AnnotationProcessor configure(final AtmosphereFramework framework) {
         final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
 
             @SuppressWarnings("unchecked")
@@ -334,9 +328,20 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 }
 
         };
-        logger.trace("Scanning @Service annotations in {}", rootDir.getAbsolutePath());
-        final AnnotationDetector cf = new AnnotationDetector(reporter);
-        cf.detect(rootDir);
+        detector = new AnnotationDetector(reporter);
+        return this;
+    }
+
+    @Override
+    public AnnotationProcessor scan(File rootDir) throws IOException {
+        detector.detect(rootDir);
+        return this;
+    }
+
+    @Override
+    public AnnotationProcessor scan(String packageName) throws IOException {
+        logger.trace("Scanning @Service annotations in {}", packageName);
+        detector.detect(packageName);
         return this;
     }
 

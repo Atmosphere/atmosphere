@@ -33,7 +33,7 @@ public interface AnnotationProcessor {
     public AnnotationProcessor configure(AtmosphereFramework framework);
 
     /**
-     * Scan the {@link File} looking for classe annotated with Atmosphere's Service annotation.
+     * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
      *
      * @param rootDir
      * @throws IOException
@@ -41,4 +41,10 @@ public interface AnnotationProcessor {
      */
     public AnnotationProcessor scan(File rootDir) throws IOException;
 
+    /**
+     * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
+     * @param packageName
+     * @return this
+     */
+    public AnnotationProcessor scan(String packageName) throws IOException;
 }

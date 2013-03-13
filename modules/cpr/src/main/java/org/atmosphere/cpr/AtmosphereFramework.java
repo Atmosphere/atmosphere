@@ -180,6 +180,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
+    protected final List<String> packages = new ArrayList<String>();
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -1839,6 +1840,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                     }
                 }
             }
+
+            if (packages.size() > 0) {
+                for (String s: packages){
+                    p.scan(s);
+                }
+            }
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
@@ -1852,6 +1859,16 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     public AtmosphereFramework endPointMapper(EndpointMapper endpointMapper) {
         this.endpointMapper = endpointMapper;
+        return this;
+    }
+
+    /**
+     * Add support for package detecttion of Atmosphere's Component.
+     * @param clazz a Class
+     * @return this.
+     */
+    public AtmosphereFramework addAnnotationPackage(Class<?> clazz){
+        packages.add(clazz.getPackage().getName());
         return this;
     }
 
