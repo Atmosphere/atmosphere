@@ -530,6 +530,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             this.servletConfig = scFacade;
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            configureScanningPackage(sc);
             installAnnotationProcessor(scFacade);
 
             autoConfigureService(scFacade.getServletContext());
@@ -587,6 +588,16 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         isInit = true;
         return this;
+    }
+
+    protected void configureScanningPackage(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PACKAGE);
+        if (s != null) {
+            String[] list = s.split(",");
+            for (String a : list) {
+                packages.add(a);
+            }
+        }
     }
 
     /**
