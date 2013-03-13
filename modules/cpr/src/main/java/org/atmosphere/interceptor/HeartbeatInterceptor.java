@@ -48,7 +48,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
     private static final String paddingText;
-    private int heartbeatFrequencyInSeconds = 5;
+    private int heartbeatFrequencyInSeconds = 30;
 
     static {
         StringBuffer whitespace = new StringBuffer();
@@ -87,24 +87,19 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
                         if (writeFuture != null) {
-                            writeFuture.cancel(true);
+                            writeFuture.cancel(false);
                         }
                         return responseDraft;
                     }
 
                     @Override
                     public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
-                        // Cancel the previous one
-                        if (writeFuture != null) {
-                            writeFuture.cancel(true);
-                        }
-                        Thread.dumpStack();
-                        logger.debug("Scheduling heartbeat for {}", r.uuid());
+                        logger.trace("Scheduling heartbeat for {}", r.uuid());
 
                         writeFuture = heartBeat.schedule(new Callable<Object>() {
                             @Override
                             public Object call() throws Exception {
-                                logger.debug("Writing heartbeat for {}", r.uuid());
+                                logger.trace("Writing heartbeat for {}", r.uuid());
                                 response.write(paddingText, true);
                                 return null;
                             }
