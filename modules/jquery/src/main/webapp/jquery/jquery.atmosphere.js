@@ -2249,12 +2249,8 @@ jQuery.atmosphere = function() {
                     }
 
                     // Ugly see issue 400.
-                    if (_response.responseBody.length == 0 && _response.transport == 'streaming' && _response.state == "messageReceived") {
-                        var ua = navigator.userAgent.toLowerCase();
-                        var isAndroid = ua.indexOf("android") > -1;
-                        if (isAndroid) {
-                            continue;
-                        }
+                    if (_response.responseBody.length == 0 && _response.state == "messageReceived") {
+                        continue;
                     }
 
                     _invokeFunction(_response);
