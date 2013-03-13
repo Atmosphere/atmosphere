@@ -18,7 +18,6 @@ $(function () {
         logLevel : 'debug',
         transport : transport ,
         trackMessageLength : true,
-        enableProtocol : true,
         fallbackTransport: 'long-polling'};
 
 

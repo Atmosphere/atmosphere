@@ -43,12 +43,12 @@ import java.util.concurrent.TimeUnit;
 public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     public final static String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
+    public final static String INTERCEPTOR_ADDED = HeartbeatInterceptor.class.getName();
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
-    private static final byte[] padding;
     private static final String paddingText;
-    private int heartbeatFrequencyInSeconds = 30;
+    private int heartbeatFrequencyInSeconds = 5;
 
     static {
         StringBuffer whitespace = new StringBuffer();
@@ -57,7 +57,6 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         }
         whitespace.append("\n");
         paddingText = whitespace.toString();
-        padding = paddingText.getBytes();
     }
 
     @Override
@@ -80,7 +79,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass()) && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     Future<?> writeFuture;
@@ -95,15 +94,24 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
+                        // Cancel the previous one
+                        if (writeFuture != null) {
+                            writeFuture.cancel(true);
+                        }
+                        Thread.dumpStack();
+                        logger.debug("Scheduling heartbeat for {}", r.uuid());
+
                         writeFuture = heartBeat.schedule(new Callable<Object>() {
                             @Override
                             public Object call() throws Exception {
+                                logger.debug("Writing heartbeat for {}", r.uuid());
                                 response.write(paddingText, true);
                                 return null;
                             }
                         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
                     }
                 });
+                r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
             }
         }
         return Action.CONTINUE;
