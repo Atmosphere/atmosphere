@@ -81,7 +81,7 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
             invoke(onPutMethod, resource);           
         }
 
-        if (b.equals(resource.getBroadcaster())) {
+        if (b.equals(resource.getBroadcaster()) && resource.isSuspended()) {
             b.removeAtmosphereResource(resource);
             resource.getBroadcaster().addAtmosphereResource(resource);
         }
