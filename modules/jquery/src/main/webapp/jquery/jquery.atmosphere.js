@@ -2090,6 +2090,7 @@ jQuery.atmosphere = function() {
                     uuid : _request.uuid,
                     dispatchUrl: _request.dispatchUrl,
                     enableProtocol : false,
+                    messageDelimiter : '|',
                     maxReconnectOnClose : _request.maxReconnectOnClose
                 };
 
