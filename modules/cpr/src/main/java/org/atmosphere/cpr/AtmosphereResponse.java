@@ -529,6 +529,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(int i) throws java.io.IOException {
+                    if (asyncIOWriter == null) return;
+
                     writeStatusAndHeaders();
 
                     // Prevent StackOverflow
@@ -546,6 +548,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(byte[] bytes) throws java.io.IOException {
+                    if (asyncIOWriter == null) return;
+
                     writeStatusAndHeaders();
 
                     // Prevent StackOverflow
@@ -563,6 +567,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
+                    if (asyncIOWriter == null) return;
+
                     writeStatusAndHeaders();
 
                     // Prevent StackOverflow
@@ -580,6 +586,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void flush() throws IOException {
+                    if (asyncIOWriter == null) return;
+
                     writeStatusAndHeaders();
 
                     // Prevent StackOverflow
@@ -597,6 +605,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void close() throws java.io.IOException {
+                    if (asyncIOWriter == null) return;
+
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
@@ -657,6 +667,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             return new PrintWriter(getOutputStream()) {
                 @Override
                 public void write(char[] chars, int offset, int lenght) {
+                    if (asyncIOWriter == null) return;
+
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     try {
@@ -672,6 +684,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(char[] chars) {
+                    if (asyncIOWriter == null) return;
+
                     boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
@@ -687,6 +701,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(String s, int offset, int lenght) {
+                    if (asyncIOWriter == null) return;
+
                     boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
@@ -702,6 +718,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(String s) {
+                    if (asyncIOWriter == null) return;
+
                     boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
@@ -717,6 +735,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void flush() {
+                    if (asyncIOWriter == null) return;
+
                     boolean b = forceAsyncIOWriter;
                     try {
                         writeStatusAndHeaders();
@@ -732,6 +752,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void close() {
+                    if (asyncIOWriter == null) return;
+
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
                     forceAsyncIOWriter = false;
