@@ -135,6 +135,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*_=@;\\?]+";
+    public static final String ROOT = "/*";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
@@ -698,7 +699,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
                 if (mapping == null) {
-                    mapping = "/*";
+                    mapping = ROOT;
                 }
                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
@@ -928,7 +929,10 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
         if (mapping == null) {
-            mapping = "/*";
+            mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
+            if (mapping == null) {
+                mapping = ROOT;
+            }
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
 
@@ -992,7 +996,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (atmosphereHandlers.size() == 0 && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
-            addAtmosphereHandler("/*", new AbstractReflectorAtmosphereHandler() {
+            addAtmosphereHandler(ROOT, new AbstractReflectorAtmosphereHandler() {
                 @Override
                 public void onRequest(AtmosphereResource r) throws IOException {
                     logger.debug("No AtmosphereHandler defined.");
