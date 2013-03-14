@@ -480,7 +480,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 public Enumeration<String> getInitParameterNames() {
                     return Collections.enumeration(initParams.values());
                 }
-            });
+            }, false);
         } catch (ServletException e) {
             logger.error("",e);
         }
@@ -493,40 +493,59 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
+        return init(sc, true);
+    }
+
+    /**
+     * Initialize the AtmosphereFramework using the {@link ServletContext}
+     *
+     * @param sc the {@link ServletContext}
+     */
+    public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
         try {
             ServletContextHolder.register(this);
 
-            ServletConfig scFacade = new ServletConfig() {
+            ServletConfig scFacade;
 
-                public String getServletName() {
-                    return sc.getServletName();
-                }
+            if (wrap) {
+                scFacade = new ServletConfig() {
 
-                public ServletContext getServletContext() {
-                    return sc.getServletContext();
-                }
+                    AtomicBoolean done = new AtomicBoolean();
 
-                public String getInitParameter(String name) {
-                    String param = initParams.get(name);
-                    if (param == null) {
-                        return sc.getInitParameter(name);
+                    public String getServletName() {
+                        return sc.getServletName();
                     }
-                    return param;
-                }
 
-                public Enumeration<String> getInitParameterNames() {
-                    Enumeration en = sc.getInitParameterNames();
-                    while (en.hasMoreElements()) {
-                        String name = (String) en.nextElement();
-                        if (!initParams.containsKey(name)) {
-                            initParams.put(name, sc.getInitParameter(name));
+                    public ServletContext getServletContext() {
+                        return sc.getServletContext();
+                    }
+
+                    public String getInitParameter(String name) {
+                        String param = initParams.get(name);
+                        if (param == null) {
+                            return sc.getInitParameter(name);
                         }
+                        return param;
                     }
-                    return Collections.enumeration(initParams.keySet());
-                }
-            };
+
+                    public Enumeration<String> getInitParameterNames() {
+                        if (!done.getAndSet(true)) {
+                            Enumeration en = sc.getInitParameterNames();
+                            while (en.hasMoreElements()) {
+                                String name = (String) en.nextElement();
+                                if (!initParams.containsKey(name)) {
+                                    initParams.put(name, sc.getInitParameter(name));
+                                }
+                            }
+                        }
+                        return Collections.enumeration(initParams.keySet());
+                    }
+                };
+            } else {
+                scFacade = sc;
+            }
             this.servletConfig = scFacade;
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
