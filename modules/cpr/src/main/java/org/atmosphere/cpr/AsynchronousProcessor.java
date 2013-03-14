@@ -52,7 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;

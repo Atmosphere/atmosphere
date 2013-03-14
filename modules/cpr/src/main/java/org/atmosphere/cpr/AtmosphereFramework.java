@@ -904,6 +904,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                 cl.loadClass(broadcasterClassNameTmp);
             }
             useStreamForFlushingComments = true;
+
+            StringBuffer packagesInit = new StringBuffer();
+            for (String s : packages) {
+                packagesInit.append(s).append(",");
+            }
+            initParams.put("com.sun.jersey.config.property.packages", packagesInit.toString());
         } catch (Throwable t) {
             logger.trace("", t);
             return false;
