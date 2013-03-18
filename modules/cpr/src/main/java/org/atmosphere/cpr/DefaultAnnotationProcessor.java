@@ -345,7 +345,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         return this;
     }
 
-    private Class<?> loadClass(String className) throws Exception{
+    private Class<?> loadClass(String className) throws Exception {
         try {
             return Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (Throwable t) {

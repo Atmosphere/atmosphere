@@ -552,7 +552,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
-            configureScanningPackage(sc);
+            configureScanningPackage(scFacade);
             installAnnotationProcessor(scFacade);
 
             autoConfigureService(scFacade.getServletContext());
@@ -608,16 +608,6 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         isInit = true;
         return this;
-    }
-
-    protected void configureScanningPackage(ServletConfig sc) {
-        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PACKAGE);
-        if (s != null) {
-            String[] list = s.split(",");
-            for (String a : list) {
-                packages.add(a);
-            }
-        }
     }
 
     /**
@@ -704,6 +694,16 @@ public class AtmosphereFramework implements ServletContextProvider {
                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
+            }
+        }
+    }
+
+    protected void configureScanningPackage(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PACKAGE);
+        if (s != null) {
+            String[] list = s.split(",");
+            for (String a : list) {
+                packages.add(a);
             }
         }
     }
@@ -1880,6 +1880,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                     for (File file : jars) {
                         p.scan(file);
                     }
+                }
+            }
+
+            if (packages.size() > 0) {
+                for (String s: packages){
+                    p.scan(s);
                 }
             }
 
