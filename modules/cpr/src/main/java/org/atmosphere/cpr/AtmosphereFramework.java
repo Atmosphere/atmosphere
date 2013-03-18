@@ -167,6 +167,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
+    protected final List<String> packages = new ArrayList<String>();
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -518,6 +519,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             this.servletConfig = scFacade;
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            configureScanningPackage(sc);
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
             doInitParams(scFacade);
@@ -640,6 +642,16 @@ public class AtmosphereFramework implements ServletContextProvider {
                 addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
+            }
+        }
+    }
+
+    protected void configureScanningPackage(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PACKAGE);
+        if (s != null) {
+            String[] list = s.split(",");
+            for (String a : list) {
+                packages.add(a);
             }
         }
     }
@@ -830,6 +842,14 @@ public class AtmosphereFramework implements ServletContextProvider {
                 cl.loadClass(broadcasterClassNameTmp);
             }
             useStreamForFlushingComments = true;
+
+            StringBuffer packagesInit = new StringBuffer();
+            for (String s : packages) {
+                packagesInit.append(s).append(",");
+            }
+            if (packages.size() > 0) {
+                initParams.put("com.sun.jersey.config.property.packages", packagesInit.toString());
+            }
         } catch (Throwable t) {
             logger.trace("", t);
             return false;
@@ -1738,6 +1758,12 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 for (File file : jars) {
                     p.scan(file);
+                }
+            }
+
+            if (packages.size() > 0) {
+                for (String s: packages){
+                    p.scan(s);
                 }
             }
         } catch (Throwable e) {

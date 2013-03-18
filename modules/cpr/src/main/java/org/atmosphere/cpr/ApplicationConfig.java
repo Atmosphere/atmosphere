@@ -318,5 +318,9 @@ public interface ApplicationConfig {
      * some messages to be written twice instead of one.
      */
     String BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR = "org.atmosphere.websocket.backwardCompatible.atmosphereResource";
+    /**
+     * A list, seperated by comma, of package name to scan when looking for Atmosphere's component
+     */
+    String ANNOTATION_PACKAGE = "org.atmosphere.cpr.packages";
 }
 

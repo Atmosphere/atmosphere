@@ -47,21 +47,14 @@ import java.util.List;
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
-    private AtmosphereFramework framework;
+    protected AnnotationDetector detector;
     private org.slf4j.Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
 
     public DefaultAnnotationProcessor() {
     }
 
     @Override
-    public AnnotationProcessor configure(AtmosphereFramework framework) {
-        this.framework = framework;
-        return this;
-    }
-
-    @Override
-    public AnnotationProcessor scan(File rootDir) throws IOException {
-        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+    public AnnotationProcessor configure(final AtmosphereFramework framework) {
         final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
 
             @SuppressWarnings("unchecked")
@@ -90,7 +83,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 logger.info("Found Annotation in {} being scanned: {}", className, annotation);
                 if (AtmosphereHandlerService.class.equals(annotation)) {
                     try {
-                        AtmosphereHandler handler = (AtmosphereHandler) cl.loadClass(className).newInstance();
+                        AtmosphereHandler handler = (AtmosphereHandler) loadClass(className).newInstance();
                         AtmosphereHandlerService a = handler.getClass().getAnnotation(AtmosphereHandlerService.class);
 
                         framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
@@ -134,7 +127,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         ReflectorServletProcessor r = new ReflectorServletProcessor();
                         r.setServletClassName(className);
 
-                        Class<Servlet> s = (Class<Servlet>) cl.loadClass(className);
+                        Class<Servlet> s = (Class<Servlet>) loadClass(className);
                         MeteorService m = s.getAnnotation(MeteorService.class);
 
                         String mapping = m.path();
@@ -173,7 +166,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     framework.setWebSocketProtocolClassName(className);
                 } else if (AtmosphereInterceptorService.class.equals(annotation)) {
                     try {
-                        AtmosphereInterceptor a = (AtmosphereInterceptor) cl.loadClass(className).newInstance();
+                        AtmosphereInterceptor a = (AtmosphereInterceptor) loadClass(className).newInstance();
                         a.configure(framework.getAtmosphereConfig());
                         framework.interceptor(a);
                     } catch (Throwable e) {
@@ -187,20 +180,20 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     }
                 } else if (AsyncSupportListenerService.class.equals(annotation)) {
                     try {
-                        framework.asyncSupportListener((AsyncSupportListener) cl.loadClass(className).newInstance());
+                        framework.asyncSupportListener((AsyncSupportListener) loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
                 } else if (BroadcasterFactoryService.class.equals(annotation)) {
                     try {
-                        Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) cl.loadClass(className);
+                        Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) loadClass(className);
                         framework.setBroadcasterFactory(bf.newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
                 } else if (BroadcasterListenerService.class.equals(annotation)) {
                     try {
-                        framework.addBroadcasterListener((BroadcasterListener) cl.loadClass(className).newInstance());
+                        framework.addBroadcasterListener((BroadcasterListener) loadClass(className).newInstance());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
@@ -213,9 +206,29 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 }
             }
         };
-        logger.trace("Scanning @Service annotations in {}", rootDir.getAbsolutePath());
-        final AnnotationDetector cf = new AnnotationDetector(reporter);
-        cf.detect(rootDir);
+
+        detector = new AnnotationDetector(reporter);
         return this;
+    }
+
+    @Override
+    public AnnotationProcessor scan(File rootDir) throws IOException {
+        detector.detect(rootDir);
+        return this;
+    }
+
+    @Override
+    public AnnotationProcessor scan(String packageName) throws IOException {
+        logger.trace("Scanning @Service annotations in {}", packageName);
+        detector.detect(packageName);
+        return this;
+    }
+
+    private Class<?> loadClass(String className) throws Exception {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            return getClass().getClassLoader().loadClass(className);
+        }
     }
 }
