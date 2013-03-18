@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.ServletProxyFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,8 +69,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                     new InvocationHandler() {
                         @Override
                         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            logger.trace("Method {} not supported", method.getName());
-                            return null;
+                            return ServletProxyFactory.getDefault().proxy(proxy, method, args);
                         }
                     });
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);

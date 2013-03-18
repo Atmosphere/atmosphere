@@ -34,6 +34,7 @@ import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.IntrospectionUtils;
+import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.util.Version;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
@@ -452,8 +453,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                             new InvocationHandler() {
                                 @Override
                                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                                    logger.trace("Method {} not supported", method.getName());
-                                    return null;
+                                    return ServletProxyFactory.getDefault().proxy(proxy, method, args);
                                 }
                             });
                 }
