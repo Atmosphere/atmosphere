@@ -115,6 +115,37 @@ public class WebSocketProcessorTest {
 
     }
 
+    @Test
+    public void encodeURLProxyTest() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+        final AtomicReference<String> url = new  AtomicReference<String>();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                url.set(resource.getResponse().encodeRedirectURL("http://127.0.0.1:8080"));
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request);
+        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+
+        assertEquals(url.get(), "http://127.0.0.1:8080");
+
+    }
 
     @Test
     public void basicBackwardCompatbileWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
