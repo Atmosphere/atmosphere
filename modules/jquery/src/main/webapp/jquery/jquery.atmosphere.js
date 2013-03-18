@@ -925,7 +925,14 @@ jQuery.atmosphere = function() {
                     }
                     return;
                 }
-                _sse = new EventSource(location, {withCredentials: _request.withCredentials});
+
+                try {
+                     _sse = new EventSource(location, {withCredentials: _request.withCredentials});
+                } catch (e) {
+                    _onError(e);
+                    _reconnectWithFallbackTransport("SSE failed. Downgrading to fallback transport and resending");
+                    return;
+                }
 
                 if (_request.connectTimeout > 0) {
                     _request.id = setTimeout(function() {
@@ -962,7 +969,7 @@ jQuery.atmosphere = function() {
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
-                    var message = message.data;
+                    message = message.data;
                     var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
 
                     if (jQuery.trim(message).length == 0) {
