@@ -683,19 +683,21 @@ jQuery.atmosphere = function() {
                     _close();
                 };
 
-                _response.request = request;
-                var prevState = _response.state;
-                _response.state = state;
-                _response.status = 200;
-                var prevTransport = _response.transport;
-                _response.transport = transport;
+                if (_response.error == null) {
+                    _response.request = request;
+                    var prevState = _response.state;
+                    _response.state = state;
+                    _response.status = 200;
+                    var prevTransport = _response.transport;
+                    _response.transport = transport;
 
-                var _body = _response.responseBody;
-                _invokeCallback();
-                _response.responseBody = _body;
+                    var _body = _response.responseBody;
+                    _invokeCallback();
+                    _response.responseBody = _body;
 
-                _response.state = prevState;
-                _response.transport = prevTransport;
+                    _response.state = prevState;
+                    _response.transport = prevTransport;
+                }
             }
 
             /**
@@ -734,10 +736,11 @@ jQuery.atmosphere = function() {
                     type : rq.method,
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
+                        _response.error = true;
                         if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
-                            _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
+                            _onError("Error: " + jqXHR.status);
                         }
                     },
                     jsonp : "jsonpTransport",
@@ -768,7 +771,7 @@ jQuery.atmosphere = function() {
                             }
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
-                            _onError();
+                            _onError("maxRequest reached");
                         }
                     },
                     data : rq.data,
@@ -811,10 +814,11 @@ jQuery.atmosphere = function() {
                     url : url,
                     type : rq.method,
                     error : function(jqXHR, textStatus, errorThrown) {
+                        _response.error = true;
                         if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
-                            _prepareCallback(textStatus, "error", jqXHR.status, rq.transport);
+                            _onError("Error: " + jqXHR.status);
                         }
                     },
                     success: function(data, textStatus, jqXHR) {
@@ -833,7 +837,7 @@ jQuery.atmosphere = function() {
                             }
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
-                            _onError();
+                            _onError("maxRequest reached");
                         }
                     },
                     beforeSend : function(jqXHR) {
@@ -991,8 +995,8 @@ jQuery.atmosphere = function() {
                             }, _request.reconnectInterval);
                             _response.responseBody = "";
                         } else {
-                            jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _request.requestCount]);
-                            _onError();
+                             jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _requestCount]);
+                                _onError("maxReconnectOnClose reached");
                         }
                     }
                 };
@@ -1174,7 +1178,7 @@ jQuery.atmosphere = function() {
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["Websocket reconnect maximum try reached " + _request.requestCount]);
                             jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
-                            _onError();
+                            _onError("maxReconnectOnClose reached");
                         }
                     }
                 };
@@ -1192,12 +1196,12 @@ jQuery.atmosphere = function() {
                 return true;
             }
 
-            function _onError() {
+            function _onError(message) {
                 _clearState();
 
                 _response.state = 'error';
                 _response.responseBody = "";
-                _response.status = 500;
+                _response.status = 500 + " Reason: " + message;
                 _invokeCallback();
             }
 
@@ -1273,7 +1277,7 @@ jQuery.atmosphere = function() {
                         _execute();
                     }, _request.reconnectInterval);
                 } else if (!reconnect) {
-                    _onError();
+                    _onError("maxReconnectOnClose reached");
                 }
             }
 
@@ -1415,6 +1419,7 @@ jQuery.atmosphere = function() {
 
                     if (!jQuery.browser.msie) {
                         ajaxRequest.onerror = function() {
+                            _response.error = true;
                             try {
                                 _response.status = XMLHttpRequest.status;
                             } catch(e) {
@@ -1426,10 +1431,10 @@ jQuery.atmosphere = function() {
                             }
                             _clearState();
 
-                            if (rq.reconnect) {
+                            if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
                                 _reconnect(ajaxRequest, rq, true);
                             } else {
-                                _onError();
+                                _onError("maxReconnectOnClose reached");
                             }
                         };
                     }
@@ -1438,7 +1443,7 @@ jQuery.atmosphere = function() {
                         if (_abordingConnection) {
                             return;
                         }
-
+                        _response.error = null;
                         var skipCallbackInvocation = false;
                         var update = false;
 
@@ -1478,11 +1483,7 @@ jQuery.atmosphere = function() {
 
                             // MSIE status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
-                                if (rq.reconnect) {
-                                    _reconnect(ajaxRequest, rq, true);
-                                } else {
-                                    _onError();
-                                }
+                                _onError("Status code higher than 500 " + ajaxRequest.status);
                                 return;
                             }
 
@@ -1599,7 +1600,7 @@ jQuery.atmosphere = function() {
                     if (rq.logLevel == 'debug') {
                         jQuery.atmosphere.log(rq.logLevel, ["Max re-connection reached."]);
                     }
-                    _onError();
+                    _onError("maxRequest reached");
                 }
             }
 
@@ -1674,7 +1675,7 @@ jQuery.atmosphere = function() {
                         }, request.reconnectInterval);
                     }
                 } else if (!reconnect) {
-                    _onError();
+                    _onError("maxReconnectOnClose reached");
                 }
             }
 
@@ -1739,10 +1740,8 @@ jQuery.atmosphere = function() {
                 xdr.onerror = function() {
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
-                        _prepareCallback(xdr.responseText, "error", 500, transport);
+                        _reconnect(xdr, rq, false);
                     }
-
-                    _reconnect(xdr, rq, false);
                 };
                 // Handles close event
                 xdr.onload = function () {
@@ -1911,6 +1910,7 @@ jQuery.atmosphere = function() {
                                     var text = readResponse();
                                     if (text.length > rq.lastIndex) {
                                         _response.status = 200;
+                                        _response.error = null;
 
                                         // Empties response every time that it is handled
                                         res.innerText = "";
@@ -1931,12 +1931,13 @@ jQuery.atmosphere = function() {
 
                                 return false;
                             } catch (err) {
+                                _response.error = true;
                                 if (_requestCount++ < rq.maxReconnectOnClose) {
                                     rq.id = setTimeout(function() {
                                         _ieStreaming(rq);
                                     }, rq.reconnectInterval);
                                 } else {
-                                    _onError();
+                                    _onError("maxReconnectOnClose reached");
                                 }
                                 doc.execCommand("Stop");
                                 doc.close();
