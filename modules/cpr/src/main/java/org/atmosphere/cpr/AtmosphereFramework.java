@@ -548,6 +548,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                 scFacade = sc;
             }
             this.servletConfig = scFacade;
+            doInitParams(scFacade);
+            doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
             configureScanningPackage(sc);
@@ -555,8 +557,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
-            doInitParams(scFacade);
-            doInitParamsForWebSocket(scFacade);
             configureBroadcaster();
             loadConfiguration(scFacade);
             initWebSocket();
