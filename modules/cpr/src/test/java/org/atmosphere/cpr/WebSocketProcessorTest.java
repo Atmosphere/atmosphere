@@ -140,7 +140,7 @@ public class WebSocketProcessorTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
         assertEquals(url.get(), "http://127.0.0.1:8080");

@@ -910,7 +910,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             for (String s : packages) {
                 packagesInit.append(s).append(",");
             }
-            initParams.put("com.sun.jersey.config.property.packages", packagesInit.toString());
+            if (packages.size() > 0) {
+                initParams.put("com.sun.jersey.config.property.packages", packagesInit.toString());
+            }
         } catch (Throwable t) {
             logger.trace("", t);
             return false;
