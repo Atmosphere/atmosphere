@@ -2425,10 +2425,10 @@ jQuery.atmosphere = function() {
               var requestsClone = [].concat(jQuery.atmosphere.requests);
               for (var i = 0; i < requestsClone.length; i++) {
                     var rq = requestsClone[i];
-                    rq.close();
                     if (rq.enableProtocol()) {
                         jQuery.ajax({url: this._closeUrl(rq), async:false});
                     }
+                    rq.close();
                     clearTimeout(rq.response.request.id);
                 }
             }
@@ -2450,10 +2450,10 @@ jQuery.atmosphere = function() {
 
                     // Suppose you can subscribe once to an url
                     if (rq.getUrl() == url) {
-                        rq.close();
                         if (rq.enableProtocol()) {
                             jQuery.ajax({url :this._closeUrl(rq), async:false});
                         }
+                        rq.close();
                         clearTimeout(rq.response.request.id);
                         idx = i;
                         break;
