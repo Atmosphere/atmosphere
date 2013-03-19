@@ -2155,7 +2155,7 @@ jQuery.atmosphere = function() {
                 if (state == "messageReceived") {
                     if (_trackMessageSize(messageBody, _request, _response)) return;
                 } else {
-                    _response,responseBody = messageBody;
+                    _response.responseBody = messageBody;
                 }
 
                 _response.transport = transport;
