@@ -80,7 +80,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final boolean destroyable;
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
-    private  ScheduledExecutorService scheduler;
+    private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
 
@@ -111,7 +111,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             executeAsync = false;
         }
 
-        AtmosphereConfig config =  framework.getAtmosphereConfig();
+        AtmosphereConfig config = framework.getAtmosphereConfig();
         if (executeAsync) {
             asyncExecutor = ExecutorsFactory.getAsyncOperationExecutor(config, "WebSocket");
         } else {
@@ -156,9 +156,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
                 throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
             }
-            handler.onOpen(webSocket);
             // Force suspend.
             webSocket.webSocketHandler(handler).resource().suspend(-1);
+            handler.onOpen(webSocket);
         }
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
@@ -291,7 +291,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         try {
             if (webSocketHandler == null) {
                 if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
-                    List<AtmosphereRequest>  list = WebSocketProtocolStream.class.cast(webSocketProtocol).onBinaryStream(webSocket, stream);
+                    List<AtmosphereRequest> list = WebSocketProtocolStream.class.cast(webSocketProtocol).onBinaryStream(webSocket, stream);
                     dispatch(webSocket, list);
                 } else {
                     dispatchStream(webSocket, stream);
@@ -540,7 +540,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    protected void dispatchReader(WebSocket webSocket,Reader r) throws IOException {
+    protected void dispatchReader(WebSocket webSocket, Reader r) throws IOException {
         int read = 0;
         while (read > -1) {
             cb.position(cb.position() + read);
