@@ -403,6 +403,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 webSocketProtocol.onClose(webSocket);
 
                 if (resource != null && resource.isInScope()) {
+
+                    if (webSocketHandler != null) {
+                        webSocketHandler.onClose(webSocket);
+                    }
+
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (!resource.isCancelled()) {
@@ -417,11 +422,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
                     }
-
-                    if (webSocketHandler != null) {
-                        webSocketHandler.onClose(webSocket);
-                    }
-
                     // We must always destroy the root resource (the one created when the websocket was opened
                     // to prevent memory leaks.
                     resource.setIsInScope(false);
