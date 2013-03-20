@@ -454,7 +454,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public AtmosphereFramework init() {
         try {
-            init(new ServletConfig(){
+            init(new ServletConfig() {
 
                 @Override
                 public String getServletName() {
@@ -483,7 +483,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             }, false);
         } catch (ServletException e) {
-            logger.error("",e);
+            logger.error("", e);
         }
         return this;
     }
@@ -555,6 +555,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             configureScanningPackage(scFacade);
             installAnnotationProcessor(scFacade);
 
+            configureBroadcasterFactory();
             autoConfigureService(scFacade.getServletContext());
             patchContainer();
             configureBroadcaster();
@@ -571,7 +572,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                         "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
-            }  else {
+            } else {
                 logger.info("Using BroadcasterCache: {}", broadcasterCacheClassName);
             }
 
@@ -580,7 +581,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
             }
 
-            for (String i: broadcasterFilters) {
+            for (String i : broadcasterFilters) {
                 logger.info("Using BroadcastFilter: {}", i);
             }
 
@@ -667,7 +668,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         return ai;
     }
 
-    protected void initInterceptors(){
+    protected void initInterceptors() {
         for (AtmosphereInterceptor i : interceptors) {
             i.configure(config);
         }
@@ -708,14 +709,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureBroadcaster() {
-
+    protected void configureBroadcasterFactory() {
         try {
-            // Check auto supported one
-            if (isBroadcasterSpecified == false) {
-                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
-            }
-
             if (broadcasterFactoryClassName != null) {
                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                         .loadClass(broadcasterFactoryClassName).newInstance();
@@ -728,12 +723,24 @@ public class AtmosphereFramework implements ServletContextProvider {
                 broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
             }
 
-            for (BroadcasterListener b: broadcasterListeners) {
+            for (BroadcasterListener b : broadcasterListeners) {
                 broadcasterFactory.addBroadcasterListener(b);
             }
 
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
             InjectorProvider.getInjector().inject(broadcasterFactory);
+        } catch (Exception ex) {
+            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
+        }
+    }
+
+    protected void configureBroadcaster() {
+
+        try {
+            // Check auto supported one
+            if (isBroadcasterSpecified == false) {
+                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
+            }
 
             Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
             AtmosphereHandlerWrapper w;
@@ -942,7 +949,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
         BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-        for (BroadcasterListener b: broadcasterListeners) {
+        for (BroadcasterListener b : broadcasterListeners) {
             broadcasterFactory.addBroadcasterListener(b);
         }
 
@@ -1012,7 +1019,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     public void initWebSocket() {
-        if(webSocketProtocolInitialized) return;
+        if (webSocketProtocolInitialized) return;
 
         if (webSocketProtocol == null) {
             try {
@@ -1372,6 +1379,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Configure some Attribute on the {@link AtmosphereRequest}
+     *
      * @param req {@link AtmosphereRequest}
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
@@ -1477,8 +1485,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 AsyncSupport current = asyncSupport;
                 asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
-                if(current instanceof AsynchronousProcessor) {
-                    ((AsynchronousProcessor)current).shutdown();
+                if (current instanceof AsynchronousProcessor) {
+                    ((AsynchronousProcessor) current).shutdown();
                 }
 
                 asyncSupport.init(config.getServletConfig());
@@ -1689,6 +1697,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the location of the jars containing the application classes. Default is WEB-INF/lib
+     *
      * @return the location of the jars containing the application classes. Default is WEB-INF/lib
      */
     public String getLibPath() {
@@ -1697,6 +1706,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Set the location of the jars containing the application.
+     *
      * @param libPath the location of the jars containing the application.
      * @return this
      */
@@ -1709,7 +1719,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         return webSocketProcessorClassName;
     }
 
-    public AtmosphereFramework setWebsocketProcessorClassName(String webSocketProcessorClassName){
+    public AtmosphereFramework setWebsocketProcessorClassName(String webSocketProcessorClassName) {
         this.webSocketProcessorClassName = webSocketProcessorClassName;
         return this;
     }
@@ -1791,6 +1801,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Add a {@link BroadcasterCacheInspector} which will be associated with the defined {@link BroadcasterCache}
+     *
      * @param b {@link BroadcasterCacheInspector}
      * @return this;
      */
@@ -1828,7 +1839,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the list of {@link BroadcastFilter}
-     * @return  the list of {@link BroadcastFilter
+     *
+     * @return the list of {@link BroadcastFilter
      */
     public List<String> broadcasterFilters() {
         return broadcasterFilters;
@@ -1836,7 +1848,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Returns true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
-     * @return  true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     *
+     * @return true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
      */
     public boolean isShareExecutorServices() {
         return sharedThreadPools;
@@ -1844,6 +1857,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Set to true to have a {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     *
      * @param sharedThreadPools
      * @return this
      */
@@ -1865,7 +1879,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 p.scan(new File(path));
             }
 
-            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath :  sc.getRealPath(DEFAULT_LIB_PATH);
+            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : sc.getRealPath(DEFAULT_LIB_PATH);
             if (pathLibs != null) {
                 File libFolder = new File(pathLibs);
                 File jars[] = libFolder.listFiles(new FilenameFilter() {
@@ -1884,7 +1898,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             if (packages.size() > 0) {
-                for (String s: packages){
+                for (String s : packages) {
                     p.scan(s);
                 }
             }
@@ -1906,10 +1920,11 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Add support for package detecttion of Atmosphere's Component.
+     *
      * @param clazz a Class
      * @return this.
      */
-    public AtmosphereFramework addAnnotationPackage(Class<?> clazz){
+    public AtmosphereFramework addAnnotationPackage(Class<?> clazz) {
         packages.add(clazz.getPackage().getName());
         return this;
     }
