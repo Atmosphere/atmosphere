@@ -99,6 +99,8 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
             Object m = invoke(onMessageMethod, event.getMessage().toString());
             if (m != null) {
                 event.getResource().getResponse().write(m.toString());
+            } else if (onMessageMethod == null) {
+                event.getResource().getResponse().write((String)event.getMessage());
             }
         }
 
