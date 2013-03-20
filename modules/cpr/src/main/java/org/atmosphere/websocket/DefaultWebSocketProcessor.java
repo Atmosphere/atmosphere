@@ -91,8 +91,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private ByteBuffer bb = ByteBuffer.allocate(8192);
     private CharBuffer cb = CharBuffer.allocate(8192);
 
-    private boolean shared = false;
-
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
         this.webSocketProtocol = framework.getWebSocketProtocol();
