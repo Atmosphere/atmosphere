@@ -16,7 +16,6 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -34,20 +33,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-
-import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * Padding interceptor for Browser that needs whitespace when streaming is used.
  *
  * @author Jeanfrancois Arcand
  */
-public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
+public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(StreamingAtmosphereInterceptor.class);
+    private static final Logger logger = LoggerFactory.getLogger(PaddingAtmosphereInterceptor.class);
 
     private static final byte[] padding;
     private static final String paddingText;
@@ -70,8 +64,11 @@ public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter
         AtmosphereRequest request = response.request();
         if (request != null && request.getAttribute("paddingWritten") != null) return;
 
-        request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
-        response.setContentType("text/plain");
+        if (response.resource().transport().equals(TRANSPORT.STREAMING)) {
+            request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
+            response.setContentType("text/plain");
+        }
+
         try {
             response.write(padding, true).flushBuffer();
         } catch (IOException e) {
@@ -83,7 +80,7 @@ public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        if (r.transport().equals(TRANSPORT.STREAMING)) {
+        if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING)) {
             super.inspect(r);
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
@@ -121,6 +118,6 @@ public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter
 
     @Override
     public String toString() {
-        return "Streaming Interceptor Support";
+        return "Browser Padding Interceptor Support";
     }
 }

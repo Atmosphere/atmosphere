@@ -16,8 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
-import org.atmosphere.client.TrackMessageSizeFilter;
-import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
@@ -35,8 +33,8 @@ import org.atmosphere.interceptor.DefaultHeadersInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
+import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
-import org.atmosphere.interceptor.StreamingAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
@@ -649,7 +647,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             // Android 2.3.x streaming support
             interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
             // WebKit & IE Padding
-            interceptors.addFirst(newAInterceptor(StreamingAtmosphereInterceptor.class));
+            interceptors.addFirst(newAInterceptor(PaddingAtmosphereInterceptor.class));
             // Default Interceptor
             interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
             logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
