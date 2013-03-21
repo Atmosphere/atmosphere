@@ -1312,7 +1312,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public HttpSession getSession(boolean create) {
-            if (create) {
+            if (create && fake == null) {
                 fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1);
             }
             return fake;
