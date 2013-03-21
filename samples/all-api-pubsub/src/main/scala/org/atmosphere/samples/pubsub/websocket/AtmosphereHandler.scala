@@ -40,9 +40,6 @@ class AtmosphereHandler extends AbstractReflectorAtmosphereHandler {
     }
   }
 
-  def destroy: Unit = {
-  }
-
   /**
    * Retrieve the {@link Broadcaster} based on the request's path info.
    *
