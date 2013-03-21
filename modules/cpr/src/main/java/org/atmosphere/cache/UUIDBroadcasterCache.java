@@ -181,8 +181,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      */
     public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
-            logger.debug("Active clients {}", activeClients());
+            logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+            logger.trace("Active clients {}", activeClients());
         }
 
         long now = System.currentTimeMillis();
@@ -262,7 +262,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     private void addMessage(String clientId, CacheMessage message) {
-        logger.debug("Adding message {} for client {}", clientId, message);
+        logger.trace("Adding message {} for client {}", clientId, message);
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
@@ -301,8 +301,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-            logger.debug("Available cached message {}", messages);
+            logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+            logger.trace("Available cached message {}", messages);
         }
 
         return result;
@@ -314,7 +314,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         synchronized (messages) {
             clientQueue = messages.get(clientId);
             if (clientQueue != null) {
-                logger.debug("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+                logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
                 clientQueue.getQueue().remove(message);
             }
         }
