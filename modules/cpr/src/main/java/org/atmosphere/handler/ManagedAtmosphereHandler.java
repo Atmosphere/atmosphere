@@ -115,7 +115,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             }
         }
 
-        if (resumeOnBroadcast != null && resumeOnBroadcast) {
+        if (resumeOnBroadcast != null && resumeOnBroadcast && r.isSuspended()) {
             r.resume();
         }
 
