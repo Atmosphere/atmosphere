@@ -22,10 +22,12 @@ import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Resume;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +104,20 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
             } else if (onMessageMethod == null) {
                 event.getResource().getResponse().write((String)event.getMessage());
             }
+        }
+
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
+        if (!resumeOnBroadcast) {
+            // For legacy reason, check the attribute as well
+            Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+                resumeOnBroadcast = Boolean.class.cast(o);
+            }
+        }
+
+        if (resumeOnBroadcast != null && resumeOnBroadcast) {
+            r.resume();
         }
 
     }
