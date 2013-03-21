@@ -335,14 +335,11 @@ jQuery.atmosphere = function() {
                 }
 
                 // Protocol
-                _request.firstMessage= true;
+                _request.firstMessage = true;
+                _request.isOpen = false;
                 _request.ctime = jQuery.now();
 
                 if (_request.transport != 'websocket' && _request.transport != 'sse') {
-                    // Gives a chance to the connection to be established before calling the callback
-                    setTimeout(function() {
-                        _open('opening', _request.transport, _request);
-                    }, 500);
                     _executeRequest();
 
                 } else if (_request.transport == 'websocket') {
@@ -1487,11 +1484,15 @@ jQuery.atmosphere = function() {
 
                         if (update) {
                             var responseText = jQuery.trim(ajaxRequest.responseText);
-
                             // MSIE status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
                                 _onError("Status code higher than 500 " + ajaxRequest.status);
                                 return;
+                            }
+
+                            if (!rq.isOpen) {
+                                _open('opening', rq.transport, rq);
+                                rq.isOpen = true;
                             }
 
                             _readHeaders(ajaxRequest, _request);
@@ -1503,6 +1504,7 @@ jQuery.atmosphere = function() {
                                     return;
                                 }
                                 skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+
                                 rq.lastIndex = responseText.length;
 
                                 if (jQuery.browser.opera) {
@@ -1567,19 +1569,17 @@ jQuery.atmosphere = function() {
                                 _response.state = "messagePublished";
                             }
 
-                            if (!rq.executeCallbackBeforeReconnect) {
-                                _reconnect(ajaxRequest, rq, false);
-                            }
+                            // The padding
+                            if (responseText.length != 0) {
+                                if (!rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(ajaxRequest, rq, false);
+                                }
 
-                            // For backward compatibility with Atmosphere < 0.8
-                            if (_response.responseBody.indexOf("parent.callback") != -1) {
-                                jQuery.atmosphere.log(rq.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
-                            }
+                                _invokeCallback();
 
-                            _invokeCallback();
-
-                            if (rq.executeCallbackBeforeReconnect) {
-                                _reconnect(ajaxRequest, rq, false);
+                                if (rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(ajaxRequest, rq, false);
+                                }
                             }
 
                             if ((rq.transport == 'streaming') && (responseText.length > rq.maxStreamingLength)) {
