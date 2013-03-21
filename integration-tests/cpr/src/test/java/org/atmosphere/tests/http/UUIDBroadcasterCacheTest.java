@@ -199,7 +199,7 @@ public class UUIDBroadcasterCacheTest {
 
             assertNotNull(response.get());
             assertEquals(response.get().getStatusCode(), 200);
-            assertEquals(response.get().getResponseBody(), "message-1message-2");
+            assertEquals(response.get().getResponseBody().trim(), "message-1message-2");
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
