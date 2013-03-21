@@ -42,7 +42,7 @@ import java.lang.reflect.Method;
  *
  * @author Jeanfrancois
  */
-public class ManagedAtmosphereHandler implements AtmosphereHandler {
+public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
 
@@ -67,7 +67,6 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
 
     }
 
-
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
@@ -76,11 +75,11 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {
-            invoke(onPostMethod, resource);            
+            invoke(onPostMethod, resource);
         } else if (method.equalsIgnoreCase("delete")) {
-            invoke(onDeleteMethod, resource);            
+            invoke(onDeleteMethod, resource);
         } else if (method.equalsIgnoreCase("put")) {
-            invoke(onPutMethod, resource);           
+            invoke(onPutMethod, resource);
         }
 
         if (b.equals(resource.getBroadcaster()) && resource.isSuspended()) {
@@ -91,7 +90,7 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        
+
         AtmosphereResource resource = event.getResource();
         if (event.isCancelled()) {
             invoke(onDisconnectMethod, resource);
@@ -100,9 +99,9 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
         } else {
             Object m = invoke(onMessageMethod, event.getMessage().toString());
             if (m != null) {
-                event.getResource().getResponse().write(m.toString());
+                super.onStateChange(event.setMessage(m));
             } else if (onMessageMethod == null) {
-                event.getResource().getResponse().write((String)event.getMessage());
+                super.onStateChange(event);
             }
         }
 
@@ -122,9 +121,6 @@ public class ManagedAtmosphereHandler implements AtmosphereHandler {
 
     }
 
-    @Override
-    public void destroy() {
-    }
 
     private Method populate(Object c, Class<? extends Annotation> annotation) {
         for (Method m : c.getClass().getMethods()) {

@@ -158,4 +158,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             r.resume();
         }
     }
+
+    @Override
+    public void destroy() {}
 }
