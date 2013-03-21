@@ -71,6 +71,7 @@ public class StreamingAtmosphereInterceptor extends AtmosphereInterceptorAdapter
         if (request != null && request.getAttribute("paddingWritten") != null) return;
 
         request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
+        response.setContentType("text/plain");
         try {
             response.write(padding, true).flushBuffer();
         } catch (IOException e) {
