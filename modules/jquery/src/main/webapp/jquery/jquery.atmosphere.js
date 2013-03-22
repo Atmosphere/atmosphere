@@ -1704,26 +1704,6 @@ jQuery.atmosphere = function() {
                 }
 
                 var transport = rq.transport;
-                var lastIndex = 0;
-                var xdrCallback = function (xdr) {
-                    var responseBody = xdr.responseText;
-                    var isJunkEnded = responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1;
-
-                    if (isJunkEnded) {
-                        var endOfJunk = "<!-- EOD -->";
-                        var endOfJunkLength = endOfJunk.length;
-                        var junkEnd = responseBody.indexOf(endOfJunk);
-                        if (junkEnd !== -1) {
-                            responseBody = responseBody.substring(junkEnd + endOfJunkLength + lastIndex);
-                            lastIndex += responseBody.length;
-                        }
-                    }
-
-                    if (!_handleProtocol(request, responseBody)) return;
-
-                    _prepareCallback(responseBody, "messageReceived", 200, transport);
-                };
-
                 var xdr = new window.XDomainRequest();
                 var rewriteURL = rq.rewriteURL || function(url) {
                     // Maintaining session by rewriting URL
@@ -1747,7 +1727,7 @@ jQuery.atmosphere = function() {
                 xdr.onerror = function() {
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
-                        _reconnect(xdr, rq, false);
+                        _onError("XDR error");
                     }
                 };
                 // Handles close event
@@ -1758,28 +1738,30 @@ jQuery.atmosphere = function() {
                 var handle = function (xdr) {
                     // XDomain loop forever on itself without this.
                     // TODO: Clearly I need to come with something better than that solution
-                    if (rq.lastMessage == xdr.responseText) return;
+                    var response = jQuery.trim(xdr.responseText);
+                    if (rq.lastMessage ==response) return;
+                    if (!_handleProtocol(request, response)) return;
 
                     if (!rq.isOpen) {
-                        _open('opening', rq.transport, rq);
                         rq.isOpen = true;
+                        _open('opening', rq.transport, rq);
                     }
 
-                    if (jQuery.trim(xdr.responseText).length != 0) {
-                        if (rq.executeCallbackBeforeReconnect) {
-                            xdrCallback(xdr);
-                        }
+                    if (rq.executeCallbackBeforeReconnect) {
+                        _prepareCallback(response, "messageReceived", 200, transport);
+                    }
 
-                        if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
-                            xdr.status = 200;
+                    if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
+                        xdr.status = 200;
+                        if (response.length != 0) {
                             _reconnect(xdr, rq, false);
                         }
-
-                        if (!rq.executeCallbackBeforeReconnect) {
-                            xdrCallback(xdr);
-                        }
                     }
-                    rq.lastMessage = xdr.responseText;
+
+                    if (!rq.executeCallbackBeforeReconnect) {
+                        _prepareCallback(response, "messageReceived", 200, transport);
+                    }
+                    rq.lastMessage = response;
                 };
 
                 return {
