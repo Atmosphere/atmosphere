@@ -19,6 +19,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,11 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
                 }
             }
             if (stringBuilder.length() > 0) {
+                // Find the suspended connection to broadcast to.
+                AtmosphereResource sr = AtmosphereResourceFactory.getDefault().find(r.uuid());
+                if (sr != null) {
+                    r = sr;
+                }
                 r.getBroadcaster().broadcast(stringBuilder.toString());
             } else {
                 logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
