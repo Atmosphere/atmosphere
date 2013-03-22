@@ -22,8 +22,6 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,30 +55,24 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
             r.getRequest().header(HeaderConfig.X_ATMO_PROTOCOL, null);
 
             // Since 1.0.10
-            if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                    @Override
-                    public void onSuspend(AtmosphereResourceEvent event) {
-                        r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
+
+                    if (r.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING ||
+                            r.transport() == AtmosphereResource.TRANSPORT.JSONP) {
+                        r.resume();
+                    } else {
                         try {
                             r.getResponse().flushBuffer();
                         } catch (IOException e) {
-                            logger.trace("",e);
+                            logger.trace("", e);
                         }
                     }
-                });
-            } else {
-                r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
-            }
+                }
+            });
 
-            // We don't need to reconnect here
-            if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                    || r.transport() == AtmosphereResource.TRANSPORT.STREAMING
-                    || r.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                return Action.CONTINUE;
-            } else {
-                return Action.CANCELLED;
-            }
         }
         return Action.CONTINUE;
     }
