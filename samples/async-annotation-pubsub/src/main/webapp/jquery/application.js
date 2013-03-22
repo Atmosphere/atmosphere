@@ -19,6 +19,7 @@ $(function () {
         method: 'POST',
         fallbackMethod: 'POST',
         reconnect : false,
+        enableProtocol: false,
         fallbackTransport: 'long-polling'};
 
     input.removeAttr('disabled').focus();

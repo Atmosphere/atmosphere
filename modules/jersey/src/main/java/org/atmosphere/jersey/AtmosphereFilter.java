@@ -104,7 +104,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
@@ -125,7 +124,6 @@ import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
-import static org.atmosphere.cpr.HeaderConfig.STREAMING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -332,7 +330,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     final Broadcaster bcaster = newBroadcaster;
 
                     if (!waitForResource || (!transport.startsWith(POLLING_TRANSPORT) && subProtocol == null)) {
-                        boolean outputJunk = transport.equalsIgnoreCase(STREAMING_TRANSPORT);
                         final boolean resumeOnBroadcast = transport.equals(JSONP_TRANSPORT) || transport.equals(LONG_POLLING_TRANSPORT);
 
                         if (listeners != null) {
