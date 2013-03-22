@@ -16,7 +16,6 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
@@ -31,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.Arrays;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 
@@ -116,7 +116,10 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         padding();
-                        response.write("data:", true);
+                        // TODO: This is expensive
+                        if (!Arrays.equals(data, padding)) {
+                            response.write("data:", true);
+                        }
                     }
 
                     @Override
