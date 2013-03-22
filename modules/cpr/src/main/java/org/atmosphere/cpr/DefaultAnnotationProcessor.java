@@ -17,8 +17,6 @@ package org.atmosphere.cpr;
 
 import eu.infomas.annotation.AnnotationDetector;
 import org.atmosphere.cache.BroadcasterCacheInspector;
-import org.atmosphere.cache.UUIDBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -38,9 +36,6 @@ import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
-import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.websocket.WebSocketHandler;
@@ -315,8 +310,13 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
                             @Override
                             public void postInspect(AtmosphereResource r) {
-
                             }
+
+                            @Override
+                            public String toString() {
+                                return "Managed Event Listeners";
+                            }
+
                         };
                         l.add(ai);
                     } catch (Throwable e) {
