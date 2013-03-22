@@ -1197,7 +1197,6 @@ jQuery.atmosphere = function() {
                     request.firstMessage  = false;
                     var messages =  message.split(request.messageDelimiter);
                     request.uuid = messages[0];
-                    console.log("uuid->" + request.uuid );
                     request.stime = messages[1];
                     return false;
                 }
