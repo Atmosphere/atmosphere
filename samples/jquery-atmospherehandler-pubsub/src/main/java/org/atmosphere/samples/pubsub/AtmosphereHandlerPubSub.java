@@ -15,20 +15,12 @@
  */
 package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
-import org.atmosphere.config.service.Post;
-import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
 import java.io.IOException;
 
@@ -46,9 +38,7 @@ public class AtmosphereHandlerPubSub  {
 
     @Get
     public void onRequest(AtmosphereResource r) throws IOException {
-
-        Broadcaster b = lookupBroadcaster(r.getRequest().getPathInfo());
-        r.setBroadcaster(b);
+        r.setBroadcaster(lookupBroadcaster(r.getRequest().getPathInfo()));
     }
 
     @Message
