@@ -21,8 +21,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 
@@ -64,25 +62,20 @@ public class DefaultHeadersInterceptor implements AtmosphereInterceptor{
         request.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
         request.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
-        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-            @Override
-            public void onPreSuspend(AtmosphereResourceEvent event) {
-                if (writeHeaders && injectCacheHeaders) {
-                    // Set to expire far in the past.
-                    response.setHeader(EXPIRES, "-1");
-                    // Set standard HTTP/1.1 no-cache headers.
-                    response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
-                    // Set standard HTTP/1.0 no-cache header.
-                    response.setHeader(PRAGMA, "no-cache");
-                }
+        if (writeHeaders && injectCacheHeaders) {
+            // Set to expire far in the past.
+            response.setHeader(EXPIRES, "-1");
+            // Set standard HTTP/1.1 no-cache headers.
+            response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
+            // Set standard HTTP/1.0 no-cache header.
+            response.setHeader(PRAGMA, "no-cache");
+        }
 
-                if (writeHeaders && enableAccessControl) {
-                    response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN,
-                            request.getHeader("Origin") == null ? "*" : request.getHeader("Origin"));
-                    response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                }
-            }
-        });
+        if (writeHeaders && enableAccessControl) {
+            response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN,
+                    request.getHeader("Origin") == null ? "*" : request.getHeader("Origin"));
+            response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        }
         return Action.CONTINUE;
     }
 
