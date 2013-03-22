@@ -16,10 +16,8 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.config.service.MeteorService;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Meteor;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
@@ -50,7 +48,7 @@ public class MeteorPubSub extends HttpServlet {
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
         m.setBroadcaster(b);
 
-        m.suspend(-1);
+        m.resumeOnBroadcast(true).suspend(-1);
     }
 
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -65,7 +63,12 @@ public class MeteorPubSub extends HttpServlet {
 
     Broadcaster lookupBroadcaster(String pathInfo) {
         String[] decodedPath = pathInfo.split("/");
-        Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
+        Broadcaster b;
+        if (decodedPath.length > 0) {
+            b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
+        } else {
+            b = BroadcasterFactory.getDefault().lookup("/", true);
+        }
         return b;
     }
 }
