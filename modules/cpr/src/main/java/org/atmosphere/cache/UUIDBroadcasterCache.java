@@ -180,9 +180,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      * @return
      */
     public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
-        if (logger.isDebugEnabled()) {
-            logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
-            logger.trace("Active clients {}", activeClients());
+        if (logger.isTraceEnabled()) {
+            synchronized (messages) {
+                logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+                logger.trace("Active clients {}", activeClients());
+            }
         }
 
         long now = System.currentTimeMillis();
