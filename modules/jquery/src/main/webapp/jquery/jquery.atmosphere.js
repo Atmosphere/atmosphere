@@ -1491,8 +1491,8 @@ jQuery.atmosphere = function() {
                             }
 
                             if (!rq.isOpen) {
-                                _open('opening', rq.transport, rq);
                                 rq.isOpen = true;
+                                _open('opening', rq.transport, rq);
                             }
 
                             _readHeaders(ajaxRequest, _request);
@@ -2105,6 +2105,7 @@ jQuery.atmosphere = function() {
                     requestCount : 0,
                     withCredentials : _request.withCredentials,
                     transport: 'polling',
+                    isOpen: true,
                     attachHeadersAsQueryString: true,
                     enableXDR: _request.enableXDR,
                     uuid : _request.uuid,
