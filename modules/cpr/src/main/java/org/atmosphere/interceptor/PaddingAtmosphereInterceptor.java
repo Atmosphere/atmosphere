@@ -70,7 +70,11 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         try {
-            response.write(padding, true).flushBuffer();
+            response.write(padding, true);
+
+            if (response.resource().transport().equals(TRANSPORT.STREAMING)) {
+                response.flushBuffer();
+            }
         } catch (IOException e) {
             logger.debug("", e);
         }
