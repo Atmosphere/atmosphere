@@ -55,7 +55,6 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -66,11 +65,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
-import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
-import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
-import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
-import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
@@ -491,6 +485,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
+        // Starting with 1.1, always add.
+        broadcaster.addAtmosphereResource(this);
         return this;
     }
 

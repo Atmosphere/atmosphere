@@ -19,16 +19,15 @@ import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Message;
-import org.atmosphere.config.service.Resume;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
+import org.atmosphere.config.service.Resume;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +70,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public void onRequest(AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
-        Broadcaster b = resource.getBroadcaster();
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {
@@ -80,11 +78,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             invoke(onDeleteMethod, resource);
         } else if (method.equalsIgnoreCase("put")) {
             invoke(onPutMethod, resource);
-        }
-
-        if (b.equals(resource.getBroadcaster()) && resource.isSuspended()) {
-            b.removeAtmosphereResource(resource);
-            resource.getBroadcaster().addAtmosphereResource(resource);
         }
     }
 
