@@ -103,7 +103,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
                             try {
                                 r.getResponse().flushBuffer();
                             } catch (IOException e) {
-                                logger.warn("", e);
+                                logger.trace("", e);
                             }
                             break;
                     }
