@@ -123,6 +123,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return false;
         } catch (NoClassDefFoundError ex) {
             return false;
+        } catch (UnsupportedClassVersionError ex) {
+            return false;
         }
     }
 
