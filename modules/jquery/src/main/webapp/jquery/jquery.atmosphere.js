@@ -1080,6 +1080,7 @@ jQuery.atmosphere = function() {
                     }
 
                     webSocketOpened = true;
+                    _websocket.webSocketOpened = webSocketOpened;
 
                     if (_request.method == 'POST') {
                         _response.state = "messageReceived";
@@ -2323,7 +2324,9 @@ jQuery.atmosphere = function() {
                     _activeRequest = null;
                 }
                 if (_websocket != null) {
-                    _websocket.close();
+                    if (_websocket.webSocketOpened) {
+                        _websocket.close();
+                    }
                     _websocket = null;
                 }
                 if (_sse != null) {
