@@ -34,7 +34,9 @@ public class ServletProxyFactory {
     private final static MethodHandler voidMethodHandler = new EchoMethodHandler();
 
     private ServletProxyFactory() {
-        addMethodHandler("encodeURL", voidMethodHandler).addMethodHandler("encodeRedirectURL", voidMethodHandler);
+        addMethodHandler("encodeURL", voidMethodHandler)
+                .addMethodHandler("encodeRedirectURL", voidMethodHandler)
+                .addMethodHandler("getCharacterEncoding", new UTF8Handler());
     }
 
     public final Object proxy(Object clazz, Method method, Object[] methodObjects) {
@@ -77,6 +79,13 @@ public class ServletProxyFactory {
         @Override
         public Object handle(Object clazz, Method method, Object[] methodObjects) {
             return methodObjects[0];
+        }
+    }
+
+    public static class UTF8Handler implements MethodHandler{
+        @Override
+        public Object handle(Object clazz, Method method, Object[] methodObjects) {
+            return "UTF-8";
         }
     }
 }
