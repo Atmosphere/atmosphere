@@ -179,9 +179,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      * @return
      */
     public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
-            logger.debug("Active clients {}", activeClients());
+        if (logger.isTraceEnabled()) {
+            logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+            logger.trace("Active clients {}", activeClients());
         }
 
         long now = System.currentTimeMillis();
@@ -299,9 +299,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             result.add(cacheMessage.getMessage());
         }
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-            logger.trace("Available cached message {}", messages);
+        if (logger.isTraceEnabled()) {
+            synchronized (messages) {
+                logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+                logger.trace("Available cached message {}", messages);
+            }
         }
 
         return result;
