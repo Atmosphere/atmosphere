@@ -12,10 +12,12 @@
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
         <async-supported>true</async-supported>
         <load-on-startup>0</load-on-startup>
+        <!--
         <init-param>
             <param-name>org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast</param-name>
             <param-value>true</param-value>
         </init-param>
+        -->
     </servlet>
     <servlet-mapping>
         <servlet-name>AtmosphereServlet</servlet-name>
