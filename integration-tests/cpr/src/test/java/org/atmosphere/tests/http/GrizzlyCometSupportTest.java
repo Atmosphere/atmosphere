@@ -94,4 +94,7 @@ public class GrizzlyCometSupportTest extends BaseTest {
         ws.stop();
     }
 
+    @Test(timeOut = 60000, enabled = false)
+    public void testConcurrentBroadcast() {
+    }
 }
