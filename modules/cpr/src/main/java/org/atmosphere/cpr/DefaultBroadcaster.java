@@ -550,9 +550,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getBroadcastHandler() {
+        final AtomicBoolean init = new AtomicBoolean(true);
         return new Runnable() {
             public void run() {
-                while (!isDestroyed() && !outOfOrderBroadcastSupported.get()) {
+                while (init.getAndSet(false) || (!isDestroyed() && !outOfOrderBroadcastSupported.get())) {
                     Entry msg = null;
                     try {
                         msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
@@ -566,6 +567,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         return;
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
+                            init.set(true);
                             bc.getExecutorService().submit(this);
                         }
                     }
@@ -588,9 +590,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getAsyncWriteHandler(final WriteQueue writeQueue) {
+        final AtomicBoolean init = new AtomicBoolean(true);
         return new Runnable() {
             public void run() {
-                while (!isDestroyed() && !outOfOrderBroadcastSupported.get()) {
+                while (init.getAndSet(false) || (!isDestroyed() && !outOfOrderBroadcastSupported.get())) {
                     AsyncWriteToken token = null;
                     try {
                         token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
@@ -608,9 +611,9 @@ public class DefaultBroadcaster implements Broadcaster {
                         logger.trace("", ex);
                         return;
                     } finally {
-                        if (!bc.getAsyncWriteService().isShutdown() && token == null && outOfOrderBroadcastSupported.get()) {
+                        if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
+                            init.set(true);
                             bc.getAsyncWriteService().submit(this);
-                            return;
                         }
                     }
 
