@@ -149,7 +149,8 @@
 </div>
 <h3>The Server Side</h3>
 
-<p>Let's start by first writing the server component, as described by listing 1. Remember, our goal is to write a Snake game
+<p>Let's start by first writing the server component, as described by listing 1. Remember, our goal is to write a Snake
+    game
     that can be played by ALL browsers including mobile, using the best transport available.</p>
 
 <div class="example">
@@ -246,17 +247,21 @@
         information to the message. The browser use this meta information to reconstruct the message before delivering
         it to the application.
     </li>
-    <li><strong>Heartbeat</strong>: some Proxy close idle connection between the browser and the server. This service
-        make sure there is always activities on the connection, preventing unexpected close.
+    <li><strong>Heartbeat</strong>: some Proxy closes idle connections between the browser and the server. This service
+        make sure there are always activities on the connection, preventing unexpected closes, reconnects, etc.
     </li>
     <li><strong>Browser disconnect</strong>: The Atmosphere's Javascript client is able to sent messages when a
-        tab/window is getting closed. This service use that information to clean up resources associated with the
+        tab/window is getting closed. This service use this information to clean up resources associated with that
         browser.
+    </li>
 </ul>
-<p>As you can see, you SAVES a lot of code by using the @ManagedService annotation!</p>
+
+<h5>As you can see, you SAVES a lot of code by using the @ManagedService annotation!</h5>
+
+<p></p>
 
 <p>Next, on line 21, we use the @Get annotation to tell the framework to route GET request to the onOpen method. When
-    the browser's connect, the onOpen will be invoked with an AtmosphereResource, which represent a connection between
+    the browser's connect, the onOpen will be invoked with an AtmosphereResource, who represent a connection between
     the browser and server. The 'onOpen' method's role is to attach an Atmosphere's listener to the connection and gets
     invoked
     first when the connection is ready to be manipulated (line 25). Inside the onSuspend, we track our current alive
@@ -320,14 +325,16 @@
     is created by the framework and associated with every new AtmosphereResource. For our game, we just create one
     Broadcaster called "/snake", which maps our original request's URI. The important code here is line 95, where the
     SnakeBroadcaster is used here to broadcast the position of all snakes to all connected users. We use JSON for
-    encoding our data</p>
+    encoding our data.</p>
 
-<p>The onDisconnect method (listing 1, line 38) is simply used clean our resources when the browser gets closed (tab or
-    window). We do check the kind of transport used here in order to differentiate when the browser close the connection
-    versus when the connection get closed unexpectedly. Listing 2 line 99 broadcast to all remaining connection browser
-    that snake X is not gone, so the application can kill that snake!</p>
+<p>The onDisconnect method (listing 1, line 38) is simply used to clean our resources when the browser gets closed (tab
+    or
+    window). We do check for the 'disconnect' message in order to differentiate when the browser close the connection
+    versus when the connection get closed unexpectedly. When closed unexpectedly, we know the client will reconnect so
+    we don't kill the associated Snake! Listing 2 line 99 broadcast to all remaining connection browser
+    that snake X is now gone, so the browser can kill that snake by stopping rendering it!</p>
 
-<p>Finally, the @Post method (listing 1, line 50) just broadcast the information received from a browsers to others.
+<p>Finally, the @Post method (listing 1, line 50) just broadcast the information received from a browser to others.
     That means every time a snake is moving, it's position will be broadcasted to all others and vice versa (Listing 2,
     line 109)</p>
 
@@ -337,15 +344,19 @@
 <h3>Wait!!!!!!!</h3>
 
 <p>There will be a lot of information exchanged between snakes: every time a snake move its information will be send to
-    the server, and broadcasted back to all other snake. For a WebSocket connection this is quite easy to handle because
-    the connection is bi-directional. But realize how complex the code is when Server Side Events and Long-Polling are
-    used: one connection is used to receive messages, and another connection is used for sending information. Without
+    the server, and broadcasted back to all other snakes. For a WebSocket connection this is quite easy to handle
+    because
+    the connection is bi-directional. But realize how complex the code can be when Server Side Events and Long-Polling
+    are
+    used: one connection is used to receive messages, and another connection is used for sending information. Realize
+    that without
     Atmosphere, a lot of code would have been required to makes the game work!</p>
 
 <h3>The client side</h3>
 
-That’s it for the server side. Now let’s use the atmosphere.js to write the client side. First, let’s look at the code
-(Listing 3). As for the server side, the game's logic won't be described
+<p>That’s it for the server side. Now let’s use the atmosphere.js to write the client side. First, let’s look at the code
+(Listing 3). As for the server side, the game's logic won't be described  </p>
+
 <div class="example">
     <div class="example-left-long">
         <h4>Listing 3: Atmosphere.js Client Code</h4>
@@ -420,8 +431,8 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     </div>
 </div>
 <p>There is a lot of extra in the code in Listing 3 related to the game's logic itself, so let’s only describe the
-    atmosphere.js important parts. First, we
-    initialize a connection (line 252)</p>
+    Atmosphere's client JavaScript called atmosphere.js important parts. First, we initialize a connection (line
+    252)</p>
 
 <div class="example">
     <div class="example-left-long">
@@ -430,10 +441,10 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
         </pre>
     </div>
 </div>
-<p>The next step is to define some functions callback. For this article, we will define the important one: onOpen,
+<p>The next step is to define some functions callback. For this game, we will define the important one: onOpen,
     onClose, onTransportFailure and onMessage. First, we
     define an onOpen function that gets invoked when the underlying transport is connected to the server. There we
-    just initalize the Snake. The proffered transport is specified on the request object, which is defined as:</p>
+    just initialize the Snake. The preferred transport is specified on the request object, which is defined as:</p>
 
 <div class="example">
     <div class="example-left-long">
@@ -447,7 +458,8 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     </pre>
     </div>
 </div>
-<p>Here we want to use the WebSocket transport by default, and fallback to Server Side events or Long-Polling</p>
+<p>Here we want to use the WebSocket transport by default, and fallback to Server Side events or Long-Polling if not
+    supported</p>
 
 <div class="example">
     <div class="example-left-long">
@@ -508,7 +520,7 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     </pre>
     </div>
 </div>
-<p>Here we just display snake's position. To send Snake's position to the server, all we need to do is to
+<p>Here we just displaying snake's position. To send Snake's position to the server, all we need to do is to
     invoke:</p>
 
 <div class="example">
@@ -521,6 +533,8 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
             124 };        </pre>
     </div>
 </div>
+
+<p>That's it, we have both client and server components ready to Snake!</p>
 
 <h3>Back in 1970! As good as Space Invaders!</h3>
 
@@ -545,6 +559,9 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     All of this transparently, allowing a developer to focus on the application instead of
     transport/portability issues.</p>
 
+<p><strong>For this article we have used Netty, but the same code will run UNMODIFIED in <a href="https://github.com/Atmosphere/atmosphere-play">Play! Framework</a> and any WebServer supporting Servlet
+    2.4 Specification.</strong></p>
+
 <h3>Conclusions and Considerations</h3>
 
 <p>WebSockets and Server Sides Events are technologies on the rise and their adoption within the
@@ -558,8 +575,9 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     </li>
     <li>Is the framework cloud enabled, and more important, will it scale?</li>
     <li>Is it easy to write application, is the framework well established?</li>
+    <li>Do we really need a Java EE Server? Why not using NettoSphere or Play!</li>    
 </ul>
-<p>Clearly, the Atmosphere Framework is the response for those four really important questions.</p>
+<p>Clearly, the Atmosphere Framework is the response for those five really important questions.</p>
 
 <h3>Help Making The Atmosphere Framework Better: Donate to keep the project alive!</h3>
 
@@ -576,7 +594,8 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
 <footer>
     <p>This game is a
         port of "Tomcat's 7 WebSocket only" game developed by <a href="http://www.tomcatexpert.com/users/mthomas">Mark
-        Thomas</p>
+            Thomas</p>
+
     <p>©2013. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
             href="http://twitter.com/asyncio">Twitter</a></p>
 </footer>
