@@ -1109,6 +1109,7 @@ jQuery.atmosphere = function() {
 
                 _websocket.onclose = function(message) {
                     if (closed) return
+                    clearTimeout(_request.id);
 
                     var reason = message.reason;
                     if (reason === "") {
@@ -1148,7 +1149,6 @@ jQuery.atmosphere = function() {
                     _response.responseBody = "";
                     _response.status = !webSocketOpened ? 501 : 200;
                     _invokeCallback();
-                    clearTimeout(_request.id);
 
                     closed = true;
 
