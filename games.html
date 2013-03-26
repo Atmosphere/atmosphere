@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="keywords" content="Java,WebSockets,Server Side Events,AJAX,JavaScript">
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <title>Async-IO.org: Powering the Atmosphere Framework</title>
+</head>
+
+<body>
+<div id="container">
+<div class="inner">
+
+<header>
+    <div class="asyncIO">
+        <div class="asyncIO-left">
+            <br>
+
+            <div style="text-align: center;">
+                <a href="http://async-io.org"><img title="logo" alt="" src="./images/AsyncIO.png"/></a>
+            </div>
+        </div>
+        <div class="asyncIO-right">
+            <h1>Understanding the Atmosphere Framework!</h1>
+
+            <h2><strong>Snakes on the Atmosphere!</strong>
+                <br>
+                Building Games using WebSocket, Server-Side Events and Long-Polling with the Netty Framework and
+                Atmosphere</h2>
+
+        </div>
+    </div>
+
+</header>
+
+<section id="main_content">
+<h3>Introduction</h3>
+
+<p>The Atmosphere Framework is a Java/Javascript framework which allows the creation of portable asynchronous
+    applications
+    using Groovy, Scala and Java. The Atmosphere Framework ships with a JavaScript component supporting all modern
+    browsers
+    and several server components supporting all major Java-based WebServers and Framework. The aim of the framework is
+    to allow a
+    developer to write an application and let the framework discover the best communication channel (transport) between
+    the client
+    and
+    the server, transparently.</p>
+
+<p>This article will use the Netty Framework and Atmosphere project called <a
+        href="https://github.com/Atmosphere/nettosphere">NettoSphere</a> to build games. NettoSphere is a runtime that
+    allow running
+    Atmosphere applications on top of the Netty Framework. The game we will develop is the famous <a
+            href="http://en.wikipedia.org/wiki/Snake_(video_game)">Snake</a>. The difference with the original game is
+    instead of having to avoid walls and obstacles, your snake will have to avoid hitting other "social snake", e.g
+    snakes from other users.
+</p>
+
+<p>This article assumes you have a little understanding of what is the Atmosphere Framework. See this <a
+        href="./tutorial.html">tutorial</a> for more information</p>
+
+<p>
+    The Games will supports for it's primary transport WebSocket and will fallback to Server Side Events and
+    Long-Polling.
+    Long-Polling is required because none of Internet Explorer 9 and lower, which aren't supporting WebSockets and
+    Server Side Events.
+</p>
+
+<p>
+    The game will use NettoSphere 2.0.0.RC1, which is build on top of Netty 3.6.3.Final. Note that we won't go into the
+    details of the game itself and instead focus on how games can be build using Atmosphere API. Finally, this game is a
+    port of Tomcat's 7 WebSocket only Snake game developed by Mark Thomas. Each browser will control a snake and share
+    it's position with all other snake, e.g Browsers! That's a lot of information passed between the client and server.
+</p>
+
+<h3>The Server Side</h3>
+
+<p>Let's start by first writing the server component, as described by listing 1. Remember, our goal is to write a games
+    that can be played by ALL browsers including mobile, using the best transport available</p>
+
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 1: SnakeManagedService.java</h4>
+	    <pre class="prettyprint">
+            1 package org.nettosphere.samples.games;
+            2
+            3 import org.atmosphere.config.service.Get;
+            4 import org.atmosphere.config.service.ManagedService;
+            5 import org.atmosphere.config.service.Post;
+            6 import org.atmosphere.cpr.AtmosphereRequest;
+            7 import org.atmosphere.cpr.AtmosphereResource;
+            8 import org.atmosphere.cpr.AtmosphereResourceEvent;
+            9 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+           10 import org.atmosphere.cpr.AtmosphereResourceFactory;
+           11 import org.atmosphere.cpr.HeaderConfig;
+           12
+           13 import java.io.IOException;
+           14 import java.util.concurrent.ConcurrentLinkedQueue;
+           15
+           16 @ManagedService(path = "/snake")
+           17 public class SnakeManagedService extends SnakeGame {
+           18
+           19     private final ConcurrentLinkedQueue&gt;String&lt; uuids = new ConcurrentLinkedQueue&gt;String&lt;();
+           20
+           21     @Get
+           22     public void onOpen(final AtmosphereResource resource) {
+           23         resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+           24             @Override
+           25             public void onSuspend(AtmosphereResourceEvent event) {
+           26                 try {
+           27                     if (!uuids.contains(resource.uuid())) {
+           28                         SnakeManagedService.super.onOpen(resource);
+           29                         uuids.add(resource.uuid());
+           30                     }
+           31                 } catch (IOException e) {
+           32                     e.printStackTrace();
+           33                 }
+           34
+           35             }
+           36
+           37             @Override
+           38             public void onDisconnect(AtmosphereResourceEvent event) {
+           39                 AtmosphereRequest request = event.getResource().getRequest();
+           40                 String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+           41                 if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+           42                     SnakeManagedService.super.onClose(resource);
+           43                     uuids.remove(resource.uuid());
+           44                 }
+           45             }
+           46         });
+           47     }
+           48
+           49     @Post
+           50     public void onMessage(AtmosphereResource resource) {
+           51         try {
+           52             // Here we need to find the suspended AtmosphereResource
+           53             super.onMessage(AtmosphereResourceFactory.getDefault().find(resource.uuid()),
+           54                             resource.getRequest().getReader().readLine());
+           55         } catch (IOException e) {
+           56             e.printStackTrace();
+           57         }
+           58     }
+           59
+           60 }
+</pre>
+    </div>
+</div>
+
+<p>The ManagedService annotation (line 16) tells the framework to route every '/snake' request to the
+    SnakeManagedService class. The ManagedService is a meta component in Atmosphere which transparently enable the
+    following services (called AtmosphereInterceptor):</p>
+<ul>
+    <li><strong>Messages Caching</strong>: a connection between the browsers and the server can always be closed by a
+        third party.
+        Proxy, Firewall, Network outage etc. can always cause the connection to be unexpected closed. If messages where
+        about to be send to the client, those messages will be lost if the server doesn't cache them and make them
+        available when the client reconnect. This is quite important for any real time application, and event more
+        important for our Snakes' users!!!
+    </li>
+    <li><strong>Connection LifeCycle Support</strong>: Atmosphere's allow the management of the connection between the
+        browsers and
+        the
+        server. For example, you can add special headers to the WebSocket's Handshake response, add some padding to a
+        Server
+        Side Events connection etc. Since most of the application doesn't need to do such thing, it is better to
+        delegate
+        the handling to the LifeCycle Support component and focus on the application business logic instead.
+    </li>
+    <li><strong>Track Messages Size</strong>: Messages sent by the server back to the browser may be chunked. In order
+        to
+        help the browser with incomplete messages (or messages spawn in more than one packet), this service adds meta
+        information to the message. The browser use this meta information to reconstruct the message before delivering
+        it to the application.=
+    </li>
+    <li><strong>Heartbeat</strong>: some Proxy close idle connection between the browser and the server. This service
+        make sure there is always activities on the connection, preventing unexpected close.
+    </li>
+    <li><strong>Browser disconnect</strong>: The Atmosphere's Javascript client is able to sent messages when a
+        tab/window is getting closed. This service use that information to clean up resources associated with the
+        browser.
+</ul>
+<p>As you can see, you SAVES a lot of code by using the @ManagedService annotation!</p>
+
+<p>Next, on line 21, we use the @Get annotation to tell the framework to route GET request to the onOpen method. When
+    the browser's connect, the onOpen will be invoked with an AtmosphereResource, which represent a connection between
+    the browser and server. The 'onOpen' method's role is to attach an Atmosphere's listener to the connection and gets
+    invoked
+    first when the connection is ready to be manipulated (line 25). Inside the onSuspend, we track our current alive
+    Snake
+    by using the browser's unique is 'AtmosphereResource.uuid()' and initiate the game (listing 2).
+</p>
+
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 2: SnakeGame.java</h4>
+	    <pre class="prettyprint">
+            78     public void onOpen(AtmosphereResource resource) throws IOException {
+            79         int id = snakeIds.getAndIncrement();
+            80         resource.session().setAttribute("id", id);
+            81         Snake snake = new Snake(id, resource);
+            82
+            83         resource.session().setAttribute("snake", snake);
+            84         snakeBroadcaster.addSnake(snake);
+            85         StringBuilder sb = new StringBuilder();
+            86         for (Iterator&gt;Snake&lt; iterator = snakeBroadcaster.getSnakes().iterator();
+            87              iterator.hasNext(); ) {
+            88             snake = iterator.next();
+            89             sb.append(String.format("{id: %d, color: '%s'}",
+            90                     Integer.valueOf(snake.getId()), snake.getHexColor()));
+            91             if (iterator.hasNext()) {
+            92                 sb.append(',');
+            93             }
+            94         }
+            95         snakeBroadcaster.broadcast(String.format("{'type': 'join','data':[%s]}",
+            96                 sb.toString()));
+            97     }
+            98
+            99     public void onClose(AtmosphereResource resource) {
+           100         snakeBroadcaster.removeSnake(snake(resource));
+           101         snakeBroadcaster.broadcast(String.format("{'type': 'leave', 'id': %d}",
+           102                 ((Integer) resource.session().getAttribute("id"))));
+           103     }
+           104
+           105     protected Snake snake(AtmosphereResource resource) {
+           106         return (Snake) resource.session().getAttribute("snake");
+           107     }
+           108
+           109     protected void onMessage(AtmosphereResource resource, String message) {
+           110         Snake snake = snake(resource);
+           111         if ("west".equals(message)) {
+           112             snake.setDirection(Direction.WEST);
+           113         } else if ("north".equals(message)) {
+           114             snake.setDirection(Direction.NORTH);
+           115         } else if ("east".equals(message)) {
+           116             snake.setDirection(Direction.EAST);
+           117         } else if ("south".equals(message)) {
+           118             snake.setDirection(Direction.SOUTH);
+           119         }
+           120     }
+        </pre>
+    </div>
+</div>
+<p>In the onOpen method we store some state information about the current Snake user and add our Snake to an
+    Atmosphere's Broadcaster (called SnakeBroadcaster). A Broadcaster implements the publish/subscribe paradigm. An
+    application can subscribe to one or many Broadcasters to get notified about events. By default, a single Broadcaster
+    is created by the framework and associated with every new AtmosphereResource. For our game, we just create one
+    Broadcaster called "/snake", which maps our original request's URI. The important code here is line 95, where the
+    SnakeBroadcaster is used here to broadcast the position of all snakes to all connected users. We use JSON for
+    encoding our data</p>
+
+<p>The onDisconnect method (listing 1, line 38) is simply used clean our resources when the browser gets closed (tab or
+    window). We do check the kind of transport used here in order to differentiate when the browser close the connection
+    versus when the connection get closed unexpectedly. Listing 2 line 99 broadcast to all remaining connection browser
+    that snake X is not gone, so the application can kill that snake!</p>
+
+<p>Finally, the @Post method (listing 1, line 50) just broadcast the information received from a browsers to others.
+    That means every time a snake is moving, it's position will be broadcasted to all others and vice versa (Listing 2,
+    line 109)</p>
+
+<p>That's it for the server side component, which TRANSPARENTLY support WebSocket, Server Side Events and
+    Long-Polling!</p>
+
+<h3>Wait!!!!!!!</h3>
+
+<p>There will be a lot of information exchanged between snakes: every time a snake move its information will be send to
+    the server, and broadcasted back to all other snake. For a WebSocket connection this is quite easy to handle because
+    the connection is bi-directional. But realize how complex the code is when Server Side Events and Long-Polling are
+    used: one connection is used to receive messages, and another connection is used for sending information. Without
+    Atmosphere, a lot of code would have been required to makes the game work!</p>
+
+<h3>The client side</h3>
+
+That’s it for the server side. Now let’s use the atmosphere.js to write the client side. First, let’s look at the code
+(Listing 3). As for the server side, the game's logic won't be described
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 3: Atmosphere.js Client Code</h4>
+	    <pre class="prettyprint">
+            188 Game.connect = (function (host) {
+            189     var request = {url: host,
+            190         transport: 'websocket',
+            191         enableProtocol: true,
+            192         trackMessageLength: true,
+            193         logLevel: 'debug'};
+            194
+            195     request.onOpen = function (response) {
+            196         // Socket open.. start the game loop.
+            197         Console.log('Info: ' + Game.transport + ' connection opened.');
+            198         Console.log('Info: Press an arrow key to begin.');
+            199         Game.startGameLoop();
+            200     };
+            201
+            202     request.onClose = function (response) {
+            203         if (response.state == "unsubscribe") {
+            204             Console.log('Info: ' + Game.transport + ' closed.');
+            205             Game.stopGameLoop();
+            206         }
+            207     };
+            208
+            209     request.onTransportFailure = function (errorMsg, request) {
+            210         jQuery.atmosphere.info(errorMsg);
+            211         if (window.EventSource) {
+            212             request.fallbackTransport = "sse";
+            213         } else {
+            214             request.fallbackTransport = 'long-polling'
+            215         }
+            216         Game.transport = request.fallbackTransport;
+            217     };
+            218
+            219     request.onMessage = function (response) {
+            220         var message = response.responseBody;
+            221         var packet;
+            222         try {
+            223             packet = eval('(' + message + ')'); //jQuery.parseJSON(message);
+            224         } catch (e) {
+            225             console.log('Message: ', message);
+            226             return;
+            227         }
+            228
+            229         switch (packet.type) {
+            230             case 'update':
+            231                 for (var i = 0; i < packet.data.length; i++) {
+            232                     Game.updateSnake(packet.data[i].id, packet.data[i].body);
+            233                 }
+            234                 break;
+            235             case 'join':
+            236                 for (var j = 0; j < packet.data.length; j++) {
+            237                     Game.addSnake(packet.data[j].id, packet.data[j].color);
+            238                 }
+            239                 break;
+            240             case 'leave':
+            241                 Game.removeSnake(packet.id);
+            242                 break;
+            243             case 'dead':
+            244                 Console.log('Info: Your snake is dead, bad luck!');
+            245                 Game.direction = 'none';
+            246                 break;
+            247             case 'kill':
+            248                 Console.log('Info: Head shot!');
+            249                 break;
+            250         }
+            251     };
+            252     Game.socket = $.atmosphere.subscribe(request)
+            253
+            254 });</pre>
+    </div>
+</div>
+<p>There is a lot of extra in the code in Listing 3 related to the game's logic itself, so let’s only describe the
+    atmosphere.js important parts. First, we
+    initialize a connection (line 252)</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+            Game.socket = $.atmosphere.subscribe(request)
+        </pre>
+    </div>
+</div>
+<p>The next step is to define some functions callback. For this article, we will define the important one: onOpen,
+    onClose, onTransportFailure and onMessage. First, we
+    define an onOpen function that gets invoked when the underlying transport is connected to the server. There we
+    just initalize the Snake. The proffered transport is specified on the request object, which is defined as:</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+            var request = {
+                url: host,
+                transport: 'websocket',
+                enableProtocol: true,
+                trackMessageLength: true
+            };
+    </pre>
+    </div>
+</div>
+<p>Here we want to use the WebSocket transport by default, and fallback to Server Side events or Long-Polling</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+             request.onTransportFailure = function (errorMsg, request) {
+                 jQuery.atmosphere.info(errorMsg);
+                 if (window.EventSource) {
+                     request.fallbackTransport = "sse";
+                 } else {
+                     request.fallbackTransport = 'long-polling'
+                 }
+                 Game.transport = request.fallbackTransport;
+             };
+        </pre>
+    </div>
+</div>
+
+<p>The beauty here is: you don’t need to use a special API. All transports are handled
+    the same way using the atmosphere.js.</p>
+
+<p>Next we define the onMessage function, which will be invoked every time we receive data from the server:</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+            request.onMessage = function (response) {
+               var message = response.responseBody;
+               var packet;
+               try {
+                   packet = jQuery.parseJSON(message);
+               } catch (e) {
+                   console.log('Message: ', message);
+                   return;
+               }
+
+               switch (packet.type) {
+                   case 'update':
+                       for (var i = 0; i < packet.data.length; i++) {
+                           Game.updateSnake(packet.data[i].id, packet.data[i].body);
+                       }
+                       break;
+                   case 'join':
+                       for (var j = 0; j < packet.data.length; j++) {
+                           Game.addSnake(packet.data[j].id, packet.data[j].color);
+                       }
+                       break;
+                   case 'leave':
+                       Game.removeSnake(packet.id);
+                       break;
+                   case 'dead':
+                       Console.log('Info: Your snake is dead, bad luck!');
+                       Game.direction = 'none';
+                       break;
+                   case 'kill':
+                       Console.log('Info: Head shot!');
+                       break;
+               }
+    </pre>
+    </div>
+</div>
+<p>Here we just display snake's position. To send Snake's position to the server, all we need to do is to
+    invoke:</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+            120 Game.setDirection = function (direction) {
+            121     Game.direction = direction;
+            122     Game.socket.push(direction);
+            123     Console.log('Sent: Direction ' + direction);
+            124 };        </pre>
+    </div>
+</div>
+<p>Once subscribed, we are ready so receive and send data. To send data, we are using the subSocket object returned from
+    the subscribe operation. If the WebSocket transport is in use, the subSocket will reference the WebSocket connection
+    (because the protocol is bi-directional), where for all other transport, a new connection will be opened every time
+    the
+    push operation is called:</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
+        </pre>
+    </div>
+</div>
+<p>Next, let’s add support for a really nice Atmosphere feature, which is the ability to share a connection amongst open
+    windows/tabs. All you need to do in Atmosphere is to set the shared variable to “true” when doing a request:</p>
+
+<div class="example">
+    <div class="example-left-long">
+    	    <pre class="prettyprint">
+    var request = { url: document.location.toString() + 'chat',
+                    contentType : "application/json",
+                    transport : transport ,
+                    shared : true,
+                    fallbackTransport: 'long-polling'};
+    </pre>
+    </div>
+</div>
+<p>Now every time a new window or tab gets opened and the same page opened, the connection will be shared. To get
+    notified
+    when the “master” tabs/windows (the open that opened first), just implement the</p>
+
+<div class="example">
+    <div class="example-left-long">
+        	    <pre class="prettyprint">
+    request.onLocalMessage = function(message) {
+    ....
+    }
+    </pre>
+    </div>
+</div>
+<p>Tabs/Windows can also communicate directly by using the following function.</p>
+
+<div class="example">
+    <div class="example-left-long">
+    	    <pre class="prettyprint">
+    subSocket.pushLocal(...)
+    </pre>
+    </div>
+</div>
+<h3>Fully functional – not just yet!</h3>
+
+<p>That’s it, we now have a fully functional chat application. But there are two problems with the current
+    application. The first one is related to Proxy/Firewall. Occasionally Proxy/Firewall doesn’t allow a connection to
+    stay inactive
+    for a longer period of time, and usually the connection gets closed automatically by the Proxy. For a suspended
+    connection, it means the client will have to reconnect every time a connection gets closed. One possible solution is
+    to keep the suspended connection active by sending some bytes between the client and the server. Fortunately for us,
+    all we need to do is to add the HeartbeatInterceptor, which will keep the connection active for us, transparently
+    (Listing 5).
+</p>
+
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 5: HeartbeatInterceptore</h4>
+	    <pre class="prettyprint">
+    @AtmosphereHandlerService(path = "/chat",
+            interceptors = { AtmosphereResourceLifecycleInterceptor.class,
+                             BroadcastOnPostAtmosphereInterceptor.class,
+                             HeartbeatInterceptor.class
+                           })
+    public class ChatRoom extends OnMessage&lt;String&gt; {
+    </pre>
+    </div>
+</div>
+<p>Now the HeartbeatInterceptor will periodically write bytes (whitespace) to the connection to keep it active.
+    Unfortunately, there are still Proxies that could close the connection after a period of time (active or not) or a
+    network issue could arise and the browser will have to reconnect. During the process of reconnect, a broadcast
+    operation can always happen and the browser may never get the broadcast
+    because the connection is in the process of connecting. Under that scenario it will mean the browser has
+    missed a message (or lost it). For some applications, it may not be problematic, but for some missing message is a
+    major issue. Fortunately Atmosphere supports the concept of BroadcasterCache. Installing a BroadcasterCache will
+    allow a Browser
+    to never miss/lose messages. When the Browser reconnects, Atmosphere will always look in the cache and make sure all
+    messages that occurred during the reconnection time are send back to the browser. The BroadcasterCache API
+    is pluggable and Atmosphere ships with ready-to-use implementation. Hence, for our Chat application, all we need to
+    do is:
+</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    @AtmosphereHandlerService(path = "/chat",
+            broadcasterCache = UUIDBroadcasterCache.class,
+            interceptors = { AtmosphereResourceLifecycleInterceptor.class,
+                             BroadcastOnPostAtmosphereInterceptor.class,
+                             HeartbeatInterceptor.class
+                           })
+            public class ChatAtmosphereHandler extends OnMessage&lt;String&gt; {
+        </pre>
+    </div>
+</div>
+<p>
+    Our application is now guaranteed to never miss or lose a message. The second issue we need to address
+    is intermixed messages, depending on the WebServer used. The Browser may receive two messages in one chunk, one and
+    a half messages, etc. This is problematic because let’s say we use JSON for encoding our message, the Browser will
+    fail to decode messages that takes the form of:</p>
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    {"message":"Hello World","author":"John Doe","time":1348578675087}{"message":"Cool Man","author":"FooBar","time":1348578675087}
+        </pre>
+    </div>
+</div>
+or
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    {"message":"Hello World","author":"John Doe
+        </pre>
+    </div>
+</div>
+or
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    {"message":"Hello World","author":"John Doe","time":1348578675087}{"message":"Cool Man","author"
+</pre>
+    </div>
+</div>
+When the Browser is receiving such messages, it will fail to decode it:
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    var json = jQuery.parseJSON(message);
+        </pre>
+    </div>
+</div>
+To solve the issue, we need to install the TrackMessageSizeInterceptor, which will add some hints to the
+message, and the Browser will be able to use those hints to make sure the atmosphere.js onMessage
+function is
+always invoked with a valid message (Listing 6).
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 6</h4>
+	    <pre class="prettyprint">
+    @AtmosphereHandlerService( path = "/chat",
+        broadcasterCache = UUIDBroadcasterCache.class,
+        interceptors = { AtmosphereResourceLifecycleInterceptor.class,
+                         BroadcastOnPostAtmosphereInterceptor.class,
+                         TrackMessageSizeInterceptor.class,
+                         HeartbeatInterceptor.class
+                       })
+        public class ChatRoom extends OnMessage&lt;String&gt; {
+        </pre>
+    </div>
+</div>
+<p>
+    On the client side, all we need to do is to set the trackMessageLength on the request object
+
+<div class="example">
+    <div class="example-left-long">
+	    <pre class="prettyprint">
+    var request = { url: document.location.toString() + 'chat',
+                    contentType : "application/json",
+                    logLevel : 'debug',
+                    shared : true,
+                    transport : transport ,
+                    trackMessageLength : true,
+                    fallbackTransport: 'long-polling'};
+        </pre>
+    </div>
+</div>
+<h3>To The Cloud!</h3>
+
+<p>We are now ready to deploy our application into the cloud…well, not yet. The next feature we need to add is
+    how messages are getting distributed amongst servers when deployed in a Cloud. The problem we need to solve can be
+    seen in Figure 3.
+</p>
+
+<a href="./images/image3.png"><img title="onStateChange" alt="" src="./images/image3.png"/></a>
+
+<div style="text-align: center;">
+    Figure 3: Servers in the Cloud
+</div>
+<br>
+
+<p>Under that scenario, when a broadcast action occurs on Tomcat Server 1, Tomcat Server 2 will never
+    get the messages. For our application, that means some users won’t see other messages, which is clearly a
+    major issue. Not only for a chat, but for any application deployed into the Cloud we need to solve that issue.
+    Fortunately for us, Atmosphere supports “Cloud-Enabled” or “Cluster-enabled” Broadcaster that can be used to
+    propagate message between server instance. Atmosphere currently natively supports well known technologies like Redis
+    PubSub, Hazelcast, JGroups, JMS, XMPP (for example using Gmail servers). For this article, let’s use Redis PubSub
+    (Figure 4).
+</p>
+<a href="./images/image4.png"><img title="onStateChange" alt="" src="./images/image4.png"/></a>
+
+<div style="text-align: center;">
+    Figure 4: Redis PubSub
+</div>
+<br>
+
+<p>
+    The Redis PubSub allows us to connect to a Redis instance and subscribe to some topics. For our
+    application, all we need to do is to create a ‘chat’ topic and subscribe all our servers to it. Next we just need to
+    tell our application to use the RedisBroadcaster instead of the normal Broadcaster. As simple as Listing 7.
+
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 7</h4>
+	    <pre class="prettyprint">
+    @AtmosphereHandlerService(path = "/chat",
+        broadcasterCache = UUIDBroadcasterCache.class,
+        broadcaster = RedisBroadcaster.class,
+        interceptors = { AtmosphereResourceLifecycleInterceptor.class,
+                         BroadcastOnPostAtmosphereInterceptor.class,
+                         TrackMessageSizeInterceptor.class,
+                         HeartbeatInterceptor.class
+                       })
+    public class ChatRoom extends OnMessage&lt;String&gt; {
+        </pre>
+    </div>
+</div>
+<p>By just adding the RedisBroadcaster we just enabled message sharing between servers, making our chat application
+    “Cloud-aware” in a single line. On the client side we don’t have to change anything. We now have a fully functional
+    application:</p>
+<ul>
+    <li>Transparently supporting all existing WebServers</li>
+    <li>Transparently supporting all existing Browsers</li>
+    <li>Cloud/Cluster enabled</li>
+</ul>
+<h3>Using the @ManagedService annotation</h3>
+
+<p>Now that you understand how to build an Atmosphere annotation and how it works under the hood, you can simplify your
+    server side class by using the @ManagedService</p>
+
+<div class="example">
+    <div class="example-left-long">
+        <h4>Listing 7</h4>
+	    <pre class="prettyprint">
+    @ManagedService(path = "/chat",
+                    broadcaster = RedisBroadcaster.class)
+    public class ChatRoom extends OnMessage&lt;String&gt; {
+        </pre>
+    </div>
+</div>
+<p>The @ManagedService aggregates all operations described above.</p>
+
+<h3>Supported Browsers and their associate transports</h3>
+
+<p>
+    Our application will first negotiate the best transport to use between the client and the
+    server. For example, assuming we deploy using Jetty 8, the following transport will be used
+</p>
+<ul>
+    <li>Chrome 21 : WebSockets</li>
+    <li>Internet Explorer 9 : Long-Polling</li>
+    <li>FireFox 15: Server Side Events</li>
+    <li>Safari/iOS 6: WebSockets</li>
+    <li>Internet Explorer 10: WebSockets</li>
+    <li>Android 2.3: Long-Polling</li>
+    <li>FireFox 3.5 : Long-Polling</li>
+</ul>
+<p>
+    All of this transparently, allowing a developer to focus on the application instead of
+    transport/portability issues.</p>
+
+<h3>Conclusions and Considerations</h3>
+
+<p>WebSockets and Server Sides Events are technologies on the rise and their adoption within the
+    enterprise
+    is accelerating. Some things to think about before jumping in:
+</p>
+<ul>
+    <li>Is the API portable, e.g. will it work on all well-known WebServer?</li>
+    <li>Is the framework already offering a transport fallback mechanism? For example, Internet Explorer 7/8/9 neither
+        support WebSockets and Server Side Events, and unfortunately for us, those browsers are still widely used.
+    </li>
+    <li>Is the framework cloud enabled, and more important, will it scale?</li>
+    <li>Is it easy to write application, is the framework well established?</li>
+</ul>
+<p>Clearly, the Atmosphere Framework is the response for those four really important questions.</p>
+
+<h3>Help Making The Atmosphere Framework Better: Donate to keep the project alive!</h3>
+
+<form style="text-align: center;" class="form-all" action="https://www.paypal.com/cgi-bin/webscr" method="post">
+    <input type="hidden" name="cmd" value="_s-xclick">
+    <input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----
+">
+    <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0"
+           name="submit" alt="PayPal - The safer, easier way to pay online!">
+    <img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1"
+         height="1">
+</form>
+</section>
+<footer>
+    <p>©2013. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
+            href="http://twitter.com/asyncio">Twitter</a></p>
+</footer>
+
+<script type="text/javascript">
+    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+    try {
+        var pageTracker = _gat._getTracker("UA-31990725-1");
+        pageTracker._trackPageview();
+    } catch (err) {
+    }
+</script>
+
+</div>
+</div>
+</body>
+</html>
