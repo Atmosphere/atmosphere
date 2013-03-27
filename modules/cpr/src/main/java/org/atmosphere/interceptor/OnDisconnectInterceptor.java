@@ -20,9 +20,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.HeaderConfig;
@@ -56,9 +54,13 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
             if (ss != null) {
                 ss.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
                 try {
-                    ss.getRequest().setAttribute(AtmosphereResourceImpl.PRE_SUSPEND, "");
-                    AtmosphereResourceImpl.class.cast(ss).cancel();
-                } catch (IOException e) {
+                    try {
+                        // https://github.com/Atmosphere/atmosphere/issues/983
+                        ss.getRequest().setAttribute(AtmosphereResourceImpl.PRE_SUSPEND, "");
+                    } finally {
+                        AtmosphereResourceImpl.class.cast(ss).cancel();
+                    }
+                } catch (Throwable e) {
                     logger.trace("", e);
                 }
             }
@@ -71,7 +73,7 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
     public void postInspect(AtmosphereResource r) {
     }
 
-    public String toString(){
+    public String toString() {
         return "Browser disconnection detection";
     }
 }
