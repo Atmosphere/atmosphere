@@ -322,5 +322,13 @@ public interface ApplicationConfig {
      * A list, seperated by comma, of package name to scan when looking for Atmosphere's component
      */
     String ANNOTATION_PACKAGE = "org.atmosphere.cpr.packages";
+    /**
+     * Allow defining the Broadcaster's Suspend Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}
+     */
+    String BROADCASTER_POLICY = Broadcaster.POLICY.class.getName();
+    /**
+     * Allow defining the Broadcaster's Suspend Policy timeout, in millisecond {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}
+     */
+    String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".timeout";
 }
 
