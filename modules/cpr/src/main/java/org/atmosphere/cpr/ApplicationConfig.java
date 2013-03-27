@@ -327,8 +327,8 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_POLICY = Broadcaster.POLICY.class.getName();
     /**
-     * Allow defining the Broadcaster's Suspend Policy timeout, in millisecond {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}
+     * Allow defining the Broadcaster's maximum Suspended Atmosphere Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}
      */
-    String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".timeout";
+    String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".maximumSuspended";
 }
 
