@@ -21,7 +21,6 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
@@ -41,6 +40,8 @@ import java.lang.annotation.Target;
  *     <li>The {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} for pushing messages to suspended connection</li>
  *     <li>The {@link org.atmosphere.client.TrackMessageSizeInterceptor} for making sure messages are delivered entirely</li>
  *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
+ *     <li>The {@link org.atmosphere.interceptor.OnDisconnectInterceptor} for detecting  when the connection get closed by the browser</li>
+ *     <li>The {@link org.atmosphere.interceptor.JavaScriptProtocol} to enable the Atmosphere protocol between the client and Atmosphere</li>
  * </ul>
  *
  * Annotating your {@link org.atmosphere.cpr.AtmosphereHandler} is the same as doing:
