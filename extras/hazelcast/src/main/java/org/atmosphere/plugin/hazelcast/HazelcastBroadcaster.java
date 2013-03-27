@@ -66,6 +66,8 @@ public class HazelcastBroadcaster extends AbstractBroadcasterProxy {
     @Override
     public void destroy() {
         topic.destroy();
+        topic = null;
+        super.destroy();
     }
 
     /**
