@@ -307,7 +307,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         }
-        notifyListeners(new AtmosphereResourceEventImpl(this, true, false));
         listeners.clear();
         return this;
     }
