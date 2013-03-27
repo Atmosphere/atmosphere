@@ -249,6 +249,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Collection<AtmosphereResource> getAtmosphereResources() {
         return Collections.unmodifiableCollection(resources);
     }
@@ -256,6 +257,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setScope(SCOPE scope) {
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "setScope");
@@ -306,6 +308,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public SCOPE getScope() {
         return scope;
     }
@@ -313,6 +316,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public synchronized void setID(String id) {
         if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
@@ -338,6 +342,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getID() {
         return name;
     }
@@ -345,6 +350,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void resumeAll() {
         synchronized (resources) {
             for (AtmosphereResource r : resources) {
@@ -695,6 +701,9 @@ public class DefaultBroadcaster implements Broadcaster {
         return Runtime.getRuntime().availableProcessors();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void finalize() throws Throwable {
         super.finalize();
@@ -1252,6 +1261,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setSuspendPolicy(long maxSuspendResource, POLICY policy) {
         this.maxSuspendResource.set(maxSuspendResource);
@@ -1551,6 +1563,7 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @return the current {@link BroadcasterConfig}
      */
+    @Override
     public BroadcasterConfig getBroadcasterConfig() {
         return bc;
     }
@@ -1558,6 +1571,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public <T> Future<T> delayBroadcast(T o) {
         return delayBroadcast(o, 0, null);
     }
@@ -1565,6 +1579,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public <T> Future<T> delayBroadcast(final T o, long delay, TimeUnit t) {
 
         if (destroyed.get()) {
@@ -1614,6 +1629,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Future<?> scheduleFixedBroadcast(final Object o, long period, TimeUnit t) {
         return scheduleFixedBroadcast(o, 0, period, t);
     }
@@ -1621,6 +1637,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Future<?> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
         if (destroyed.get()) {
