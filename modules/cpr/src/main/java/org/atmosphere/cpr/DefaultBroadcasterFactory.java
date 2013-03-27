@@ -62,9 +62,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY_TIMEOUT;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
@@ -90,6 +90,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
+    protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
+    protected int defaultPolicyInteger = -1;
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
@@ -101,9 +103,19 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private void configure(String broadcasterLifeCyclePolicy) {
 
         int maxIdleTime = 5 * 60 * 1000;
-        String idleTime = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
-        if (idleTime != null) {
-            maxIdleTime = Integer.parseInt(idleTime);
+        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
+        if (s != null) {
+            maxIdleTime = Integer.parseInt(s);
+        }
+
+        s = config.getInitParameter(BROADCASTER_POLICY);
+        if (s != null) {
+            defaultPolicy = s.equalsIgnoreCase(Broadcaster.POLICY.REJECT.name()) ? Broadcaster.POLICY.REJECT : Broadcaster.POLICY.FIFO;
+        }
+
+        s = config.getInitParameter(BROADCASTER_POLICY_TIMEOUT);
+        if (s != null) {
+            defaultPolicyInteger = Integer.valueOf(s);
         }
 
         if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
@@ -156,6 +168,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         try {
             Broadcaster b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
+
+            b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
 
             if (b.getBroadcasterConfig() == null) {
                 b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config, id.toString()));
