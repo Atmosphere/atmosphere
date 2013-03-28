@@ -169,10 +169,6 @@ public interface ApplicationConfig {
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
     /**
-     * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
-     */
-    String STREAMING_PADDING_MODE = ApplicationConfig.class.getPackage().getName() + ".padding";
-    /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} instead among them. Default is false.
      */
     String BROADCASTER_SHARABLE_THREAD_POOLS = ApplicationConfig.class.getPackage().getName() + ".broadcaster.shareableThreadPool";
@@ -284,7 +280,10 @@ public interface ApplicationConfig {
      */
     String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = AtmosphereResourceLifecycleInterceptor.class.getName() + ".method";
     /**
-     * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}
+     * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}s
+     * <p></p>
+     * Default is false
+     * Value: "org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults
      */
     String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disableDefaults";
     /**
