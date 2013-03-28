@@ -276,12 +276,16 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
         if (resource == null) {
             return;
         }
-        String mode = resource.getRequest().getParameter(Constants.CLIENT_SERIALZE_MODE_PARAMETER);
-        SerialMode serialMode;
-        if (mode != null) {
-            serialMode = SerialMode.valueOf(mode);
-        } else {
-            serialMode = SerialMode.RPC;
+
+        SerialMode serialMode = null;
+        if (resource.isAlive()) {
+            String mode = resource.getRequest().getParameter(Constants.CLIENT_SERIALZE_MODE_PARAMETER);
+            if (mode != null)
+                serialMode = SerialMode.valueOf(mode);
+        }
+
+        if (serialMode == null) {
+            serialMode = this.getDefaultSerialMode();
         }
 
         try {
@@ -494,6 +498,16 @@ public class AtmosphereGwtHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public String toString() {
         return "AtmosphereGwtAtmosphereHandler";
+    }
+
+    /**
+     * <p>
+     * Specifies the default {@link SerialMode} for this {@link org.atmosphere.cpr.AtmosphereHandler}.  This value is used if no
+     * serial mode parameter is sent with the suspended request.
+     * @return default {@link SerialMode} if not specified in the suspended request's parameter map
+     */
+    protected SerialMode getDefaultSerialMode() {
+        return SerialMode.RPC;
     }
 
 }
