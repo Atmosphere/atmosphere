@@ -1031,10 +1031,22 @@ public class DefaultBroadcaster implements Broadcaster {
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
             if (cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER)) {
                 LinkedList<Object> filteredMessage = new LinkedList<Object>();
+                Entry entry;
+                Object newMessage;
                 for (Object o : cacheMessages) {
-                    filteredMessage.addLast(perRequestFilter(r, new Entry(o, r, f, o), false));
+                    newMessage = filter(o);
+                    if (newMessage == null) {
+                        continue;
+                    }
+                    newMessage = perRequestFilter(r, new Entry(newMessage, r, f, o), false);
+                    if (newMessage != null) {
+                        filteredMessage.addLast(newMessage);
+                    }
                 }
 
+                if (filteredMessage.size() == 0) {
+                    return false;
+                }
                 e.setMessage(filteredMessage);
             } else {
                 e.setMessage(cacheMessages);
