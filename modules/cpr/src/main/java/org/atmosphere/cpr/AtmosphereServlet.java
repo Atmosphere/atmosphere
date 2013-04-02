@@ -60,7 +60,6 @@ import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.di.ServletContextProvider;
-import org.atmosphere.websocket.WebSocket;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -76,7 +75,6 @@ import java.io.IOException;
 import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * The {@link AtmosphereServlet} acts as a dispatcher for {@link AtmosphereHandler}
