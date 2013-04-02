@@ -15,8 +15,9 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.client.MessageLengthInterceptor;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
@@ -275,14 +276,6 @@ public interface ApplicationConfig {
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
     /**
-     * Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE
-     * {@link org.atmosphere.cpr.AtmosphereResourceImpl#createStreamingPadding(String)} ()}
-     * <p></p>
-     * Default is returned by AtmosphereResourceImpl.createStreamingPadding
-     * Value: "org.atmosphere.cpr.padding"
-     */
-    String STREAMING_PADDING_MODE = ApplicationConfig.class.getPackage().getName() + ".padding";
-    /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} instead among them.
      * <p></p>
      * Default is true.
@@ -444,7 +437,7 @@ public interface ApplicationConfig {
     /**
      * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}
      * <p></p>
-     * Default is {@link AtmosphereFilter.EXCLUDE_FILES}
+     * Default is {@link AtmosphereFilter#EXCLUDE_FILES}
      * Value: "org.atmosphere.cpr.AtmosphereFilter.excludes"
      */
     String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.class.getName() + ".excludes";
@@ -453,9 +446,9 @@ public interface ApplicationConfig {
      * received in one chunk. Default is '|'
      * <p></p>
      * Default is "|"
-     * Value: "org.atmosphere.client.MessageLengthInterceptor.delimiter"
+     * Value: "org.atmosphere.client.TrackMessageSizeInterceptor.delimiter"
      */
-    String MESSAGE_DELIMITER = MessageLengthInterceptor.class.getName() + ".delimiter";
+    String MESSAGE_DELIMITER = TrackMessageSizeInterceptor.class.getName() + ".delimiter";
     /**
      * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
      * is used
@@ -524,12 +517,33 @@ public interface ApplicationConfig {
      */
     String BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR = "org.atmosphere.websocket.backwardCompatible.atmosphereResource";
     /**
-     * A list, seperated by comma, of package name to scan when looking for Atmosphere's component annotated with Atmosphere's annotation.
+     * A list, separated by comma, of package name to scan when looking for Atmosphere's component annotated with Atmosphere's annotation.
      * <p>
      * Default ""
      * Value: "org.atmosphere.cpr.packages"
      */
     String ANNOTATION_PACKAGE = "org.atmosphere.cpr.packages";
+    /**
+     * The annotation processor
+     * <p>
+     * Default "org.atmosphere.cpr.DefaultAnnotationProcessor"
+     * Value: "org.atmosphere.cpr.AnnotationProcessor"
+     */
+    String ANNOTATION_PROCESSOR = AnnotationProcessor.class.getName();
+    /**
+     * Define an implementation of the {@link org.atmosphere.util.EndpointMapper}
+     * <p>
+     * Default "org.atmosphere.cpr.DefaultEndpointMapper"
+     * Value: "org.atmosphere.cpr.EndpointMapper"
+     */
+    String ENDPOINT_MAPPER = EndpointMapper.class.getName();
+    /**
+     * The list of content-type to exclude when delimiting message.
+     * <p>
+     * Default ""
+     * Value: "org.atmosphere.client.TrackMessageSizeInterceptor.excludedContentType"
+     */
+    String EXCLUDED_CONTENT_TYPES = TrackMessageSizeInterceptor.class.getName() + ".excludedContentType";
     /**
      * Allow defining the Broadcaster's Suspend Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}
      * <p>
@@ -543,5 +557,12 @@ public interface ApplicationConfig {
      * Value: "org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended"
      */
     String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".maximumSuspended";
+    /**
+     * Change the default regex used when mapping AtmosphereHandler. Default is {@link AtmosphereFramework#MAPPING_REGEX}
+     * <p>
+     * Default "[a-zA-Z0-9-&.*_=@;\?]+"
+     * Value: "org.atmosphere.client.ApplicationConfig.mappingRegex"
+     */
+    String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
 }
 

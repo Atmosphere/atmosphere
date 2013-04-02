@@ -62,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -318,6 +319,14 @@ public class BroadcasterConfig {
                 logger.trace("Duplicate Filter instance {}", f.getClass());
             }
         }
+    }
+
+    /**
+     * Return the current list of installed {@link BroadcastFilter}
+     * @return the current list of installed {@link BroadcastFilter}
+     */
+    public Collection<BroadcastFilter> filters(){
+        return filters;
     }
 
     public void destroy() {

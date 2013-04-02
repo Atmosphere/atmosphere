@@ -15,6 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -22,14 +23,16 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * An Intewrceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
+ * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
  * and {@link HeaderConfig#X_CACHE_DATE}
  *
  * @author Jeanfrancois Arcand
@@ -37,6 +40,7 @@ import java.io.IOException;
 public class JavaScriptProtocol implements AtmosphereInterceptor {
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
+    private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -53,26 +57,50 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
         String handshakeUUID = r.getRequest().getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
             r.getRequest().header(HeaderConfig.X_ATMO_PROTOCOL, null);
-
             // Since 1.0.10
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                @Override
-                public void onSuspend(AtmosphereResourceEvent event) {
-                    r.getResponse().write(r.uuid() + wsDelimiter + System.currentTimeMillis());
 
-                    if (r.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING ||
-                            r.transport() == AtmosphereResource.TRANSPORT.JSONP) {
-                        r.resume();
-                    } else {
+            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter).append(System.currentTimeMillis());
+
+            // https://github.com/Atmosphere/atmosphere/issues/993
+            boolean track = false;
+            if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
+                for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
+                    if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
+                        track = true;
+                        break;
+                    }
+                }
+            }
+
+            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
+            if (track) {
+                protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
+            }
+
+            if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        r.getResponse().write(protocolMessage.get());
                         try {
                             r.getResponse().flushBuffer();
                         } catch (IOException e) {
                             logger.trace("", e);
                         }
                     }
-                }
-            });
+                });
+            } else {
+                r.getResponse().write(protocolMessage.get());
+            }
 
+            // We don't need to reconnect here
+            if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
+                    || r.transport() == AtmosphereResource.TRANSPORT.STREAMING
+                    || r.transport() == AtmosphereResource.TRANSPORT.SSE) {
+                return Action.CONTINUE;
+            } else {
+                return Action.CANCELLED;
+            }
         }
         return Action.CONTINUE;
     }
