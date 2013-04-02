@@ -314,6 +314,14 @@ public class BroadcasterConfig {
         }
     }
 
+    /**
+     * Return the current list of installed {@link BroadcastFilter}
+     * @return the current list of installed {@link BroadcastFilter}
+     */
+    public ConcurrentLinkedQueue<BroadcastFilter> filters(){
+        return filters;
+    }
+
     public void destroy() {
         destroy(false);
     }
