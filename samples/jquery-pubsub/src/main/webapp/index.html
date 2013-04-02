@@ -36,7 +36,8 @@
             function subscribe() {
                 var request = { url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
                     transport: getElementByIdValue('transport'),
-		    enableProtocol: true,
+		            enableProtocol: true,
+                    trackMessageLength : true,
                     contentType : "text/html;charset=ISO-8859-1"};
 
                 request.onMessage = function (response) {
