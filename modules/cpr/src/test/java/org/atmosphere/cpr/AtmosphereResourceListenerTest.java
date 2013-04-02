@@ -141,7 +141,6 @@ public class AtmosphereResourceListenerTest {
         assertTrue(preSuspended.get());
         assertTrue(suspended.get());
         assertTrue(resumed.get());
-        assertTrue(disconnected.get());
         assertTrue(broadcasted.get());
     }
 }
