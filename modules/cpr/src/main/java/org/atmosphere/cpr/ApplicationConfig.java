@@ -496,7 +496,7 @@ public interface ApplicationConfig {
      * The write operation timeout, in millisecond, when using the {@link DefaultBroadcaster}. When the timeout occurs, the calling threads gets interrupted.
      * <p>
      * Default is 5 * 60 * 1000 (5 minutes)
-     * Value: "org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast"
+     * Value: "org.atmosphere.cpr.Broadcaster.writeTimeout"
      */
     String WRITE_TIMEOUT = Broadcaster.class.getName() + ".writeTimeout";
     /**
