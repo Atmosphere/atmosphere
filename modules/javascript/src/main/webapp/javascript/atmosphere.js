@@ -402,20 +402,21 @@
 					var url = portal.support.getAbsoluteURL(socket.data("url")).replace(/^http/, "ws");
 					
 					socket.data("url", url);
-					
+					var hasBeenOpened = false;
 					ws = new WebSocket(url);
 					if (options.atrequest.webSocketBinaryType) {
 						ws.binaryType = options.atrequest.webSocketBinaryType;
 					}
 					
 					ws.onopen = function(event) {
+						hasBeenOpened = true;
 						socket.data("event", event).fire("open");
 					};
 					ws.onmessage = function(event) {
 						socket.data("event", event)._fire(event.data);
 					};
 					ws.onerror = function(event) {
-						socket.data("event", event).fire("close", aborted ? "aborted" : "error");
+						socket.data("event", event).fire("close", !hasBeenOpened ? "notransport" : aborted ? "aborted" : "error");
 					};
 					ws.onclose = function(event) {
 						socket.data("event", event).fire("close", aborted ? "aborted" : event.wasClean ? "done" : "error");
