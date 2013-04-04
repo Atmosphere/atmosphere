@@ -556,8 +556,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             configureScanningPackage(scFacade);
             installAnnotationProcessor(scFacade);
 
-            configureBroadcasterFactory();
             autoConfigureService(scFacade.getServletContext());
+            configureBroadcasterFactory();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(scFacade);
