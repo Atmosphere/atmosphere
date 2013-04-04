@@ -1260,7 +1260,7 @@ jQuery.atmosphere = function() {
                 var r = false;
                 if (_requestCount++ < _request.maxReconnectOnClose) {
                     r = true;
-                } else if ( _request.maxReconnectOnClose == 0 && _requestCount == 1) {
+                } else if ( _request.maxReconnectOnClose <= 1 && _requestCount == 1) {
                     r  = true;
                 }
 
@@ -1683,7 +1683,15 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-                var reconnect = request.reconnect && _requestCount++ < request.maxReconnectOnClose;
+
+                var r = false;
+                if (_requestCount++ < request.maxReconnectOnClose) {
+                    r = true;
+                } else if ( request.maxReconnectOnClose <=1 && _requestCount == 1) {
+                    r = true;
+                }
+
+                var reconnect = request.reconnect && r;
 
                 if (reconnect && force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
