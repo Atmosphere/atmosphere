@@ -1257,8 +1257,15 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.onTransportFailure(errorMessage, _request);
                 }
 
+                var r = false;
+                if (_requestCount++ < _request.maxReconnectOnClose) {
+                    r = true;
+                } else if ( _request.maxReconnectOnClose == 0 && _requestCount == 1) {
+                    r  = true;
+                }
+
                 _request.transport = _request.fallbackTransport;
-                var reconnect = _request.reconnect && _requestCount++ < _request.maxReconnectOnClose;
+                var reconnect = _request.reconnect && r;
                 if (reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
