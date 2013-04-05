@@ -919,7 +919,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public int getContentLength() {
-        return b.request.getContentLength();
+        if (b.contentLength == null) {
+        	return b.request.getContentLength();
+        } else {
+        	return b.contentLength.intValue();
+        }
     }
 
     public void destroy() {
@@ -965,6 +969,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String encoding = "UTF-8";
         private String methodType;
         private String contentType;
+        private Long contentLength;
         private String data;
         private Map<String, String> headers = Collections.synchronizedMap(new HashMap<String, String>());
         private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
@@ -1099,6 +1104,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public Builder contentType(String contentType) {
             this.contentType = contentType;
             return this;
+        }
+        
+        public Builder contentLength(Long contentLength) {
+        	this.contentLength = contentLength;
+        	return this;
         }
 
         public Builder body(String data) {
