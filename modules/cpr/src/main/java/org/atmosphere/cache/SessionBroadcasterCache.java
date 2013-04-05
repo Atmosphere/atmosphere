@@ -52,7 +52,6 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +59,7 @@ import javax.servlet.http.HttpSession;
 
 /**
  * Simple {@link javax.servlet.http.HttpSession} based {@link org.atmosphere.cpr.BroadcasterCache}
- *
+ * <p/>
  * By default, message will be cached for 5 minutes. You can change the value by calling {@link #setMaxCachedinMs(int)}
  *
  * @author Jeanfrancois Arcand
@@ -78,12 +77,17 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
      */
     public void cache(String id, AtmosphereResource r, CachedMessage cm) {
         if (r != null) {
-            HttpSession session = r.session();
-            if (session == null) {
-                logger.error(ERROR_MESSAGE);
-                return;
+            try {
+                HttpSession session = r.session();
+                if (session == null) {
+                    logger.error(ERROR_MESSAGE);
+                    return;
+                }
+                session.setAttribute(id, cm);
+            } catch (IllegalStateException ex) {
+                logger.trace("", ex);
+                logger.warn("The Session has been invalidated. Message will be loat.");
             }
-            session.setAttribute(id, cm);
         }
     }
 
@@ -91,11 +95,17 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
      * {@inheritDoc}
      */
     public CachedMessage retrieveLastMessage(String id, AtmosphereResource r) {
-        HttpSession session = r.session();
-        if (session == null) {
-            logger.error(ERROR_MESSAGE);
+        try {
+            HttpSession session = r.session();
+            if (session == null) {
+                logger.error(ERROR_MESSAGE);
+                return null;
+            }
+            return (CachedMessage) session.getAttribute(id);
+        } catch (IllegalStateException ex) {
+            logger.trace("", ex);
+            logger.warn("The Session has been invalidated. Unable to retrieve cached messages");
             return null;
         }
-        return (CachedMessage) session.getAttribute(id);
     }
 }
