@@ -19,6 +19,8 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.websocket.Endpoint;
 import javax.websocket.server.ServerApplicationConfig;
@@ -28,13 +30,17 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(JSR356ServerApplicationConfig.class);
+
     @Override
     public Set<ServerEndpointConfig> getEndpointConfigs(Set<Class<? extends Endpoint>> endpointClasses) {
+        logger.debug("{} detected by the WebServer", JSR356ServerApplicationConfig.class.getName());
         return new HashSet<ServerEndpointConfig>() {{
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/*").configurator(new ServerEndpointConfig.Configurator() {
+            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "{path}").configurator(new ServerEndpointConfig.Configurator() {
                 public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
                     if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
-                        AtmosphereConfig config = BroadcasterFactory.getDefault().get("/*").getBroadcasterConfig().getAtmosphereConfig();
+                        AtmosphereConfig config = BroadcasterFactory.getDefault().lookup("/*", true).getBroadcasterConfig().getAtmosphereConfig();
                         AtmosphereFramework f = config.framework();
                         return (T) new JSR356Endpoint(f, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(f));
                     } else {

@@ -65,7 +65,7 @@ public class JSR356Endpoint extends Endpoint {
 
         try {
             request = new AtmosphereRequest.Builder()
-                    .requestURI(session.getRequestURI().toURL().toExternalForm())
+                    .requestURI(session.getRequestURI().toString())
                     .queryString(session.getQueryString())
                     .build();
 
