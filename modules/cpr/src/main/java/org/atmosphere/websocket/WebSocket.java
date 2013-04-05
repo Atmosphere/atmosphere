@@ -16,23 +16,17 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ByteArrayAsyncWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -74,6 +68,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         this.webSocketHandler = webSocketHandler;
         return this;
     }
+
 
     protected WebSocketHandler webSocketHandler() {
         return webSocketHandler;

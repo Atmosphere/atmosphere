@@ -26,10 +26,12 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,6 +74,11 @@ public class JSR356Endpoint extends Endpoint {
         headers.put("Connection", "Upgrade");
         headers.put("Upgrade", "websocket");
 
+        StringBuffer pathInfo = new StringBuffer();
+        for (Map.Entry<String,String> e : session.getPathParameters().entrySet()) {
+
+        }
+
         try {
             request = new AtmosphereRequest.Builder()
                     .requestURI(session.getRequestURI().toString())
@@ -83,7 +90,13 @@ public class JSR356Endpoint extends Endpoint {
 
             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Throwable e) {
-            logger.trace("", e);
+            try {
+                session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
+            } catch (IOException e1) {
+                logger.trace("", e);
+            }
+            logger.error("", e);
+            return;
         }
 
         session.addMessageHandler(new MessageHandler.Whole<String>() {
