@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -80,12 +81,18 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
         if (r == null) return;
 
-        HttpSession session = r.session();
-        if (session == null) {
-            logger.error(ERROR_MESSAGE);
-            return;
+        try {
+            HttpSession session = r.session();
+            if (session == null) {
+                logger.error(ERROR_MESSAGE);
+                return;
+            }
+
+            session.setAttribute(broadcasterId, String.valueOf(now));
+        } catch (IllegalStateException ex) {
+            logger.trace("",ex);
+            logger.warn("The Session has been invalidated. Message will be loat.");
         }
-        session.setAttribute(broadcasterId, String.valueOf(now));
     }
 
     @Override
@@ -95,17 +102,23 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         }
 
         List<Object> result = new ArrayList<Object>();
-        HttpSession session = r.session();
-        if (session == null) {
-            logger.error(ERROR_MESSAGE);
-            return result;
-        }
-        
-        String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
-        if (cacheHeaderTimeStr == null) return result;
-        Long cacheHeaderTime = Long.valueOf(cacheHeaderTimeStr);
-        if (cacheHeaderTime == null) return result;
+        try {
+            HttpSession session = r.session();
+            if (session == null) {
+                logger.error(ERROR_MESSAGE);
+                return result;
+            }
 
-        return get(cacheHeaderTime);
+            String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
+            if (cacheHeaderTimeStr == null) return result;
+            Long cacheHeaderTime = Long.valueOf(cacheHeaderTimeStr);
+            if (cacheHeaderTime == null) return result;
+
+            return get(cacheHeaderTime);
+        } catch (IllegalStateException ex) {
+            logger.trace("",ex);
+            logger.warn("The Session has been invalidated. Unable to retrieve cached messages");
+            return Collections.emptyList();
+        }
     }
 }
